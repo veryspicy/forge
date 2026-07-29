@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+
+# Logs & errors
+*.log
+*.err
+
+# Tests
+tests/
+conftest.py
+
+# Dev scripts & docs
+run.py
+seed_full.py
+seed_simple.py
+*.md
+CACHEDIR.TAG
+
+# Env files
+.env
+.env.example
+
+# IDE
+.vscode/
+.idea/
+
+# Git
+.git/
+.gitignore
+
+# Other
+v/
+unit/

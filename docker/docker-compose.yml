@@ -1,0 +1,237 @@
+﻿# Forge — Docker Compose 本地开发环境
+# 启动: docker compose up -d
+
+version: "3.9"
+
+networks:
+  forge:
+    driver: bridge
+
+x-common-vars: &common-vars
+  DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/forge
+  REDIS_URL: redis://redis:6379/0
+  MINIO_ENDPOINT: minio:9000
+  MINIO_ACCESS_KEY: minioadmin
+  MINIO_SECRET_KEY: minioadmin
+  ROCKETMQ_PROXY: http://rocketmq-proxy:8081
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-sk-placeholder}
+  JWT_SECRET_KEY: dev-secret-key-change-in-production
+  REGION: na
+  DEFAULT_CURRENCY: USD
+  DEBUG: "true"
+
+services:
+  # ===== 数据库 =====
+  postgres:
+    image: postgres:16
+    container_name: forge-postgres
+    restart: unless-stopped
+    networks:
+      - forge
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: forge
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    command: >
+      postgres
+      -c max_connections=200
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===== 缓存 =====
+  redis:
+    image: redis:7-alpine
+    container_name: forge-redis
+    restart: unless-stopped
+    networks:
+      - forge
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --requirepass redispass --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redispass", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===== 对象存储 =====
+  minio:
+    image: minio/minio:latest
+    container_name: forge-minio
+    restart: unless-stopped
+    networks:
+      - forge
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio-data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===== 消息队列 =====
+  rocketmq-namesrv:
+    image: apache/rocketmq:5.3.1
+    container_name: forge-namesrv
+    restart: unless-stopped
+    networks:
+      - forge
+    ports:
+      - "9876:9876"
+    command: sh mqnamesrv
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/9876'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rocketmq-broker:
+    image: apache/rocketmq:5.3.1
+    container_name: forge-broker
+    restart: unless-stopped
+    networks:
+      - forge
+    ports:
+      - "10911:10911"
+      - "10912:10912"
+    environment:
+      NAMESRV_ADDR: "rocketmq-namesrv:9876"
+    command: sh mqbroker --enable-proxy
+    depends_on:
+      - rocketmq-namesrv
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/10911'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===== 后端服务 =====
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    image: forge-backend:latest
+    container_name: forge-backend
+    restart: unless-stopped
+    networks:
+      - forge
+    ports:
+      - "8000:8000"
+    environment:
+      <<: *common-vars
+      TZ: Asia/Shanghai
+    volumes:
+      - ../backend/src:/app/src  # 热重载
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rocketmq-broker:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ===== AI 服务 =====
+  ai-service:
+    build:
+      context: ../ai-service
+      dockerfile: Dockerfile
+    container_name: forge-ai
+    restart: unless-stopped
+    networks:
+      - forge
+    ports:
+      - "8001:8001"
+    environment:
+      <<: *common-vars
+      AI_OPENAI_API_KEY: ${OPENAI_API_KEY:-sk-placeholder}
+      AI_POSTGRES_URL: postgresql://postgres:postgres@postgres:5432/forge
+    volumes:
+      - ../ai-service/src:/app/src
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ===== 前端 =====
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        NUXT_PUBLIC_API_BASE: /api/v1
+        NUXT_PUBLIC_AI_CHAT_BASE: http://localhost:8001
+        NUXT_PUBLIC_REGION: na
+        NUXT_PUBLIC_DEFAULT_CURRENCY: USD
+    container_name: forge-frontend
+    restart: unless-stopped
+    networks:
+      - forge
+    ports:
+      - "3000:3000"
+    environment:
+      NUXT_PUBLIC_API_BASE: /api/v1
+      NUXT_PUBLIC_AI_CHAT_BASE: http://localhost:8001
+      NUXT_PUBLIC_REGION: na
+      NUXT_PUBLIC_DEFAULT_CURRENCY: USD
+      API_PROXY_TARGET: http://backend:8000
+    volumes:
+      - ../frontend/app:/app/app  # 热重载
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  # ===== 后台管理前端 (Admin) =====
+  admin:
+    build:
+      context: ../admin
+      dockerfile: Dockerfile
+    container_name: forge-admin
+    restart: unless-stopped
+    networks:
+      - forge
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  # ===== 初始化 Admin 用户（一次性） =====
+  init-admin:
+    image: forge-backend:latest
+    container_name: forge-init-admin
+    networks:
+      - forge
+    environment:
+      <<: *common-vars
+      PYTHONPATH: /app
+    command: python /app/seed_admin.py
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:

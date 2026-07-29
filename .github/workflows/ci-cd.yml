@@ -1,0 +1,142 @@
+﻿name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  HARBOR_SERVER: harbor.forge.com
+  HARBOR_PROJECT: forge
+  REGISTRY_USERNAME: ${{ secrets.HARBOR_USER }}
+  REGISTRY_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      
+      - name: Install uv
+        run: pip install uv
+      
+      - name: Install dependencies
+        run: |
+          cd backend
+          uv sync --frozen
+      
+      - name: Run linter
+        run: |
+          cd backend
+          uv run ruff check src/
+      
+      - name: Run type check
+        run: |
+          cd backend
+          uv run mypy src/
+      
+      - name: Run tests
+        run: |
+          cd backend
+          uv run pytest tests/ -v --cov=src/forge --cov-report=xml
+      
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./backend/coverage.xml
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install dependencies
+        run: cd frontend && npm ci
+      
+      - name: Run linter
+        run: cd frontend && npm run lint
+      
+      - name: Type check
+        run: cd frontend && npm run typecheck
+      
+      - name: Build
+        run: cd frontend && npm run build
+
+  build-images:
+    needs: [test-backend, test-frontend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Login to Harbor
+        run: echo "${{ secrets.HARBOR_PASSWORD }}" | docker login ${{ env.HARBOR_SERVER }} -u ${{ env.REGISTRY_USERNAME }} --password-stdin
+      
+      - name: Build Backend
+        run: |
+          docker build -t ${{ env.HARBOR_SERVER }}/${{ env.HARBOR_PROJECT }}/backend:${{ github.sha }} backend/
+          docker push ${{ env.HARBOR_SERVER }}/${{ env.HARBOR_PROJECT }}/backend:${{ github.sha }}
+      
+      - name: Build Frontend
+        run: |
+          docker build -t ${{ env.HARBOR_SERVER }}/${{ env.HARBOR_PROJECT }}/frontend:${{ github.sha }} frontend/
+          docker push ${{ env.HARBOR_SERVER }}/${{ env.HARBOR_PROJECT }}/frontend:${{ github.sha }}
+      
+      - name: Build AI Service
+        run: |
+          docker build -t ${{ env.HARBOR_SERVER }}/${{ env.HARBOR_PROJECT }}/ai-service:${{ github.sha }} ai-service/
+          docker push ${{ env.HARBOR_SERVER }}/${{ env.HARBOR_PROJECT }}/ai-service:${{ github.sha }}
+
+  deploy-na:
+    needs: build-images
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Deploy to US-West K3s
+        run: |
+          # 配置 kubectl
+          scp -o StrictHostKeyChecking=no ${{ secrets.K3S_NA_CONFIG }} ~/.kube/config
+          
+          # 更新镜像
+          IMAGE_TAG=${{ github.sha }}
+          kubectl set image deployment/frontend frontend=${{ env.HARBOR_SERVER }}/${{ env.HARBOR_PROJECT }}/frontend:$IMAGE_TAG -n forge-public
+          kubectl set image deployment/backend backend=${{ env.HARBOR_SERVER }}/${{ env.HARBOR_PROJECT }}/backend:$IMAGE_TAG -n forge-public
+          kubectl set image deployment/ai-service ai-service=${{ env.HARBOR_SERVER }}/${{ env.HARBOR_PROJECT }}/ai-service:$IMAGE_TAG -n forge-public
+          
+          # 等待部署完成
+          kubectl rollout status deployment/frontend -n forge-public --timeout=300s
+          kubectl rollout status deployment/backend -n forge-public --timeout=300s
+          kubectl rollout status deployment/ai-service -n forge-public --timeout=300s
+
+  deploy-eu:
+    needs: build-images
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Deploy to EU-West K3s
+        run: |
+          scp -o StrictHostKeyChecking=no ${{ secrets.K3S_EU_CONFIG }} ~/.kube/config
+          
+          IMAGE_TAG=${{ github.sha }}
+          kubectl --context=k3s-eu set image deployment/frontend frontend=${{ env.HARBOR_SERVER }}/${{ env.HARBOR_PROJECT }}/frontend:$IMAGE_TAG -n forge-public
+          kubectl --context=k3s-eu set image deployment/backend backend=${{ env.HARBOR_SERVER }}/${{ env.HARBOR_PROJECT }}/backend:$IMAGE_TAG -n forge-public
+          
+          kubectl --context=k3s-eu rollout status deployment/frontend -n forge-public --timeout=300s
+          kubectl --context=k3s-eu rollout status deployment/backend -n forge-public --timeout=300s

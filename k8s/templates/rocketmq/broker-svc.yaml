@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "forge.fullname" . }}-rocketmq-broker
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "forge.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rocketmq-broker
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "forge.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: rocketmq-broker
+  ports:
+    - name: remoting
+      port: {{ .Values.rocketmq.broker.service.remotingPort }}
+      targetPort: 10911
+      protocol: TCP
+    - name: grpc
+      port: {{ .Values.rocketmq.broker.service.grpcPort }}
+      targetPort: 10912
+      protocol: TCP
+    - name: proxy
+      port: {{ .Values.rocketmq.broker.service.proxyPort }}
+      targetPort: 8081
+      protocol: TCP

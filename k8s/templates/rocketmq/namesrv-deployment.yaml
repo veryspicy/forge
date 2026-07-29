@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "forge.fullname" . }}-rocketmq-namesrv
+  labels:
+    {{- include "forge.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rocketmq-namesrv
+spec:
+  replicas: {{ .Values.rocketmq.namesrv.replicas }}
+  selector:
+    matchLabels:
+      {{- include "forge.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: rocketmq-namesrv
+  template:
+    metadata:
+      labels:
+        {{- include "forge.labels" . | nindent 8 }}
+        app.kubernetes.io/component: rocketmq-namesrv
+    spec:
+      containers:
+        - name: namesrv
+          image: {{ .Values.rocketmq.namesrv.image.repository }}:{{ .Values.rocketmq.namesrv.image.tag }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          command:
+            - sh
+            - mqnamesrv
+          ports:
+            - name: namesrv
+              containerPort: 9876
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.rocketmq.namesrv.resources | nindent 12 }}
+          readinessProbe:
+            tcpSocket:
+              port: 9876
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 9876
+            initialDelaySeconds: 30
+            periodSeconds: 10
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    {{- include "forge.selectorLabels" . | nindent 20 }}
+                    app.kubernetes.io/component: rocketmq-namesrv
+                topologyKey: kubernetes.io/hostname

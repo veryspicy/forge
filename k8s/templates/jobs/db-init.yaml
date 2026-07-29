@@ -1,0 +1,36 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "forge.fullname" . }}-db-init
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "forge.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "-10"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  template:
+    metadata:
+      labels:
+        {{- include "forge.labels" . | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: db-init
+          image: {{ .Values.images.postgres }}
+          command: ["psql", "-U", "postgres", "-d", "forge", "-f", "/init/01-init.sql"]
+          env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "forge.fullname" . }}-postgres
+                  key: POSTGRES_PASSWORD
+          volumeMounts:
+            - name: init-scripts
+              mountPath: /init
+              readOnly: true
+      volumes:
+        - name: init-scripts
+          configMap:
+            name: postgres-init-configmap

@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "forge.fullname" . }}-rocketmq-namesrv
+  labels:
+    {{- include "forge.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rocketmq-namesrv
+spec:
+  type: ClusterIP
+  ports:
+    - name: namesrv
+      port: {{ .Values.rocketmq.namesrv.service.port }}
+      targetPort: namesrv
+      protocol: TCP
+  selector:
+    {{- include "forge.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: rocketmq-namesrv

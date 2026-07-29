@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "forge.fullname" . }}-ai-service
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "forge.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ai-service
+spec:
+  replicas: {{ .Values.aiService.replicas }}
+  selector:
+    matchLabels:
+      {{- include "forge.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: ai-service
+  template:
+    metadata:
+      labels:
+        {{- include "forge.labels" . | nindent 8 }}
+        app.kubernetes.io/component: ai-service
+    spec:
+      containers:
+        - name: ai-service
+          image: {{ .Values.aiService.image.repository }}:{{ .Values.aiService.image.tag }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8001
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "forge.fullname" . }}-app
+            - secretRef:
+                name: {{ include "forge.fullname" . }}-app
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.aiService.resources | nindent 12 }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/component
+                      operator: In
+                      values:
+                        - ai-service
+                topologyKey: kubernetes.io/hostname

@@ -1,0 +1,28 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "forge.fullname" . }}-db-migrate
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "forge.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-upgrade,pre-install
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  template:
+    metadata:
+      labels:
+        {{- include "forge.labels" . | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: db-migrate
+          image: {{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          command: ["alembic", "upgrade", "head"]
+          envFrom:
+            - configMapRef:
+                name: {{ include "forge.fullname" . }}-app
+            - secretRef:
+                name: {{ include "forge.fullname" . }}-app

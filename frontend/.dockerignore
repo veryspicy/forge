@@ -1,0 +1,38 @@
+# Dependencies (installed by pnpm in Docker)
+node_modules/
+
+# Build output
+.nuxt/
+dist/
+.nuxtrc
+
+# Logs
+*.log
+*.err
+
+# Tests
+tests/
+vitest.config.ts
+pnpm-test.mjs
+test-resolve.mjs
+test-resolve2.mjs
+
+# Temp files
+temp_*
+dev/
+manifest/
+schema/
+
+# Docs & misc
+*.md
+test.txt
+images/
+start-dev.bat
+
+# IDE
+.vscode/
+.idea/
+
+# Git
+.git/
+.gitignore

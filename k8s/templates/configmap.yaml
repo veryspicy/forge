@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "forge.fullname" . }}-app
+  namespace: {{ .Values.global.namespace }}
+data:
+  REGION: {{ .Values.global.region | quote }}
+  DEFAULT_CURRENCY: {{ .Values.global.defaultCurrency | quote }}
+  DEBUG: {{ .Values.global.debug | quote }}
+  SQL_ECHO: {{ .Values.backend.env.sqlEcho | quote }}
+  DB_POOL_SIZE: {{ .Values.backend.env.dbPoolSize | quote }}
+  DB_MAX_OVERFLOW: {{ .Values.backend.env.dbMaxOverflow | quote }}
+  ROCKETMQ_PROXY: http://rocketmq-broker:8081
+  MINIO_ENDPOINT: minio:9000

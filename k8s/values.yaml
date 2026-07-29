@@ -1,0 +1,236 @@
+global:
+  namespace: forge
+  imageRegistry: harbor.example.com/forge
+  imagePullPolicy: IfNotPresent
+  region: na
+  defaultCurrency: USD
+  debug: "true"
+
+# 镜像配置
+images:
+  postgres: pgvector/pgvector:pg16
+  redis: redis:7-alpine
+  minio: minio/minio:latest
+  rocketmq: apache/rocketmq:5.3.1
+
+# PostgreSQL
+postgres:
+  enabled: true
+  replicas: 1
+  image:
+    repository: pgvector/pgvector
+    tag: pg16
+  auth:
+    username: postgres
+    password: postgres
+    database: forge
+  service:
+    port: 5432
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+# Redis
+redis:
+  enabled: true
+  image:
+    repository: redis
+    tag: 7-alpine
+  auth:
+    password: redispass
+  service:
+    port: 6379
+  maxmemory: 256mb
+  maxmemoryPolicy: allkeys-lru
+  persistence:
+    enabled: true
+    size: 5Gi
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# MinIO
+minio:
+  enabled: true
+  image:
+    repository: minio/minio
+    tag: latest
+  auth:
+    rootUser: minioadmin
+    rootPassword: minioadmin
+  service:
+    apiPort: 9000
+    consolePort: 9001
+  persistence:
+    enabled: true
+    size: 20Gi
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+# RocketMQ
+rocketmq:
+  enabled: true
+  namesrv:
+    replicas: 1
+    image:
+      repository: apache/rocketmq
+      tag: 5.3.1
+    service:
+      port: 9876
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+  broker:
+    replicas: 1
+    image:
+      repository: apache/rocketmq
+      tag: 5.3.1
+    service:
+      remotingPort: 10911
+      grpcPort: 10912
+      proxyPort: 8081
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 2000m
+        memory: 2Gi
+
+# Backend
+backend:
+  enabled: true
+  replicas: 2
+  image:
+    repository: harbor.example.com/forge/backend
+    tag: v0.1.0
+  service:
+    port: 8000
+  env:
+    openaiApiKey: sk-placeholder
+    jwtSecretKey: dev-secret-key-change-in-production
+    sqlEcho: "false"
+    dbPoolSize: "10"
+    dbMaxOverflow: "20"
+  healthcheck:
+    path: /health
+    port: 8000
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilization: 70
+
+# AI Service
+aiService:
+  enabled: true
+  replicas: 2
+  image:
+    repository: harbor.example.com/forge/ai-service
+    tag: v0.1.0
+  service:
+    port: 8001
+  env:
+    openaiApiKey: sk-placeholder
+  healthcheck:
+    path: /health
+    port: 8001
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilization: 70
+
+# Frontend
+frontend:
+  enabled: true
+  replicas: 2
+  image:
+    repository: harbor.example.com/forge/frontend
+    tag: v0.1.0
+  service:
+    port: 3000
+  env:
+    apiBase: http://backend:8000/api/v1
+    aiChatBase: http://ai-service:8001
+  healthcheck:
+    path: /
+    port: 3000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilization: 70
+
+# Ingress
+ingress:
+  enabled: true
+  className: traefik
+  hosts:
+    - host: forge.local
+      paths:
+        - path: /
+          pathType: Prefix
+          service: frontend
+        - path: /api
+          pathType: Prefix
+          service: backend
+        - path: /ai
+          pathType: Prefix
+          service: ai-service
+  tls: []
+
+# Network Policy
+networkPolicy:
+  enabled: true
+  allowExternalIngress: true
+
+# Monitoring
+monitoring:
+  enabled: false
+  serviceMonitor:
+    enabled: false
