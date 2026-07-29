@@ -2,12 +2,14 @@
 AIGC:
     Label: "1"
     ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_8aab4f8f8b4011f1857f525400826444
-    ReservedCode1: jUgjHIJpRcV59mV7Ig8NbLS5JtKUumP/ZpmEt6Ys8nO8m3fJ4qu673+CZmNKxOsPBNAqmwiOWJSgaTGLM6ZLIWI4zfoH292XYoKkcTvU3pxHGqMMGRGlBfoqJSx/wkrX6+jnZDrwyKlpobycYl7RreI7LoK/B+GKyf2sHSHmpuoGuUSuvD2knZKLLV8=
+    ProduceID: 14f48488fead00d28e11c31f9845685c_2a99d38e8b4811f184f2525400e6dd8f
+    ReservedCode1: uTIOpBGZIse7nAzihw29nyAAVp/JkHo5B0k3gN2e9OlIGMnAPq0mhH84m2iwE+9PuqAyqeRAF+l0uLdsDwOdx9SlNePIE4IWk2IRpP0DtC+gXPiO9jBksc2owfayBctkLsdn6QXJcs9q+KwXEaslTsTWhDExM7AoLaPjAmYxAjc6og5yz1cdfWWJWHI=
     ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_8aab4f8f8b4011f1857f525400826444
-    ReservedCode2: jUgjHIJpRcV59mV7Ig8NbLS5JtKUumP/ZpmEt6Ys8nO8m3fJ4qu673+CZmNKxOsPBNAqmwiOWJSgaTGLM6ZLIWI4zfoH292XYoKkcTvU3pxHGqMMGRGlBfoqJSx/wkrX6+jnZDrwyKlpobycYl7RreI7LoK/B+GKyf2sHSHmpuoGuUSuvD2knZKLLV8=
+    PropagateID: 14f48488fead00d28e11c31f9845685c_2a99d38e8b4811f184f2525400e6dd8f
+    ReservedCode2: uTIOpBGZIse7nAzihw29nyAAVp/JkHo5B0k3gN2e9OlIGMnAPq0mhH84m2iwE+9PuqAyqeRAF+l0uLdsDwOdx9SlNePIE4IWk2IRpP0DtC+gXPiO9jBksc2owfayBctkLsdn6QXJcs9q+KwXEaslTsTWhDExM7AoLaPjAmYxAjc6og5yz1cdfWWJWHI=
 ---
+
+
 
 # Forge DIY 页面装修 — CodeBuddy 开发提示词
 
@@ -692,4 +694,5 @@ useHead({
 - [ ] 设为首页功能完整：列表中可设置，default API 返回正确的 is_default 页面
 - [ ] 权限：非 settings:manage 角色无法访问 `/api/admin/v1/diy/*`
 - [ ] 所有 15 个组件在编辑器中可拖拽、编辑、删除，在 C 端完整渲染
+*（内容由AI生成，仅供参考）*
 *（内容由AI生成，仅供参考）*

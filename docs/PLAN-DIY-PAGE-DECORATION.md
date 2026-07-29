@@ -2,12 +2,14 @@
 AIGC:
     Label: "1"
     ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_1c34e7e08b4011f1857f525400826444
-    ReservedCode1: IhlCpaLAHYr/nOrmSrsLhRZT/tAP37ErPDLLm1Rsj3q8WmBtT+0goldsoZ8sHmDfAM23pG8Y9gIzBulLJZ15Xnqd2AoFG5nS3KJmVI0Ntwr6rntRcRe+U0AFRQ48UIlB9dxKw4KAMe111JbCtgwpdqxmmX/gJP4XvPh4KxxCrzQ0QqHGB3TzBZfmn1A=
+    ProduceID: 14f48488fead00d28e11c31f9845685c_29ab48288b4811f1a642525400287e28
+    ReservedCode1: ERvN4i1xtfyd1KEKZXBrYY7ITxB52HdHvYEemUqWl5q7so7/xijEEP6ATqQeuFclxf+Hx/rMdgg5z+0cySAiL9BQepMw1CMrrnazPkpabhUw7NyBVWQDjbCTMJvlbMOSHaWLZ2eimtUugTbvBuBxpRjqXIsAkTKCi2m/eaXq9LqXDXUuSLszo2+uWFw=
     ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_1c34e7e08b4011f1857f525400826444
-    ReservedCode2: IhlCpaLAHYr/nOrmSrsLhRZT/tAP37ErPDLLm1Rsj3q8WmBtT+0goldsoZ8sHmDfAM23pG8Y9gIzBulLJZ15Xnqd2AoFG5nS3KJmVI0Ntwr6rntRcRe+U0AFRQ48UIlB9dxKw4KAMe111JbCtgwpdqxmmX/gJP4XvPh4KxxCrzQ0QqHGB3TzBZfmn1A=
+    PropagateID: 14f48488fead00d28e11c31f9845685c_29ab48288b4811f1a642525400287e28
+    ReservedCode2: ERvN4i1xtfyd1KEKZXBrYY7ITxB52HdHvYEemUqWl5q7so7/xijEEP6ATqQeuFclxf+Hx/rMdgg5z+0cySAiL9BQepMw1CMrrnazPkpabhUw7NyBVWQDjbCTMJvlbMOSHaWLZ2eimtUugTbvBuBxpRjqXIsAkTKCi2m/eaXq9LqXDXUuSLszo2+uWFw=
 ---
+
+
 
 
 
@@ -1076,5 +1078,6 @@ site_profiles.config (JSONB)
 | **首页降级策略** | DIY 首页不存在时回退到硬编码首页，零风险上线 |
 | **整页保存而非逐组件保存** | 减少请求次数，保证组件顺序的原子性 |
 | **数据内联而非 Nuxt 端二次请求** | 减少前端请求数，支持整页 CDN 缓存 |
+*（内容由AI生成，仅供参考）*
 *（内容由AI生成，仅供参考）*
 *（内容由AI生成，仅供参考）*
