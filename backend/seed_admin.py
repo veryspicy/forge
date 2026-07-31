@@ -1,12 +1,13 @@
-"""Seed RBAC data into the database.
+"""Seed RBAC + Site Profile data into the database.
 
 Creates:
 - 1 super admin user (admin@forge.dev / admin123)
 - 4 roles (super_admin, admin, operator, support)
-- 12 permissions (products:manage, orders:manage, etc.)
+- 15 permissions
 - Role-permission mappings
 - Admin-role mapping for super_admin
 - Casbin policies synced from role-permission mappings
+- 1 default Site Profile (activated)
 
 Usage: python seed_admin.py
   (run inside the backend container after init_db creates tables)
@@ -29,9 +30,12 @@ from forge.infrastructure.persistence.models import (
     ORMRole,
     ORMPermission,
     ORMRolePermission,
+    ORMSiteProfile,
 )
 from forge.infrastructure.casbin_enforcer import create_enforcer, sync_role_permissions_to_casbin
 
+
+import json
 
 # ============================================================
 # Config
@@ -75,6 +79,83 @@ ROLES: list[tuple[str, str, str, bool]] = [
     ("support", "客服", "订单/仪表盘 + AI 探针", True),
 ]
 
+DEFAULT_SITE_CONFIG = {
+    "brand": {
+        "name": "Forge",
+        "tagline": "Smart Shopping for Your Pet",
+        "logo": {"type": "svg", "data": ""},
+    },
+    "theme": {
+        "primaryColor": "#4f46e5",
+        "primaryLight": "#818cf8",
+        "primaryDark": "#3730a3",
+        "secondaryColor": "#ec4899",
+        "accentColor": "#f97316",
+        "fontHeading": "Inter",
+        "fontBody": "Inter",
+    },
+    "navigation": [
+        {"key": "products", "to": "/products", "labelKey": "nav.products", "visible": True},
+        {"key": "pets", "to": "/pets", "labelKey": "nav.myPets", "visible": True},
+        {"key": "orders", "to": "/orders", "labelKey": "nav.orders", "visible": True},
+        {"key": "chat", "to": "/chat", "labelKey": "nav.aiChat", "visible": True},
+    ],
+    "sections": [
+        {
+            "type": "hero",
+            "visible": True,
+            "config": {
+                "titleKey": "home.heroTitle",
+                "descKey": "home.heroDesc",
+                "primaryButton": {"labelKey": "home.shopNow", "to": "/products"},
+                "secondaryButton": {"labelKey": "home.addPet", "to": "/pets"},
+            },
+        },
+        {"type": "tailored_pets", "visible": True, "config": {}},
+        {"type": "categories", "visible": True, "config": {}},
+        {"type": "featured_products", "visible": True, "config": {}},
+        {
+            "type": "ai_teaser",
+            "visible": True,
+            "config": {
+                "titleKey": "home.aiTeaser",
+                "descKey": "home.aiTeaserDesc",
+                "button": {"labelKey": "home.startChat", "to": "/chat"},
+            },
+        },
+    ],
+    "categories": [
+        {"slug": "food", "nameKey": "categories.food", "icon": "🍖"},
+        {"slug": "toys", "nameKey": "categories.toys", "icon": "🎾"},
+        {"slug": "health", "nameKey": "categories.health", "icon": "💊"},
+        {"slug": "accessories", "nameKey": "categories.accessories", "icon": "🎀"},
+        {"slug": "grooming", "nameKey": "categories.grooming", "icon": "✂️"},
+        {"slug": "training", "nameKey": "categories.training", "icon": "🦮"},
+        {"slug": "furniture", "nameKey": "categories.furniture", "icon": "🛏️"},
+        {"slug": "litter", "nameKey": "categories.litter", "icon": "🧹"},
+    ],
+    "footer": {
+        "columns": ["shop", "support", "about", "legal"],
+        "newsletter": True,
+    },
+    "seo": {
+        "titleTemplate": "%s | Forge Pet Supplies",
+        "description": "AI-Powered Pet Supplies Store — personalized recommendations for food, toys, accessories.",
+    },
+    "i18n": {
+        "defaultLocale": "en",
+        "locales": ["en", "zh", "ar", "de", "fr"],
+    },
+    "feature_flags": {
+        "show_pets_page": True,
+        "show_ai_chat": True,
+        "show_blog": False,
+        "cookie_prefix": "forge_pet",
+    },
+    "currencies": ["USD", "EUR", "GBP", "CNY"],
+    "regions": ["na", "eu"],
+}
+
 ROLE_PERMISSIONS_MAP: dict[str, list[str]] = {
     "super_admin": [
         "products:view", "products:create", "products:edit",
@@ -115,6 +196,7 @@ async def seed():
         await _upsert_roles(session)
         await _upsert_role_permissions(session)
         await _upsert_super_admin(session)
+        await _upsert_site_profile(session)
         await session.commit()
 
         print("[seed] Syncing Casbin policies ...")
@@ -211,6 +293,23 @@ async def _upsert_super_admin(session):
         await session.flush()
         print(f"[seed] Assigned role 'super_admin' to {ADMIN_EMAIL}")
     return user
+
+
+async def _upsert_site_profile(session):
+    """Create default SiteProfile if none exists."""
+    r = await session.execute(select(ORMSiteProfile).limit(1))
+    if r.scalar_one_or_none() is not None:
+        print("[seed] SiteProfile already exists, skipping.")
+        return
+
+    profile = ORMSiteProfile(
+        name="Default",
+        config=DEFAULT_SITE_CONFIG,
+        is_active=True,
+    )
+    session.add(profile)
+    await session.flush()
+    print("[seed] Default SiteProfile created.")
 
 
 if __name__ == "__main__":

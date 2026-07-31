@@ -28,7 +28,7 @@
           </defs>
         </svg>
         <span class="text-xl font-heading font-semibold gradient-brand bg-clip-text text-transparent">
-          Forge
+          {{ brandName }}
         </span>
       </NuxtLink>
 
@@ -74,10 +74,7 @@
           class="hidden sm:block text-xs bg-transparent border border-neutral-200 rounded-md px-2 py-1.5 text-neutral-600 focus:outline-none focus:border-primary-400 cursor-pointer"
           @change="onCurrencyChange"
         >
-          <option value="USD">USD</option>
-          <option value="EUR">EUR</option>
-          <option value="GBP">GBP</option>
-          <option value="CNY">CNY</option>
+          <option v-for="cur in availableCurrencies" :key="cur" :value="cur">{{ cur }}</option>
         </select>
 
         <!-- Cart -->
@@ -260,10 +257,7 @@
               class="text-sm bg-transparent border border-neutral-200 rounded-md px-3 py-2 text-neutral-600 focus:outline-none focus:border-primary-400"
               @change="onCurrencyChange"
             >
-              <option value="USD">USD</option>
-              <option value="EUR">EUR</option>
-              <option value="GBP">GBP</option>
-              <option value="CNY">CNY</option>
+              <option v-for="cur in availableCurrencies" :key="cur" :value="cur">{{ cur }}</option>
             </select>
           </div>
         </div>
@@ -277,12 +271,14 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useCartStore } from '~/stores/cart'
 import { useAuth } from '~/composables/useAuth'
 import { useCurrency } from '~/composables/useCurrency'
+import { useSiteProfile } from '~/composables/useSiteProfile'
 
 const cartStore = useCartStore()
 const route = useRoute()
 const { locale, setLocale, t } = useI18n()
 const { user, isAuthenticated, logout, fetchUser } = useAuth()
 const { currency: currentCurrency, setCurrency } = useCurrency()
+const { profile, visibleNav } = useSiteProfile()
 
 const mobileMenuOpen = ref(false)
 const userDropdownOpen = ref(false)
@@ -290,12 +286,19 @@ const userMenuRef = ref<HTMLElement | null>(null)
 const currentLocale = ref(locale.value)
 watch(locale, (val) => { currentLocale.value = val })
 
-const navLinks = computed(() => [
-  { to: '/products', label: t('nav.products') },
-  { to: '/pets', label: t('nav.myPets') },
-  { to: '/orders', label: t('nav.orders') },
-  { to: '/chat', label: t('nav.aiChat') },
-])
+const navLinks = computed(() =>
+  visibleNav.value.map((n) => ({
+    to: n.to,
+    label: t(n.labelKey),
+  })),
+)
+
+const brandLogo = computed(() => profile.value.brand.logo?.data || null)
+const brandName = computed(() => profile.value.brand.name || 'Forge')
+
+const availableCurrencies = computed(() =>
+  profile.value.currencies.length > 0 ? profile.value.currencies : ['USD'],
+)
 
 function onLocaleChange() {
   setLocale(currentLocale.value)

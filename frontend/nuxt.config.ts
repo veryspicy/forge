@@ -13,9 +13,23 @@ export default defineNuxtConfig({
     port: 3000,
   },
 
+  imports: {
+    dirs: ["composables", "stores"],
+  },
+
   typescript: {
     shim: false,
     typeCheck: true,
+    tsConfig: {
+      compilerOptions: {
+        paths: {
+          "~": ["./app"],
+          "~/*": ["./app/*"],
+          "@": ["./app"],
+          "@/*": ["./app/*"],
+        },
+      },
+    },
   },
 
   vite: {

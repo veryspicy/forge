@@ -188,7 +188,47 @@ const customRoutes = [
     }
   },
 
-  // ============ 7. System ============
+  // ============ 7. DIY Page Builder ============
+  {
+    name: 'diy',
+    path: '/diy',
+    meta: {
+      title: 'Page Builder',
+      i18nKey: 'route.diy',
+      icon: 'mdi:hammer-wrench',
+      order: 7,
+      roles: ['super_admin', 'admin', 'operator']
+    },
+    redirect: '/diy/pages',
+    children: [
+      {
+        name: 'diy-pages',
+        path: '/diy/pages',
+        component: 'layout.base$view.diy',
+        meta: {
+          title: 'DIY Pages',
+          i18nKey: 'route.diy-pages',
+          icon: 'mdi:file-document-edit',
+          order: 1,
+          roles: ['super_admin', 'admin', 'operator']
+        }
+      },
+      {
+        name: 'diy-editor',
+        path: '/diy/editor/:id',
+        component: 'layout.base$view.diy-editor',
+        meta: {
+          title: 'Page Editor',
+          i18nKey: 'route.diy-editor',
+          hideInMenu: true,
+          activeMenu: 'diy-pages',
+          roles: ['super_admin', 'admin', 'operator']
+        }
+      }
+    ]
+  },
+
+  // ============ 8. System ============
   {
     name: 'system',
     path: '/system',
@@ -196,7 +236,7 @@ const customRoutes = [
       title: 'System',
       i18nKey: 'route.system',
       icon: 'mdi:cog',
-      order: 7,
+      order: 8,
       roles: ['super_admin', 'admin']
     },
     redirect: '/admin-users',
