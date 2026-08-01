@@ -156,6 +156,40 @@ podman-compose --project-name docker -f D:\codeRepo\forge\docker\docker-compose.
 
 ---
 
+## 7. 会话启动上下文恢复（强制）
+
+**触发时机**：每次 Marvis 开始处理本项目的任务前（新会话或用户重新提到项目），必须先执行本节校验，严禁依赖对话历史摘要代替实际 git 状态检查。
+
+**失败案例（2026-08-01 #2）**：Marvis 在 `fix/c-end-image-proxy` 工作区有 v2.0 实现 + logo 修复 + 图片代理等多项未提交改动，但 `git stash` 后切到 `dev`（仅含 initial commit）创建新分支，完全丢失了所有改动。原因：
+
+1. 依赖对话历史摘要判断代码位置，未实际检查 git 状态
+2. 工作区长期堆积未提交改动，跨多轮会话
+3. stash 后未记录内容，切分支后遗忘
+4. 关键分支（fix/c-end-image-proxy）从未 push 到 remote
+
+**校验清单（必须逐条执行，不可跳过）**：
+
+1. **检查当前 Git 状态**：
+   ```bash
+   git status --short    # 工作区是否有未提交改动
+   git stash list        # stash 栈是否非空
+   git branch -v         # 所有本地分支及最新 commit
+   git log --oneline -5  # 当前分支最近提交
+   ```
+
+2. **工作区不得有遗留改动**：
+   - 若 `git status --short` 非空 → 必须先向用户报告有哪些未提交文件，由用户决定 commit / stash / 丢弃
+   - 若 `git stash list` 非空 → 必须展示 stash 列表，询问用户是否恢复
+
+3. **确认功能代码所在分支**：
+   - 对比各分支 `git log --oneline <branch>` 和 `git diff <branch> --stat`，找出包含最新功能代码的分支
+   - 禁止假设 `dev` 包含所有已实现功能；必须以实际 git 历史为准
+
+4. **关键分支必须推送**：
+   - 任何承载已验证功能的本地分支，会话结束前必须 `git push origin <branch>`
+   - 若推送失败（无权限等），必须明确告知用户分支名和 commit hash
+
+---
+
 *最后更新：2026-08-01*
-*（内容由AI生成，仅供参考）*
 *（内容由AI生成，仅供参考）*
