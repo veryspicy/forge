@@ -11,7 +11,6 @@
 
     <!-- 降级：硬编码分类页 -->
     <div v-else class="max-w-6xl mx-auto px-4 py-8">
-      <!-- 分类标题 -->
       <div class="mb-8">
         <nav class="text-sm text-gray-500 mb-4">
           <NuxtLink to="/" class="hover:text-primary-600">{{ $t('common.home') }}</NuxtLink>
@@ -21,7 +20,6 @@
         <h1 class="text-2xl font-bold text-gray-900">{{ categoryName }}</h1>
       </div>
 
-      <!-- Product Grid Fallback -->
       <div v-if="pending" class="text-center py-16">
         <div class="animate-spin w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full mx-auto" />
       </div>
@@ -50,7 +48,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 
 const route = useRoute()
 const runtimeConfig = useRuntimeConfig()
@@ -64,15 +62,13 @@ const categoryName = computed(() => {
   }
 })
 
-// --- DIY category page ---
-const diyUrl = computed(() => `/api/v1/diy/by-type/category?slug=${slug.value}`)
-
+// --- DIY category page (fetch by page_type=category) ---
 const {
   data: diyPage,
   pending: diyPending,
   error: diyError,
   refresh: refreshDiy,
-} = await useFetch(diyUrl, {
+} = await useFetch('/api/v1/diy/pages/category', {
   baseURL: runtimeConfig.public.apiBase,
   server: false,
   default: () => null,
