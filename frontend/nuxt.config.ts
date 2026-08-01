@@ -76,6 +76,13 @@ export default defineNuxtConfig({
   // 生产环境配置
   nitro: {
     compressPublicAssets: { brotli: true },
+    // 代理 /api/images 到后端（C-end 预览时需要加载上传的图片）
+    // （/api/v1 由 app/server/api/v1/[...path].ts 处理）
+    routeRules: {
+      "/api/images/**": {
+        proxy: { to: "http://backend:8000/api/images/**" },
+      },
+    },
   },
 
   // 安全头

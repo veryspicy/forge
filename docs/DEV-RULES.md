@@ -103,6 +103,23 @@ podman-compose up -d --force-recreate admin
 podman-compose --project-name docker -f D:\codeRepo\forge\docker\docker-compose.yml <子命令>
 ```
 
+### 3.4 重建前置条件：分支代码完整性校验（强制）
+
+**适用场景**：执行任何会触发容器重建或重启的操作之前（包括 `podman compose up -d`、`podman build`、`podman compose restart` 等），必须完成本节校验。
+
+**背景**：`podman compose up -d` 会用磁盘当前分支的代码重建镜像。如果当前分支缺少某些功能的代码（例如 `fix/xxx` 分支从 `dev` 切出，而某功能代码仅在 `feature/xxx` 分支），重建后容器就会回退到缺失该功能的版本。这是**不可逆的功能回退**，必须杜绝。
+
+**校验清单**（必须逐条执行，不可跳过）：
+
+1. **确认当前分支**：`git branch --show-current`，确认当前所在分支名称。
+2. **确认分支来源**：`git merge-base <当前分支> dev`，确认当前分支的基提交是否包含 dev 最新代码。如果当前分支是 `fix/` 或 `feature/` 类型，必须确认它已包含所有必要的前置功能代码。
+3. **代码完整性检查**：
+   - Admin 容器重建前：确认 `admin/build/` 或 `admin/src/` 目录含有所需的页面/功能源码
+   - 对比 `dev` 分支与当前分支的关键文件差异：`git diff dev --stat <关键目录>`
+4. **若当前分支缺少必要代码**：必须先 `git merge <包含所需代码的分支>`，解决冲突后再继续。严禁在缺失代码的分支上直接重建容器。
+
+**失败案例（2026-08-01）**：`fix/c-end-image-proxy` 从 `dev`（仅含 initial commit）切出，DIY 页面装修代码全在 `feature/docs-diy-page-decoration`。在该 fix 分支上执行 `podman compose up -d` 重建 admin 容器，导致 Admin 回退到无 DIY 功能的版本。根因：未校验分支代码完整性。
+
 ---
 
 ## 4. 知识检索优先级
@@ -139,6 +156,6 @@ podman-compose --project-name docker -f D:\codeRepo\forge\docker\docker-compose.
 
 ---
 
-*最后更新：2026-07-19*
+*最后更新：2026-08-01*
 *（内容由AI生成，仅供参考）*
 *（内容由AI生成，仅供参考）*
