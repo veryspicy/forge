@@ -178,50 +178,48 @@ const customRoutes = [
   {
     name: 'site',
     path: '/site',
-    component: 'layout.base$view.site',
     meta: {
       title: 'Site',
       i18nKey: 'route.site',
       icon: 'mdi:web',
       order: 6,
       roles: ['super_admin', 'admin']
-    }
-  },
-
-  // ============ 7. DIY Page Builder ============
-  {
-    name: 'diy',
-    path: '/diy',
-    meta: {
-      title: 'Page Builder',
-      i18nKey: 'route.diy',
-      icon: 'mdi:hammer-wrench',
-      order: 7,
-      roles: ['super_admin', 'admin', 'operator']
     },
-    redirect: '/diy/pages',
+    redirect: '/site/config',
     children: [
       {
-        name: 'diy-pages',
-        path: '/diy/pages',
+        name: 'site-config',
+        path: '/site/config',
+        component: 'layout.base$view.site',
+        meta: {
+          title: 'Site Config',
+          i18nKey: 'route.site-config',
+          icon: 'mdi:cog-outline',
+          order: 1,
+          roles: ['super_admin', 'admin']
+        }
+      },
+      {
+        name: 'site-decoration',
+        path: '/site/decoration',
         component: 'layout.base$view.diy',
         meta: {
-          title: 'DIY Pages',
-          i18nKey: 'route.diy-pages',
-          icon: 'mdi:file-document-edit',
-          order: 1,
+          title: 'Decoration',
+          i18nKey: 'route.site-decoration',
+          icon: 'mdi:hammer-wrench',
+          order: 2,
           roles: ['super_admin', 'admin', 'operator']
         }
       },
       {
-        name: 'diy-editor',
-        path: '/diy/editor/:id',
+        name: 'site-decoration-editor',
+        path: '/site/decoration/editor/:id',
         component: 'layout.base$view.diy-editor',
         meta: {
           title: 'Page Editor',
-          i18nKey: 'route.diy-editor',
+          i18nKey: 'route.site-decoration-editor',
           hideInMenu: true,
-          activeMenu: 'diy-pages',
+          activeMenu: 'site-decoration',
           roles: ['super_admin', 'admin', 'operator']
         }
       }

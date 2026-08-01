@@ -1,42 +1,74 @@
 <template>
-  <div class="canvas-wrapper flex justify-center overflow-y-auto rounded bg-gray-100 p-4 dark:bg-true-gray-900">
-    <div class="phone-frame w-[390px] min-h-[844px] shrink-0 overflow-hidden self-start rounded-xl bg-white shadow-lg">
-      <VueDraggable
-        v-model="components"
-        :animation="200"
-        ghost-class="ghost"
-        handle=".drag-handle"
-        :group="{ name: 'diy', pull: true, put: true }"
-        item-key="id"
-        class="min-h-[844px]"
-        @add="onAdd"
-        @end="onDragEnd"
-      >
-        <DraggableComponent
-          v-for="pc in components"
-          :key="pc.id"
-          :component="pc"
-          :active="pc.id === store.activeComponentId"
-          @click="store.selectComponent(pc.id)"
-          @remove="store.removeComponent(pc.id)"
+  <div class="canvas-wrapper flex flex-col overflow-hidden rounded bg-gray-100 dark:bg-true-gray-900">
+    <!-- 模式切换 -->
+    <div class="flex items-center justify-between border-b bg-white px-4 py-2 dark:bg-dark">
+      <NButtonGroup size="small">
+        <NButton :type="mode === 'canvas' ? 'primary' : 'default'" @click="mode = 'canvas'">
+          组件画布
+        </NButton>
+        <NButton :type="mode === 'preview' ? 'primary' : 'default'" @click="mode = 'preview'">
+          实时预览
+        </NButton>
+      </NButtonGroup>
+      <NInput
+        v-if="mode === 'preview'"
+        v-model:value="previewUrl"
+        size="small"
+        placeholder="预览 URL"
+        style="width: 360px"
+      />
+    </div>
+
+    <!-- 组件画布模式 -->
+    <div v-if="mode === 'canvas'" class="flex-1 flex justify-center overflow-y-auto p-4">
+      <div class="phone-frame w-[390px] min-h-[844px] shrink-0 overflow-hidden self-start rounded-xl bg-white shadow-lg">
+        <VueDraggable
+          v-model="components"
+          :animation="200"
+          ghost-class="ghost"
+          handle=".drag-handle"
+          :group="{ name: 'diy', pull: true, put: true }"
+          item-key="id"
+          class="min-h-[844px]"
+          @add="onAdd"
+          @end="onDragEnd"
         >
-          <component :is="getRenderer(pc.component_code)" :config="pc.config" />
-        </DraggableComponent>
-      </VueDraggable>
-      <div
-        v-if="!components.length"
-        class="pointer-events-none flex h-[844px] flex-col items-center justify-center gap-2 text-gray-300"
-      >
-        <SvgIcon icon="mdi:gesture-tap" class="text-48px" />
-        <span>从左侧组件库点击或拖入组件</span>
+          <DraggableComponent
+            v-for="pc in components"
+            :key="pc.id"
+            :component="pc"
+            :active="pc.id === store.activeComponentId"
+            @click="store.selectComponent(pc.id)"
+            @remove="store.removeComponent(pc.id)"
+          >
+            <component :is="getRenderer(pc.component_code)" :config="pc.config" />
+          </DraggableComponent>
+        </VueDraggable>
+        <div
+          v-if="!components.length"
+          class="pointer-events-none flex h-[844px] flex-col items-center justify-center gap-2 text-gray-300"
+        >
+          <SvgIcon icon="mdi:gesture-tap" class="text-48px" />
+          <span>从左侧组件库点击或拖入组件</span>
+        </div>
       </div>
+    </div>
+
+    <!-- 实时预览模式（iframe 内嵌 Nuxt C 端） -->
+    <div v-else class="flex-1 overflow-hidden">
+      <iframe
+        :src="previewUrl"
+        class="h-full w-full border-none"
+        sandbox="allow-scripts allow-same-origin"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { VueDraggable } from 'vue-draggable-plus';
+import { NButton, NButtonGroup, NInput } from 'naive-ui';
 import { useDiyStore } from '@/store/modules/diy';
 import DraggableComponent from './DraggableComponent.vue';
 import BannerRenderer from './renderers/BannerRenderer.vue';
@@ -56,6 +88,30 @@ import NoticeBarRenderer from './renderers/NoticeBarRenderer.vue';
 import NavGroupRenderer from './renderers/NavGroupRenderer.vue';
 
 const store = useDiyStore();
+
+const mode = ref<'canvas' | 'preview'>('canvas');
+
+const defaultPreviewUrl = computed(() => {
+  const page = store.currentPage;
+  if (!page) return 'http://localhost:3000/';
+  const slug = page.slug || page.page_type || '';
+  if (page.page_type === 'home' || !page.page_type) {
+    return 'http://localhost:3000/?preview=true';
+  }
+  if (page.page_type === 'category') {
+    return `http://localhost:3000/category/${slug}?preview=true`;
+  }
+  if (page.page_type === 'product_detail') {
+    return `http://localhost:3000/product/${slug}?preview=true`;
+  }
+  return `http://localhost:3000/${slug}?preview=true`;
+});
+
+const previewUrl = ref(defaultPreviewUrl.value);
+
+watch(() => store.currentPage, () => {
+  previewUrl.value = defaultPreviewUrl.value;
+}, { immediate: true });
 
 const components = computed<any[]>({
   get: () => store.pageComponents,
@@ -84,12 +140,10 @@ function getRenderer(code: string) {
   return rendererMap[code] || BlankRenderer;
 }
 
-/** 从组件库拖入画布后：修正 sort_order 并选中新组件 */
 function onAdd(evt: any) {
   const list = [...components.value];
   const added = list[evt.newIndex];
   if (added && !added.component_id) {
-    // 兼容处理：若插入的是组件库原始定义对象，转换为 PageComponent 实例
     const lib = store.componentsLibrary.find(c => c.id === added.id) || added;
     list[evt.newIndex] = {
       id: crypto.randomUUID(),

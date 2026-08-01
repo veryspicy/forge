@@ -117,7 +117,7 @@ async function handleCreate() {
     const res = await diyApi.createPage({ ...createForm });
     showCreate.value = false;
     window.$message?.success('Created');
-    router.push(`/diy/editor/${res.data.id}`);
+    router.push(`/site/decoration/editor/${res.data.id}`);
   } finally {
     creating.value = false;
   }
@@ -177,7 +177,7 @@ const columns: DataTableColumns<any> = [
     width: 420,
     render: row =>
       h(NSpace, { size: 4 }, () => [
-        h(NButton, { size: 'tiny', type: 'primary', onClick: () => router.push(`/diy/editor/${row.id}`) }, { default: () => 'Edit' }),
+        h(NButton, { size: 'tiny', type: 'primary', onClick: () => router.push(`/site/decoration/editor/${row.id}`) }, { default: () => 'Edit' }),
         h(NButton, { size: 'tiny', onClick: () => preview(row) }, { default: () => 'Preview' }),
         h(NButton, { size: 'tiny', type: row.status === 'published' ? 'warning' : 'success', onClick: () => togglePublish(row) }, { default: () => (row.status === 'published' ? 'Unpublish' : 'Publish') }),
         h(NButton, { size: 'tiny', onClick: () => duplicate(row) }, { default: () => 'Copy' }),
