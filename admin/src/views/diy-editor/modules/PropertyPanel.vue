@@ -73,10 +73,30 @@
           <NButton size="tiny" dashed block @click="addNavItem">+ 添加导航项</NButton>
         </NCollapseItem>
 
+        <!-- Categories -->
+        <NCollapseItem name="categories" title="分类">
+          <div
+            v-for="(cat, idx) in siteConfig.categories"
+            :key="idx"
+            class="mb-2 flex items-center gap-2 rounded border p-2"
+          >
+            <NInput v-model:value="cat.slug" size="small" placeholder="Slug" style="width:90px" />
+            <NInput v-model:value="cat.nameKey" size="small" placeholder="i18n Key" class="flex-1" />
+            <NInput v-model:value="cat.icon" size="small" placeholder="图标" style="width:70px" />
+            <NButton size="tiny" quaternary type="error" @click="siteConfig.categories.splice(idx, 1)">
+              <template #icon><SvgIcon icon="mdi:close" /></template>
+            </NButton>
+          </div>
+          <NButton size="tiny" dashed block @click="siteConfig.categories.push({ slug: '', nameKey: '', icon: '' })">+ 添加分类</NButton>
+        </NCollapseItem>
+
         <!-- Footer -->
         <NCollapseItem name="footer" title="页脚">
           <NFormItem label="版权文字">
             <NInput v-model:value="siteConfig.footer.copyright" size="small" />
+          </NFormItem>
+          <NFormItem label="Newsletter">
+            <NSwitch v-model:value="siteConfig.footer.newsletter" size="small" />
           </NFormItem>
         </NCollapseItem>
 
@@ -177,7 +197,8 @@ const defaultSiteConfig = {
     fontBody: ''
   },
   navigation: { items: [] as any[] },
-  footer: { copyright: '' },
+  categories: [] as { slug: string; nameKey: string; icon: string }[],
+  footer: { copyright: '', newsletter: true },
   seo: { homeTitle: '', metaDescription: '', metaKeywords: '' },
   featureFlags: {} as Record<string, boolean>
 };
