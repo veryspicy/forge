@@ -191,5 +191,61 @@ podman-compose --project-name docker -f D:\codeRepo\forge\docker\docker-compose.
 
 ---
 
+## 8. 重建后端到端验证（强制）
+
+**触发时机**：完成容器重建/重启后，必须在用户查看结果前完成端到端验证。禁止仅凭"源码存在"或"静态资源在容器中"就宣布修复成功。
+
+**失败案例（2026-08-01 #3）**：用户反馈"后台服务还是旧版"。Marvis 执行 `podman exec forge-admin ls /usr/share/nginx/html/assets/` 看到 `diy-D1LAQN6n.js` 等 chunk 存在，即宣布"已修复"。实际上：
+
+1. 前端 `diyApi.ts` 调 `/api/admin/v1/diy/pages`（404），后端 v2.0 路由在 `/api/admin/v1/site/pages`
+2. 数据库 `diy_pages` 表为空，系统页面（home / category / product_detail）从未种子
+3. DIY 页面列表显示空表，用户看到的仍是旧版
+
+**根因**：Marvis 在"静态资源存在"这一步就停止了验证链条，没有继续检查 API 路径 → 后端路由匹配 → 数据库数据 → 页面实际渲染。
+
+**校验清单（必须逐条执行，不可跳过）**：
+
+### 8.1 API 路径一致性检查
+
+对比前端 API 调用路径与后端实际注册路由，确保二者一一对应：
+
+```bash
+# 前端 API 文件路径
+grep -r "diyApi\|siteApi" admin/src/service/api/
+# 后端路由注册
+grep -r "include_router\|prefix" backend/src/forge/api/admin/v1/router.py
+```
+
+| 检查项 | 方法 |
+|--------|------|
+| 前端 `listPages` 等调用路径 | 读 `admin/src/service/api/diy.ts` |
+| 后端实际路由注册 | 读 `backend/src/forge/api/admin/v1/router.py` |
+| 路径是否匹配 | 逐条对比，任一不匹配即为阻断 |
+
+### 8.2 数据链路完整性检查
+
+```bash
+# 检查数据库关键表是否有数据
+podman exec forge-postgres psql -U postgres -d forge -c "SELECT count(*) FROM diy_pages;"
+```
+
+| 检查项 | 方法 |
+|--------|------|
+| 系统页面是否种子 | 查询 diy_pages 表 page_type IN ('home','category','product_detail') |
+| API 是否可达 | `podman exec forge-backend curl -s http://localhost:8000/api/admin/v1/site/pages`（需带 auth header） |
+| 列表数据是否返回 | 验证返回 JSON 中 system 数组不为空 |
+
+### 8.3 需求匹配度检查
+
+在宣称"功能正常"之前，必须回顾用户原始需求描述，逐条核对：
+
+| 需求点 | 当前实现 | 是否满足 |
+|--------|----------|----------|
+| 逐条列出用户需求 | 逐条列出实际实现 | 标注满足/部分/未满足 |
+
+**任一需求点未满足 → 必须如实报告缺口，禁止宣布"正常"。**
+
+---
+
 *最后更新：2026-08-01*
 *（内容由AI生成，仅供参考）*
