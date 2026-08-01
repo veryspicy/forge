@@ -237,9 +237,8 @@ const previewUrl = computed(() => {
 async function loadPages() {
   try {
     const res = await diyApi.listPages();
-    const system = (res.data?.system || []).map((p: any) => ({ ...p, id: p.page_type, slug: p.page_type }));
-    const custom = (res.data?.custom || []);
-    pages.value = [...system, ...custom];
+    // diyApi.listPages 内部已将 system+custom 合并，返回 { data: { items, total } }
+    pages.value = res.data?.items || [];
   } catch {
     pages.value = [];
   }
