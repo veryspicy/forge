@@ -22,5 +22,6 @@ harbor-config/
 browser-test-screenshots/
 temp_product_images/
 temp_*
+.codebuddy/
 *.pid
 *.ps1
