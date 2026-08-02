@@ -21,7 +21,6 @@ harbor-config/
 .kube/config
 browser-test-screenshots/
 temp_product_images/
+temp_*
 *.pid
 *.ps1
-*.pid
-temp_product_images/
