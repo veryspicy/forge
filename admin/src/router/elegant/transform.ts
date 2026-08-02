@@ -180,7 +180,6 @@ const routeMap: RouteMap = {
   "roles": "/roles",
   "settings": "/settings",
   "shipments": "/shipments",
-  "site": "/site",
   "suppliers": "/suppliers",
   "users": "/users"
 };

@@ -1,5 +1,6 @@
 import http from "node:http";
 import https from "node:https";
+import { defineEventHandler, readRawBody, setResponseStatus } from "h3";
 
 export default defineEventHandler(async (event) => {
   const target = process.env.API_PROXY_TARGET || "http://127.0.0.1:8000";

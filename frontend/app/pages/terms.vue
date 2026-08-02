@@ -1,0 +1,10 @@
+<script setup lang="ts">
+definePageMeta({ layout: 'default' })
+useHead({ title: 'Terms of Service' })
+</script>
+<template>
+  <div class="max-w-3xl mx-auto px-4 py-16">
+    <h1 class="text-3xl font-bold text-gray-900 mb-6">Terms of Service</h1>
+    <div class="prose text-gray-600"><p>Coming soon.</p></div>
+  </div>
+</template>

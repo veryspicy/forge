@@ -123,9 +123,6 @@ services:
 
   # ===== 后端服务 =====
   backend:
-    build:
-      context: ../backend
-      dockerfile: Dockerfile
     image: forge-backend:latest
     container_name: forge-backend
     restart: unless-stopped
@@ -145,6 +142,7 @@ services:
         condition: service_healthy
       rocketmq-broker:
         condition: service_healthy
+    command: uvicorn forge.main.application:app --host 0.0.0.0 --port 8000 --reload
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -176,14 +174,7 @@ services:
 
   # ===== 前端 =====
   frontend:
-    build:
-      context: ../frontend
-      dockerfile: Dockerfile
-      args:
-        NUXT_PUBLIC_API_BASE: /api/v1
-        NUXT_PUBLIC_AI_CHAT_BASE: http://localhost:8001
-        NUXT_PUBLIC_REGION: na
-        NUXT_PUBLIC_DEFAULT_CURRENCY: USD
+    image: forge-frontend:latest
     container_name: forge-frontend
     restart: unless-stopped
     networks:

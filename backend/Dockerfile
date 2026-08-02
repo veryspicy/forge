@@ -15,7 +15,8 @@ COPY seed_admin.py .
 COPY src/ src/
 
 # Install Python dependencies in editable mode (bind mount friendly)
-RUN pip install --no-cache-dir --default-timeout=300 -i https://pypi.tuna.tsinghua.edu.cn/simple -e "."
+RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/ && \
+    pip install --no-cache-dir --default-timeout=600 --proxy http://127.0.0.1:10808 -e "."
 
 EXPOSE 8000
 

@@ -32,7 +32,6 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   roles: () => import("@/views/roles/index.vue"),
   settings: () => import("@/views/settings/index.vue"),
   shipments: () => import("@/views/shipments/index.vue"),
-  site: () => import("@/views/site/index.vue"),
   suppliers: () => import("@/views/suppliers/index.vue"),
   users: () => import("@/views/users/index.vue"),
 };

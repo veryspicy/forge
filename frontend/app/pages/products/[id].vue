@@ -3,9 +3,9 @@
   <div>
     <!-- Breadcrumb -->
     <nav class="text-sm text-gray-500 mb-6">
-      <NuxtLink to="/" class="hover:text-primary-600">{{ $t('common.home') }}</NuxtLink>
+      <NuxtLink :to="localePath('/')" class="hover:text-primary-600">{{ $t('common.home') }}</NuxtLink>
       <span class="mx-2">/</span>
-      <NuxtLink to="/products" class="hover:text-primary-600">{{ $t('common.products') }}</NuxtLink>
+      <NuxtLink :to="localePath('/products')" class="hover:text-primary-600">{{ $t('common.products') }}</NuxtLink>
       <span class="mx-2">/</span>
       <span class="text-gray-900 truncate">{{ product?.name || '...' }}</span>
     </nav>
@@ -19,7 +19,7 @@
     <!-- Error -->
     <div v-else-if="!product" class="text-center py-20">
       <p class="text-gray-500 text-lg">{{ $t('products.notFound') }}</p>
-      <NuxtLink to="/products" class="mt-4 text-primary-600 hover:underline inline-block">{{ $t('products.backToProducts') }}</NuxtLink>
+      <NuxtLink :to="localePath('/products')" class="mt-4 text-primary-600 hover:underline inline-block">{{ $t('products.backToProducts') }}</NuxtLink>
     </div>
 
     <!-- Product Detail -->
@@ -200,6 +200,8 @@ import { useProductStore } from '~/stores/product'
 import { useCartStore } from '~/stores/cart'
 import { useCurrency } from '~/composables/useCurrency'
 import ProductCard from '~/components/products/ProductCard.vue'
+
+const localePath = useLocalePath()
 
 const route = useRoute()
 const productStore = useProductStore()

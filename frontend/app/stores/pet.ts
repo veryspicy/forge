@@ -33,6 +33,8 @@ export const usePetStore = defineStore("pet", () => {
     loading.value = true;
     try {
       pets.value = (await fetchPets()) as any;
+    } catch {
+      pets.value = [];
     } finally {
       loading.value = false;
     }

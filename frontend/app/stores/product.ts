@@ -58,6 +58,9 @@ export const useProductStore = defineStore("product", () => {
       if (filters?.page) {
         currentPage.value = filters.page;
       }
+    } catch {
+      products.value = [];
+      total.value = 0;
     } finally {
       loading.value = false;
     }
@@ -67,6 +70,8 @@ export const useProductStore = defineStore("product", () => {
     loading.value = true;
     try {
       currentProduct.value = (await fetchProduct(id)) as any;
+    } catch {
+      currentProduct.value = null;
     } finally {
       loading.value = false;
     }

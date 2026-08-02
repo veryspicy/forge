@@ -16,7 +16,7 @@
   <!-- Product card -->
   <NuxtLink
     v-else
-    :to="`/products/${product.slug || product.id}`"
+    :to="localePath(`/products/${product.slug || product.id}`)"
     class="surface-elevated rounded-xl overflow-hidden block relative group transition-all duration-300 ease-out-expo hover:shadow-lg hover:-translate-y-1"
   >
     <!-- Image area -->
@@ -111,6 +111,8 @@
 import { computed } from 'vue'
 import { useCartStore } from '~/stores/cart'
 import { useCurrency } from '~/composables/useCurrency'
+
+const localePath = useLocalePath()
 
 const props = defineProps<{
   product: any

@@ -85,6 +85,8 @@ const local: App.I18n.Schema = {
     modify: 'Modify',
     modifySuccess: 'Modify Success',
     noData: 'No Data',
+    publish: 'Publish',
+    saveDraft: 'Save Draft',
     operate: 'Operate',
     pleaseCheckValue: 'Please check whether the value is valid',
     refresh: 'Refresh',
@@ -299,7 +301,10 @@ const local: App.I18n.Schema = {
     settings: 'Settings',
     customers: 'Customers',
     'admin-users': 'Admin Users',
-    roles: 'Roles'
+    roles: 'Roles',
+    diy: 'Page Builder',
+    'diy-pages': 'DIY Pages',
+    'diy-editor': 'Page Editor'
   },
   page: {
     dashboard: {

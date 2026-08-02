@@ -86,11 +86,20 @@ Admin 源码位于项目内 `admin/` 目录，Vite 构建产物固化为静态�
 |---|---|
 | **任何源码**（`.vue` / `.ts` / `.json` / `.css`） | 必须 `build --no-cache` 重建镜像 + `up -d --force-recreate` 重建容器 |
 
+**Admin 视图文件变更后的额外步骤**：
+
+> 若删除了 `admin/src/views/` 下的目录（如 `views/site/`），必须同步清理 `admin/src/router/elegant/` 中的三个自动生成文件：
+> - `elegant/routes.ts` — 移除对应路由定义
+> - `elegant/imports.ts` — 移除对应组件导入
+> - `elegant/transform.ts` — 移除 `routeMap` 中的映射条目
+>
+> 否则 elegant-router 会按残留空目录生成旧路由，导致用户看到旧菜单项。
+
 Admin 重建完整命令（在 `D:\codeRepo\forge\docker` 目录执行）：
 
 ```bash
-podman-compose build --no-cache admin
-podman-compose up -d --force-recreate admin
+podman-compose --project-name docker -f D:\codeRepo\forge\docker\docker-compose.yml build --no-cache admin
+podman-compose --project-name docker -f D:\codeRepo\forge\docker\docker-compose.yml up -d --force-recreate admin
 ```
 
 > **为什么需要 `--no-cache`**：Docker 层缓存可能命中旧的 `COPY . .` 层，导致源码改动未打入镜像。容器重建后用户还需 `Ctrl+Shift+R` 硬刷新浏览器绕过 CDN 缓存。
@@ -139,6 +148,43 @@ podman-compose --project-name docker -f D:\codeRepo\forge\docker\docker-compose.
 
 ---
 
-*最后更新：2026-07-19*
-*（内容由AI生成，仅供参考）*
+## 7. 规则自增长机制
+
+> **核心理念**：将每次踩坑经验沉淀为可复用的规则，让 DEV-RULES.md 持续进化为项目开发专家手册。
+
+### 7.1 触发条件
+
+当出现以下任一情况时，Marvis 必须主动评估是否需要写入新规则：
+
+- 遇到问题经排查后成功解决，且排查过程涉及非显而易见的项目特定知识
+- 用户明确指出"把这个记下来"、"下次别犯这个错"、"加一条规则"
+- 重复犯过同类错误，说明旧规则未覆盖
+- 发现现有规则存在错误或过时，需修正
+
+### 7.2 写入标准
+
+新增规则必须满足：
+
+1. **可复用**：该经验在未来类似场景中有参考价值
+2. **项目特定**：与 Forge 项目的技术栈、架构、部署方式直接相关（通用编程知识不写入）
+3. **可执行**：规则描述具体、有明确的判断条件和操作步骤，而非模糊建议
+4. **不冗余**：与已有规则不重复；若已有规则覆盖不全则更新已有规则而非新增
+
+### 7.3 执行流程
+
+1. **问题解决后**：先总结根因和解决方案
+2. **评估可规则化**：对照 7.2 写入标准判断是否应写入
+3. **定位归属章节**：找到最相关的现有章节，或在末尾新增章节
+4. **写入并声明**：使用 `edit_file` 写入，完成后在回复中用 `yyb-product` 声明更新
+5. **格式要求**：每条规则包含触发条件（何时适用）、执行步骤（怎么做）、反例（常见的错误做法）
+
+### 7.4 本次会话示例（留作模板）
+
+参考本规则本身的写入过程：
+- **根因**：Admin 构建后用户反馈"没有变化"，排查发现是 nginx 30 天强缓存 + 浏览器缓存导致
+- **规则化**：该经验已写入第 3.2 节（Admin 重建后需硬刷新），属于更新已有规则而非新增
+
+---
+
+*最后更新：2026-08-02*
 *（内容由AI生成，仅供参考）*

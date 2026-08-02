@@ -52,7 +52,7 @@
         </div>
 
         <div class="text-center">
-          <NuxtLink to="/register" class="text-sm text-indigo-600 hover:text-indigo-500">
+          <NuxtLink :to="localePath('/register')" class="text-sm text-indigo-600 hover:text-indigo-500">
             {{ $t('auth.noAccount') }}
           </NuxtLink>
         </div>
@@ -63,6 +63,8 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+
+const localePath = useLocalePath()
 
 definePageMeta({
   layout: false,

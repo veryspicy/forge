@@ -68,13 +68,13 @@
           </div>
         </div>
         <NuxtLink
-          to="/checkout"
+          :to="localePath('/checkout')"
           class="block w-full mt-6 py-3 bg-primary-600 text-white text-center rounded-lg hover:bg-primary-700 transition font-medium"
         >
           {{ $t('cart.checkout') }}
         </NuxtLink>
         <NuxtLink
-          to="/products"
+          :to="localePath('/products')"
           class="block w-full mt-3 py-2 text-primary-600 text-center text-sm hover:underline"
         >
           {{ $t('cart.continueShopping') }}
@@ -88,7 +88,7 @@
       <h3 class="text-xl font-semibold text-gray-900 mb-2">{{ $t('cart.emptyTitle') }}</h3>
       <p class="text-gray-500 mb-6">{{ $t('cart.emptyHint') }}</p>
       <NuxtLink
-        to="/products"
+        :to="localePath('/products')"
         class="inline-block px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium"
       >
         {{ $t('cart.startShopping') }}
@@ -99,6 +99,7 @@
 
 <script setup lang="ts">
 import { onMounted } from 'vue'
+const localePath = useLocalePath()
 import { useCartStore } from '~/stores/cart'
 import { useCurrency } from '~/composables/useCurrency'
 

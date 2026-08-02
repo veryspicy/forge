@@ -178,17 +178,41 @@ const customRoutes = [
   {
     name: 'site',
     path: '/site',
-    component: 'layout.base$view.site',
     meta: {
-      title: 'Site',
+      title: '站点',
       i18nKey: 'route.site',
       icon: 'mdi:web',
       order: 6,
-      roles: ['super_admin', 'admin']
-    }
+      roles: ['super_admin', 'admin', 'operator']
+    },
+    redirect: '/site/decoration',
+    children: [
+      {
+        name: 'site-decoration',
+        path: '/site/decoration',
+        component: 'layout.base$view.diy',
+        meta: {
+          title: '页面装修',
+          i18nKey: 'route.site-decoration',
+          roles: ['super_admin', 'admin', 'operator']
+        }
+      },
+      {
+        name: 'site-decoration-editor',
+        path: '/site/decoration/editor/:id',
+        component: 'layout.base$view.diy-editor',
+        meta: {
+          title: '页面编辑器',
+          i18nKey: 'route.site-decoration-editor',
+          hideInMenu: true,
+          activeMenu: 'site-decoration',
+          roles: ['super_admin', 'admin', 'operator']
+        }
+      }
+    ]
   },
 
-  // ============ 7. System ============
+  // ============ 8. System ============
   {
     name: 'system',
     path: '/system',
@@ -196,7 +220,7 @@ const customRoutes = [
       title: 'System',
       i18nKey: 'route.system',
       icon: 'mdi:cog',
-      order: 7,
+      order: 8,
       roles: ['super_admin', 'admin']
     },
     redirect: '/admin-users',
@@ -248,7 +272,7 @@ export function createStaticRoutes() {
   // Filter out generated routes that are already defined in customRoutes
   // to prevent flat auto-generated routes from overriding the nested menu structure
   // Auto-generated routes to ignore (custom routes already define them differently)
-  const ignoreGeneratedRouteNames = new Set(['users']);
+  const ignoreGeneratedRouteNames = new Set(['users', 'diy', 'diy-editor']);
   const customRouteNames = new Set(customRoutes.flatMap((r: any) => {
     const names = [r.name];
     if (r.children) {
