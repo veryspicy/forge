@@ -13,7 +13,7 @@
     <div v-else class="max-w-6xl mx-auto px-4 py-8">
       <div class="mb-8">
         <nav class="text-sm text-gray-500 mb-4">
-          <NuxtLink to="/" class="hover:text-primary-600">{{ $t('common.home') }}</NuxtLink>
+          <NuxtLink :to="localePath('/')" class="hover:text-primary-600">{{ $t('common.home') }}</NuxtLink>
           <span class="mx-2">/</span>
           <span class="text-gray-900">{{ categoryName }}</span>
         </nav>
@@ -30,7 +30,7 @@
         <NuxtLink
           v-for="p in products"
           :key="p.id"
-          :to="`/products/${p.id}`"
+          :to="localePath(`/products/${p.id}`)"
           class="bg-white rounded-xl shadow-sm border hover:shadow-md transition p-4"
         >
           <div class="w-full h-32 bg-gradient-to-br from-primary-50 to-primary-100 rounded-lg mb-3 flex items-center justify-center">
@@ -49,6 +49,8 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
+
+const localePath = useLocalePath()
 
 const route = useRoute()
 const runtimeConfig = useRuntimeConfig()

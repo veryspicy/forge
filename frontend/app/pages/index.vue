@@ -21,10 +21,10 @@
           {{ $t('home.heroDesc') || 'AI-powered product recommendations tailored to your pet\'s breed, age, and health needs. Discover the best food, toys, and accessories.' }}
         </p>
         <div class="flex justify-center gap-4">
-          <NuxtLink to="/products" class="px-6 py-3 bg-white text-primary-700 rounded-lg hover:bg-gray-100 transition font-semibold">
+          <NuxtLink :to="localePath('/products')" class="px-6 py-3 bg-white text-primary-700 rounded-lg hover:bg-gray-100 transition font-semibold">
             {{ $t('home.shopNow') || 'Shop Now' }}
           </NuxtLink>
-          <NuxtLink to="/pets" class="px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-400 transition font-semibold border border-primary-300">
+          <NuxtLink :to="localePath('/pets')" class="px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-400 transition font-semibold border border-primary-300">
             {{ $t('home.addPet') || 'Add Your Pet' }}
           </NuxtLink>
         </div>
@@ -38,7 +38,7 @@
           <h2 class="text-2xl font-bold text-gray-900">
             Tailored for Your Pet
           </h2>
-          <NuxtLink to="/chat" class="text-sm text-primary-600 hover:text-primary-700 font-medium">
+          <NuxtLink :to="localePath('/chat')" class="text-sm text-primary-600 hover:text-primary-700 font-medium">
             Ask AI for more →
           </NuxtLink>
         </div>
@@ -72,7 +72,7 @@
 
         <div v-else class="text-center py-8 text-gray-500">
           No recommendations yet. Visit the
-          <NuxtLink to="/pets" class="text-primary-600 font-medium">pets page</NuxtLink>
+          <NuxtLink :to="localePath('/pets')" class="text-primary-600 font-medium">pets page</NuxtLink>
           to get started.
         </div>
       </div>
@@ -86,7 +86,7 @@
           <NuxtLink
             v-for="cat in categories"
             :key="cat.slug"
-            :to="`/products?category=${cat.slug}`"
+            :to="{ path: '/products', query: { category: cat.slug } }"
             class="bg-white rounded-xl shadow-sm border p-6 text-center hover:shadow-md transition group"
           >
             <div class="text-4xl mb-3">{{ cat.icon }}</div>
@@ -106,7 +106,7 @@
             :key="prod.id"
             class="bg-white rounded-xl shadow-sm border hover:shadow-md transition"
           >
-            <NuxtLink :to="`/products/${prod.id}`" class="block p-4">
+            <NuxtLink :to="localePath(`/products/${prod.id}`)" class="block p-4">
               <div class="w-full h-32 bg-gradient-to-br from-primary-50 to-primary-100 rounded-lg mb-3 flex items-center justify-center">
                 <span class="text-4xl">{{ productIcon(prod.name) }}</span>
               </div>
@@ -131,7 +131,7 @@
             {{ $t('home.aiTeaserDesc') || 'Tell us about your pet and our AI will recommend the perfect products for their breed, age, and health needs.' }}
           </p>
           <NuxtLink
-            to="/chat"
+            :to="localePath('/chat')"
             class="inline-block px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-semibold"
           >
             {{ $t('home.startChat') || 'Start AI Chat' }}
@@ -150,6 +150,7 @@ import { useAuthStore } from '~/stores/auth'
 import { useApi } from '~/composables/useApi'
 import { useSiteProfile } from '~/composables/useSiteProfile'
 
+const localePath = useLocalePath()
 const petStore = usePetStore()
 const { fetchPetRecommendations, fetchProducts } = useApi()
 const { t } = useI18n()
@@ -158,7 +159,7 @@ const { profile, hasFeature, visibleSections } = useSiteProfile()
 // ---------- DIY 装修首页 ----------
 const runtimeConfig = useRuntimeConfig()
 const diySlug = computed(() => profile.value.diyPageSlug || '')
-const diyUrl = computed(() => (diySlug.value ? `/diy/pages/${diySlug.value}` : '/diy/pages/default'))
+const diyUrl = computed(() => (diySlug.value ? `/diy/pages/${diySlug.value}` : '/diy/pages/home'))
 
 const {
   data: diyPage,

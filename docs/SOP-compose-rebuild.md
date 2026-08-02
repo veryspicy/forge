@@ -30,7 +30,7 @@
 
 | 改动范围 | 是否需要 rebuild 镜像 | 操作 |
 |---------|---------------------|------|
-| `.vue` / `.ts` 源码 | ❌ 不需要 | Vite HMR |
+| `.vue` / `.ts` / `.css` / `.json` 源码 | ✅ 需要 | 无 HMR，必须 `build --no-cache` + `up -d --force-recreate` |
 | `package.json` / `pnpm-lock.yaml` | ✅ 需要 | 依赖变更 |
 | `Dockerfile` / `nginx.conf` | ✅ 需要 | 构建逻辑变更 |
 

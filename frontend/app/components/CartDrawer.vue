@@ -70,14 +70,14 @@
             <span>{{ formatPrice(cartStore.total) }}</span>
           </div>
           <NuxtLink
-            to="/cart"
+            :to="localePath('/cart')"
             class="block w-full py-2.5 bg-primary-600 text-white text-center rounded-lg hover:bg-primary-700 transition font-medium"
             @click="close"
           >
             {{ $t('cart.viewCart') }}
           </NuxtLink>
           <NuxtLink
-            to="/checkout"
+            :to="localePath('/checkout')"
             class="block w-full py-2.5 border border-primary-600 text-primary-600 text-center rounded-lg hover:bg-primary-50 transition font-medium"
             @click="close"
           >
@@ -96,6 +96,7 @@ import { useCurrency } from '~/composables/useCurrency'
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 
+const localePath = useLocalePath()
 const cartStore = useCartStore()
 const { formatPrice } = useCurrency()
 

@@ -10,27 +10,27 @@
           </h4>
           <ul class="space-y-2.5">
             <li>
-              <NuxtLink to="/products?category=pet-food" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
+              <NuxtLink :to="localePath({ path: '/products', query: { category: 'pet-food' } })" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
                 {{ $t('footer.petFood') }}
               </NuxtLink>
             </li>
             <li>
-              <NuxtLink to="/products?category=toys" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
+              <NuxtLink :to="localePath({ path: '/products', query: { category: 'toys' } })" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
                 {{ $t('footer.toys') }}
               </NuxtLink>
             </li>
             <li>
-              <NuxtLink to="/products?category=health-wellness" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
+              <NuxtLink :to="localePath({ path: '/products', query: { category: 'health-wellness' } })" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
                 {{ $t('footer.healthWellness') }}
               </NuxtLink>
             </li>
             <li>
-              <NuxtLink to="/products?category=accessories" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
+              <NuxtLink :to="localePath({ path: '/products', query: { category: 'accessories' } })" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
                 {{ $t('footer.accessories') }}
               </NuxtLink>
             </li>
             <li>
-              <NuxtLink to="/products?category=grooming" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
+              <NuxtLink :to="localePath({ path: '/products', query: { category: 'grooming' } })" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
                 {{ $t('footer.grooming') }}
               </NuxtLink>
             </li>
@@ -44,22 +44,22 @@
           </h4>
           <ul class="space-y-2.5">
             <li>
-              <NuxtLink to="/faqs" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
+              <NuxtLink :to="localePath('/faqs')" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
                 {{ $t('footer.faqs') }}
               </NuxtLink>
             </li>
             <li>
-              <NuxtLink to="/shipping" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
+              <NuxtLink :to="localePath('/shipping')" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
                 {{ $t('footer.shippingInfo') }}
               </NuxtLink>
             </li>
             <li>
-              <NuxtLink to="/returns" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
+              <NuxtLink :to="localePath('/returns')" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
                 {{ $t('footer.returns') }}
               </NuxtLink>
             </li>
             <li>
-              <NuxtLink to="/contact" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
+              <NuxtLink :to="localePath('/contact')" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
                 {{ $t('footer.contactUs') }}
               </NuxtLink>
             </li>
@@ -73,22 +73,22 @@
           </h4>
           <ul class="space-y-2.5">
             <li>
-              <NuxtLink to="/story" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
+              <NuxtLink :to="localePath('/story')" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
                 {{ $t('footer.ourStory') }}
               </NuxtLink>
             </li>
             <li>
-              <NuxtLink to="/sustainability" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
+              <NuxtLink :to="localePath('/sustainability')" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
                 {{ $t('footer.sustainability') }}
               </NuxtLink>
             </li>
             <li>
-              <NuxtLink to="/blog" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
+              <NuxtLink :to="localePath('/blog')" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
                 {{ $t('footer.blog') }}
               </NuxtLink>
             </li>
             <li>
-              <NuxtLink to="/careers" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
+              <NuxtLink :to="localePath('/careers')" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
                 {{ $t('footer.careers') }}
               </NuxtLink>
             </li>
@@ -102,17 +102,17 @@
           </h4>
           <ul class="space-y-2.5">
             <li>
-              <NuxtLink to="/privacy" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
+              <NuxtLink :to="localePath('/privacy')" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
                 {{ $t('footer.privacyPolicy') }}
               </NuxtLink>
             </li>
             <li>
-              <NuxtLink to="/terms" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
+              <NuxtLink :to="localePath('/terms')" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
                 {{ $t('footer.termsOfService') }}
               </NuxtLink>
             </li>
             <li>
-              <NuxtLink to="/cookies" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
+              <NuxtLink :to="localePath('/cookies')" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
                 {{ $t('footer.cookies') }}
               </NuxtLink>
             </li>
@@ -165,6 +165,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+const localePath = useLocalePath()
 const email = ref('')
 
 function onSubscribe() {
