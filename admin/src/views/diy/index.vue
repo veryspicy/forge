@@ -1,39 +1,78 @@
 <template>
   <div class="diy-decoration flex h-full gap-3" style="min-height: calc(100vh - 180px)">
-    <!-- 左侧面板：页面列表 + 组件库 -->
-    <div class="flex w-[280px] shrink-0 flex-col gap-3 overflow-hidden">
-      <!-- 页面列表 -->
-      <div class="rounded bg-white p-3 shadow-sm dark:bg-dark">
-        <div class="mb-2 flex items-center justify-between">
-          <span class="text-sm font-semibold">页面</span>
-          <NButton size="tiny" quaternary type="primary" @click="showCreate = true">
-            <template #icon><SvgIcon icon="mdi:plus" /></template>
-          </NButton>
-        </div>
-        <div class="flex flex-col gap-1">
-          <div
-            v-for="page in pages"
-            :key="page.id"
-            class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm transition-colors"
-            :class="selectedPageId === page.id
-              ? 'bg-primary/10 text-primary font-medium'
-              : 'hover:bg-gray-50 dark:hover:bg-gray-800'"
-            @click="selectPage(page)"
-          >
-            <SvgIcon :icon="pageIcon(page.page_type)" class="text-16px shrink-0" />
-            <span class="truncate">{{ page.name }}</span>
-            <NTag :bordered="false" size="tiny" :type="page.status === 'published' ? 'success' : 'default'" class="ml-auto shrink-0">
-              {{ page.status === 'published' ? '已发布' : '草稿' }}
-            </NTag>
+    <!-- 左侧面板：页面列表 + 站点配置 + 组件库（统一折叠） -->
+    <div v-if="leftPanelVisible" class="flex w-[220px] shrink-0 flex-col overflow-hidden rounded bg-white shadow-sm dark:bg-dark">
+      <NCollapse :default-expanded-names="['pages', 'components']" class="left-collapse flex-1 overflow-auto">
+        <!-- 页面 -->
+        <NCollapseItem name="pages">
+          <template #header>
+            <div class="flex w-full items-center justify-between">
+              <div class="flex items-center gap-2">
+                <SvgIcon icon="mdi:file-document-multiple-outline" class="text-16px text-blue-600" />
+                <span class="text-sm font-semibold">页面</span>
+              </div>
+              <NButton size="tiny" quaternary type="primary" @click.stop="showCreate = true">
+                <template #icon><SvgIcon icon="mdi:plus" /></template>
+              </NButton>
+            </div>
+          </template>
+          <div class="flex flex-col gap-1 px-1">
+            <div
+              v-for="page in pages"
+              :key="page.id"
+              class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm transition-colors"
+              :class="selectedPageId === page.id
+                ? 'bg-primary/10 text-primary font-medium'
+                : 'hover:bg-gray-50 dark:hover:bg-gray-800'"
+              @click="selectPage(page)"
+            >
+              <SvgIcon :icon="pageIcon(page.page_type)" class="text-16px shrink-0" />
+              <span class="truncate">{{ page.name }}</span>
+              <NTag :bordered="false" size="tiny" :type="page.status === 'published' ? 'success' : 'default'" class="ml-auto shrink-0">
+                {{ page.status === 'published' ? '已发布' : '草稿' }}
+              </NTag>
+            </div>
           </div>
-        </div>
-        <NEmpty v-if="!pages.length" description="暂无页面" class="mt-2" />
-      </div>
+          <NEmpty v-if="!pages.length" description="暂无页面" class="mt-2" />
+        </NCollapseItem>
 
-      <!-- 组件库 -->
-      <div class="flex-1 overflow-hidden">
-        <ComponentPanel />
-      </div>
+        <!-- 站点配置 -->
+        <NCollapseItem name="site-config">
+          <template #header>
+            <div class="flex items-center gap-2">
+              <SvgIcon icon="mdi:cog-outline" class="text-16px text-green-600" />
+              <span class="text-sm font-semibold">站点配置</span>
+            </div>
+          </template>
+          <div class="flex flex-col gap-1 px-1">
+            <div
+              v-for="item in siteConfigItems"
+              :key="item.key"
+              class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm transition-colors"
+              :class="store.activeSiteConfigItem === item.key
+                ? 'bg-green-50 text-green-700 font-medium dark:bg-green-900/20 dark:text-green-400'
+                : 'hover:bg-gray-50 dark:hover:bg-gray-800'"
+              @click="store.selectSiteConfigItem(item.key)"
+            >
+              <SvgIcon :icon="item.icon" class="text-14px shrink-0" />
+              <span>{{ item.label }}</span>
+            </div>
+          </div>
+        </NCollapseItem>
+
+        <!-- 组件库 -->
+        <NCollapseItem name="components">
+          <template #header>
+            <div class="flex items-center gap-2">
+              <SvgIcon icon="mdi:widgets-outline" class="text-16px text-purple-600" />
+              <span class="text-sm font-semibold">组件库</span>
+            </div>
+          </template>
+          <div class="overflow-y-auto" style="max-height: calc(100vh - 360px)">
+            <ComponentPanel />
+          </div>
+        </NCollapseItem>
+      </NCollapse>
     </div>
 
     <!-- 中间区域：预览 + 画布 -->
@@ -41,6 +80,11 @@
       <!-- 顶栏：模式切换 + URL + 设备切换 -->
       <div class="flex items-center justify-between border-b px-4 py-2">
         <div class="flex items-center gap-2">
+          <NButton size="small" quaternary @click="leftPanelVisible = !leftPanelVisible">
+            <template #icon>
+              <SvgIcon :icon="leftPanelVisible ? 'mdi:chevron-double-left' : 'mdi:chevron-double-right'" class="text-16px" />
+            </template>
+          </NButton>
           <NButtonGroup size="small">
             <NButton :type="mode === 'preview' ? 'primary' : 'default'" @click="switchMode('preview')">
               <template #icon><SvgIcon icon="mdi:eye" /></template>
@@ -56,10 +100,10 @@
             :value="previewUrl"
             size="small"
             readonly
-            style="width: 320px"
+            style="width: 200px"
           />
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-1">
           <NButton size="small" :type="device === 'desktop' ? 'primary' : 'default'" quaternary @click="device = 'desktop'">
             <template #icon><SvgIcon icon="mdi:monitor" /></template>
           </NButton>
@@ -70,16 +114,21 @@
             <template #icon><SvgIcon icon="mdi:cellphone" /></template>
           </NButton>
         </div>
-        <NSpace>
+        <div class="flex shrink-0 items-center gap-2">
           <NButton size="small" :loading="saving" @click="handleSave">Save Draft</NButton>
           <NButton size="small" type="primary" :loading="publishing" @click="handlePublish">Publish</NButton>
-        </NSpace>
+          <NButton size="small" quaternary @click="panelVisible = !panelVisible">
+            <template #icon>
+              <SvgIcon :icon="panelVisible ? 'mdi:chevron-double-right' : 'mdi:chevron-double-left'" class="text-16px" />
+            </template>
+          </NButton>
+        </div>
       </div>
 
       <!-- 内容区域 -->
       <div class="flex-1 overflow-hidden">
         <!-- 实时预览模式 -->
-        <div v-if="mode === 'preview'" class="h-full flex justify-center overflow-auto bg-gray-100 p-4 dark:bg-true-gray-900">
+        <div v-if="mode === 'preview'" class="h-full flex justify-center overflow-auto bg-gray-100 p-0 dark:bg-true-gray-900">
           <div
             class="overflow-hidden bg-white shadow-lg transition-all duration-300"
             :class="deviceFrameClass"
@@ -93,7 +142,7 @@
         </div>
 
         <!-- 结构编辑模式（组件画布） -->
-        <div v-else class="h-full flex justify-center overflow-y-auto bg-gray-100 p-4 dark:bg-true-gray-900">
+        <div v-else class="h-full flex justify-center overflow-y-auto bg-gray-100 p-0 dark:bg-true-gray-900">
           <div class="phone-frame w-[390px] min-h-[844px] shrink-0 overflow-hidden self-start rounded-xl bg-white shadow-lg">
             <VueDraggable
               v-model="pageComponents"
@@ -134,8 +183,15 @@
       </div>
     </div>
 
-    <!-- 右侧面板：站点配置 + 组件属性 -->
-    <div class="w-[360px] shrink-0 overflow-hidden">
+    <!-- 右侧面板拖拽分隔条 -->
+    <div
+      v-if="panelVisible"
+      class="resize-handle relative z-10 w-[6px] shrink-0 cursor-col-resize hover:bg-primary/20 active:bg-primary/30"
+      @mousedown="startResize"
+    />
+
+    <!-- 右侧面板：属性配置 -->
+    <div v-if="panelVisible" class="shrink-0 overflow-hidden" :style="{ width: panelWidth + 'px' }">
       <PropertyPanel />
     </div>
 
@@ -167,18 +223,21 @@ import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import {
   NButton,
   NButtonGroup,
+  NCollapse,
+  NCollapseItem,
   NEmpty,
   NForm,
   NFormItem,
   NInput,
   NModal,
   NSelect,
-  NSpace,
   NTag
 } from 'naive-ui';
 import { VueDraggable } from 'vue-draggable-plus';
-import { useDiyStore } from '@/store/modules/diy';
+import { useDiyStore, SITE_CONFIG_ITEMS } from '@/store/modules/diy';
 import { diyApi } from '@/service/api/diy';
+
+const siteConfigItems = SITE_CONFIG_ITEMS;
 import ComponentPanel from '@/views/diy-editor/modules/ComponentPanel.vue';
 import PropertyPanel from '@/views/diy-editor/modules/PropertyPanel.vue';
 
@@ -208,6 +267,31 @@ const mode = ref<'preview' | 'canvas'>('preview');
 const device = ref<'desktop' | 'tablet' | 'mobile'>('desktop');
 const saving = ref(false);
 const publishing = ref(false);
+const panelWidth = ref(240);
+const leftPanelVisible = ref(true);
+const panelVisible = ref(true);
+const isResizing = ref(false);
+
+function startResize(e: MouseEvent) {
+  isResizing.value = true;
+  const startX = e.clientX;
+  const startWidth = panelWidth.value;
+
+  function onMouseMove(ev: MouseEvent) {
+    if (!isResizing.value) return;
+    const delta = startX - ev.clientX;
+    panelWidth.value = Math.max(240, Math.min(600, startWidth + delta));
+  }
+
+  function onMouseUp() {
+    isResizing.value = false;
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+  }
+
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp);
+}
 
 const deviceFrameClass = computed(() => ({
   'w-full': device.value === 'desktop',
@@ -376,7 +460,10 @@ async function handleCreate() {
 
 onMounted(async () => {
   await loadPages();
-  await store.fetchComponentsLibrary();
+  await Promise.all([
+    store.fetchComponentsLibrary(),
+    store.fetchSiteConfig()
+  ]);
   // 默认选中首页
   if (pages.value.length) {
     await selectPage(pages.value[0]);
@@ -396,5 +483,13 @@ onUnmounted(() => {
 .ghost {
   opacity: 0.4;
   border: 1px dashed var(--primary-color, #18a058);
+}
+
+/* NCollapse 白色背景样式覆盖 */
+.left-collapse :deep(.n-collapse-item__header),
+.left-collapse :deep(.n-collapse-item__header-main),
+.left-collapse :deep(.n-collapse-item__content-wrapper),
+.left-collapse :deep(.n-collapse-item__content) {
+  background: transparent;
 }
 </style>
