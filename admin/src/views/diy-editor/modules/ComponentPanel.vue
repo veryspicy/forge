@@ -1,6 +1,5 @@
 <template>
-  <div class="component-panel h-full overflow-y-auto rounded bg-white p-3 shadow-sm dark:bg-dark">
-    <div class="mb-3 text-sm font-semibold">组件库</div>
+  <div class="component-panel overflow-y-auto px-2 pb-2 dark:bg-dark">
     <div v-for="group in groupedComponents" :key="group.category" class="mb-4">
       <div class="mb-2 text-xs uppercase tracking-wide text-gray-400">{{ group.label }}</div>
       <VueDraggable

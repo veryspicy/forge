@@ -1,139 +1,7 @@
 <template>
   <div class="property-panel h-full overflow-y-auto rounded bg-white p-4 shadow-sm dark:bg-dark">
-    <!-- 站点配置面板（未选中组件时） -->
-    <div v-if="!component" class="flex flex-col gap-3">
-      <div class="mb-2 flex items-center gap-2 border-b border-gray-100 border-solid pb-2 dark:border-gray-700">
-        <SvgIcon icon="mdi:web" class="text-18px text-green-600" />
-        <span class="font-semibold">站点配置</span>
-      </div>
-
-      <NCollapse :default-expanded-names="['brand', 'theme']">
-        <!-- Brand -->
-        <NCollapseItem name="brand" title="品牌">
-          <NFormItem label="站点名称">
-            <NInput v-model:value="siteConfig.brand.name" size="small" />
-          </NFormItem>
-          <NFormItem label="标语">
-            <NInput v-model:value="siteConfig.brand.tagline" size="small" />
-          </NFormItem>
-          <NFormItem label="Logo 类型">
-            <NSelect
-              v-model:value="siteConfig.brand.logo.type"
-              :options="logoTypeOptions"
-              size="small"
-            />
-          </NFormItem>
-        </NCollapseItem>
-
-        <!-- Theme -->
-        <NCollapseItem name="theme" title="主题">
-          <div class="grid grid-cols-3 gap-2">
-            <div>
-              <label class="text-11px text-gray-500">Primary</label>
-              <NColorPicker v-model:value="siteConfig.theme.primaryColor" size="small" />
-            </div>
-            <div>
-              <label class="text-11px text-gray-500">Primary Light</label>
-              <NColorPicker v-model:value="siteConfig.theme.primaryLight" size="small" />
-            </div>
-            <div>
-              <label class="text-11px text-gray-500">Primary Dark</label>
-              <NColorPicker v-model:value="siteConfig.theme.primaryDark" size="small" />
-            </div>
-            <div>
-              <label class="text-11px text-gray-500">Secondary</label>
-              <NColorPicker v-model:value="siteConfig.theme.secondaryColor" size="small" />
-            </div>
-            <div>
-              <label class="text-11px text-gray-500">Accent</label>
-              <NColorPicker v-model:value="siteConfig.theme.accentColor" size="small" />
-            </div>
-          </div>
-          <NFormItem label="标题字体" class="mt-2">
-            <NInput v-model:value="siteConfig.theme.fontHeading" size="small" />
-          </NFormItem>
-          <NFormItem label="正文字体">
-            <NInput v-model:value="siteConfig.theme.fontBody" size="small" />
-          </NFormItem>
-        </NCollapseItem>
-
-        <!-- Navigation -->
-        <NCollapseItem name="navigation" title="导航">
-          <div
-            v-for="(item, idx) in siteConfig.navigation.items"
-            :key="idx"
-            class="mb-2 flex items-center gap-2 rounded border p-2"
-          >
-            <NInput v-model:value="item.label" size="small" placeholder="名称" style="width:80px" />
-            <NInput v-model:value="item.url" size="small" placeholder="链接" class="flex-1" />
-            <NButton size="tiny" quaternary type="error" @click="removeNavItem(idx)">
-              <template #icon><SvgIcon icon="mdi:close" /></template>
-            </NButton>
-          </div>
-          <NButton size="tiny" dashed block @click="addNavItem">+ 添加导航项</NButton>
-        </NCollapseItem>
-
-        <!-- Categories -->
-        <NCollapseItem name="categories" title="分类">
-          <div
-            v-for="(cat, idx) in siteConfig.categories"
-            :key="idx"
-            class="mb-2 flex items-center gap-2 rounded border p-2"
-          >
-            <NInput v-model:value="cat.slug" size="small" placeholder="Slug" style="width:90px" />
-            <NInput v-model:value="cat.nameKey" size="small" placeholder="i18n Key" class="flex-1" />
-            <NInput v-model:value="cat.icon" size="small" placeholder="图标" style="width:70px" />
-            <NButton size="tiny" quaternary type="error" @click="siteConfig.categories.splice(idx, 1)">
-              <template #icon><SvgIcon icon="mdi:close" /></template>
-            </NButton>
-          </div>
-          <NButton size="tiny" dashed block @click="siteConfig.categories.push({ slug: '', nameKey: '', icon: '' })">+ 添加分类</NButton>
-        </NCollapseItem>
-
-        <!-- Footer -->
-        <NCollapseItem name="footer" title="页脚">
-          <NFormItem label="版权文字">
-            <NInput v-model:value="siteConfig.footer.copyright" size="small" />
-          </NFormItem>
-          <NFormItem label="Newsletter">
-            <NSwitch v-model:value="siteConfig.footer.newsletter" size="small" />
-          </NFormItem>
-        </NCollapseItem>
-
-        <!-- SEO -->
-        <NCollapseItem name="seo" title="SEO">
-          <NFormItem label="首页标题">
-            <NInput v-model:value="siteConfig.seo.homeTitle" size="small" />
-          </NFormItem>
-          <NFormItem label="Meta 描述">
-            <NInput v-model:value="siteConfig.seo.metaDescription" type="textarea" size="small" :rows="2" />
-          </NFormItem>
-          <NFormItem label="Meta 关键词">
-            <NInput v-model:value="siteConfig.seo.metaKeywords" size="small" />
-          </NFormItem>
-        </NCollapseItem>
-
-        <!-- Feature Flags -->
-        <NCollapseItem name="featureFlags" title="功能开关">
-          <NSwitch
-            v-for="(flag, key) in siteConfig.featureFlags"
-            :key="String(key)"
-            :value="!!flag"
-            @update:value="(v: boolean) => { siteConfig.featureFlags[key] = v; }"
-          >
-            <template #checked>{{ String(key) }}: ON</template>
-            <template #unchecked>{{ String(key) }}: OFF</template>
-          </NSwitch>
-        </NCollapseItem>
-      </NCollapse>
-
-      <NButton type="primary" block size="small" :loading="savingConfig" @click="saveConfig">
-        保存站点配置
-      </NButton>
-    </div>
-
     <!-- 组件属性面板（选中组件时） -->
-    <template v-else>
+    <template v-if="component">
       <div class="mb-4 flex items-center gap-2 border-b border-gray-100 border-solid pb-3 dark:border-gray-700">
         <NButton size="tiny" quaternary type="error" @click="store.removeComponent(component.id)">
           <template #icon><SvgIcon icon="mdi:delete" /></template>
@@ -154,94 +22,245 @@
         @update:model-value="handleUpdate"
       />
     </template>
+
+    <!-- 站点配置面板（选中站点配置项时） -->
+    <template v-else-if="activeConfigKey">
+      <div class="mb-4 flex items-center gap-2 border-b border-gray-100 border-solid pb-3 dark:border-gray-700">
+        <SvgIcon icon="mdi:cog-outline" class="text-18px text-green-600" />
+        <span class="font-semibold">{{ configLabel }}</span>
+        <NButton size="tiny" type="primary" class="ml-auto" :loading="saving" @click="handleSaveSiteConfig">保存站点配置</NButton>
+      </div>
+
+      <!-- 品牌 -->
+      <div v-if="activeConfigKey === 'brand'" class="flex flex-col gap-3">
+        <label class="text-xs font-medium text-gray-500">品牌名称</label>
+        <NInput v-model:value="config.brand.name" />
+        <label class="text-xs font-medium text-gray-500">标语 Tagline</label>
+        <NInput v-model:value="config.brand.tagline" placeholder="可留空" />
+        <label class="text-xs font-medium text-gray-500">Logo 类型</label>
+        <NSelect v-model:value="config.brand.logo.type" :options="[{label:'文字',value:'text'},{label:'图片',value:'image'}]" size="small" />
+        <template v-if="config.brand.logo.type === 'text'">
+          <label class="text-xs font-medium text-gray-500">Logo 文字</label>
+          <NInput v-model:value="config.brand.logo.data" placeholder="品牌文字 Logo" />
+        </template>
+        <template v-else>
+          <label class="text-xs font-medium text-gray-500">上传 Logo 图片</label>
+          <NUpload
+            :show-file-list="false"
+            accept="image/*"
+            :custom-request="handleLogoUpload"
+          >
+            <NButton size="small" :loading="uploading">
+              <template #icon><SvgIcon icon="mdi:upload" /></template>
+              选择图片上传
+            </NButton>
+          </NUpload>
+          <div v-if="config.brand.logo.data" class="flex items-center gap-2 rounded border border-gray-200 border-solid bg-gray-50 p-2">
+            <img :src="config.brand.logo.data" class="h-10 w-10 rounded object-cover" alt="Logo" />
+            <span class="flex-1 truncate text-xs text-gray-500">{{ config.brand.logo.data }}</span>
+            <NButton size="tiny" quaternary type="error" @click="config.brand.logo.data = ''">
+              <template #icon><SvgIcon icon="mdi:close" /></template>
+            </NButton>
+          </div>
+          <label class="text-xs font-medium text-gray-500">或手动输入图片 URL</label>
+          <NInput v-model:value="config.brand.logo.data" placeholder="https://example.com/logo.png" />
+        </template>
+      </div>
+
+      <!-- 主题 -->
+      <div v-else-if="activeConfigKey === 'theme'" class="flex flex-col gap-3">
+        <label class="text-xs font-medium text-gray-500">主色 Primary</label>
+        <div class="flex items-center gap-2">
+          <NColorPicker :value="config.theme.primaryColor" @update:value="v => (config.theme.primaryColor = v)" size="small" />
+          <NInput v-model:value="config.theme.primaryColor" size="small" style="flex:1" />
+        </div>
+        <label class="text-xs font-medium text-gray-500">浅主色 Primary Light</label>
+        <div class="flex items-center gap-2">
+          <NColorPicker :value="config.theme.primaryLight" @update:value="v => (config.theme.primaryLight = v)" size="small" />
+          <NInput v-model:value="config.theme.primaryLight" size="small" style="flex:1" />
+        </div>
+        <label class="text-xs font-medium text-gray-500">深主色 Primary Dark</label>
+        <div class="flex items-center gap-2">
+          <NColorPicker :value="config.theme.primaryDark" @update:value="v => (config.theme.primaryDark = v)" size="small" />
+          <NInput v-model:value="config.theme.primaryDark" size="small" style="flex:1" />
+        </div>
+        <label class="text-xs font-medium text-gray-500">辅助色 Secondary</label>
+        <div class="flex items-center gap-2">
+          <NColorPicker :value="config.theme.secondaryColor" @update:value="v => (config.theme.secondaryColor = v)" size="small" />
+          <NInput v-model:value="config.theme.secondaryColor" size="small" style="flex:1" />
+        </div>
+        <label class="text-xs font-medium text-gray-500">强调色 Accent</label>
+        <div class="flex items-center gap-2">
+          <NColorPicker :value="config.theme.accentColor" @update:value="v => (config.theme.accentColor = v)" size="small" />
+          <NInput v-model:value="config.theme.accentColor" size="small" style="flex:1" />
+        </div>
+        <label class="text-xs font-medium text-gray-500">标题字体</label>
+        <NInput v-model:value="config.theme.fontHeading" />
+        <label class="text-xs font-medium text-gray-500">正文字体</label>
+        <NInput v-model:value="config.theme.fontBody" />
+      </div>
+
+      <!-- 导航 -->
+      <div v-else-if="activeConfigKey === 'nav'" class="flex flex-col gap-2">
+        <div v-for="(navItem, idx) in config.nav" :key="idx" class="flex items-center gap-2">
+          <NInput v-model:value="navItem.label" size="small" placeholder="导航名称" style="flex:1" />
+          <NInput v-model:value="navItem.url" size="small" placeholder="/path" style="flex:1" />
+          <NButton size="tiny" quaternary type="error" @click="config.nav.splice(idx, 1)">
+            <template #icon><SvgIcon icon="mdi:close" /></template>
+          </NButton>
+        </div>
+        <NButton size="small" dashed @click="config.nav.push({label:'',url:''})">
+          <template #icon><SvgIcon icon="mdi:plus" /></template>
+          添加导航项
+        </NButton>
+      </div>
+
+      <!-- 分类 -->
+      <div v-else-if="activeConfigKey === 'categories'" class="flex flex-col gap-2">
+        <div v-for="(cat, idx) in config.categories" :key="idx" class="flex items-center gap-2">
+          <NInput v-model:value="cat.slug" size="small" placeholder="slug" style="flex:1" />
+          <NInput v-model:value="cat.nameKey" size="small" placeholder="i18n key" style="flex:1" />
+          <NInput v-model:value="cat.icon" size="small" placeholder="mdi:icon" style="width:100px" />
+          <NButton size="tiny" quaternary type="error" @click="config.categories.splice(idx, 1)">
+            <template #icon><SvgIcon icon="mdi:close" /></template>
+          </NButton>
+        </div>
+        <NButton size="small" dashed @click="config.categories.push({slug:'',nameKey:'',icon:''})">
+          <template #icon><SvgIcon icon="mdi:plus" /></template>
+          添加分类
+        </NButton>
+      </div>
+
+      <!-- 页脚 -->
+      <div v-else-if="activeConfigKey === 'footer'" class="flex flex-col gap-3">
+        <label class="text-xs font-medium text-gray-500">版权信息</label>
+        <NInput v-model:value="config.footer.copyright" placeholder="© 2026 Forge. 版权所有。" />
+        <label class="text-xs font-medium text-gray-500">订阅 Newsletter</label>
+        <NSwitch v-model:value="config.footer.newsletter" />
+      </div>
+
+      <!-- SEO -->
+      <div v-else-if="activeConfigKey === 'seo'" class="flex flex-col gap-3">
+        <label class="text-xs font-medium text-gray-500">首页标题</label>
+        <NInput v-model:value="config.seo.homeTitle" placeholder="首页 SEO 标题" />
+        <label class="text-xs font-medium text-gray-500">Meta 描述</label>
+        <NInput v-model:value="config.seo.metaDescription" type="textarea" placeholder="页面描述" />
+        <label class="text-xs font-medium text-gray-500">Meta 关键词</label>
+        <NInput v-model:value="config.seo.metaKeywords" placeholder="关键词, 用逗号分隔" />
+      </div>
+
+      <!-- i18n -->
+      <div v-else-if="activeConfigKey === 'i18n'" class="flex flex-col gap-3">
+        <label class="text-xs font-medium text-gray-500">默认语言</label>
+        <NSelect v-model:value="config.i18n.defaultLocale" :options="localeOptions" size="small" />
+        <label class="text-xs font-medium text-gray-500">支持语言</label>
+        <NSelect v-model:value="config.i18n.locales" :options="localeOptions" multiple size="small" />
+      </div>
+
+      <!-- 功能开关 -->
+      <div v-else-if="activeConfigKey === 'featureFlags'" class="flex flex-col gap-3">
+        <div v-for="(val, key) in config.featureFlags" :key="key" class="flex items-center justify-between">
+          <span class="text-sm">{{ key }}</span>
+          <NSwitch v-model:value="config.featureFlags[key]" />
+        </div>
+        <div class="flex items-center gap-2">
+          <NInput v-model:value="newFlagKey" size="small" placeholder="开关名称" style="flex:1" />
+          <NButton size="small" @click="addFlag">添加</NButton>
+        </div>
+      </div>
+
+      <!-- 货币 -->
+      <div v-else-if="activeConfigKey === 'currencies'" class="flex flex-col gap-2">
+        <div v-for="(cur, idx) in config.currencies" :key="idx" class="flex items-center gap-2">
+          <NInput v-model:value="config.currencies[idx]" size="small" placeholder="如 USD" style="flex:1" />
+          <NButton size="tiny" quaternary type="error" @click="config.currencies.splice(idx, 1)">
+            <template #icon><SvgIcon icon="mdi:close" /></template>
+          </NButton>
+        </div>
+        <NButton size="small" dashed @click="config.currencies.push('')">
+          <template #icon><SvgIcon icon="mdi:plus" /></template>
+          添加货币
+        </NButton>
+      </div>
+    </template>
+
+    <!-- 空状态：未选中任何元素 -->
+    <div v-else class="flex h-full flex-col items-center justify-center gap-3 text-gray-400">
+      <SvgIcon icon="mdi:gesture-tap" class="text-48px" />
+      <span class="text-sm">点击画布上的组件查看属性</span>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
-import {
-  NButton,
-  NCollapse,
-  NCollapseItem,
-  NColorPicker,
-  NFormItem,
-  NInput,
-  NSelect,
-  NSwitch
-} from 'naive-ui';
-import { useDiyStore } from '@/store/modules/diy';
+import { computed, ref } from 'vue';
+import { NButton, NColorPicker, NInput, NSelect, NSwitch, NUpload, type UploadCustomRequestOptions } from 'naive-ui';
+import { useDiyStore, SITE_CONFIG_ITEMS } from '@/store/modules/diy';
+import { diyApi } from '@/service/api/diy';
 import DynamicForm from './DynamicForm.vue';
-import { get } from '@/service/api/helper';
 
 const store = useDiyStore();
 
 const component = computed<any | null>(() => store.activeComponent);
+const activeConfigKey = computed(() => store.activeSiteConfigItem);
 
-// --- 站点配置 ---
-
-const logoTypeOptions = [
-  { label: '文本', value: 'text' },
-  { label: '图片', value: 'image' },
-  { label: 'SVG', value: 'svg' }
-];
-
-const defaultSiteConfig = {
-  brand: { name: '', tagline: '', logo: { type: 'text', data: '' } },
-  theme: {
-    primaryColor: '#18a058',
-    primaryLight: '#36ad6a',
-    primaryDark: '#0c7a43',
-    secondaryColor: '#f0a020',
-    accentColor: '#2080f0',
-    fontHeading: '',
-    fontBody: ''
-  },
-  navigation: { items: [] as any[] },
-  categories: [] as { slug: string; nameKey: string; icon: string }[],
-  footer: { copyright: '', newsletter: true },
-  seo: { homeTitle: '', metaDescription: '', metaKeywords: '' },
-  featureFlags: {} as Record<string, boolean>
-};
-
-const siteConfig = reactive<any>(JSON.parse(JSON.stringify(defaultSiteConfig)));
-const savingConfig = ref(false);
-
-onMounted(async () => {
-  try {
-    const res = await get('/api/admin/v1/site/config');
-    if (res.data) {
-      Object.assign(siteConfig, JSON.parse(JSON.stringify(defaultSiteConfig)), res.data);
-    }
-  } catch {
-    // 站点配置未就绪时使用默认值
-  }
+const configLabel = computed(() => {
+  const item = SITE_CONFIG_ITEMS.find(i => i.key === activeConfigKey.value);
+  return item?.label || '';
 });
 
-async function saveConfig() {
-  savingConfig.value = true;
+const config = computed(() => store.siteConfig);
+
+const saving = ref(false);
+const uploading = ref(false);
+const newFlagKey = ref('');
+
+const localeOptions = [
+  { label: 'English', value: 'en' },
+  { label: '中文', value: 'zh' },
+  { label: '日本語', value: 'ja' },
+  { label: '한국어', value: 'ko' },
+  { label: 'Français', value: 'fr' },
+  { label: 'Deutsch', value: 'de' },
+  { label: 'Español', value: 'es' }
+];
+
+function addFlag() {
+  if (newFlagKey.value.trim()) {
+    config.value.featureFlags[newFlagKey.value.trim()] = false;
+    newFlagKey.value = '';
+  }
+}
+
+async function handleSaveSiteConfig() {
+  saving.value = true;
   try {
-    await get('/api/admin/v1/site/config'); // placeholder: use PUT when available
+    await store.saveSiteConfig();
     window.$message?.success('站点配置已保存');
   } catch {
     window.$message?.error('保存失败');
   } finally {
-    savingConfig.value = false;
+    saving.value = false;
   }
 }
 
-function addNavItem() {
-  siteConfig.navigation.items.push({ label: '', url: '' });
+async function handleLogoUpload({ file, onFinish, onError }: UploadCustomRequestOptions) {
+  uploading.value = true;
+  try {
+    const res = await diyApi.uploadImage(file.file as File);
+    config.value.brand.logo.data = (res as any).data?.url || (res as any).url || '';
+    onFinish();
+  } catch {
+    window.$message?.error('上传失败');
+    onError();
+  } finally {
+    uploading.value = false;
+  }
 }
 
-function removeNavItem(idx: number) {
-  siteConfig.navigation.items.splice(idx, 1);
-}
-
-// --- 组件属性 ---
-
-function handleUpdate(config: Record<string, any>) {
+function handleUpdate(configData: Record<string, any>) {
   if (component.value) {
-    store.updateComponentConfig(component.value.id, config);
+    store.updateComponentConfig(component.value.id, configData);
   }
 }
 

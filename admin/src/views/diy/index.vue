@@ -1,8 +1,8 @@
 <template>
-  <div class="diy-decoration flex h-full gap-3" style="min-height: calc(100vh - 180px)">
+  <div class="diy-decoration flex h-full gap-0" style="min-height: calc(100vh - 180px)">
     <!-- 左侧面板：页面列表 + 站点配置 + 组件库（统一折叠） -->
-    <div v-if="leftPanelVisible" class="flex w-[220px] shrink-0 flex-col overflow-hidden rounded bg-white shadow-sm dark:bg-dark">
-      <NCollapse :default-expanded-names="['pages', 'components']" class="left-collapse flex-1 overflow-auto">
+    <div v-if="leftPanelVisible" class="flex w-[280px] shrink-0 flex-col overflow-hidden rounded bg-white shadow-sm dark:bg-dark">
+      <NCollapse :default-expanded-names="['pages', 'components']" class="left-collapse flex-1">
         <!-- 页面 -->
         <NCollapseItem name="pages">
           <template #header>
@@ -76,7 +76,7 @@
     </div>
 
     <!-- 中间区域：预览 + 画布 -->
-    <div class="flex flex-1 flex-col overflow-hidden rounded bg-white shadow-sm dark:bg-dark">
+    <div class="flex flex-1 flex-col overflow-hidden rounded bg-white dark:bg-dark">
       <!-- 顶栏：模式切换 + URL + 设备切换 -->
       <div class="flex items-center justify-between border-b px-4 py-2">
         <div class="flex items-center gap-2">
@@ -95,13 +95,7 @@
               结构编辑
             </NButton>
           </NButtonGroup>
-          <NInput
-            v-if="mode === 'preview'"
-            :value="previewUrl"
-            size="small"
-            readonly
-            style="width: 200px"
-          />
+
         </div>
         <div class="flex items-center gap-1">
           <NButton size="small" :type="device === 'desktop' ? 'primary' : 'default'" quaternary @click="device = 'desktop'">
@@ -115,8 +109,8 @@
           </NButton>
         </div>
         <div class="flex shrink-0 items-center gap-2">
-          <NButton size="small" :loading="saving" @click="handleSave">Save Draft</NButton>
-          <NButton size="small" type="primary" :loading="publishing" @click="handlePublish">Publish</NButton>
+          <NButton size="small" :loading="saving" @click="handleSave">{{ $t('common.saveDraft') }}</NButton>
+          <NButton size="small" type="primary" :loading="publishing" @click="handlePublish">{{ $t('common.publish') }}</NButton>
           <NButton size="small" quaternary @click="panelVisible = !panelVisible">
             <template #icon>
               <SvgIcon :icon="panelVisible ? 'mdi:chevron-double-right' : 'mdi:chevron-double-left'" class="text-16px" />
@@ -183,15 +177,8 @@
       </div>
     </div>
 
-    <!-- 右侧面板拖拽分隔条 -->
-    <div
-      v-if="panelVisible"
-      class="resize-handle relative z-10 w-[6px] shrink-0 cursor-col-resize hover:bg-primary/20 active:bg-primary/30"
-      @mousedown="startResize"
-    />
-
     <!-- 右侧面板：属性配置 -->
-    <div v-if="panelVisible" class="shrink-0 overflow-hidden" :style="{ width: panelWidth + 'px' }">
+    <div v-if="panelVisible" class="w-[280px] shrink-0 overflow-hidden">
       <PropertyPanel />
     </div>
 
@@ -267,31 +254,8 @@ const mode = ref<'preview' | 'canvas'>('preview');
 const device = ref<'desktop' | 'tablet' | 'mobile'>('desktop');
 const saving = ref(false);
 const publishing = ref(false);
-const panelWidth = ref(240);
 const leftPanelVisible = ref(true);
 const panelVisible = ref(true);
-const isResizing = ref(false);
-
-function startResize(e: MouseEvent) {
-  isResizing.value = true;
-  const startX = e.clientX;
-  const startWidth = panelWidth.value;
-
-  function onMouseMove(ev: MouseEvent) {
-    if (!isResizing.value) return;
-    const delta = startX - ev.clientX;
-    panelWidth.value = Math.max(240, Math.min(600, startWidth + delta));
-  }
-
-  function onMouseUp() {
-    isResizing.value = false;
-    document.removeEventListener('mousemove', onMouseMove);
-    document.removeEventListener('mouseup', onMouseUp);
-  }
-
-  document.addEventListener('mousemove', onMouseMove);
-  document.addEventListener('mouseup', onMouseUp);
-}
 
 const deviceFrameClass = computed(() => ({
   'w-full': device.value === 'desktop',

@@ -85,6 +85,8 @@ const local: App.I18n.Schema = {
     modify: '修改',
     modifySuccess: '修改成功',
     noData: '无数据',
+    publish: '发布',
+    saveDraft: '保存草稿',
     operate: '操作',
     pleaseCheckValue: '请检查输入的值是否合法',
     refresh: '刷新',
@@ -296,6 +298,8 @@ const local: App.I18n.Schema = {
     customers: '客户',
     'admin-users': '管理员',
     roles: '角色管理',
+    'site-decoration': '页面装修',
+    'site-decoration-editor': '页面编辑器',
     diy: '页面装修',
     'diy-pages': '装修页面',
     'diy-editor': '页面编辑器'

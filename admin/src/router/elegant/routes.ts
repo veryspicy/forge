@@ -173,15 +173,6 @@ export const generatedRoutes: GeneratedRoute[] = [
     }
   },
   {
-    name: 'site',
-    path: '/site',
-    component: 'layout.base$view.site',
-    meta: {
-      title: 'site',
-      i18nKey: 'route.site'
-    }
-  },
-  {
     name: 'suppliers',
     path: '/suppliers',
     component: 'layout.base$view.suppliers',
