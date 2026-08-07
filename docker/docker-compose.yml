@@ -172,10 +172,10 @@ services:
       redis:
         condition: service_healthy
 
-  # ===== 前端 =====
-  frontend:
-    image: forge-frontend:latest
-    container_name: forge-frontend
+  # ===== 门户前端 =====
+  portal-web:
+    image: forge-portal-web:latest
+    container_name: forge-portal-web
     restart: unless-stopped
     networks:
       - forge
@@ -188,7 +188,7 @@ services:
       NUXT_PUBLIC_DEFAULT_CURRENCY: USD
       API_PROXY_TARGET: http://backend:8000
     volumes:
-      - ../frontend/app:/app/app  # 热重载
+      - ../portal-web/app:/app/app  # 热重载
     depends_on:
       backend:
         condition: service_healthy

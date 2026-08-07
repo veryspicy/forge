@@ -161,9 +161,9 @@ This file (created at project root).
 | 2.1 | `backend/src/forge/domain/ai/services.py` | **Rewritten** — Added `PetRecommendationEngine` + keyword mapping dicts |
 | 2.2 | `backend/src/forge/api/v1/ai_chat.py` | **Rewritten** — Real pet-aware recommendation pipeline for `/chat` and `/recommend` |
 | 2.3 | `backend/src/forge/api/v1/pets.py` | **Extended** — Added `GET /{pet_id}/recommendations` endpoint |
-| 3.1 | `frontend/app/pages/pets.vue` | **Modified** — Added per-pet recommendation section below each card |
-| 3.2 | `frontend/app/pages/chat.vue` | **Modified** — Added pet selector + recommendation card rendering |
-| 4 | `frontend/app/pages/index.vue` | **Modified** — Added "Tailored for Your Pet" section |
+| 3.1 | `portal-web/app/pages/pets.vue` | **Modified** — Added per-pet recommendation section below each card |
+| 3.2 | `portal-web/app/pages/chat.vue` | **Modified** — Added pet selector + recommendation card rendering |
+| 4 | `portal-web/app/pages/index.vue` | **Modified** — Added "Tailored for Your Pet" section |
 | 5 | `STAGE3-DONE.md` | **Created** — This document |
 
 ### Files NOT modified

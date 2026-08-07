@@ -52,7 +52,7 @@ AIGC:
 | RocketMQ Broker | `forge-broker` | 10911:10911, 10912:10912 | Compose |
 | Backend (FastAPI) | `forge-backend` | 8000:8000 | Compose |
 | AI Service | `forge-ai` | 8001:8001 | Compose |
-| Frontend (Nuxt 3) | `forge-frontend` | 3000:3000 | Compose |
+| Frontend (Nuxt 3) | `forge-portal-web` | 3000:3000 | Compose |
 | Admin (Soybean Admin) | `forge-admin` | 8080:80 | Compose |
 | Init Admin (一次性) | `forge-init-admin` | — | Compose（run to completion） |
 
@@ -143,7 +143,7 @@ podman wait --condition=healthy forge-backend
 podman exec forge-backend alembic upgrade head
 
 # 层 4: 前端 + Admin
-$PC up -d frontend admin
+$PC up -d portal-web admin
 
 # 层 5: 初始化 Admin 用户（一次性）
 $PC up -d init-admin
@@ -170,9 +170,9 @@ $PC up -d init-admin
 | **Backend** | Dockerfile | 重建镜像 + 重建容器 | 同上 |
 | **Frontend** | `.vue` / `.ts` / `.js` / CSS | **无操作**（HMR 自动生效） | — |
 | **Frontend** | `locales/*.json` | **无操作**（HMR 自动生效） | — |
-| **Frontend** | `nuxt.config.ts` | 重建镜像 + 重建容器 | `$PC build frontend` → `$PC up -d --force-recreate frontend` |
+| **Frontend** | `nuxt.config.ts` | 重建镜像 + 重建容器 | `$PC build portal-web` → `$PC up -d --force-recreate frontend` |
 | **Frontend** | `package.json` / `pnpm-lock.yaml` | 重建镜像 + 重建容器 | 同上 |
-| **Frontend** | `.nuxt` 缓存异常 500 | 清缓存并重启 | `podman exec forge-frontend rm -rf /app/.nuxt /app/node_modules/.cache` → `$PC restart frontend` |
+| **Frontend** | `.nuxt` 缓存异常 500 | 清缓存并重启 | `podman exec forge-portal-web rm -rf /app/.nuxt /app/node_modules/.cache` → `$PC restart portal-web` |
 | **Admin** | **任何源码**（`.vue` / `.ts` / `.css` / `.json`） | **重建镜像 --no-cache** + 重建容器 | `$PC build --no-cache admin` → `$PC up -d --force-recreate admin` |
 | **Admin** | `package.json` / `pnpm-lock.yaml` | 重建镜像 --no-cache + 重建容器 | 同上 |
 | **Admin** | `nginx.conf` | 重建镜像 --no-cache + 重建容器 | 同上 |
@@ -289,7 +289,7 @@ podman network connect forge forge-backend
 podman-compose --project-name docker -f docker-compose.yml build
 podman tag forge-backend:latest forge-backend:v1.3.0
 podman tag forge-admin:latest forge-admin:v1.3.0
-podman tag forge-frontend:latest forge-frontend:v1.3.0
+podman tag forge-portal-web:latest forge-portal-web:v1.3.0
 ```
 
 ---
@@ -349,8 +349,8 @@ podman exec forge-admin cat /etc/nginx/conf.d/default.conf | findstr upstream
 
 **修复**:
 ```powershell
-podman exec forge-frontend rm -rf /app/.nuxt /app/node_modules/.cache
-podman-compose --project-name docker -f D:\codeRepo\forge\docker\docker-compose.yml restart frontend
+podman exec forge-portal-web rm -rf /app/.nuxt /app/node_modules/.cache
+podman-compose --project-name docker -f D:\codeRepo\forge\docker\docker-compose.yml restart portal-web
 ```
 
 ### 7.5 Compose 命令挂起/截断

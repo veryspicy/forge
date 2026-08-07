@@ -319,7 +319,7 @@ meta：`roles: ['super_admin', 'admin', 'operator']`
 
 ### C1. 渲染组件
 
-在 `frontend/app/components/diy/` 下创建以下文件：
+在 `portal-web/app/components/diy/` 下创建以下文件：
 
 - `DiyPageRenderer.vue`：渲染容器，遍历 `components`，用 `componentMap` 按 `component_code` 动态匹配渲染组件。componentMap 映射表参考方案 4.2 节（第一阶段仅映射 banner / search_box / image_ad / text_block / divider / blank / rich_text / video，后两类可先做占位）
 - `DiyBanner.vue`：轮播横幅，使用 Tailwind CSS 样式
@@ -333,7 +333,7 @@ meta：`roles: ['super_admin', 'admin', 'operator']`
 
 ### C2. 首页改造
 
-修改 `frontend/app/pages/index.vue`：
+修改 `portal-web/app/pages/index.vue`：
 
 ```typescript
 const { data: diyPage } = await useFetch('/api/v1/diy/pages/default');
@@ -510,7 +510,7 @@ Admin 路由新增：
 
 ### C1. 新增渲染组件
 
-在 `frontend/app/components/diy/` 下新增：
+在 `portal-web/app/components/diy/` 下新增：
 
 - `DiyGoodsList.vue`：接收 `config` 和 `data.products`。按 layout(grid/list/scroll) 和 columns 渲染商品卡片。使用 Tailwind CSS 4，复用项目已有的 ProductCard 组件（如有）
 - `DiyGoodsSingle.vue`：单商品卡片，按 layout(vertical/horizontal) 渲染

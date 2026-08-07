@@ -26,7 +26,7 @@ spec:
     - match: Host(`{{ .Values.ingress.hosts[0].host }}`)
       kind: Rule
       services:
-        - name: {{ include "forge.fullname" . }}-frontend
+        - name: {{ include "forge.fullname" . }}-portal-web
           port: 3000
 {{- else }}
 ---
@@ -57,7 +57,7 @@ spec:
                 name: {{ include "forge.fullname" $ }}-{{ .service }}
                 port:
                   number:
-                    {{- if eq .service "frontend" }}
+                    {{- if eq .service "portal-web" }}
                     3000
                     {{- else if eq .service "backend" }}
                     8000

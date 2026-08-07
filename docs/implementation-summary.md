@@ -78,7 +78,7 @@ AIGC:
 
 ## 项目路径
 
-`D:\codeRepo\forge\frontend\app\`
+`D:\codeRepo\forge\portal-web\app\`
 `D:\codeRepo\forge\backend\src\forge\`
 
 ## 设计系统详情

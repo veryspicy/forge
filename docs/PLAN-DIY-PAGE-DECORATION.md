@@ -895,10 +895,10 @@ if (!diyPage.value || !diyPage.value.components?.length) {
 
 ### 4.2 组件映射与渲染引擎
 
-在 `frontend/app/components/diy/` 目录下创建渲染组件：
+在 `portal-web/app/components/diy/` 目录下创建渲染组件：
 
 ```
-frontend/app/components/diy/
+portal-web/app/components/diy/
 ├── DiyPageRenderer.vue          # 页面渲染容器
 ├── DiyBanner.vue                # 轮播横幅
 ├── DiySearchBox.vue             # 搜索框

@@ -67,6 +67,26 @@ export const generatedRoutes: GeneratedRoute[] = [
     }
   },
   {
+    name: 'diy',
+    path: '/diy',
+    component: 'layout.base$view.diy',
+    meta: {
+      title: 'diy',
+      i18nKey: 'route.diy',
+      hideInMenu: true
+    }
+  },
+  {
+    name: 'diy-editor',
+    path: '/diy-editor',
+    component: 'layout.base$view.diy-editor',
+    meta: {
+      title: 'diy-editor',
+      i18nKey: 'route.diy-editor',
+      hideInMenu: true
+    }
+  },
+  {
     name: 'iframe-page',
     path: '/iframe-page/:url',
     component: 'layout.base$view.iframe-page',

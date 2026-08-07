@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "forge.fullname" . }}-portal-web
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "forge.labels" . | nindent 4 }}
+    app.kubernetes.io/component: portal-web
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "forge.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: portal-web
+  ports:
+    - name: http
+      port: {{ index .Values "portalWeb" "service" "port" }}
+      targetPort: 3000
+      protocol: TCP

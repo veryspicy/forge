@@ -58,7 +58,7 @@ Response includes: `tracking_number`, `carrier`, `tracking_url`, `status`, `esti
 
 ## Task 5: Checkout Page — Real API Call
 
-**File:** `frontend/app/pages/checkout.vue`
+**File:** `portal-web/app/pages/checkout.vue`
 
 Changes:
 - Replaced `alert('Order placed successfully!')` placeholder with `POST /api/v1/orders/` call
@@ -72,7 +72,7 @@ Changes:
 
 ## Task 6: Order Detail Page — Shipment Tracking
 
-**File:** `frontend/app/pages/orders/[id].vue`
+**File:** `portal-web/app/pages/orders/[id].vue`
 
 Changes:
 - Added `fetchShipments(orderId)` call on mount to load real shipment data
@@ -87,7 +87,7 @@ Changes:
 
 ## Task 7: Order Store
 
-**File:** `frontend/app/stores/order.ts`
+**File:** `portal-web/app/stores/order.ts`
 
 Changes:
 - Added `shipments` ref and `loadShipments(orderId)` method
@@ -97,7 +97,7 @@ Changes:
 
 ## Task 8: Auth Headers — useApi Composable
 
-**File:** `frontend/app/composables/useApi.ts`
+**File:** `portal-web/app/composables/useApi.ts`
 
 Changes:
 - Added `getAuthHeaders()` to read `forge_token` cookie and inject `Authorization: Bearer <token>`
@@ -113,10 +113,10 @@ Changes:
 | File | Operation |
 |---|---|
 | `backend/seed_admin.py` | **New** — Admin user seed script |
-| `frontend/app/composables/useApi.ts` | **Modified** — Auth header injection, +fetchShipments |
-| `frontend/app/pages/checkout.vue` | **Modified** — Real order placement + error handling |
-| `frontend/app/pages/orders/[id].vue` | **Modified** — Shipment tracking + API cancel |
-| `frontend/app/stores/order.ts` | **Modified** — +loadShipments, auth-aware |
+| `portal-web/app/composables/useApi.ts` | **Modified** — Auth header injection, +fetchShipments |
+| `portal-web/app/pages/checkout.vue` | **Modified** — Real order placement + error handling |
+| `portal-web/app/pages/orders/[id].vue` | **Modified** — Shipment tracking + API cancel |
+| `portal-web/app/stores/order.ts` | **Modified** — +loadShipments, auth-aware |
 
 ## Files Verified (already compliant)
 

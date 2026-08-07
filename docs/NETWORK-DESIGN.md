@@ -203,7 +203,7 @@ spec:
     - websecure
   routes:
     # Frontend
-    - match: Host(`frontend.forge.com`)
+    - match: Host(`portal-web.forge.com`)
       kind: Rule
       services:
         - name: frontend-svc
@@ -355,7 +355,7 @@ metadata:
 spec:
   tls:
     - hosts:
-        - frontend.forge.com
+        - portal-web.forge.com
         - api.forge.com
         - ai.forge.com
       secretName: forge-tls-secret

@@ -149,7 +149,7 @@ cd backend
 ### 4.1 安装依赖
 
 ```bash
-cd D:\codeRepo\forge\frontend
+cd D:\codeRepo\forge\portal-web
 
 # 安装依赖
 pnpm install
@@ -161,7 +161,7 @@ pnpm approve-builds
 
 ### 4.2 配置环境变量
 
-编辑 `D:\codeRepo\forge\frontend\.env`（或 `nuxt.config.ts` 中的 runtimeConfig）：
+编辑 `D:\codeRepo\forge\portal-web\.env`（或 `nuxt.config.ts` 中的 runtimeConfig）：
 
 ```env
 NUXT_PUBLIC_API_BASE=http://localhost:8000/api/v1
@@ -173,7 +173,7 @@ NUXT_PUBLIC_DEFAULT_CURRENCY=USD
 ### 4.3 启动前端
 
 ```bash
-cd D:\codeRepo\forge\frontend
+cd D:\codeRepo\forge\portal-web
 
 # 开发模式
 pnpm dev

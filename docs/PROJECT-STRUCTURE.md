@@ -88,7 +88,7 @@ frontend/
 ```
 
 ### 前端 build-mount 与 HMR
-- `docker-compose.yml` 中将 `../frontend/app` bind-mount 到容器内 `/app/app`
+- `docker-compose.yml` 中将 `../portal-web/app` bind-mount 到容器内 `/app/app`
 - Nuxt dev server 开启 HMR（Hot Module Replacement）
 - **改任何 `.vue/.ts` 源码或 `i18n/locales/*.json` 翻译文件：等 HMR 生效即可，无需重建镜像**
 

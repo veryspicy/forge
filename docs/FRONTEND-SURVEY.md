@@ -40,7 +40,7 @@ AIGC:
 ## 2. 项目目录结构
 
 ```
-D:\codeRepo\forge\frontend\
+D:\codeRepo\forge\portal-web\
 ├── nuxt.config.ts              # Nuxt 配置（模块/运行时/CSS/代理）
 ├── i18n.config.ts              # 国际化配置
 ├── package.json                # 依赖声明

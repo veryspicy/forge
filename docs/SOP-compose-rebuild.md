@@ -59,13 +59,13 @@ registry=https://registry.npmmirror.com
 ```powershell
 # 大多数情况：不需要任何操作，HMR 自动生效
 # 如果需要手动触发 HMR 重载（罕见）：
-podman exec forge-frontend touch /app/app/app.vue
+podman exec forge-portal-web touch /app/app/app.vue
 ```
 
 ### 4. nuxt.config.ts 变更的正确做法
 ```powershell
 # 只重建 frontend，不重建整个 compose
-podman-compose --project-name docker -f D:\codeRepo\forge\docker\docker-compose.yml build frontend
+podman-compose --project-name docker -f D:\codeRepo\forge\docker\docker-compose.yml build portal-web
 podman-compose --project-name docker -f D:\codeRepo\forge\docker\docker-compose.yml up -d --force-recreate frontend
 ```
 
@@ -106,11 +106,11 @@ podman-compose --project-name docker -f D:\codeRepo\forge\docker\docker-compose.
 |------|------|
 | 改 .vue 源码 | 无操作，等 HMR |
 | 改 locale 翻译 | 无操作，等 HMR；刷新浏览器 |
-| 改 nuxt.config.ts | `build frontend` → `up -d --force-recreate frontend` |
+| 改 nuxt.config.ts | `build portal-web` → `up -d --force-recreate frontend` |
 | 改 Dockerfile | `build <service>` → `up -d --force-recreate <service>` |
 | 改 docker-compose.yml | `up -d`（compose 自动检测变更） |
 | 改 .py 后端代码 | 无操作，uvicorn --reload 自动重启 |
 | 改 pyproject.toml | `build backend` → `up -d --force-recreate backend` |
 | 改 package.json | `build <service>` → `up -d --force-recreate <service>` |
-| 容器异常排查 | `podman logs forge-frontend` |
+| 容器异常排查 | `podman logs forge-portal-web` |
 | 查看服务状态 | `podman ps --filter name=forge` |

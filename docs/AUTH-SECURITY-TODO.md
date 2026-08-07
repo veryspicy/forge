@@ -15,8 +15,8 @@ AIGC:
 >
 > **涉及文件**：
 > - `backend/src/forge/main/dependencies.py`
-> - `frontend/app/middleware/auth.ts`
-> - `frontend/app/composables/useAuth.ts`
+> - `portal-web/app/middleware/auth.ts`
+> - `portal-web/app/composables/useAuth.ts`
 
 ---
 

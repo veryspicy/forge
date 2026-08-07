@@ -341,7 +341,7 @@ pipeline {
                 script {
                     sh """
                         kubectl --context k3s-na \\
-                            set image deployment/frontend \\
+                            set image deployment/portal-web \\
                             frontend=${HARBOR_SERVER}/${HARBOR_PROJECT}/frontend:${env.IMAGE_VERSION} \\
                             -n ${NAMESPACE_NA}
                         
@@ -355,7 +355,7 @@ pipeline {
                             ai-service=${HARBOR_SERVER}/${HARBOR_PROJECT}/ai-service:${env.IMAGE_VERSION} \\
                             -n ${NAMESPACE_NA}
                         
-                        kubectl --context k3s-na rollout status deployment/frontend -n ${NAMESPACE_NA}
+                        kubectl --context k3s-na rollout status deployment/portal-web -n ${NAMESPACE_NA}
                         kubectl --context k3s-na rollout status deployment/backend -n ${NAMESPACE_NA}
                     """
                 }
@@ -370,7 +370,7 @@ pipeline {
                 script {
                     sh """
                         kubectl --context k3s-eu \\
-                            set image deployment/frontend \\
+                            set image deployment/portal-web \\
                             frontend=${HARBOR_SERVER}/${HARBOR_PROJECT}/frontend:${env.IMAGE_VERSION} \\
                             -n ${NAMESPACE_EU}
                         
@@ -449,7 +449,7 @@ environment: production
 
 frontend:
   image:
-    repository: harbor.forge.com/forge/frontend
+    repository: harbor.forge.com/forge/portal-web
     tag: latest
     pullPolicy: Always
   replicas: 3
@@ -541,13 +541,13 @@ docker login harbor.forge.com
 
 # Build images
 echo "Building images..."
-docker build -t harbor.forge.com/forge/frontend:${IMAGE_TAG} ./frontend/
+docker build -t harbor.forge.com/forge/portal-web:${IMAGE_TAG} ./frontend/
 docker build -t harbor.forge.com/forge/backend:${IMAGE_TAG} ./backend/
 docker build -t harbor.forge.com/forge/ai-service:${IMAGE_TAG} ./ai-service/
 
 # Push images
 echo "Pushing images..."
-docker push harbor.forge.com/forge/frontend:${IMAGE_TAG}
+docker push harbor.forge.com/forge/portal-web:${IMAGE_TAG}
 docker push harbor.forge.com/forge/backend:${IMAGE_TAG}
 docker push harbor.forge.com/forge/ai-service:${IMAGE_TAG}
 
@@ -562,7 +562,7 @@ fi
 
 echo "Deploying with kubectl --context ${CONTEXT}..."
 kubectl --context ${CONTEXT} set image \
-    deployment/frontend frontend=harbor.forge.com/forge/frontend:${IMAGE_TAG} \
+    deployment/portal-web frontend=harbor.forge.com/forge/portal-web:${IMAGE_TAG} \
     -n forge-public
 
 kubectl --context ${CONTEXT} set image \
@@ -575,12 +575,12 @@ kubectl --context ${CONTEXT} set image \
 
 # Wait for rollout
 echo "Waiting for rollout..."
-kubectl --context ${CONTEXT} rollout status deployment/frontend -n forge-public
+kubectl --context ${CONTEXT} rollout status deployment/portal-web -n forge-public
 kubectl --context ${CONTEXT} rollout status deployment/backend -n forge-public
 kubectl --context ${CONTEXT} rollout status deployment/ai-service -n forge-public
 
 echo "=== Deployment complete! ==="
-echo "Frontend: https://frontend.forge.com"
+echo "Frontend: https://portal-web.forge.com"
 echo "API: https://api.forge.com"
 ```
 
@@ -597,7 +597,7 @@ CONTEXT="k3s-${REGION}"
 
 echo "Rolling back in ${REGION}..."
 
-kubectl --context ${CONTEXT} rollout undo deployment/frontend -n forge-public
+kubectl --context ${CONTEXT} rollout undo deployment/portal-web -n forge-public
 kubectl --context ${CONTEXT} rollout undo deployment/backend -n forge-public
 kubectl --context ${CONTEXT} rollout undo deployment/ai-service -n forge-public
 
