@@ -11,7 +11,7 @@
         v-if="!collapsed"
         class="font-heading text-sm font-semibold tracking-wide text-accent-400"
       >
-        Forge Admin
+        Admin
       </span>
       <span v-else class="font-heading text-sm font-bold text-accent-400">PA</span>
     </div>

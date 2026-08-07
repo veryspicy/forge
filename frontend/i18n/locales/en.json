@@ -342,7 +342,7 @@
     "selectPet": "Chatting for:"
   },
   "auth": {
-    "signIn": "Sign in to Forge Admin",
+    "signIn": "Sign in",
     "enterCredentials": "Enter your credentials to access the dashboard",
     "email": "Email",
     "password": "Password",

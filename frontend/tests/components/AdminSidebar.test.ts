@@ -94,6 +94,6 @@ describe("AdminSidebar", () => {
       global: { stubs: { NuxtLink: true } },
     });
 
-    expect(wrapper.text()).toContain("Forge Admin");
+    expect(wrapper.text()).toContain("Admin");
   });
 });

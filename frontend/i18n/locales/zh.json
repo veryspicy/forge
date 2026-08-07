@@ -342,7 +342,7 @@
     "selectPet": "聊天对象："
   },
   "auth": {
-    "signIn": "登录 Forge Admin",
+    "signIn": "登录",
     "enterCredentials": "请输入您的凭据以访问管理后台",
     "email": "邮箱",
     "password": "密码",
