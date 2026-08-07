@@ -342,8 +342,8 @@
     "selectPet": "聊天对象："
   },
   "auth": {
-    "signIn": "登录 Forge Admin",
-    "enterCredentials": "请输入您的凭据以访问管理后台",
+    "signIn": "登录",
+    "enterCredentials": "请输入您的登录信息",
     "email": "邮箱",
     "password": "密码",
     "signInButton": "登录",

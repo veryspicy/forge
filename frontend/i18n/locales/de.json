@@ -322,8 +322,8 @@
     "mockResponse": "Eine großartige Frage! Ich helfe Ihnen gerne weiter. Könnten Sie mir mehr Details zu Ihrem Haustier geben, damit ich die persönlichste Beratung geben kann?"
   },
   "auth": {
-    "signIn": "Bei Forge Admin anmelden",
-    "enterCredentials": "Geben Sie Ihre Anmeldedaten ein, um auf das Dashboard zuzugreifen",
+    "signIn": "Anmelden",
+    "enterCredentials": "Geben Sie Ihre Anmeldedaten ein",
     "email": "E-Mail",
     "password": "Passwort",
     "signInButton": "Anmelden",

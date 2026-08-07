@@ -342,8 +342,8 @@
     "selectPet": "Chatting for:"
   },
   "auth": {
-    "signIn": "Sign in to Forge Admin",
-    "enterCredentials": "Enter your credentials to access the dashboard",
+    "signIn": "Sign In",
+    "enterCredentials": "Enter your credentials",
     "email": "Email",
     "password": "Password",
     "signInButton": "Sign in",
