@@ -84,7 +84,7 @@ Forge 是一个全球化宠物用品 AI 独立站，采用模块化单体 + DDD 
 │  ┌─────────────────────────────────────────────────────────────┐   │
 │  │  Traefik Ingress (K3s 内置)                                  │   │
 │  │  ├── SSL/TLS (cert-manager)                                 │   │
-│  │  ├── 路由分发 (/api/* → backend, /* → frontend)             │   │
+│  │  ├── 路由分发 (/api/* → backend, /* → portal-web)             │   │
 │  │  ├── Middleware (限流/安全头/StripPrefix)                    │   │
 │  │  └── 健康检查 (Liveness/Readiness)                           │   │
 │  └─────────────────────────────────────────────────────────────┘   │
@@ -178,7 +178,7 @@ Forge 是一个全球化宠物用品 AI 独立站，采用模块化单体 + DDD 
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │              OCI Load Balancer (入口)                │   │
 │  │  ├── 健康检查: HTTP GET /health                     │   │
-│  │  ├── 路由: /frontend → frontend-svc:3000            │   │
+│  │  ├── 路由: /portal-web → portal-web-svc:3000            │   │
 │  │  ├── 路由: /api → api-gateway-svc:8000              │   │
 │  │  └── SSL Termination                                │   │
 │  └─────────────────────────────────────────────────────┘   │
@@ -210,7 +210,7 @@ Forge 是一个全球化宠物用品 AI 独立站，采用模块化单体 + DDD 
 
 | 服务 | 镜像 | Replicas | 资源限制 |
 |------|------|----------|---------|
-| frontend | harbor/forge/frontend | 3 | 0.5C/512Mi |
+| portal-web | harbor/forge/portal-web | 3 | 0.5C/512Mi |
 | backend | harbor/forge/backend | 3 | 1C/1Gi |
 | ai-service | harbor/forge/ai-service | 2 | 1C/2Gi |
 | postgres | postgres:16 + pgvector | 3 (1M+2S) | 1C/2Gi |
