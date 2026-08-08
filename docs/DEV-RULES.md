@@ -28,6 +28,27 @@ AIGC:
 
 ## 1. 版本管理
 
+> **本项目为单人开发，无多人协作。** 以下规则基于此前提制定。
+
+### 1.1 前置约束：分支必须归集到 dev
+
+**铁律**：每次开始新的 fix 或 feature 开发前，必须先将所有本地分支合并归集到 dev，再从 dev 创建新分支。
+
+**执行步骤**：
+
+1. **检查遗留分支**：`git branch --no-merged dev`
+2. **逐一合并或删除**：
+   - 有独有提交的分支 → `git merge <branch>` 合入 dev
+   - 提交已是 dev 某 commit 的 cherry-pick 等价版 → `git branch -D <branch>` 直接删除
+3. **确认归零**：`git branch --no-merged dev` 必须无输出
+4. **从 dev 创建新分支**：`git checkout -b fix/<xxx>` 或 `git checkout -b feature/<xxx>`
+
+**cherry-pick 等价判定**：用 `git log --grep="<关键词>" dev` 在 dev 历史中搜索相同功能的 commit，若 commit message 和改动内容一致（仅 SHA 不同），则该分支可安全删除。
+
+**违反后果**：游离分支越积越多，cherry-pick 等价提交难以追溯，最终不知道哪些代码是真正未合入的。
+
+### 1.2 分支命名与合并
+
 遵守 [GIT-WORKFLOW.md](./GIT-WORKFLOW.md) 中定义的 Git Flow 工作流：
 
 - **feature/** 分支：新功能
