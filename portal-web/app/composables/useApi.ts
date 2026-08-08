@@ -2,19 +2,19 @@
 import type { UseFetchOptions } from "nuxt/app";
 import { useAuthStore } from "~/stores/auth";
 
-const API_BASE = useRuntimeConfig().public.apiBase;
-
-function getAuthHeaders(): Record<string, string> {
-  const token = useAuthStore().token;
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-async function authFetch(url: string, opts: any = {}) {
-  const headers = { ...getAuthHeaders(), ...(opts.headers || {}) };
-  return $fetch(url, { ...opts, headers });
-}
-
 export function useApi() {
+  const API_BASE = useRuntimeConfig().public.apiBase;
+
+  function getAuthHeaders(): Record<string, string> {
+    const token = useAuthStore().token;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
+  async function authFetch(url: string, opts: any = {}) {
+    const headers = { ...getAuthHeaders(), ...(opts.headers || {}) };
+    return $fetch(url, { ...opts, headers });
+  }
+
   const fetchProducts = async (params?: Record<string, any>) => {
     const query = params ? "?" + new URLSearchParams(params).toString() : "";
     return authFetch(`${API_BASE}/products${query}`);

@@ -2,76 +2,82 @@
 
 所有管理后台接口统一挂载在 /api/admin/v1 下，
 与面向消费者的 /api/v1 隔离。
+
+各子模块导入采用 try/except 容错，任一模块缺失不影响其余路由注册。
 """
 
+import logging
 from fastapi import APIRouter
 
-from forge.api.admin.v1 import (
-    admin_roles,
-    admin_users,
-    auth,
-    dashboard,
-    orders,
-    pricing,
-    products,
-    routes,
-    shipments,
-    suppliers,
-    chat_requests,
-    users,
-    settings,
-    site_profile,
-    site_config,
-    diy,
-)
+logger = logging.getLogger(__name__)
 
 admin_router = APIRouter(prefix="/api/admin/v1")
 
+# --- Helper to safely include a submodule ---
+def _safe_include(module_name: str, prefix: str = "", tags: list = None):
+    try:
+        mod = __import__(f"forge.api.admin.v1.{module_name}", fromlist=[module_name])
+        router = getattr(mod, "router", None)
+        if router is None:
+            logger.warning(f"Module '{module_name}' has no 'router' attribute, skipping")
+            return
+        kwargs = {}
+        if prefix:
+            kwargs["prefix"] = prefix
+        if tags:
+            kwargs["tags"] = tags
+        admin_router.include_router(router, **kwargs)
+    except ImportError as e:
+        logger.warning(f"Module '{module_name}' not available, skipping: {e}")
+
 # --- Auth (independent from C-end) ---
-admin_router.include_router(auth.router, prefix="/auth", tags=["Admin - Auth"])
+_safe_include("auth", prefix="/auth", tags=["Admin - Auth"])
 
 # --- Dynamic Routes (role-based menu filtering) ---
-admin_router.include_router(routes.router, prefix="/route", tags=["Admin - Routes"])
+_safe_include("routes", prefix="/route", tags=["Admin - Routes"])
 
-# --- 注册子路由 ---
+# Dashboard
+_safe_include("dashboard", prefix="/dashboard", tags=["Admin - Dashboard"])
 
-# Dashboard (admin / operator / support 均可)
-admin_router.include_router(dashboard.router, tags=["Admin - Dashboard"])
+# Products
+_safe_include("products", prefix="/products", tags=["Admin - Products"])
 
-# Products (admin / operator)
-admin_router.include_router(products.router, prefix="/products", tags=["Admin - Products"])
+# Orders
+_safe_include("orders", prefix="/orders", tags=["Admin - Orders"])
 
-# Orders (admin / operator / support)
-admin_router.include_router(orders.router, prefix="/orders", tags=["Admin - Orders"])
+# Suppliers
+_safe_include("suppliers", prefix="/suppliers", tags=["Admin - Suppliers"])
 
-# Suppliers (admin only)
-admin_router.include_router(suppliers.router, prefix="/suppliers", tags=["Admin - Suppliers"])
+# Pricing
+_safe_include("pricing", prefix="/pricing", tags=["Admin - Pricing"])
 
-# Pricing (admin / operator)
-admin_router.include_router(pricing.router, prefix="/pricing", tags=["Admin - Pricing"])
+# Shipments
+_safe_include("shipments", prefix="/shipments", tags=["Admin - Shipments"])
 
-# Shipments (admin / operator / support for reads)
-admin_router.include_router(shipments.router, prefix="/shipments", tags=["Admin - Shipments"])
+# Chat Requests
+_safe_include("chat_requests", prefix="/chat-requests", tags=["Admin - Probe"])
 
-# Chat Requests / AI Probe (admin / operator)
-admin_router.include_router(chat_requests.router, prefix="/chat-requests", tags=["Admin - Probe"])
+# Users
+_safe_include("users", prefix="/users", tags=["Admin - Users"])
 
-# Users (admin only)
-admin_router.include_router(users.router, prefix="/users", tags=["Admin - Users"])
+# Settings
+_safe_include("settings", prefix="/settings", tags=["Admin - Settings"])
 
-# Settings (admin / operator for reads, admin only for writes)
-admin_router.include_router(settings.router, prefix="/settings", tags=["Admin - Settings"])
+# Admin Users & Roles
+_safe_include("admin_users", prefix="/admin-users", tags=["Admin - Admin Users"])
+_safe_include("admin_roles", prefix="/roles", tags=["Admin - Roles"])
 
-# Admin Users & Roles (super_admin / admin)
-admin_router.include_router(admin_users.router, prefix="/admin-users", tags=["Admin - Admin Users"])
-admin_router.include_router(admin_roles.router, prefix="/roles", tags=["Admin - Roles"])
+# Site Profiles
+_safe_include("site_profile", prefix="/site-profiles", tags=["Admin - Site Profiles"])
 
-# Site Profiles (admin only)
-admin_router.include_router(site_profile.router, prefix="/site-profiles", tags=["Admin - Site Profiles"])
+# Convenience site endpoint (site_router on site_profile module)
+try:
+    import forge.api.admin.v1.site_profile as _sp
+    if hasattr(_sp, "site_router"):
+        admin_router.include_router(_sp.site_router, tags=["Admin - Site Profiles"])
+except ImportError:
+    pass
 
-# Convenience: /api/admin/v1/site (admin SPA 直调路径)
-admin_router.include_router(site_profile.site_router, tags=["Admin - Site Profiles"])
-
-# 站点可视化装修 v2.0 (settings:manage) — /api/admin/v1/site/{pages,components,templates,...}
-admin_router.include_router(diy.router, prefix="/site", tags=["Admin - Site Decoration"])
-admin_router.include_router(site_config.router, prefix="/site", tags=["Admin - Site Config"])
+# Site decoration & config
+_safe_include("diy", prefix="/site", tags=["Admin - Site Decoration"])
+_safe_include("site_config", prefix="/site", tags=["Admin - Site Config"])

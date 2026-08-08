@@ -324,7 +324,8 @@ async def get_user_routes(admin: dict = Depends(get_current_admin)):
     - routes: 按用户 roles 过滤后的路由树
     - home: 固定返回 "dashboard"
     """
-    user_roles: list[str] = admin.get("roles", [])
+    role = admin.get("role", "")
+    user_roles: list[str] = [role] if role else admin.get("roles", [])
     filtered = _filter_routes_by_roles(AUTH_ROUTE_TREE, user_roles)
     return {
         "routes": filtered,

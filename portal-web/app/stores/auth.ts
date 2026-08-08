@@ -22,9 +22,8 @@ interface MeResponse {
   name: string;
 }
 
-const API_BASE = useRuntimeConfig().public.apiBase;
-
 export const useAuthStore = defineStore("auth", () => {
+  const API_BASE = useRuntimeConfig().public.apiBase;
   const user = ref<AuthUser | null>(null);
   const token = useCookie<string | null>("forge_token", {
     maxAge: 60 * 60 * 24 * 7,
