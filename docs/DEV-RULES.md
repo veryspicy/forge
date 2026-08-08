@@ -224,4 +224,95 @@ podman-compose --project-name docker -f D:\codeRepo\forge\docker\docker-compose.
 
 ---
 
-*最后更新：2026-08-07*
+## 9. 会话启动上下文恢复（强制）
+
+**触发时机**：每次 Marvis 开始处理本项目的任务前（新会话或用户重新提到项目），必须先执行本节校验，严禁依赖对话历史摘要代替实际 git 状态检查。
+
+**失败案例（2026-08-01 #2）**：Marvis 在 `fix/c-end-image-proxy` 工作区有 v2.0 实现 + logo 修复 + 图片代理等多项未提交改动，但 `git stash` 后切到 `dev`（仅含 initial commit）创建新分支，完全丢失了所有改动。原因：
+
+1. 依赖对话历史摘要判断代码位置，未实际检查 git 状态
+2. 工作区长期堆积未提交改动，跨多轮会话
+3. stash 后未记录内容，切分支后遗忘
+4. 关键分支（fix/c-end-image-proxy）从未 push 到 remote
+
+**校验清单（必须逐条执行，不可跳过）**：
+
+1. **检查当前 Git 状态**：
+   ```bash
+   git status --short    # 工作区是否有未提交改动
+   git stash list        # stash 栈是否非空
+   git branch -v         # 所有本地分支及最新 commit
+   git log --oneline -5  # 当前分支最近提交
+   ```
+
+2. **工作区不得有遗留改动**：
+   - 若 `git status --short` 非空 → 必须先向用户报告有哪些未提交文件，由用户决定 commit / stash / 丢弃
+   - 若 `git stash list` 非空 → 必须展示 stash 列表，询问用户是否恢复
+
+3. **确认功能代码所在分支**：
+   - 对比各分支 `git log --oneline <branch>` 和 `git diff <branch> --stat`，找出包含最新功能代码的分支
+   - 禁止假设 `dev` 包含所有已实现功能；必须以实际 git 历史为准
+
+4. **关键分支必须推送**：
+   - 任何承载已验证功能的本地分支，会话结束前必须 `git push origin <branch>`
+   - 若推送失败（无权限等），必须明确告知用户分支名和 commit hash
+
+---
+
+## 10. 重建后端到端验证（强制）
+
+**触发时机**：完成容器重建/重启后，必须在用户查看结果前完成端到端验证。禁止仅凭"源码存在"或"静态资源在容器中"就宣布修复成功。
+
+**失败案例（2026-08-01 #3）**：用户反馈"后台服务还是旧版"。Marvis 执行 `podman exec forge-admin ls /usr/share/nginx/html/assets/` 看到 `diy-D1LAQN6n.js` 等 chunk 存在，即宣布"已修复"。实际上：
+
+1. 前端 `diyApi.ts` 调 `/api/admin/v1/diy/pages`（404），后端 v2.0 路由在 `/api/admin/v1/site/pages`
+2. 数据库 `diy_pages` 表为空，系统页面（home / category / product_detail）从未种子
+3. DIY 页面列表显示空表，用户看到的仍是旧版
+
+**根因**：Marvis 在"静态资源存在"这一步就停止了验证链条，没有继续检查 API 路径 → 后端路由匹配 → 数据库数据 → 页面实际渲染。
+
+**校验清单（必须逐条执行，不可跳过）**：
+
+### 10.1 API 路径一致性检查
+
+对比前端 API 调用路径与后端实际注册路由，确保二者一一对应：
+
+```bash
+# 前端 API 文件路径
+grep -r "diyApi\|siteApi" admin/src/service/api/
+# 后端路由注册
+grep -r "include_router\|prefix" backend/src/forge/api/admin/v1/router.py
+```
+
+| 检查项 | 方法 |
+|--------|------|
+| 前端 `listPages` 等调用路径 | 读 `admin/src/service/api/diy.ts` |
+| 后端实际路由注册 | 读 `backend/src/forge/api/admin/v1/router.py` |
+| 路径是否匹配 | 逐条对比，任一不匹配即为阻断 |
+
+### 10.2 数据链路完整性检查
+
+```bash
+# 检查数据库关键表是否有数据
+podman exec forge-postgres psql -U postgres -d forge -c "SELECT count(*) FROM diy_pages;"
+```
+
+| 检查项 | 方法 |
+|--------|------|
+| 系统页面是否种子 | 查询 diy_pages 表 page_type IN ('home','category','product_detail') |
+| API 是否可达 | `podman exec forge-backend curl -s http://localhost:8000/api/admin/v1/site/pages`（需带 auth header） |
+| 列表数据是否返回 | 验证返回 JSON 中 system 数组不为空 |
+
+### 10.3 需求匹配度检查
+
+在宣称"功能正常"之前，必须回顾用户原始需求描述，逐条核对：
+
+| 需求点 | 当前实现 | 是否满足 |
+|--------|----------|----------|
+| 逐条列出用户需求 | 逐条列出实际实现 | 标注满足/部分/未满足 |
+
+**任一需求点未满足 → 必须如实报告缺口，禁止宣布"正常"。**
+
+---
+
+*最后更新：2026-08-08*
