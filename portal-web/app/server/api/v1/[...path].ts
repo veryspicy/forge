@@ -3,7 +3,7 @@ import https from "node:https";
 import { defineEventHandler, readRawBody, setResponseStatus } from "h3";
 
 export default defineEventHandler(async (event) => {
-  const target = process.env.API_PROXY_TARGET || "http://backend:8000";
+  const target = process.env.API_PROXY_TARGET || "http://localhost:8000";
   const targetUrl = new URL(target);
   const path = event.path;
 
