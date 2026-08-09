@@ -3,6 +3,7 @@ import { BACKEND_ERROR_CODE, createFlatRequest } from '@sa/axios';
 import { useAuthStore } from '@/store/modules/auth';
 import { localStg } from '@/utils/storage';
 import { getServiceBaseURL } from '@/utils/service';
+import { $t } from '@/locales';
 import type { RequestInstanceState } from './type';
 
 const isHttpProxy = import.meta.env.DEV && import.meta.env.VITE_HTTP_PROXY === 'Y';
@@ -40,11 +41,12 @@ export const request = createFlatRequest(
         message = error.response?.data?.detail || error.response?.data?.msg || message;
       }
 
-      // Handle 401: extract backend detail for friendly message
+      // Handle 401: extract backend error code and map to i18n
       if (error.response?.status === 401) {
         const authStore = useAuthStore();
         authStore.resetStore();
-        message = error.response?.data?.detail || message;
+        const detail = error.response?.data?.detail;
+        message = detail ? $t(`errors.${detail}`) : $t('request.logoutMsg');
         window.$message?.error(message);
         return;
       }

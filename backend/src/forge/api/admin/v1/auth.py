@@ -44,7 +44,7 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
     if admin is None or not pwd_context.verify(body.password, admin.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="账号或密码不正确",
+            detail="INVALID_CREDENTIALS",
         )
 
     # Update last_login_at
@@ -72,13 +72,13 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
 @router.get("/me", response_model=UserInfo)
 async def me(admin_claims: dict = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
     if not admin_claims:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="请先登录")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="UNAUTHORIZED")
 
     email = admin_claims.get("sub", "")
     repo = SQLAlchemyAdminUserRepository()
     admin: ORMAdminUser | None = await repo.get_by_email(db, email)
     if admin is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户不存在")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="USER_NOT_FOUND")
 
     return {
         "id": str(admin.id),

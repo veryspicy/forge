@@ -586,6 +586,13 @@ declare namespace App {
           unFixed: string;
         };
       };
+      errors: {
+        INVALID_CREDENTIALS: string;
+        UNAUTHORIZED: string;
+        TOKEN_EXPIRED: string;
+        USER_NOT_FOUND: string;
+        EMAIL_ALREADY_REGISTERED: string;
+      };
     };
 
     type GetI18nKey<T extends Record<string, unknown>, K extends keyof T = keyof T> = K extends string

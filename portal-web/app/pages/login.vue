@@ -104,7 +104,8 @@ async function handleLogin() {
       await navigateTo(getRedirectPath())
     }
   } catch (err: any) {
-    errorMsg.value = err?.data?.detail || err.message || 'Login failed. Please check your credentials.'
+    const detail = err?.data?.detail
+    errorMsg.value = detail ? $t(`errors.${detail}`) : (err.message || 'Login failed. Please check your credentials.')
   } finally {
     loading.value = false
   }
