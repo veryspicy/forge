@@ -605,6 +605,13 @@ const local: App.I18n.Schema = {
       right: '右固定',
       unFixed: '取消固定'
     }
+  },
+  errors: {
+    INVALID_CREDENTIALS: '账号或密码不正确',
+    UNAUTHORIZED: '请先登录',
+    TOKEN_EXPIRED: '登录已过期，请重新登录',
+    USER_NOT_FOUND: '用户不存在',
+    EMAIL_ALREADY_REGISTERED: '邮箱已被注册'
   }
 };
 

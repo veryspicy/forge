@@ -608,6 +608,13 @@ const local: App.I18n.Schema = {
       right: 'Right Fixed',
       unFixed: 'Unfixed'
     }
+  },
+  errors: {
+    INVALID_CREDENTIALS: 'Invalid email or password',
+    UNAUTHORIZED: 'Please log in first',
+    TOKEN_EXPIRED: 'Session expired, please log in again',
+    USER_NOT_FOUND: 'User not found',
+    EMAIL_ALREADY_REGISTERED: 'Email already registered'
   }
 };
 
