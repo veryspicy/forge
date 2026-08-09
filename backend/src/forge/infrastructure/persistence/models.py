@@ -47,6 +47,11 @@ class ORMDiyPage(Base):
     page_type = Column(String(32), nullable=False, default="custom")
     status = Column(String(16), nullable=False, default="draft")
     is_default = Column(Boolean, nullable=False, default=False)
+    is_template = Column(Boolean, nullable=False, default=False)
+    industry_tag = Column(String(64), nullable=True)
+    template_thumbnail = Column(String(512), nullable=True)
+    template_description = Column(Text, nullable=True)
+    snapshot_config = Column(JSONB, nullable=True)
     published_at = Column(DateTime(timezone=True), nullable=True)
     created_by = Column(UUID(as_uuid=True),
                         ForeignKey("admin_users.id"), nullable=True)
