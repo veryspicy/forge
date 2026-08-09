@@ -1,0 +1,27 @@
+{
+  "name": "@sa/changelog",
+  "version": "0.4.7",
+  "description": "generate changelog form git tags and commits for github",
+  "author": "Forge Team",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./src/index.js",
+  "module": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "import": "./src/index.js",
+      "require": "./src/index.js"
+    }
+  },
+  "dependencies": {
+    "cli-progress": "3.12.0",
+    "convert-gitmoji": "0.1.5",
+    "dayjs": "1.11.20",
+    "execa": "9.6.1",
+    "ofetch": "1.5.1",
+    "semver": "7.8.0"
+  }
+}

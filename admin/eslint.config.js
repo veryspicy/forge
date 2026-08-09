@@ -1,4 +1,4 @@
-import { defineConfig } from '@soybeanjs/eslint-config-vue';
+import { defineConfig } from '@sa/eslint-config';
 
 export default defineConfig({
   'vue/component-name-in-template-casing': [

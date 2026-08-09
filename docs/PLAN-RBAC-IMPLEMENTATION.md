@@ -1,7 +1,7 @@
 # RBAC 实现执行计划
 
 > 创建：2026-07-21 | 分支：`feature/rbac-implementation`
-> 技术路线：Casbin RBAC + decorator 守卫 + Soybean v-permission
+> 技术路线：Casbin RBAC + decorator 守卫 + 前端 v-permission 指令
 
 ---
 

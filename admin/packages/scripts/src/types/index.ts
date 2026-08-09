@@ -1,4 +1,4 @@
-import type { ChangelogOption } from '@soybeanjs/changelog';
+import type { ChangelogOption } from '@sa/changelog';
 
 export interface CliOption {
   /** The project root directory */
@@ -20,11 +20,7 @@ export interface CliOption {
    * @default ['--deep', '-u']
    */
   ncuCommandArgs: string[];
-  /**
-   * Options of generate changelog
-   *
-   * @link https://github.com/soybeanjs/changelog
-   */
+  /** Options of generate changelog */
   changelogOptions: Partial<ChangelogOption>;
   /** The ignore pattern list of git commit verify */
   gitCommitVerifyIgnores: RegExp[];

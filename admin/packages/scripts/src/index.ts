@@ -37,13 +37,13 @@ interface CommandArg {
 export async function setupCli() {
   const cliOptions = await loadCliOptions();
 
-  const cli = cac(blue('soybean-admin'));
+  const cli = cac(blue('forge-admin'));
 
   cli
     .version(lightGreen(version))
     .option(
       '-e, --execute [command]',
-      "Execute additional command after bumping and before git commit. Defaults to 'npx soy changelog'"
+      "Execute additional command after bumping and before git commit. Defaults to 'npx forge changelog'"
     )
     .option('-p, --push', 'Indicates whether to push the git commit and tag')
     .option('-t, --total', 'Generate changelog by total tags')

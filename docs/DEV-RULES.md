@@ -99,7 +99,7 @@ podman-compose --project-name docker -f D:\codeRepo\forge\docker\docker-compose.
 | `.vue`、`.ts` 源码、`locales/*.json` | HMR / 重启容器即可，**无需重建镜像** |
 | `Dockerfile`、`package.json`、`nuxt.config.ts` | 必须 `--build` 重建 |
 
-### 3.2 Admin（Soybean Admin，`admin/` 目录）
+### 3.2 Admin（`admin/` 目录）
 
 Admin 源码位于项目内 `admin/` 目录，Vite 构建产物固化为静态文件，由 nginx 直接服务，**无 HMR**。
 

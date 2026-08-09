@@ -53,7 +53,7 @@ AIGC:
 | Backend (FastAPI) | `forge-backend` | 8000:8000 | Compose |
 | AI Service | `forge-ai` | 8001:8001 | Compose |
 | Frontend (Nuxt 3) | `forge-portal-web` | 3000:3000 | Compose |
-| Admin (Soybean Admin) | `forge-admin` | 8080:80 | Compose |
+| Admin | `forge-admin` | 8080:80 | Compose |
 | Init Admin (一次性) | `forge-init-admin` | — | Compose（run to completion） |
 
 ### 1.3 网络

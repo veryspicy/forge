@@ -1,5 +1,5 @@
 import { defineConfig, transformerDirectives, transformerVariantGroup, presetWind3 } from 'unocss';
-import { presetSoybeanAdmin } from '@sa/uno-preset';
+import { presetForgeAdmin } from '@sa/uno-preset';
 import { themeVars } from './src/theme/vars';
 
 export default defineConfig({
@@ -22,5 +22,5 @@ export default defineConfig({
     'card-wrapper': 'rd-8px shadow-sm'
   },
   transformers: [transformerDirectives(), transformerVariantGroup()],
-  presets: [presetWind3({ dark: 'class' }), presetSoybeanAdmin()]
+  presets: [presetWind3({ dark: 'class' }), presetForgeAdmin()]
 });

@@ -1,5 +1,5 @@
-import { generateChangelog, generateTotalChangelog } from '@soybeanjs/changelog';
-import type { ChangelogOption } from '@soybeanjs/changelog';
+import { generateChangelog, generateTotalChangelog } from '@sa/changelog';
+import type { ChangelogOption } from '@sa/changelog';
 
 export async function genChangelog(options?: Partial<ChangelogOption>, total = false) {
   if (total) {

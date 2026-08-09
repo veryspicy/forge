@@ -25,3 +25,4 @@ temp_*
 .codebuddy/
 *.pid
 *.ps1
+portal-web/.output/

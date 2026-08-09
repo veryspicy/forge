@@ -84,7 +84,7 @@
 
 ---
 
-## 阶段 3：前端 Soybean Admin 集成
+## 阶段 3：前端 Admin 集成
 
 ### 3.1 Auth Store 适配
 

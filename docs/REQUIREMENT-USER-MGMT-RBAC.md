@@ -14,7 +14,7 @@
 | 权限鉴权 | 基于 Casbin RBAC 引擎，支持 `resource:action` 粒度权限检查 |
 | 角色管理 | 预设角色 + 自定义角色，角色→权限多对多关联 |
 | 用户管理 | B 端管理员独立于 C 端用户，admin_users 与 users 分表 |
-| 前端控制 | 路由级 + 按钮级权限，Soybean 原生路由过滤 + v-permission 指令 |
+| 前端控制 | 路由级 + 按钮级权限，前端路由过滤 + v-permission 指令 |
 
 ---
 
@@ -83,7 +83,7 @@ admin_users  ──M:N──  admin_user_roles  ──M:N──  roles  ──M:
 
 | 组件 | 选型 | 理由 |
 |------|------|------|
-| 框架 | Soybean Admin (Vue 3 + Naive UI) | 已有路由级 meta.roles 过滤 |
+| 框架 | Admin (Vue 3 + Naive UI) | 已有路由级 meta.roles 过滤 |
 | 按钮权限 | v-permission 自定义指令 | 参考 go-admin 的 `v-permission="['products:edit']"` |
 | 权限 UI | 权限树（checkbox tree） | 参考 Orchid Laravel 权限树交互 |
 
