@@ -31,10 +31,11 @@ class LoginResponse(BaseModel):
 
 
 class UserInfo(BaseModel):
-    user_id: str
+    id: str
     email: str
     name: str
-    role: str
+    roles: list[str]
+    permissions: list[str] = []
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -67,8 +68,9 @@ def me(admin: dict = Depends(get_current_admin)):
     if not admin:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="请先登录")
     return {
-        "user_id": admin.get("sub", ""),
+        "id": admin.get("sub", ""),
         "email": admin.get("sub", ""),
         "name": "Super Admin",
-        "role": admin.get("role", "user"),
+        "roles": [admin.get("role", "user")],
+        "permissions": ["*"],
     }
