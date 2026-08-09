@@ -190,8 +190,12 @@ useHead({
 const authStore = useAuthStore()
 const isLoggedIn = computed(() => authStore.isAuthenticated)
 
-/** Check if a section type is visible. */
+/** Check if a section type is visible. Falls back to default sections when no seed data. */
 function isSectionVisible(type: string): boolean {
+  // Template mode: no seed data → show default sections
+  if (visibleSections.value.length === 0) {
+    return ['categories', 'featured_products', 'ai_teaser'].includes(type)
+  }
   return visibleSections.value.some((s) => s.type === type)
 }
 

@@ -298,12 +298,19 @@ const userMenuRef = ref<HTMLElement | null>(null)
 const currentLocale = ref(locale.value)
 watch(locale, (val) => { currentLocale.value = val })
 
-const navLinks = computed(() =>
-  visibleNav.value.map((n) => ({
-    to: n.to,
-    label: t(n.labelKey),
-  })),
-)
+const navLinks = computed(() => {
+  if (visibleNav.value.length > 0) {
+    return visibleNav.value.map((n) => ({
+      to: n.to,
+      label: t(n.labelKey),
+    }))
+  }
+  // Template mode: no seed data → generic placeholder navigation
+  return [
+    { to: '/', label: t('nav.home') },
+    { to: '/products', label: t('nav.products') },
+  ]
+})
 
 const brandLogo = computed(() => profile.value.brand.logo?.data || null)
 const brandName = computed(() => profile.value.brand.name || 'Forge')
