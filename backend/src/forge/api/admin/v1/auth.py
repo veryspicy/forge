@@ -1,22 +1,21 @@
 """Admin Auth API — login / me / logout."""
 
 from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from passlib.context import CryptContext
 from pydantic import BaseModel
 from jose import jwt
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from forge.infrastructure.persistence.models import ORMAdminUser
+from forge.infrastructure.persistence.repositories.user_repo import SQLAlchemyAdminUserRepository
 from forge.main.config import settings
-from forge.main.dependencies import get_current_admin
+from forge.main.dependencies import get_current_admin, get_db
 
 router = APIRouter()
 
-# Hardcoded dev admin account
-DEV_ADMIN = {
-    "email": "admin@forge.com",
-    "password": "admin123",
-    "name": "Super Admin",
-    "role": "super_admin",
-}
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class LoginRequest(BaseModel):
@@ -39,15 +38,22 @@ class UserInfo(BaseModel):
 
 
 @router.post("/login", response_model=LoginResponse)
-def login(body: LoginRequest):
-    if body.email != DEV_ADMIN["email"] or body.password != DEV_ADMIN["password"]:
+async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
+    repo = SQLAlchemyAdminUserRepository()
+    admin: ORMAdminUser | None = await repo.get_by_email(db, body.email)
+    if admin is None or not pwd_context.verify(body.password, admin.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="账号或密码不正确",
         )
+
+    # Update last_login_at
+    admin.last_login_at = datetime.now(timezone.utc)
+    await db.flush()
+
     payload = {
-        "sub": DEV_ADMIN["email"],
-        "role": DEV_ADMIN["role"],
+        "sub": admin.email,
+        "role": "super_admin",
         "exp": datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes),
     }
     token = jwt.encode(payload, settings.secret_key, algorithm="HS256")
@@ -55,22 +61,29 @@ def login(body: LoginRequest):
         "access_token": token,
         "token_type": "bearer",
         "user": {
-            "user_id": DEV_ADMIN["email"],
-            "email": DEV_ADMIN["email"],
-            "name": DEV_ADMIN["name"],
-            "role": DEV_ADMIN["role"],
+            "user_id": admin.email,
+            "email": admin.email,
+            "name": admin.display_name,
+            "role": "super_admin",
         },
     }
 
 
 @router.get("/me", response_model=UserInfo)
-def me(admin: dict = Depends(get_current_admin)):
-    if not admin:
+async def me(admin_claims: dict = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
+    if not admin_claims:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="请先登录")
+
+    email = admin_claims.get("sub", "")
+    repo = SQLAlchemyAdminUserRepository()
+    admin: ORMAdminUser | None = await repo.get_by_email(db, email)
+    if admin is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户不存在")
+
     return {
-        "id": admin.get("sub", ""),
-        "email": admin.get("sub", ""),
-        "name": "Super Admin",
-        "roles": [admin.get("role", "user")],
+        "id": str(admin.id),
+        "email": admin.email,
+        "name": admin.display_name,
+        "roles": [admin_claims.get("role", "user")],
         "permissions": ["*"],
     }

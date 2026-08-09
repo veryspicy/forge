@@ -1,14 +1,20 @@
-from fastapi import APIRouter, Depends
-from forge.main.dependencies import get_current_admin
+"""Admin Orders API."""
+
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from forge.infrastructure.persistence.repositories.order_repo import SQLAlchemyOrderRepository
+from forge.main.dependencies import get_current_admin, get_db
 
 router = APIRouter()
 
 
 @router.get("/")
-async def list_orders(admin: dict = Depends(get_current_admin)):
-    return {"items": [], "total": 0}
-
-
-@router.get("/{order_id}")
-async def get_order(order_id: str, admin: dict = Depends(get_current_admin)):
-    return {"id": order_id}
+async def list_orders(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    admin: dict = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    repo = SQLAlchemyOrderRepository()
+    return await repo.list_orders(db, page=page, page_size=page_size)
