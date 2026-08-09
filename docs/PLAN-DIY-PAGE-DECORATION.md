@@ -12,11 +12,11 @@ AIGC:
 
 
 
-
-
 # Forge 可视化 DIY 页面装修技术方案
 
 > 基于项目现有架构（FastAPI + SQLAlchemy + Vue 3 + NaiveUI + Nuxt 3）设计，完全对齐现有技术栈、代码风格、DDD 分层公约。
+
+> v2.0 — 已对齐实际代码实现（2026-08-10 更新）
 
 ---
 
@@ -97,6 +97,11 @@ CREATE TABLE diy_pages (
     page_type       VARCHAR(32)   NOT NULL DEFAULT 'custom',  -- home / category / product_detail / custom
     status          VARCHAR(16)   NOT NULL DEFAULT 'draft',   -- draft / published
     is_default      BOOLEAN       NOT NULL DEFAULT FALSE,     -- 是否设为首页（全局唯一）
+    is_template      BOOLEAN       NOT NULL DEFAULT FALSE,    -- 是否为模板
+    industry_tag     VARCHAR(64),                              -- 模板行业标签
+    template_thumbnail VARCHAR(512),                           -- 模板缩略图
+    template_description TEXT,                                 -- 模板描述
+    snapshot_config  JSONB        NOT NULL DEFAULT '{}',       -- 模板快照配置
     published_at    TIMESTAMPTZ,                           -- 发布时间
     created_by      UUID          REFERENCES admin_users(id),-- 创建人
     created_at      TIMESTAMPTZ   NOT NULL DEFAULT now(),
@@ -154,7 +159,8 @@ CREATE INDEX idx_dpc_page_sort ON diy_page_components(page_id, sort_order);
 ### 1.4 关联现有表
 
 - `diy_pages.created_by → admin_users.id`（记录创建人）
-- 无需修改现有 `site_profiles` 表，DIY 页面作为独立功能存在；激活首页通过 `diy_pages.is_default = TRUE` 控制
+- 无需修改现有 `site_profiles` 表，DIY 页面作为独立功能存在；激活首页通过 `diy_pages` 表中 `page_type='home'` 的系统页面控制
+- 3 个系统页面（home/category/product_detail）由迁移脚本 `0009_seed_system_diy_pages.py` 自动创建
 - 现有的 `site_profiles.config` 可新增一个 `diy_page_slug` 字段指向 DIY 首页（渐进迁移）
 
 ### 1.5 系统内置组件初始化数据
@@ -209,13 +215,16 @@ backend/src/forge/
 │           └── diy_repo.py        # SQLAlchemyDiyRepository
 ├── api/
 │   ├── admin/v1/
-│   │   └── diy.py                 # Admin DIY API (/api/admin/v1/diy)
+│   │   └── diy.py                 # Admin DIY API（挂载前缀 /api/admin/v1/site）
 │   └── v1/
 │       └── diy.py                 # 公开 DIY API (/api/v1/diy) — 给 Nuxt 调用
 └── migrations/
     └── versions/
-        └── 0008_add_diy_tables.py  # Alembic 迁移脚本
+        ├── 0008_add_diy_tables.py            # Alembic 迁移脚本（建表 + 内置组件种子）
+        └── 0009_seed_system_diy_pages.py     # 系统页面种子（home/category/product_detail）
 ```
+
+> 说明：实际领域模型路径为 `domain/diy/models.py`；Admin API 文件位于 `api/admin/v1/diy.py`，但通过 router 挂载前缀 `/api/admin/v1/site`，因此对外暴露的端点路径形如 `/api/admin/v1/site/pages`。
 
 ### 2.2 领域模型
 
@@ -245,6 +254,10 @@ class ComponentCategory(str, Enum):
     GOODS = "goods"
     MARKETING = "marketing"
     LAYOUT = "layout"
+
+
+# 系统页面类型集合 — 这些类型的页面由迁移脚本预置，不可删除
+SYSTEM_PAGE_TYPES = {PageType.HOME.value, PageType.CATEGORY.value, PageType.PRODUCT_DETAIL.value}
 
 
 @dataclass
@@ -281,9 +294,14 @@ class DiyPage:
     slug: str = ""
     title: str = ""
     description: str = ""
-    page_type: PageType = PageType.CUSTOM
+    page_type: str = PageType.CUSTOM.value
     status: PageStatus = PageStatus.DRAFT
     is_default: bool = False
+    is_template: bool = False
+    industry_tag: str | None = None
+    template_thumbnail: str | None = None
+    template_description: str | None = None
+    snapshot_config: dict = field(default_factory=dict)
     published_at: datetime | None = None
     created_by: UUID | None = None
     components: list[PageComponent] = field(default_factory=list)
@@ -291,7 +309,7 @@ class DiyPage:
     updated_at: datetime = field(default_factory=datetime.now)
 
     @classmethod
-    def create(cls, name: str, slug: str, page_type: PageType = PageType.CUSTOM) -> "DiyPage":
+    def create(cls, name: str, slug: str, page_type: str = PageType.CUSTOM.value) -> "DiyPage":
         return cls(name=name, slug=slug, page_type=page_type)
 
     def publish(self) -> None:
@@ -329,6 +347,11 @@ class ORMDiyPage(Base):
     page_type = Column(String(32), nullable=False, default="custom")
     status = Column(String(16), nullable=False, default="draft")
     is_default = Column(Boolean, nullable=False, default=False)
+    is_template = Column(Boolean, nullable=False, default=False)
+    industry_tag = Column(String(64), nullable=True)
+    template_thumbnail = Column(String(512), nullable=True)
+    template_description = Column(Text, nullable=True)
+    snapshot_config = Column(JSONB, nullable=False, default=dict)
     published_at = Column(DateTime(timezone=True), nullable=True)
     created_by = Column(PG_UUID(as_uuid=True), ForeignKey("admin_users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
@@ -346,6 +369,11 @@ class ORMDiyPage(Base):
             "page_type": self.page_type,
             "status": self.status,
             "is_default": self.is_default,
+            "is_template": self.is_template,
+            "industry_tag": self.industry_tag,
+            "template_thumbnail": self.template_thumbnail,
+            "template_description": self.template_description,
+            "snapshot_config": self.snapshot_config or {},
             "published_at": self.published_at.isoformat() if self.published_at else None,
             "created_by": str(self.created_by) if self.created_by else None,
             "components": [c.to_dict() for c in (self.components or [])],
@@ -415,71 +443,73 @@ class ORMDiyPageComponent(Base):
 
 ### 2.4 API 接口清单
 
-#### Admin 端 (`/api/admin/v1/diy`)
+#### Admin 端 (`/api/admin/v1/site`)
 
 | 方法 | 路径 | 说明 | 权限 |
 |------|------|------|------|
-| `GET` | `/pages` | 页面列表（分页） | settings:manage |
-| `POST` | `/pages` | 创建页面 | settings:manage |
-| `GET` | `/pages/{id}` | 页面详情（含组件列表） | settings:manage |
-| `PUT` | `/pages/{id}` | 更新页面基础信息 | settings:manage |
-| `DELETE` | `/pages/{id}` | 删除页面 | settings:manage |
-| `POST` | `/pages/{id}/publish` | 发布页面 | settings:manage |
-| `POST` | `/pages/{id}/duplicate` | 复制页面 | settings:manage |
-| `PUT` | `/pages/{id}/components` | 保存组件列表（整页保存：增删排序） | settings:manage |
-| `POST` | `/pages/{id}/set-default` | 设为首页（取消其他） | settings:manage |
+| `GET` | `/pages` | 页面概览（返回 {system[], custom[]} 结构） | settings:manage |
+| `POST` | `/custom-pages` | 创建自定义页面 | settings:manage |
+| `GET` | `/pages/{key}` | 页面详情（key=UUID或page_type） | settings:manage |
+| `PUT` | `/pages/{key}` | 更新页面信息（系统页不可改page_type/slug） | settings:manage |
+| `DELETE` | `/custom-pages/{page_id}` | 删除自定义页面（系统页不可删） | settings:manage |
+| `POST` | `/pages/{key}/publish` | 发布页面 | settings:manage |
+| `POST` | `/pages/{key}/unpublish` | 撤销发布 | settings:manage |
+| `POST` | `/custom-pages/{page_id}/duplicate` | 复制页面 | settings:manage |
+| `PUT` | `/pages/{key}/components` | 保存组件列表（先删后插） | settings:manage |
 | `GET` | `/components` | 组件库列表 | settings:manage |
-| `POST` | `/upload-image` | 上传装修图片（存入 MinIO） | settings:manage |
+| `POST` | `/upload-image` | 上传装修图片（存入 uploads/diy/ 目录） | settings:manage |
+| `GET` | `/templates` | 模板列表（支持industry_tag过滤+分页） | settings:manage |
+| `POST` | `/templates` | 保存当前站点为模板 | settings:manage |
+| `POST` | `/templates/{template_id}/apply` | 应用模板到当前站点 | settings:manage |
 
 #### 公开端 (`/api/v1/diy`)
 
 | 方法 | 路径 | 说明 | 鉴权 |
 |------|------|------|------|
-| `GET` | `/pages/{slug}` | 获取已发布页面完整数据（组件 JSON） | 无 |
-| `GET` | `/pages/default` | 获取默认首页数据 | 无 |
+| `GET` | `/pages/{page_type}` | 获取系统页面渲染数据（home/category/product_detail） | 无 |
+| `GET` | `/by-slug/{slug}` | 按 slug 获取已发布的自定义页面 | 无 |
+
+> 说明：`preview=true` 参数绕过 Redis 直查 DB（允许 draft）；`preview=false` 仅返回已发布页面。
 
 ### 2.5 核心 API 代码骨架
 
 ```python
 # api/admin/v1/diy.py
-
+# 挂载前缀：/api/admin/v1/site
 router = APIRouter()
 
 
 @router.get("/pages", dependencies=[Depends(require_permission("settings", "manage"))])
-async def list_pages(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    status: Optional[str] = None,
-    page_type: Optional[str] = None,
-    db: AsyncSession = Depends(get_db),
-):
-    """DIY 页面列表"""
-    query = select(ORMDiyPage)
-    if status:
-        query = query.where(ORMDiyPage.status == status)
-    if page_type:
-        query = query.where(ORMDiyPage.page_type == page_type)
-    query = query.order_by(ORMDiyPage.updated_at.desc())
+async def list_pages(db: AsyncSession = Depends(get_db)):
+    """DIY 页面概览 — 返回 {system[], custom[]} 结构，前端客户端过滤分页"""
+    result = await db.execute(
+        select(ORMDiyPage).order_by(ORMDiyPage.updated_at.desc())
+    )
+    all_pages = result.scalars().all()
 
-    total_query = select(func.count()).select_from(query.subquery())
-    total = (await db.execute(total_query)).scalar_one()
-
-    result = await db.execute(query.offset((page - 1) * page_size).limit(page_size))
-    pages = result.scalars().all()
+    system_pages = [p.to_dict() for p in all_pages if p.page_type in SYSTEM_PAGE_TYPES]
+    custom_pages = [p.to_dict() for p in all_pages if p.page_type not in SYSTEM_PAGE_TYPES]
 
     return {
-        "items": [p.to_dict() for p in pages],
-        "total": total, "page": page, "page_size": page_size,
+        "system": system_pages,
+        "custom": custom_pages,
     }
 
 
-@router.get("/pages/{page_id}", dependencies=[Depends(require_permission("settings", "manage"))])
-async def get_page(page_id: UUID, db: AsyncSession = Depends(get_db)):
-    """页面详情（Eager-load 组件）"""
+@router.get("/pages/{key}", dependencies=[Depends(require_permission("settings", "manage"))])
+async def get_page(key: str, db: AsyncSession = Depends(get_db)):
+    """页面详情（Eager-load 组件） — key 可以是 UUID 或 page_type"""
     stmt = select(ORMDiyPage).options(
         selectinload(ORMDiyPage.components).joinedload(ORMDiyPageComponent.component)
-    ).where(ORMDiyPage.id == page_id)
+    )
+
+    # 优先按 UUID 解析，失败则按 page_type 查找
+    try:
+        page_uuid = UUID(key)
+        stmt = stmt.where(ORMDiyPage.id == page_uuid)
+    except (ValueError, AttributeError):
+        stmt = stmt.where(ORMDiyPage.page_type == key)
+
     result = await db.execute(stmt)
     page = result.scalar_one_or_none()
     if not page:
@@ -487,16 +517,17 @@ async def get_page(page_id: UUID, db: AsyncSession = Depends(get_db)):
     return page.to_dict()
 
 
-@router.put("/pages/{page_id}/components", dependencies=[Depends(require_permission("settings", "manage"))])
+@router.put("/pages/{key}/components", dependencies=[Depends(require_permission("settings", "manage"))])
 async def save_components(
-    page_id: UUID,
+    key: str,
     data: list[PageComponentDTO],  # [{component_id, sort_order, config, is_visible}, ...]
     db: AsyncSession = Depends(get_db),
 ):
-    """整页保存组件列表 — 先删后插"""
-    page = await db.get(ORMDiyPage, page_id)
+    """整页保存组件列表 — 先删后插（key 可以是 UUID 或 page_type）"""
+    page = await _resolve_page(key, db)
     if not page:
         raise HTTPException(404, "Page not found")
+    page_id = page.id
 
     # 删除现有组件
     await db.execute(delete(ORMDiyPageComponent).where(ORMDiyPageComponent.page_id == page_id))
@@ -516,10 +547,10 @@ async def save_components(
     return {"status": "ok", "count": len(data)}
 
 
-@router.post("/pages/{page_id}/publish", dependencies=[Depends(require_permission("settings", "manage"))])
-async def publish_page(page_id: UUID, db: AsyncSession = Depends(get_db)):
+@router.post("/pages/{key}/publish", dependencies=[Depends(require_permission("settings", "manage"))])
+async def publish_page(key: str, db: AsyncSession = Depends(get_db)):
     """发布页面 + 刷新 Redis 缓存"""
-    page = await db.get(ORMDiyPage, page_id)
+    page = await _resolve_page(key, db)
     if not page:
         raise HTTPException(404, "Page not found")
 
@@ -527,20 +558,24 @@ async def publish_page(page_id: UUID, db: AsyncSession = Depends(get_db)):
     page.published_at = datetime.now(timezone.utc)
     await db.flush()
 
-    # 失效渲染缓存
+    # 调用 enrich_page_data 后写入 Redis
+    enriched = await enrich_page_data(page.to_dict())
     try:
-        await redis_client.delete(f"diy:page:{page.slug}")
-        await redis_client.delete("diy:page:default")
+        await redis_client.set(f"diy:page:{page.slug}", json.dumps(enriched))
+        if page.page_type in SYSTEM_PAGE_TYPES:
+            await redis_client.set(f"diy:page:{page.page_type}", json.dumps(enriched))
     except Exception:
-        pass
+        # Redis 不可用 — 通过 _redis_unavailable 熔断标志降级直查 DB
+        global _redis_unavailable
+        _redis_unavailable = True
 
     return {"status": "published", "published_at": page.published_at.isoformat()}
 
 
 @router.post("/upload-image", dependencies=[Depends(require_permission("settings", "manage"))])
 async def upload_diy_image(file: UploadFile = File(...)):
-    """上传装修用图片到 MinIO (diy-images bucket)"""
-    # 复用现有 MinIO 上传逻辑，存入 diy-images bucket
+    """上传装修用图片到本地 uploads/diy/ 目录"""
+    # 初期简化部署使用本地目录，后续可迁移到 MinIO
     ...
 ```
 
@@ -554,7 +589,7 @@ async def upload_diy_image(file: UploadFile = File(...)):
 │  [预览]按钮  │                    │  components)  │
 └──────┬───────┘                   └──────┬───────┘
        │                                  │
-       │ GET /api/v1/diy/pages/{slug}     │
+       │ GET /api/v1/diy/by-slug/{slug}   │
        │ ?preview=true                    │
        ▼                                  ▼
 ┌──────────────┐                   ┌──────────────┐
@@ -566,14 +601,17 @@ async def upload_diy_image(file: UploadFile = File(...)):
 │              │        │    Redis     │
 │  发布模式：  │        │  diy:page:   │
 │  读 Redis →  │──────→ │  {slug}      │
-│  降级读 DB   │        └──────────────┘
-└──────────────┘
+│  降级读 DB   │        │  diy:page:   │
+│              │        │  {page_type} │
+└──────────────┘        └──────────────┘
 ```
 
 - **保存** → 写入 DB（draft/published 均由编辑器实时保存到 DB）
-- **预览** → `GET /api/v1/diy/pages/{slug}?preview=true`，绕过 Redis，直接查询 draft 数据
-- **发布** → 更新 `status=published` + `published_at`，同时写入/刷新 Redis 缓存
+- **预览** → `GET /api/v1/diy/by-slug/{slug}?preview=true`，绕过 Redis，直接查询 draft 数据
+- **发布** → 更新 `status=published` + `published_at`，调用 `enrich_page_data` 后写入/刷新 Redis 缓存
+  - Redis key 为 `diy:page:{slug}`（所有页面）和 `diy:page:{page_type}`（系统页面，便于按类型直取）
 - **C 端访问** → 优先读 Redis，miss 时降级到 DB 并回填
+- **Redis 不可用** → 自动降级直查 DB（带熔断标志 `_redis_unavailable`），不阻塞功能
 - **撤销发布** → 将 status 切回 `draft`，删除 Redis key
 
 ### 2.7 组件 JSON Schema 规范
@@ -631,36 +669,32 @@ async def upload_diy_image(file: UploadFile = File(...)):
 ```
 admin/src/
 ├── views/
-│   └── diy/                          # DIY 装修模块
-│       ├── index.vue                 # 页面列表
-│       ├── editor.vue                # 可视化编辑器（核心）
-│       └── components/
-│           ├── ComponentPanel.vue    # 左侧组件库面板
-│           ├── PreviewCanvas.vue     # 中间预览画布（手机模拟器）
-│           ├── PropertyPanel.vue     # 右侧属性编辑面板
-│           ├── DraggableComponent.vue # 画布中可拖拽的组件项
-│           └── renderers/            # 画布中各组件的渲染视图
-│               ├── BannerRenderer.vue
-│               ├── SearchBoxRenderer.vue
-│               ├── ImageAdRenderer.vue
-│               ├── TextBlockRenderer.vue
-│               ├── GoodsListRenderer.vue
-│               ├── GoodsSingleRenderer.vue
-│               ├── GoodsGroupRenderer.vue
-│               ├── CouponRenderer.vue
-│               ├── CountdownRenderer.vue
-│               ├── NoticeBarRenderer.vue
-│               ├── NavGroupRenderer.vue
-│               ├── VideoRenderer.vue
-│               ├── RichTextRenderer.vue
-│               ├── DividerRenderer.vue
-│               └── BlankRenderer.vue
+│   ├── diy/                          # 一体化编辑器（页面列表+站点配置+组件库+画布）
+│   │   └── index.vue
+│   └── diy-editor/                   # 经典三栏编辑器（独立页面编辑）
+│       ├── index.vue
+│       └── modules/
+│           ├── ComponentPanel.vue
+│           ├── PreviewCanvas.vue
+│           ├── PropertyPanel.vue
+│           ├── DraggableComponent.vue
+│           ├── DynamicForm.vue
+│           ├── renderers/            # 15 个渲染器
+│           │   ├── BannerRenderer.vue
+│           │   ├── ...（共15个）
+│           │   └── NavGroupRenderer.vue
+│           └── widgets/              # 自定义表单控件
+│               ├── ProductPicker.vue
+│               ├── CouponPicker.vue
+│               ├── ImageUpload.vue
+│               └── RichTextEditor.vue
 ├── service/api/
-│   └── diy.ts                        # DIY API 封装
+│   └── diy.ts
 ├── store/modules/
-│   └── diy.ts                        # DIY 编辑器状态
+│   └── diy/
+│       └── index.ts
 └── router/routes/
-    └── index.ts                      # 新增路由配置
+    └── index.ts
 ```
 
 ### 3.2 路由注册
@@ -668,34 +702,47 @@ admin/src/
 ```typescript
 // router/routes/index.ts 新增
 {
-  name: 'diy',
-  path: '/diy',
+  name: 'site',
+  path: '/site',
   meta: {
-    title: 'Page Builder',
-    i18nKey: 'route.diy',
-    icon: 'mdi:hammer-wrench',
-    order: 8,
+    title: '站点',
+    i18nKey: 'route.site',
+    icon: 'mdi:web',
+    order: 6,
     roles: ['super_admin', 'admin', 'operator']
   },
-  redirect: '/diy/pages',
+  redirect: '/site/decoration',
   children: [
     {
-      name: 'diy-pages',
-      path: '/diy/pages',
+      name: 'site-decoration',
+      path: '/site/decoration',
       component: 'layout.base$view.diy',
-      meta: { title: 'DIY Pages', i18nKey: 'route.diy-pages', icon: 'mdi:file-document-edit', roles: ['super_admin', 'admin', 'operator'] }
+      meta: { title: '页面装修', i18nKey: 'route.site-decoration', roles: ['super_admin', 'admin', 'operator'] }
     },
     {
-      name: 'diy-editor',
-      path: '/diy/editor/:id',
+      name: 'site-decoration-editor',
+      path: '/site/decoration/editor/:id',
       component: 'layout.base$view.diy-editor',
-      meta: { title: 'Page Editor', i18nKey: 'route.diy-editor', hideInMenu: true, activeMenu: 'diy-pages', roles: ['super_admin', 'admin', 'operator'] }
+      meta: { title: '页面编辑器', i18nKey: 'route.site-decoration-editor', hideInMenu: true, activeMenu: 'site-decoration', roles: ['super_admin', 'admin', 'operator'] }
     }
   ]
 }
 ```
 
-### 3.3 可视化编辑器布局（三栏结构）
+### 3.3 可视化编辑器布局
+
+本系统提供两种编辑器形态，分别适配不同的装修场景：
+
+1. **一体化编辑器**（`views/diy/index.vue`）
+   - 左侧折叠面板：页面列表（NCollapse 折叠）+ 站点配置 + 组件库
+   - 中间区域：支持实时预览（iframe）和结构编辑（画布）双模式 + 设备切换（desktop/tablet/mobile）
+   - 右侧属性面板：同时支持组件属性和站点配置编辑
+
+2. **经典三栏编辑器**（`views/diy-editor/index.vue`）
+   - 左侧组件库（280px）
+   - 中间画布（flex，含手机模拟器）
+   - 右侧属性面板（360px）
+   - 底部工具栏含模板管理
 
 ```
 ┌──────────────┬──────────────────────────┬──────────────┐
@@ -719,7 +766,7 @@ admin/src/
 │  └────────────┘  │                          │               │
 └──────────────┴──────────────────────────┴──────────────┘
 │                          │ Toolbar                           │
-│  [← Back] [Save Draft] [Preview] [Publish]                  │
+│  [← Back] [Save Draft] [Preview] [Publish] [Templates]      │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -730,7 +777,7 @@ admin/src/
 **拖拽核心逻辑：**
 
 ```vue
-<!-- editor.vue 核心结构 -->
+<!-- diy-editor/index.vue 核心结构 -->
 <template>
   <div class="diy-editor flex h-full">
     <!-- 左侧组件库 -->
@@ -773,30 +820,41 @@ admin/src/
 - 左侧组件库拖入画布 = 创建新 `PageComponent`，使用 `component.default_config` 作为初始 config
 - 画布内拖拽 = 调整 `sort_order`，排序结果实时同步回 `pageComponents` 数组
 - `vue-draggable-plus` 的 `group` 属性支持跨容器拖拽（组件库 → 画布）
+- 渲染器组件位于 `diy-editor/modules/renderers/` 下，通过 `getRenderer(code)` 动态解析
 
 ### 3.5 属性编辑面板
 
-基于组件 `config_schema` 动态渲染表单：
+`PropertyPanel` 同时支持两种编辑场景：
+
+1. **组件属性编辑**（选中组件时）
+   - `DynamicForm` 根据组件的 `config_schema` 动态渲染表单
+   - 通过 `v-model` 双向绑定到 `component.config`
+
+2. **站点配置编辑**（选中站点配置项时）
+   - 支持 9 大配置项：品牌 / 主题 / 导航 / 分类 / 页脚 / SEO / i18n / 功能开关 / 货币
+   - 同样通过 `DynamicForm` 渲染对应 Schema
+
+`DynamicForm` 已支持全部 widget 类型：
 
 ```vue
 <!-- PropertyPanel.vue 核心思路 -->
 <template>
   <NScrollbar>
-    <div v-if="!component" class="p-4 text-gray-400 text-center">
-      请选择一个组件
+    <div v-if="!component && !siteConfigActive" class="p-4 text-gray-400 text-center">
+      请选择一个组件或站点配置项
     </div>
     <div v-else class="p-4">
       <div class="flex items-center gap-2 mb-4">
         <NButton size="tiny" quaternary @click="$emit('remove')">
           <Icon icon="mdi:delete" />
         </NButton>
-        <span class="font-semibold">{{ component.component_name }}</span>
+        <span class="font-semibold">{{ component?.component_name || siteConfigTitle }}</span>
       </div>
 
       <!-- 动态表单 -->
       <DynamicForm
-        :schema="component.config_schema"
-        :model-value="component.config"
+        :schema="component?.config_schema || siteConfigSchema"
+        :model-value="component?.config || siteConfigValue"
         @update:model-value="handleUpdate"
       />
     </div>
@@ -812,7 +870,7 @@ admin/src/
 | `string` | `textarea` | `NInput type=textarea` |
 | `string` | `rich-editor` | 简易富文本（基于 contenteditable） |
 | `string` | `color` | `NColorPicker` |
-| `string` | `image-upload` | 图片上传（调 `/api/admin/v1/diy/upload-image`） |
+| `string` | `image-upload` | 图片上传（调 `/api/admin/v1/site/upload-image`） |
 | `string` | `product-picker` | 弹窗 + `NDataTable` 选择商品 |
 | `string` | `coupon-picker` | `NSelect` 选择优惠券 |
 | `string` | `datetime` | `NDatePicker` |
@@ -829,33 +887,30 @@ admin/src/
 import { get, post, put, del } from './helper';
 
 export const diyApi = {
-  listPages: (params: any) => get('/api/admin/v1/diy/pages', params),
-  getPage: (id: string) => get(`/api/admin/v1/diy/pages/${id}`),
-  createPage: (data: any) => post('/api/admin/v1/diy/pages', data),
-  updatePage: (id: string, data: any) => put(`/api/admin/v1/diy/pages/${id}`, data),
-  deletePage: (id: string) => del(`/api/admin/v1/diy/pages/${id}`),
-  publishPage: (id: string) => post(`/api/admin/v1/diy/pages/${id}/publish`),
-  duplicatePage: (id: string) => post(`/api/admin/v1/diy/pages/${id}/duplicate`),
-  saveComponents: (id: string, data: any[]) => put(`/api/admin/v1/diy/pages/${id}/components`, data),
-  setDefault: (id: string) => post(`/api/admin/v1/diy/pages/${id}/set-default`),
-  getComponents: () => get('/api/admin/v1/diy/components'),
-  uploadImage: (file: File) => {
-    const form = new FormData();
-    form.append('file', file);
-    return post('/api/admin/v1/diy/upload-image', form, {
-      'Content-Type': 'multipart/form-data',
-    });
-  },
+  listPages: (params?) => get('/api/admin/v1/site/pages'),  // 返回 {system[], custom[]}，前端客户端过滤
+  getPage: (key: string) => get(`/api/admin/v1/site/pages/${key}`),  // key=UUID或page_type
+  createPage: (data) => post('/api/admin/v1/site/custom-pages', data),
+  updatePage: (key, data) => put(`/api/admin/v1/site/pages/${key}`, data),
+  deletePage: (id) => del(`/api/admin/v1/site/custom-pages/${id}`),
+  publishPage: (key) => post(`/api/admin/v1/site/pages/${key}/publish`),
+  unpublishPage: (key) => post(`/api/admin/v1/site/pages/${key}/unpublish`),
+  duplicatePage: (id) => post(`/api/admin/v1/site/custom-pages/${id}/duplicate`),
+  saveComponents: (key, data) => put(`/api/admin/v1/site/pages/${key}/components`, data),
+  setDefault: (id) => put(`/api/admin/v1/site/pages/${id}`, { is_default: true }),
+  getComponents: () => get('/api/admin/v1/site/components'),
+  uploadImage: (file) => post('/api/admin/v1/site/upload-image', form, { 'Content-Type': 'multipart/form-data' }),
 };
 ```
 
-### 3.7 页面列表页 (`views/diy/index.vue`)
+### 3.7 页面列表页
 
-复刻现有 `views/products/index.vue` 的模式：
-- `NSpace` + `NInput` + `NSelect` 过滤栏
-- `NDataTable` 展示页面列表（名称、Slug、类型、状态、更新时间、操作）
-- 操作按钮：编辑、预览、发布/撤销发布、复制、设为首页、删除
-- `NButton type=primary` 新建页面
+页面列表内嵌在一体化编辑器左侧面板（`NCollapse` 折叠），不再是独立的 `NDataTable` 页面：
+
+- 系统页面和自定义页面统一展示
+- 系统页面显示类型图标（home/category/product_detail），不可删除
+- 自定义页面可创建/删除
+- 折叠展开支持选中当前编辑页面，与画布联动
+- 顶部操作区提供"新建页面"按钮，弹出 `NModal` 表单
 
 ### 3.8 已有资源复用
 
@@ -865,7 +920,7 @@ export const diyApi = {
 | `@sa/axios` (request) | API 调用 |
 | NaiveUI 全家桶 | 编辑器全部 UI 控件 |
 | UnoCSS | 编辑器样式（flex/grid/padding/color 等工具类） |
-| `NDataTable` | 页面列表、商品选择弹窗 |
+| `NDataTable` | 商品选择弹窗 |
 | `NColorPicker` | 颜色配置 |
 | `NImage` | 图片预览 |
 | `NFormItem` / `NInput` / `NSelect` / `NSwitch` | 属性编辑面板 |
@@ -884,7 +939,10 @@ export const diyApi = {
 // pages/index.vue (改造后)
 
 <script setup lang="ts">
-const { data: diyPage } = await useFetch('/api/v1/diy/pages/default');
+// 通过 site_profile.diyPageSlug 获取 DIY 页面 slug
+const diySlug = computed(() => profile.value.diyPageSlug || '')
+const diyUrl = computed(() => diySlug.value ? `/diy/pages/${diySlug.value}` : '/diy/pages/home')
+const { data: diyPage } = await useFetch(diyUrl, { baseURL: runtimeConfig.public.apiBase, server: false })
 
 // 降级：如果 DIY 首页不存在，回退到现有硬编码首页
 if (!diyPage.value || !diyPage.value.components?.length) {
@@ -923,19 +981,43 @@ portal-web/app/components/diy/
 <!-- DiyPageRenderer.vue -->
 <template>
   <div class="diy-page">
-    <component
-      v-for="pc in components"
-      :key="pc.id"
-      :is="componentMap[pc.component_code]"
-      :config="pc.config"
-    />
+    <!-- pending 骨架屏 -->
+    <div v-if="pending" class="diy-skeleton">
+      <NSkeleton v-for="n in 3" :key="n" height="120" />
+    </div>
+
+    <!-- error 重试按钮 -->
+    <div v-else-if="error" class="diy-error">
+      <NButton @click="refresh">重试</NButton>
+    </div>
+
+    <!-- empty 空状态 -->
+    <div v-else-if="!visibleComponents.length" class="diy-empty">
+      暂无内容
+    </div>
+
+    <!-- 正常渲染 -->
+    <template v-else>
+      <component
+        v-for="pc in visibleComponents"
+        :key="pc.id"
+        :is="componentMap[pc.component_code]"
+        :config="pc.config"
+        :data="pc.data"
+      />
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
 
-const props = defineProps<{ components: any[] }>();
+const props = defineProps<{ components: any[]; pending?: boolean; error?: any }>();
+
+// 支持 is_visible 过滤
+const visibleComponents = computed(() =>
+  (props.components || []).filter(c => c.is_visible !== false)
+);
 
 const componentMap: Record<string, any> = {
   banner:       resolveComponent('DiyBanner'),
@@ -957,12 +1039,16 @@ const componentMap: Record<string, any> = {
 </script>
 ```
 
+> 说明：每个 DIY 组件接收 `config` 和 `data` 两个 prop，其中 `data` 为后端 `enrich_page_data` 内联的预取数据（如商品列表、优惠券详情等），Nuxt 端无需额外请求。
+
 ### 4.3 首页改造策略（渐进式）
 
 1. **现有 `index.vue` 保留**，作为降级方案
-2. **编辑器中创建 DIY 首页** → 发布 → `is_default=true`
-3. **Nuxt 端检查** → 有 DIY 首页数据则渲染 `DiyPageRenderer`，无则 fallback 到硬编码首页
-4. **后台切换** → 管理员可随时"撤销发布" DIY 首页，站点自动回退到原版
+2. **通过 `site_profile.diyPageSlug` 字段决定渲染哪个 DIY 页面**
+3. **`diyPageSlug` 为空时**回退到 `/diy/pages/home`（系统首页）
+4. **DIY 首页不存在时**回退到硬编码首页
+5. **后台切换** → 管理员可随时"撤销发布" DIY 首页，站点自动回退到原版
+6. **SEO** → 通过 `useHead` 输出 DIY 页面的 `title` 和 `description`
 
 ### 4.4 商品数据渲染
 
@@ -983,7 +1069,7 @@ const { data: products } = await useFetch('/api/v1/products/', {
 </script>
 ```
 
-或者更优：后端 `GET /api/v1/diy/pages/{slug}` 直接内联渲染所需数据：
+或者更优：后端 `GET /api/v1/diy/by-slug/{slug}` 直接内联渲染所需数据：
 
 ```json
 {
@@ -1008,45 +1094,47 @@ const { data: products } = await useFetch('/api/v1/products/', {
 
 ## 五、实施路径
 
-### 第一阶段：基础设施 + 核心组件（1-2 周）
+### 第一阶段：基础设施 + 核心组件（1-2 周）✅ 已完成
 
-| 任务 | 内容 |
-|------|------|
-| 数据库迁移 | 创建 3 张表 + 迁移脚本 + 内置组件种子数据 |
-| ORM + Repository | 新增 ORM 模型 + 基础 Repository |
-| Admin DIY API | 页面 CRUD + 组件库查询 + 图片上传 |
-| 公开 DIY API | `/api/v1/diy/pages/{slug}` 基础渲染接口 |
-| Admin 页面列表 | 列表页（创建/删除/复制页面） |
-| Admin 编辑器骨架 | 三栏布局 + `vue-draggable-plus` 拖拽画布 |
-| 属性编辑面板 | `DynamicForm` 基础控件（文本/数字/开关/选择/颜色） |
-| 基础组件渲染器 | Banner / SearchBox / ImageAd / TextBlock / Divider / Blank |
-| Nuxt 渲染容器 | `DiyPageRenderer` + 首页降级逻辑 |
+| 任务 | 内容 | 状态 |
+|------|------|------|
+| 数据库迁移 | 创建 3 张表 + 迁移脚本 `0008_add_diy_tables.py` + 内置组件种子数据 | ✅ |
+| 系统页面种子 | `0009_seed_system_diy_pages.py` 预置 home/category/product_detail | ✅ |
+| ORM + Repository | 新增 ORMDiyPage（含模板字段）+ 基础 Repository | ✅ |
+| Admin DIY API | 页面 CRUD + 组件库查询 + 图片上传（挂载 `/api/admin/v1/site`） | ✅ |
+| 公开 DIY API | `/api/v1/diy/pages/{page_type}` + `/by-slug/{slug}` 渲染接口 | ✅ |
+| Admin 一体化编辑器 | `views/diy/index.vue` 折叠面板布局 + 设备切换 | ✅ |
+| Admin 经典编辑器骨架 | `views/diy-editor/` 三栏布局 + `vue-draggable-plus` 拖拽画布 | ✅ |
+| 属性编辑面板 | `DynamicForm` 全部基础控件（文本/数字/开关/选择/颜色） | ✅ |
+| 基础组件渲染器 | Banner / SearchBox / ImageAd / TextBlock / Divider / Blank | ✅ |
+| Nuxt 渲染容器 | `DiyPageRenderer`（含 pending/error/empty 状态）+ 首页降级 | ✅ |
 
-### 第二阶段：商品组件 + 营销组件（1-2 周）
+### 第二阶段：商品组件 + 营销组件（1-2 周）✅ 已完成
 
-| 任务 | 内容 |
-|------|------|
-| 商品选择器 | `product-picker` widget（弹窗 + NDataTable 搜索选品） |
-| GoodsList 组件 | 编辑器渲染 + Nuxt 端渲染 + 数据内联 |
-| GoodsSingle / GoodsGroup | 编辑器 + Nuxt 渲染 |
-| 优惠券选择器 | `coupon-picker` widget |
-| Coupon / Countdown / NoticeBar | 编辑器 + Nuxt 渲染 |
-| NavGroup 组件 | 导航组编辑器 + 渲染 |
-| 图片上传 | Admin 端集成 MinIO 上传 |
-| 发布/缓存 | Redis 缓存层 + 发布失效 |
+| 任务 | 内容 | 状态 |
+|------|------|------|
+| 商品选择器 | `widgets/ProductPicker.vue`（弹窗 + NDataTable 搜索选品） | ✅ |
+| GoodsList 组件 | 编辑器渲染 + Nuxt 端渲染 + 数据内联 | ✅ |
+| GoodsSingle / GoodsGroup | 编辑器 + Nuxt 渲染 | ✅ |
+| 优惠券选择器 | `widgets/CouponPicker.vue` | ✅ |
+| Coupon / Countdown / NoticeBar | 编辑器 + Nuxt 渲染 | ✅ |
+| NavGroup 组件 | 导航组编辑器 + 渲染 | ✅ |
+| 图片上传 | `widgets/ImageUpload.vue` 上传到 `uploads/diy/` 目录 | ✅ |
+| 发布/缓存 | Redis 缓存层（`diy:page:{slug}` + `diy:page:{page_type}`）+ 发布失效 + 熔断降级 | ✅ |
+| 模板系统 | 模板列表（industry_tag 过滤+分页）+ 保存/应用模板 | ✅ |
 
 ### 第三阶段：完善与优化（1-2 周）
 
-| 任务 | 内容 |
-|------|------|
-| 富文本编辑器 | `rich-editor` widget（基于 Tiptap 或 Quill） |
-| Video 组件 | 视频渲染 + 封面图 |
-| 预览功能 | 独立预览窗口，绕过 Redis |
-| 设为首页 | `is_default` 机制 |
-| 与 `site_profiles` 共存 | Profile 配置中新增 `diy_page_slug` 字段 |
-| 移动端适配 | Nuxt 端响应式 + Tailwind 断点 |
-| SEO 优化 | 页面级 title/description 输出 |
-| 权限完善 | Casbin 策略 + 前端按钮级权限 |
+| 任务 | 内容 | 状态 |
+|------|------|------|
+| 富文本编辑器 | `widgets/RichTextEditor.vue` widget（`ui:widget: rich-editor`） | ✅ 已提前实现 |
+| Video 组件 | 视频渲染 + 封面图 | ⬜ 待实现 |
+| 预览功能 | `preview=true` 参数绕过 Redis 直查 DB（含 draft） | ✅ |
+| 设为首页 | `is_default` 机制 + 系统页 page_type 控制 | ✅ |
+| 与 `site_profiles` 共存 | Profile 配置中 `diyPageSlug` 字段 | ✅ |
+| 移动端适配 | Nuxt 端响应式 + Tailwind 断点 | ⬜ 待实现 |
+| SEO 优化 | `useHead` 输出页面级 title/description | ✅ 已提前实现 |
+| 权限完善 | Casbin 策略 + 前端按钮级权限 | ⬜ 待实现 |
 
 ### 与现有 `site_profiles` 的共存策略
 
@@ -1055,13 +1143,14 @@ site_profiles.config (JSONB)
 ├── branding           # 品牌信息（logo、名称、颜色）
 ├── theme              # 主题配置
 ├── navigation         # 主导航
-├── diy_page_slug      # ← 新增：DIY 页面 slug（为空则使用默认首页）
-├── sections           # 现有硬编码首页 Section（diy_page_slug 为空时生效）
+├── diyPageSlug        # ← 新增：DIY 页面 slug（为空则使用默认首页 /diy/pages/home）
+├── sections           # 现有硬编码首页 Section（diyPageSlug 为空时生效）
 └── seo                # SEO 默认配置
 ```
 
-- `diy_page_slug` 为空 → 沿用现有硬编码首页逻辑（向后兼容）
-- `diy_page_slug` 有值 → 渲染对应 DIY 页面
+- `diyPageSlug` 为空 → 沿用 `/diy/pages/home` 系统首页逻辑（向后兼容）
+- `diyPageSlug` 有值 → 渲染对应 DIY 页面
+- DIY 首页不存在时 → 回退到硬编码首页
 - 管理员在 Admin 的 `site_profiles` 编辑页可直接选择已发布的 DIY 页面作为首页
 
 ---
@@ -1078,6 +1167,13 @@ site_profiles.config (JSONB)
 | **首页降级策略** | DIY 首页不存在时回退到硬编码首页，零风险上线 |
 | **整页保存而非逐组件保存** | 减少请求次数，保证组件顺序的原子性 |
 | **数据内联而非 Nuxt 端二次请求** | 减少前端请求数，支持整页 CDN 缓存 |
+| **Admin API 挂载在 /site 前缀下** | DIY 装修与站点配置一体化，统一在站点管理域下 |
+| **系统页+自定义页二元模型** | home/category/product_detail 三大流量页纳入装修体系，覆盖真实电商场景 |
+| **模板系统** | 支持行业标签+保存为模板+应用模板，快速复制装修方案 |
+| **一体化编辑器+经典编辑器双形态** | 一体化编辑器适合日常配置，经典三栏适合深度装修 |
+| **Redis 可用性熔断** | Redis 不可用时自动降级直查 DB，不阻塞功能 |
+| **图片上传使用本地目录** | 初期简化部署，后续可迁移到 MinIO |
+| **listPages 客户端过滤** | 系统页+自定义页合并后数据量小，前端过滤即可 |
 *（内容由AI生成，仅供参考）*
 *（内容由AI生成，仅供参考）*
 *（内容由AI生成，仅供参考）*

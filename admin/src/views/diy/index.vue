@@ -278,7 +278,7 @@ const previewUrl = computed(() => {
   if (!page) return 'http://localhost:3000/?preview=true';
   if (page.page_type === 'home') return 'http://localhost:3000/?preview=true';
   if (page.page_type === 'category') return `http://localhost:3000/category/${page.slug || 'all'}?preview=true`;
-  if (page.page_type === 'product_detail') return `http://localhost:3000/product/${page.slug || 'demo'}?preview=true`;
+  if (page.page_type === 'product_detail') return `http://localhost:3000/products/${page.slug || 'demo'}?preview=true`;
   return `http://localhost:3000/${page.slug}?preview=true`;
 });
 
