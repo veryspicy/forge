@@ -57,7 +57,6 @@ class SQLAlchemyDiyRepository:
         stmt = (
             select(ORMDiyPage)
             .options(*self._page_load_options())
-            .where(ORMDiyPage.is_template.is_(False))
             .order_by(ORMDiyPage.updated_at.desc())
         )
         result = await db.execute(stmt)

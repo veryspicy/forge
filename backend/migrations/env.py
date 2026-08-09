@@ -23,7 +23,7 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-from forge.infrastructure.persistence.database import Base
+from forge.infrastructure.persistence.models import Base
 from forge.infrastructure.persistence import models  # noqa: F401 - ensures all models are imported
 
 target_metadata = Base.metadata
