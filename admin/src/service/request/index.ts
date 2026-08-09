@@ -40,10 +40,11 @@ export const request = createFlatRequest(
         message = error.response?.data?.detail || error.response?.data?.msg || message;
       }
 
-      // Handle 401: token expired, logout
+      // Handle 401: extract backend detail for friendly message
       if (error.response?.status === 401) {
         const authStore = useAuthStore();
         authStore.resetStore();
+        message = error.response?.data?.detail || message;
         window.$message?.error(message);
         return;
       }
