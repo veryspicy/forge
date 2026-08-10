@@ -96,6 +96,23 @@
             </NButton>
           </NButtonGroup>
 
+          <NTooltip trigger="hover">
+            <template #trigger>
+              <NButton size="small" quaternary @click="openInBrowser">
+                <template #icon><SvgIcon icon="mdi:open-in-new" class="text-16px" /></template>
+              </NButton>
+            </template>
+            在浏览器中打开
+          </NTooltip>
+          <NTooltip trigger="hover">
+            <template #trigger>
+              <NButton size="small" quaternary :type="elementSelectMode ? 'primary' : 'default'" @click="toggleElementSelect">
+                <template #icon><SvgIcon icon="mdi:cursor-default-click" class="text-16px" /></template>
+              </NButton>
+            </template>
+            开启选择元素模式
+          </NTooltip>
+
         </div>
         <div class="flex items-center gap-1">
           <NButton size="small" :type="device === 'desktop' ? 'primary' : 'default'" quaternary @click="device = 'desktop'">
@@ -128,6 +145,7 @@
             :class="deviceFrameClass"
           >
             <iframe
+              ref="iframeRef"
               :src="previewUrl"
               class="h-full w-full border-none"
               sandbox="allow-scripts allow-same-origin"
@@ -218,7 +236,8 @@ import {
   NInput,
   NModal,
   NSelect,
-  NTag
+  NTag,
+  NTooltip
 } from 'naive-ui';
 import { VueDraggable } from 'vue-draggable-plus';
 import { useDiyStore, SITE_CONFIG_ITEMS } from '@/store/modules/diy';
@@ -256,6 +275,8 @@ const saving = ref(false);
 const publishing = ref(false);
 const leftPanelVisible = ref(true);
 const panelVisible = ref(false);
+const iframeRef = ref<HTMLIFrameElement | null>(null);
+const elementSelectMode = ref(false);
 
 const deviceFrameClass = computed(() => ({
   'w-full': device.value === 'desktop',
@@ -304,6 +325,79 @@ async function selectPage(page: any) {
 
 function switchMode(m: 'preview' | 'canvas') {
   mode.value = m;
+}
+
+function openInBrowser() {
+  window.open(previewUrl.value, '_blank');
+}
+
+function toggleElementSelect() {
+  elementSelectMode.value = !elementSelectMode.value;
+  if (elementSelectMode.value) {
+    enableElementSelection();
+  } else {
+    disableElementSelection();
+  }
+}
+
+function enableElementSelection() {
+  const iframe = iframeRef.value;
+  if (!iframe?.contentDocument) return;
+
+  const style = iframe.contentDocument.createElement('style');
+  style.id = 'marvis-element-select';
+  style.textContent = '.marvis-hover-highlight{outline:2px solid #18a058!important;outline-offset:-2px}';
+  iframe.contentDocument.head.appendChild(style);
+
+  const handleMouseOver = (e: MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target === iframe.contentDocument?.body || target === iframe.contentDocument?.documentElement) return;
+    target.classList.add('marvis-hover-highlight');
+    e.stopPropagation();
+  };
+  const handleMouseOut = (e: MouseEvent) => {
+    (e.target as HTMLElement).classList.remove('marvis-hover-highlight');
+    e.stopPropagation();
+  };
+  const handleClick = (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const target = e.target as HTMLElement;
+    let selector = target.tagName.toLowerCase();
+    if (target.id) selector += '#' + target.id;
+    else if (target.className && typeof target.className === 'string') {
+      const cls = target.className.split(' ').filter((c: string) => c && c !== 'marvis-hover-highlight').join('.');
+      if (cls) selector += '.' + cls;
+    }
+    (window as any).$message?.info('已选中元素: ' + selector);
+    elementSelectMode.value = false;
+    disableElementSelection();
+  };
+
+  iframe.contentDocument.addEventListener('mouseover', handleMouseOver, true);
+  iframe.contentDocument.addEventListener('mouseout', handleMouseOut, true);
+  iframe.contentDocument.addEventListener('click', handleClick, true);
+  (iframe as any)._marvisHandlers = { handleMouseOver, handleMouseOut, handleClick };
+}
+
+function disableElementSelection() {
+  const iframe = iframeRef.value;
+  if (!iframe?.contentDocument) {
+    elementSelectMode.value = false;
+    return;
+  }
+
+  const style = iframe.contentDocument.getElementById('marvis-element-select');
+  style?.remove();
+
+  const handlers = (iframe as any)._marvisHandlers;
+  if (handlers) {
+    iframe.contentDocument.removeEventListener('mouseover', handlers.handleMouseOver, true);
+    iframe.contentDocument.removeEventListener('mouseout', handlers.handleMouseOut, true);
+    iframe.contentDocument.removeEventListener('click', handlers.handleClick, true);
+    delete (iframe as any)._marvisHandlers;
+  }
+  iframe.contentDocument.querySelectorAll('.marvis-hover-highlight').forEach((el: Element) => el.classList.remove('marvis-hover-highlight'));
 }
 
 // --- 画布拖拽 ---
