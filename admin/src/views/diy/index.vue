@@ -568,7 +568,7 @@ function installMarvisOnDoc(doc: Document, win: Window, isIframe: boolean) {
   }
 
   function clearHover() {
-    if (currentHover && currentHover !== currentSelected) {
+    if (currentHover) {
       currentHover.classList.remove('marvis-hover-highlight');
     }
     currentHover = null;
@@ -577,7 +577,10 @@ function installMarvisOnDoc(doc: Document, win: Window, isIframe: boolean) {
 
   function clearSelected() {
     if (currentSelected) {
-      currentSelected.classList.remove('marvis-selected-highlight');
+      // 同时清除选中类与残留的 hover 高亮类
+      // （用户刚好 hover 在 A 上点击选 A → A 同时有 hover+selected 两个类；
+      //  切换选中到 B 时若只清 selected 不清 hover → A 的 hover 残留，直到再 hover 一次 A 并 mouseout 才被 remove）
+      currentSelected.classList.remove('marvis-selected-highlight', 'marvis-hover-highlight');
     }
     currentSelected = null;
     removeBadge('selected');
@@ -590,7 +593,7 @@ function installMarvisOnDoc(doc: Document, win: Window, isIframe: boolean) {
       target = target.parentElement;
     }
     if (!target || target === currentSelected) { clearHover(); return; }
-    if (currentHover && currentHover !== currentSelected) currentHover.classList.remove('marvis-hover-highlight');
+    if (currentHover) currentHover.classList.remove('marvis-hover-highlight');
     currentHover = target;
     target.classList.add('marvis-hover-highlight');
     positionBadge(target, 'hover');
@@ -601,6 +604,11 @@ function installMarvisOnDoc(doc: Document, win: Window, isIframe: boolean) {
     if (destroyed) return;
     const target = e.target as HTMLElement;
     if (target === currentHover && target !== currentSelected) {
+      target.classList.remove('marvis-hover-highlight');
+    }
+    // 保险：mouseout 目标元素若恰好还有 hover 高亮（即使不是 currentHover 也清）
+    // 避免 Vue/Nuxt 重排导致节点引用与实际 DOM 不一致时 class 残留
+    if (target !== currentSelected) {
       target.classList.remove('marvis-hover-highlight');
     }
     removeBadge('hover');
