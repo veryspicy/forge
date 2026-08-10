@@ -48,7 +48,7 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
         )
 
     # Update last_login_at
-    admin.last_login_at = datetime.now(timezone.utc)
+    admin.last_login_at = datetime.now()
     await db.flush()
 
     payload = {
