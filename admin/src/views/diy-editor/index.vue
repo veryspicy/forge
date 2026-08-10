@@ -19,6 +19,10 @@
           <template #icon><SvgIcon icon="mdi:file-document-multiple" /></template>
           模板
         </NButton>
+        <NButton size="small" :type="showPropertyPanel ? 'primary' : 'default'" @click="showPropertyPanel = !showPropertyPanel">
+          <template #icon><SvgIcon :icon="showPropertyPanel ? 'mdi:eye' : 'mdi:eye-off'" /></template>
+          属性
+        </NButton>
         <NButton :loading="saving" @click="save">Save Draft</NButton>
         <NButton @click="preview">Preview</NButton>
         <NButton type="primary" :loading="publishing" @click="publish">Publish</NButton>
@@ -113,10 +117,7 @@ const store = useDiyStore();
 
 const saving = ref(false);
 const publishing = ref(false);
-
-const showPropertyPanel = computed(
-  () => store.activeComponent !== null || store.activeSiteConfigItem !== null
-);
+const showPropertyPanel = ref(false);
 
 const pageId = route.params.id as string;
 
