@@ -299,16 +299,21 @@ const currentLocale = ref(locale.value)
 watch(locale, (val) => { currentLocale.value = val })
 
 const navLinks = computed(() => {
+  // 首页永远放在第一个
+  const homeLink = { to: localePath('/'), label: t('nav.home') }
   if (visibleNav.value.length > 0) {
-    return visibleNav.value.map((n) => ({
-      to: n.to,
-      label: t(n.labelKey),
-    }))
+    return [
+      homeLink,
+      ...visibleNav.value.map((n) => ({
+        to: localePath(n.to),
+        label: t(n.labelKey),
+      })),
+    ]
   }
   // Template mode: no seed data → generic placeholder navigation
   return [
-    { to: '/', label: t('nav.home') },
-    { to: '/products', label: t('nav.products') },
+    homeLink,
+    { to: localePath('/products'), label: t('nav.products') },
   ]
 })
 

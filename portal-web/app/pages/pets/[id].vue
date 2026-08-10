@@ -66,7 +66,7 @@
             v-for="rec in recommendations"
             :key="rec.product_id"
             class="rec-card"
-            @click="navigateTo(`/products/${rec.product_id}`)"
+            @click="navigateTo(localePath(`/products/${rec.product_id}`))"
           >
             <div class="rec-name">{{ rec.product_name }}</div>
             <div class="rec-reason">{{ rec.reason }}</div>
@@ -83,6 +83,7 @@
 
 <script setup lang="ts">
 import { useApi } from '~/composables/useApi'
+const localePath = useLocalePath()
 
 const route = useRoute()
 const { fetchPet, fetchPetRecommendations, deletePet } = useApi()

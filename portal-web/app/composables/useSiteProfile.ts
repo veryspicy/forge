@@ -9,13 +9,22 @@
 export function useSiteProfile() {
   const config = useRuntimeConfig()
 
-  const { data, pending, error, refresh } = useFetch('/site-profile/', {
-    baseURL: config.public.apiBase,
-    key: "site-profile",
-    server: false,
+  // SSR 时使用绝对 URL 直接访问后端，避免 Nuxt 内部 server route 代理的上下文问题
+  // （特别是 admin iframe 通过 /portal-preview 代理访问时，Nitro 内部调用路径或 Host 头异常导致 API 代理失败）
+  // CSR 时使用相对路径：走 admin Vite 代理 / Nuxt server middleware（正常可用）
+  const isServerSide = import.meta.server
+  const effectiveBase = isServerSide
+    ? `${process.env.API_PROXY_TARGET || 'http://127.0.0.1:8000'}/api/v1`
+    : config.public.apiBase
+
+  const { data, pending, error, refresh } = useFetch('/site-profile', {
+    baseURL: effectiveBase,
+    key: "site-profile-v4",
+    server: true,
     lazy: false,
     transform: (raw: Record<string, any> | null) => {
-      const r = raw || {}
+      // API 返回格式为 {"data": {"id": ..., "config": {actual_profile_fields}}}
+      const r = (raw?.data?.config ?? raw?.data ?? raw ?? {}) as Record<string, any>
       return {
         brand: { name: 'Forge', tagline: '', logo: null, ...(r.brand || {}) },
         theme: { primaryColor: '#4f46e5', ...(r.theme || {}) },

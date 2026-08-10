@@ -22,6 +22,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+const localePath = useLocalePath()
 
 defineProps<{ config: any; data?: any }>()
 const emit = defineEmits<{ (e: 'search', keyword: string): void }>()
@@ -31,7 +32,7 @@ const keyword = ref('')
 function onSearch() {
   emit('search', keyword.value)
   if (keyword.value.trim()) {
-    navigateTo(`/products?search=${encodeURIComponent(keyword.value.trim())}`)
+    navigateTo(localePath(`/products?search=${encodeURIComponent(keyword.value.trim())}`))
   }
 }
 </script>

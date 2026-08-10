@@ -8,7 +8,7 @@
     <!-- 横向卡片 -->
     <NuxtLink
       v-else
-      :to="`/products/${product.slug || product.id}`"
+      :to="localePath(`/products/${product.slug || product.id}`)"
       class="flex items-center gap-4 rounded-xl border bg-white p-4 transition hover:shadow-md"
     >
       <img
@@ -35,6 +35,7 @@ import { useCurrency } from '~/composables/useCurrency'
 const props = defineProps<{ config: any; data?: any }>()
 
 const { formatPrice } = useCurrency()
+const localePath = useLocalePath()
 
 const product = computed(() => props.data?.product || null)
 </script>

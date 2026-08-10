@@ -52,7 +52,7 @@
             v-for="product in tailoredProducts"
             :key="product.product_id"
             class="bg-white rounded-xl shadow-sm border hover:shadow-md transition cursor-pointer"
-            @click="navigateTo(`/products/${product.product_id}`)"
+            @click="navigateTo(localePath(`/products/${product.product_id}`))"
           >
             <div class="p-4">
               <div class="w-full h-24 bg-gradient-to-br from-primary-100 to-primary-200 rounded-lg mb-3 flex items-center justify-center">
@@ -86,7 +86,7 @@
           <NuxtLink
             v-for="cat in categories"
             :key="cat.slug"
-            :to="{ path: '/products', query: { category: cat.slug } }"
+            :to="localePath({ path: '/products', query: { category: cat.slug } })"
             class="bg-white rounded-xl shadow-sm border p-6 text-center hover:shadow-md transition group"
           >
             <div class="text-4xl mb-3">{{ cat.icon }}</div>

@@ -232,7 +232,7 @@
               v-for="rec in petRecs[pet.id].slice(0, 3)"
               :key="rec.product_id"
               class="flex items-center gap-3 p-2 bg-white rounded-lg border cursor-pointer hover:border-primary-300 transition"
-              @click="navigateTo(`/products/${rec.product_id}`)"
+              @click="navigateTo(localePath(`/products/${rec.product_id}`))"
             >
               <div class="flex-1 min-w-0">
                 <p class="text-sm font-medium text-gray-800 truncate">{{ rec.product_name }}</p>
@@ -278,6 +278,7 @@ definePageMeta({
 const petStore = usePetStore()
 const { t } = useI18n()
 const { fetchPetRecommendations } = useApi()
+const localePath = useLocalePath()
 
 const showWizard = ref(false)
 const wizardStep = ref(0)

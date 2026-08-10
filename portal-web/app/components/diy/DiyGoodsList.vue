@@ -18,7 +18,7 @@
       <NuxtLink
         v-for="p in products"
         :key="p.id"
-        :to="`/products/${p.slug || p.id}`"
+        :to="localePath(`/products/${p.slug || p.id}`)"
         class="flex gap-4 rounded-xl border bg-white p-3 transition hover:shadow-md"
       >
         <img
@@ -52,6 +52,7 @@ import { useCurrency } from '~/composables/useCurrency'
 const props = defineProps<{ config: any; data?: any }>()
 
 const { formatPrice } = useCurrency()
+const localePath = useLocalePath()
 
 const products = computed(() => props.data?.products || [])
 const layout = computed(() => props.config.layout || 'grid')
