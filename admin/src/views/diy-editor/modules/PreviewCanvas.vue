@@ -92,19 +92,20 @@ const store = useDiyStore();
 const mode = ref<'canvas' | 'preview'>('canvas');
 
 const defaultPreviewUrl = computed(() => {
+  const base = '/portal-preview/zh';
   const page = store.currentPage;
-  if (!page) return 'http://localhost:3000/';
+  if (!page) return `${base}`;
   const slug = page.slug || page.page_type || '';
   if (page.page_type === 'home' || !page.page_type) {
-    return 'http://localhost:3000/?preview=true';
+    return `${base}?preview=true`;
   }
   if (page.page_type === 'category') {
-    return `http://localhost:3000/category/${slug}?preview=true`;
+    return `${base}/category/${slug}?preview=true`;
   }
   if (page.page_type === 'product_detail') {
-    return `http://localhost:3000/product/${slug}?preview=true`;
+    return `${base}/product/${slug}?preview=true`;
   }
-  return `http://localhost:3000/${slug}?preview=true`;
+  return `${base}/${slug}?preview=true`;
 });
 
 const previewUrl = ref(defaultPreviewUrl.value);

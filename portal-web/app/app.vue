@@ -1,4 +1,4 @@
-﻿<!-- Forge — App Root -->
+﻿﻿<!-- Forge — App Root -->
 <template>
   <NuxtLayout>
     <NuxtPage />
