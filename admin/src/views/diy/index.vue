@@ -255,7 +255,7 @@ const device = ref<'desktop' | 'tablet' | 'mobile'>('desktop');
 const saving = ref(false);
 const publishing = ref(false);
 const leftPanelVisible = ref(true);
-const panelVisible = ref(true);
+const panelVisible = ref(false);
 
 const deviceFrameClass = computed(() => ({
   'w-full': device.value === 'desktop',

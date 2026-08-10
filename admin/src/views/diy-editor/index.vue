@@ -19,6 +19,10 @@
           <template #icon><SvgIcon icon="mdi:file-document-multiple" /></template>
           模板
         </NButton>
+        <NButton size="small" :type="showPropertyPanel ? 'primary' : 'default'" @click="showPropertyPanel = !showPropertyPanel">
+          <template #icon><SvgIcon :icon="showPropertyPanel ? 'mdi:eye' : 'mdi:eye-off'" /></template>
+          属性
+        </NButton>
         <NButton :loading="saving" @click="save">Save Draft</NButton>
         <NButton @click="preview">Preview</NButton>
         <NButton type="primary" :loading="publishing" @click="publish">Publish</NButton>
@@ -29,7 +33,7 @@
     <div class="flex flex-1 gap-4 overflow-hidden" style="min-height: calc(100vh - 220px)">
       <ComponentPanel class="w-[280px] shrink-0" />
       <PreviewCanvas class="flex-1" />
-      <PropertyPanel class="w-[360px] shrink-0" />
+      <PropertyPanel v-if="showPropertyPanel" class="w-[360px] shrink-0" />
     </div>
 
     <!-- 模板管理弹窗 -->
@@ -84,7 +88,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, reactive, ref } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   NButton,
@@ -113,6 +117,7 @@ const store = useDiyStore();
 
 const saving = ref(false);
 const publishing = ref(false);
+const showPropertyPanel = ref(false);
 
 const pageId = route.params.id as string;
 
