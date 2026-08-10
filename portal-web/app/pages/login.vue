@@ -88,14 +88,14 @@ function getRedirectPath(): string {
     try {
       return decodeURIComponent(redirect)
     } catch {
-      return '/'
+      return localePath('/')
     }
   }
   const role = user.value?.role
   if (role === 'admin' || role === 'operator') {
-    return '/admin'
+    return localePath('/admin')
   }
-  return '/'
+  return localePath('/')
 }
 
 async function handleLogin() {

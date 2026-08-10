@@ -59,7 +59,7 @@
       <iframe
         :src="previewUrl"
         class="h-full w-full border-none"
-        sandbox="allow-scripts allow-same-origin"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
       />
     </div>
   </div>
