@@ -1,8 +1,8 @@
 <template>
-  <header class="sticky top-0 z-50 bg-neutral-50/95 backdrop-blur shadow-sm">
+  <header data-region="header" class="sticky top-0 z-50 bg-neutral-50/95 backdrop-blur shadow-sm">
     <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
       <!-- Brand -->
-      <NuxtLink to="/" class="flex items-center gap-2 flex-shrink-0">
+      <NuxtLink to="/" data-brand-name class="flex items-center gap-2 flex-shrink-0">
         <!-- 动态 Logo（站点配置上传的图片） -->
         <img
           v-if="brandLogo"
@@ -41,7 +41,7 @@
       </NuxtLink>
 
       <!-- Desktop Nav -->
-      <nav class="hidden md:flex items-center gap-1">
+      <nav data-nav class="hidden md:flex items-center gap-1">
         <NuxtLink
           v-for="link in navLinks"
           :key="link.to"
@@ -202,7 +202,7 @@
         v-if="mobileMenuOpen"
         class="md:hidden fixed inset-0 top-16 bg-neutral-50 z-40 px-4 py-6 flex flex-col gap-6"
       >
-        <nav class="flex flex-col gap-2">
+        <nav data-nav-mobile class="flex flex-col gap-2">
           <NuxtLink
             v-for="link in navLinks"
             :key="link.to"

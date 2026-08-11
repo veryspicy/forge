@@ -1,5 +1,5 @@
 <template>
-  <footer class="bg-neutral-900 text-neutral-300">
+  <footer data-region="footer" class="bg-neutral-900 text-neutral-300">
     <div class="max-w-7xl mx-auto px-4 py-12">
       <!-- Main Grid -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
@@ -121,7 +121,7 @@
       </div>
 
       <!-- Newsletter -->
-      <div class="mt-12 flex flex-col sm:flex-row items-start sm:items-center gap-4 p-6 rounded-2xl bg-neutral-800/50">
+      <div data-newsletter class="mt-12 flex flex-col sm:flex-row items-start sm:items-center gap-4 p-6 rounded-2xl bg-neutral-800/50">
         <div class="flex-shrink-0">
           <h4 class="text-base font-heading font-semibold text-neutral-100">
             {{ $t('footer.stayInLoop') }}
@@ -152,7 +152,7 @@
 
       <!-- Bottom Bar -->
       <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
-        <p class="text-sm text-neutral-500">
+        <p data-copyright class="text-sm text-neutral-500">
           {{ $t('footer.copyright') }}
         </p>
         <p class="text-sm text-neutral-500">
