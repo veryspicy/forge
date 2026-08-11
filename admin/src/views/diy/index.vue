@@ -214,7 +214,7 @@
 
     <!-- 右侧面板：属性配置 -->
     <div v-if="panelVisible" class="w-[280px] shrink-0 overflow-hidden">
-      <PropertyPanel />
+      <PropertyPanel @apply-styles="handleApplyStyles" @reset-styles="handleResetStyles" />
     </div>
 
     <!-- 新建页面弹窗 -->
@@ -773,6 +773,56 @@ function toggleElementSelect() {
     disableElementSelection();
     removeMarvisFloatButton();
   }
+}
+
+/** PropertyPanel 应用样式到 iframe 内选中元素（通过 data-marvis-elid 精确定位） */
+function handleApplyStyles({ elid, styles }: { elid: string; styles: Record<string, string> }) {
+  const iframe = iframeRef.value;
+  if (!iframe) return;
+  let doc: Document | null = null;
+  try {
+    doc = iframe.contentDocument;
+  } catch { return; }
+  if (!doc) return;
+
+  const el = doc.querySelector<HTMLElement>(`[data-marvis-elid="${elid}"]`);
+  if (!el) {
+    window.$message?.warning('未找到目标元素，可能已刷新或切换页面');
+    return;
+  }
+
+  // 保存原始 style 属性（仅首次保存，便于 reset 还原）
+  if (!styleSnapshots.has(elid)) {
+    styleSnapshots.set(elid, { el, originalStyle: el.getAttribute('style') });
+  }
+
+  // 应用编辑后的样式：camelCase → kebab-case
+  Object.entries(styles).forEach(([key, value]) => {
+    if (value === undefined || value === '') return;
+    const cssKey = key.replace(/[A-Z]/g, m => '-' + m.toLowerCase());
+    el.style.setProperty(cssKey, value);
+  });
+}
+
+/** PropertyPanel 重置元素样式：恢复原始 style 属性 */
+function handleResetStyles({ elid }: { elid: string }) {
+  const iframe = iframeRef.value;
+  if (!iframe) return;
+  let doc: Document | null = null;
+  try {
+    doc = iframe.contentDocument;
+  } catch { return; }
+  if (!doc) return;
+
+  const snapshot = styleSnapshots.get(elid);
+  if (!snapshot) return;
+
+  if (snapshot.originalStyle === null) {
+    snapshot.el.removeAttribute('style');
+  } else {
+    snapshot.el.setAttribute('style', snapshot.originalStyle);
+  }
+  styleSnapshots.delete(elid);
 }
 
 /** 在 iframe 文档 head 注入一个阻止跳出代理命名空间的导航守卫脚本。

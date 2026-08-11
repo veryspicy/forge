@@ -1,7 +1,92 @@
 <template>
   <div class="property-panel h-full overflow-y-auto rounded bg-white p-4 shadow-sm dark:bg-dark">
+    <!-- 选中元素面板（元素选择模式下，优先级最高） -->
+    <template v-if="selectedElement">
+      <div class="mb-4 flex items-center gap-2 border-b border-gray-100 border-solid pb-3 dark:border-gray-700">
+        <SvgIcon icon="mdi:cursor-default-click" class="text-18px text-blue-600" />
+        <span class="font-semibold">选中元素</span>
+        <NButton size="tiny" quaternary type="error" class="ml-auto" @click="clearSelectedElement">
+          <template #icon><SvgIcon icon="mdi:close" /></template>
+        </NButton>
+      </div>
+
+      <!-- 元素信息 -->
+      <div class="mb-4 flex flex-col gap-2 rounded bg-gray-50 p-2 text-xs dark:bg-gray-800">
+        <div class="flex items-center gap-2">
+          <span class="text-gray-500">标签:</span>
+          <span class="font-mono font-medium">{{ selectedElement.tag }}</span>
+          <span class="text-gray-400">·</span>
+          <span class="font-mono">{{ selectedElement.rect.width }}×{{ selectedElement.rect.height }}</span>
+        </div>
+        <div v-if="selectedElement.id" class="flex items-center gap-2">
+          <span class="text-gray-500">ID:</span>
+          <span class="font-mono">#{{ selectedElement.id }}</span>
+        </div>
+        <div v-if="selectedElement.classes.length" class="flex items-start gap-2">
+          <span class="text-gray-500 shrink-0">类:</span>
+          <div class="flex flex-wrap gap-1">
+            <span v-for="cls in selectedElement.classes" :key="cls" class="font-mono rounded bg-blue-100 px-1 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">.{{ cls }}</span>
+          </div>
+        </div>
+        <div v-if="selectedElement.textContent" class="flex items-start gap-2">
+          <span class="text-gray-500 shrink-0">文本:</span>
+          <span class="flex-1 truncate" :title="selectedElement.textContent">{{ selectedElement.textContent }}</span>
+        </div>
+        <div class="flex items-start gap-2">
+          <span class="text-gray-500 shrink-0">选择器:</span>
+          <span class="flex-1 break-all font-mono text-[10px] leading-tight">{{ selectedElement.selector }}</span>
+        </div>
+      </div>
+
+      <!-- CSS 属性编辑 -->
+      <div class="flex flex-col gap-3">
+        <div class="text-xs font-semibold text-gray-600">样式编辑</div>
+
+        <label class="text-xs font-medium text-gray-500">文字颜色</label>
+        <div class="flex items-center gap-2">
+          <NColorPicker :value="editStyles.color || ''" size="small" @update:value="v => updateStyle('color', v)" />
+          <NInput :value="editStyles.color || ''" size="small" style="flex:1" placeholder="如 #333" @update:value="v => updateStyle('color', v)" />
+        </div>
+
+        <label class="text-xs font-medium text-gray-500">背景颜色</label>
+        <div class="flex items-center gap-2">
+          <NColorPicker :value="editStyles.backgroundColor || ''" size="small" @update:value="v => updateStyle('backgroundColor', v)" />
+          <NInput :value="editStyles.backgroundColor || ''" size="small" style="flex:1" placeholder="如 #fff" @update:value="v => updateStyle('backgroundColor', v)" />
+        </div>
+
+        <label class="text-xs font-medium text-gray-500">字体大小</label>
+        <NInput :value="editStyles.fontSize || ''" size="small" placeholder="如 14px" @update:value="v => updateStyle('fontSize', v)" />
+
+        <label class="text-xs font-medium text-gray-500">字体粗细</label>
+        <NSelect :value="editStyles.fontWeight || ''" size="small" :options="fontWeightOptions" @update:value="v => updateStyle('fontWeight', v)" />
+
+        <label class="text-xs font-medium text-gray-500">文字对齐</label>
+        <NSelect :value="editStyles.textAlign || ''" size="small" :options="textAlignOptions" @update:value="v => updateStyle('textAlign', v)" />
+
+        <label class="text-xs font-medium text-gray-500">行高</label>
+        <NInput :value="editStyles.lineHeight || ''" size="small" placeholder="如 1.5" @update:value="v => updateStyle('lineHeight', v)" />
+
+        <label class="text-xs font-medium text-gray-500">内边距 Padding</label>
+        <NInput :value="editStyles.padding || ''" size="small" placeholder="如 10px" @update:value="v => updateStyle('padding', v)" />
+
+        <label class="text-xs font-medium text-gray-500">外边距 Margin</label>
+        <NInput :value="editStyles.margin || ''" size="small" placeholder="如 0" @update:value="v => updateStyle('margin', v)" />
+
+        <label class="text-xs font-medium text-gray-500">边框</label>
+        <NInput :value="editStyles.border || ''" size="small" placeholder="如 1px solid #ccc" @update:value="v => updateStyle('border', v)" />
+
+        <label class="text-xs font-medium text-gray-500">圆角</label>
+        <NInput :value="editStyles.borderRadius || ''" size="small" placeholder="如 4px" @update:value="v => updateStyle('borderRadius', v)" />
+
+        <div class="mt-2 flex gap-2">
+          <NButton size="small" type="primary" @click="applyStyles">应用到元素</NButton>
+          <NButton size="small" @click="resetStyles">重置</NButton>
+        </div>
+      </div>
+    </template>
+
     <!-- 组件属性面板（选中组件时） -->
-    <template v-if="component">
+    <template v-else-if="component">
       <div class="mb-4 flex items-center gap-2 border-b border-gray-100 border-solid pb-3 dark:border-gray-700">
         <NButton size="tiny" quaternary type="error" @click="store.removeComponent(component.id)">
           <template #icon><SvgIcon icon="mdi:delete" /></template>
@@ -193,16 +278,74 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { NButton, NColorPicker, NInput, NSelect, NSwitch, NUpload, type UploadCustomRequestOptions } from 'naive-ui';
 import { useDiyStore, SITE_CONFIG_ITEMS } from '@/store/modules/diy';
+import type { SelectedElementInfo } from '@/store/modules/diy';
 import { diyApi } from '@/service/api/diy';
 import DynamicForm from './DynamicForm.vue';
+
+const emit = defineEmits<{
+  (e: 'apply-styles', payload: { elid: string; styles: Record<string, string> }): void;
+  (e: 'reset-styles', payload: { elid: string }): void;
+}>();
 
 const store = useDiyStore();
 
 const component = computed<any | null>(() => store.activeComponent);
 const activeConfigKey = computed(() => store.activeSiteConfigItem);
+
+// ========== 选中元素面板（元素选择模式） ==========
+const selectedElement = computed<SelectedElementInfo | null>(() => store.selectedElement);
+/** 当前编辑中的样式（从 selectedElement.computedStyles 初始化，编辑后通过 applyStyles 应用到 iframe 元素） */
+const editStyles = ref<Record<string, string>>({});
+
+watch(
+  () => store.selectedElement?.elid,
+  (newElid) => {
+    if (newElid && store.selectedElement) {
+      editStyles.value = { ...store.selectedElement.computedStyles };
+    } else {
+      editStyles.value = {};
+    }
+  },
+  { immediate: true }
+);
+
+const fontWeightOptions = [
+  { label: '300 细体', value: '300' },
+  { label: '400 常规', value: '400' },
+  { label: '500 中等', value: '500' },
+  { label: '600 半粗', value: '600' },
+  { label: '700 粗体', value: '700' }
+];
+const textAlignOptions = [
+  { label: '左对齐', value: 'left' },
+  { label: '居中', value: 'center' },
+  { label: '右对齐', value: 'right' },
+  { label: '两端对齐', value: 'justify' }
+];
+
+function updateStyle(key: string, value: string) {
+  editStyles.value[key] = value;
+}
+
+function applyStyles() {
+  if (!store.selectedElement) return;
+  emit('apply-styles', { elid: store.selectedElement.elid, styles: { ...editStyles.value } });
+  window.$message?.success('样式已应用到元素');
+}
+
+function resetStyles() {
+  if (!store.selectedElement) return;
+  editStyles.value = { ...store.selectedElement.computedStyles };
+  emit('reset-styles', { elid: store.selectedElement.elid });
+  window.$message?.info('已重置为原始样式');
+}
+
+function clearSelectedElement() {
+  store.setSelectedElement(null);
+}
 
 const configLabel = computed(() => {
   const item = SITE_CONFIG_ITEMS.find(i => i.key === activeConfigKey.value);
