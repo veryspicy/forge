@@ -410,21 +410,19 @@ async function handleTabClick(tab: any) {
   iframeSrc.value = buildPreviewUrl(tab);
   iframeKey.value++;
   store.reset();
+  // 切换 tab 前清理旧的选择脚本安装（避免 DOM 引用失效）。
+  // 重装交由 iframe 的 @load 事件 → onIframeLoad 完成：当 elementSelectMode 为 true 时会自动重新 installIframeSelection，
+  // 比手动 setTimeout(100ms) 更可靠（SSR + Hydration 通常远超 100ms）。
+  if (elementSelectMode.value) {
+    if (globalMarvisCleanup) { globalMarvisCleanup(); globalMarvisCleanup = null; }
+    if (canvasMarvisCleanup) { canvasMarvisCleanup(); canvasMarvisCleanup = null; }
+  }
   // system_* 类型（C 端系统路由如 products/pets/orders）没有 DIY 页面数据，
   // 跳过 fetchPage 避免后端返回 400 "Invalid page key"
   if (!tab.page_type?.startsWith('system_')) {
     try {
       await store.fetchPage(tab.id);
     } catch { /* 页面未初始化时 fetch 失败，不影响 tab 切换 */ }
-  }
-  // 切换 tab 后重新安装选择模式（如已开启）
-  if (elementSelectMode.value) {
-    setTimeout(() => {
-      if (globalMarvisCleanup) { globalMarvisCleanup(); globalMarvisCleanup = null; }
-      if (canvasMarvisCleanup) { canvasMarvisCleanup(); canvasMarvisCleanup = null; }
-      if (mode.value === 'preview') installIframeSelection();
-      else installCanvasSelection();
-    }, 100);
   }
 }
 
@@ -438,17 +436,14 @@ async function handleTabClose(id: string) {
     iframeSrc.value = buildPreviewUrl(nextTab);
     iframeKey.value++;
     store.reset();
+    // 同 handleTabClick：清理旧安装，重装交由 @load→onIframeLoad 事件链
+    if (elementSelectMode.value) {
+      if (globalMarvisCleanup) { globalMarvisCleanup(); globalMarvisCleanup = null; }
+      if (canvasMarvisCleanup) { canvasMarvisCleanup(); canvasMarvisCleanup = null; }
+    }
     try {
       await store.fetchPage(nextId);
     } catch { /* 页面未初始化时 fetch 失败，不影响 tab 切换 */ }
-    if (elementSelectMode.value) {
-      setTimeout(() => {
-        if (globalMarvisCleanup) { globalMarvisCleanup(); globalMarvisCleanup = null; }
-        if (canvasMarvisCleanup) { canvasMarvisCleanup(); canvasMarvisCleanup = null; }
-        if (mode.value === 'preview') installIframeSelection();
-        else installCanvasSelection();
-      }, 100);
-    }
   }
 }
 
