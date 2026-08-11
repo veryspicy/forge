@@ -66,26 +66,6 @@ export const generatedRoutes: GeneratedRoute[] = [
     }
   },
   {
-    name: 'diy',
-    path: '/diy',
-    component: 'layout.base$view.diy',
-    meta: {
-      title: 'diy',
-      i18nKey: 'route.diy',
-      hideInMenu: true
-    }
-  },
-  {
-    name: 'diy-editor',
-    path: '/diy-editor',
-    component: 'layout.base$view.diy-editor',
-    meta: {
-      title: 'diy-editor',
-      i18nKey: 'route.diy-editor',
-      hideInMenu: true
-    }
-  },
-  {
     name: 'iframe-page',
     path: '/iframe-page/:url',
     component: 'layout.base$view.iframe-page',
@@ -189,6 +169,15 @@ export const generatedRoutes: GeneratedRoute[] = [
     meta: {
       title: 'shipments',
       i18nKey: 'route.shipments'
+    }
+  },
+  {
+    name: 'site-config',
+    path: '/site-config',
+    component: 'layout.base$view.site-config',
+    meta: {
+      title: 'site-config',
+      i18nKey: 'route.site-config'
     }
   },
   {

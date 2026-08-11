@@ -1,16 +1,5 @@
 <template>
   <div>
-    <!-- DIY 装修首页（有数据时优先渲染） -->
-    <DiyPageRenderer
-      v-if="hasDiyPage"
-      :components="diyComponents"
-      :pending="diyPending"
-      :error="!!diyError"
-      @retry="refreshDiy"
-    />
-
-    <!-- 降级：硬编码首页 -->
-    <template v-else>
     <!-- Hero Section -->
     <section class="hero bg-gradient-to-br from-primary-600 to-primary-800 text-white py-20">
       <div class="max-w-6xl mx-auto px-4 text-center">
@@ -139,7 +128,6 @@
         </div>
       </div>
     </section>
-    </template>
   </div>
 </template>
 
@@ -156,34 +144,9 @@ const { fetchPetRecommendations, fetchProducts } = useApi()
 const { t } = useI18n()
 const { profile, hasFeature, visibleSections } = useSiteProfile()
 
-// ---------- DIY 装修首页 ----------
-const runtimeConfig = useRuntimeConfig()
-const diySlug = computed(() => profile.value.diyPageSlug || '')
-const diyUrl = computed(() => (diySlug.value ? `/diy/pages/${diySlug.value}` : '/diy/pages/home'))
-
-const {
-  data: diyPage,
-  pending: diyPending,
-  error: diyError,
-  refresh: refreshDiy,
-} = await useFetch(diyUrl, {
-  baseURL: runtimeConfig.public.apiBase,
-  server: false,
-  default: () => null,
-})
-
-const diyComponents = computed<any[]>(() => (diyPage.value as any)?.components || [])
-const hasDiyPage = computed(() => diyComponents.value.length > 0)
-
-// SEO：DIY 首页输出页面级 title / description
+// ---------- SEO ----------
 useHead({
-  title: computed(() => (diyPage.value as any)?.title || 'Home'),
-  meta: [
-    {
-      name: 'description',
-      content: computed(() => (diyPage.value as any)?.description || ''),
-    },
-  ],
+  title: 'Home',
 })
 
 // Simpler isLoggedIn check — use auth store instead of localStorage ghost token

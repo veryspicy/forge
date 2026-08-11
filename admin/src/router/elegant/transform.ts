@@ -169,8 +169,6 @@ const routeMap: RouteMap = {
   "admin-users": "/admin-users",
   "ai-probe": "/ai-probe",
   "dashboard": "/dashboard",
-  "diy": "/diy",
-  "diy-editor": "/diy-editor",
   "iframe-page": "/iframe-page/:url",
   "login": "/login/:module(pwd-login|code-login|register|reset-pwd|bind-wechat)?",
   "orders": "/orders",
@@ -182,6 +180,7 @@ const routeMap: RouteMap = {
   "roles": "/roles",
   "settings": "/settings",
   "shipments": "/shipments",
+  "site-config": "/site-config",
   "suppliers": "/suppliers",
   "users": "/users"
 };

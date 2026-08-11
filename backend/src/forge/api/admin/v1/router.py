@@ -79,5 +79,4 @@ except ImportError:
     pass
 
 # Site decoration & config
-_safe_include("diy", prefix="/site", tags=["Admin - Site Decoration"])
 _safe_include("site_config", prefix="/site", tags=["Admin - Site Config"])

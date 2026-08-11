@@ -298,11 +298,7 @@ const local: App.I18n.Schema = {
     customers: '客户',
     'admin-users': '管理员',
     roles: '角色管理',
-    'site-decoration': '页面装修',
-    'site-decoration-editor': '页面编辑器',
-    diy: '页面装修',
-    'diy-pages': '装修页面',
-    'diy-editor': '页面编辑器'
+    'site-config': '站点配置'
   },
   page: {
     dashboard: {

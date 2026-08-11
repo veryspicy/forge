@@ -23,8 +23,6 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   "admin-users": () => import("@/views/admin-users/index.vue"),
   "ai-probe": () => import("@/views/ai-probe/index.vue"),
   dashboard: () => import("@/views/dashboard/index.vue"),
-  "diy-editor": () => import("@/views/diy-editor/index.vue"),
-  diy: () => import("@/views/diy/index.vue"),
   "orders-detail": () => import("@/views/orders-detail/index.vue"),
   orders: () => import("@/views/orders/index.vue"),
   pricing: () => import("@/views/pricing/index.vue"),
@@ -34,6 +32,7 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   roles: () => import("@/views/roles/index.vue"),
   settings: () => import("@/views/settings/index.vue"),
   shipments: () => import("@/views/shipments/index.vue"),
+  "site-config": () => import("@/views/site-config/index.vue"),
   suppliers: () => import("@/views/suppliers/index.vue"),
   users: () => import("@/views/users/index.vue"),
 };

@@ -302,9 +302,7 @@ const local: App.I18n.Schema = {
     customers: 'Customers',
     'admin-users': 'Admin Users',
     roles: 'Roles',
-    diy: 'Page Builder',
-    'diy-pages': 'DIY Pages',
-    'diy-editor': 'Page Editor'
+    'site-config': 'Site Config'
   },
   page: {
     dashboard: {

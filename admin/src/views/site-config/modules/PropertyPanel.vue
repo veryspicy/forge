@@ -1,6 +1,6 @@
 <template>
   <div class="property-panel h-full overflow-y-auto rounded bg-white p-4 shadow-sm dark:bg-dark">
-    <!-- 选中元素面板（元素选择模式下，优先级最高） -->
+    <!-- 选中元素信息面板（元素选择模式下，优先级最高） -->
     <template v-if="selectedElement">
       <div class="mb-4 flex items-center gap-2 border-b border-gray-100 border-solid pb-3 dark:border-gray-700">
         <SvgIcon icon="mdi:cursor-default-click" class="text-18px text-blue-600" />
@@ -10,7 +10,7 @@
         </NButton>
       </div>
 
-      <!-- 元素信息 -->
+      <!-- 元素信息（只读） -->
       <div class="mb-4 flex flex-col gap-2 rounded bg-gray-50 p-2 text-xs dark:bg-gray-800">
         <div class="flex items-center gap-2">
           <span class="text-gray-500">标签:</span>
@@ -38,74 +38,11 @@
         </div>
       </div>
 
-      <!-- CSS 属性编辑 -->
-      <div class="flex flex-col gap-3">
-        <div class="text-xs font-semibold text-gray-600">样式编辑</div>
-
-        <label class="text-xs font-medium text-gray-500">文字颜色</label>
-        <div class="flex items-center gap-2">
-          <NColorPicker :value="editStyles.color || ''" size="small" @update:value="v => updateStyle('color', v)" />
-          <NInput :value="editStyles.color || ''" size="small" style="flex:1" placeholder="如 #333" @update:value="v => updateStyle('color', v)" />
-        </div>
-
-        <label class="text-xs font-medium text-gray-500">背景颜色</label>
-        <div class="flex items-center gap-2">
-          <NColorPicker :value="editStyles.backgroundColor || ''" size="small" @update:value="v => updateStyle('backgroundColor', v)" />
-          <NInput :value="editStyles.backgroundColor || ''" size="small" style="flex:1" placeholder="如 #fff" @update:value="v => updateStyle('backgroundColor', v)" />
-        </div>
-
-        <label class="text-xs font-medium text-gray-500">字体大小</label>
-        <NInput :value="editStyles.fontSize || ''" size="small" placeholder="如 14px" @update:value="v => updateStyle('fontSize', v)" />
-
-        <label class="text-xs font-medium text-gray-500">字体粗细</label>
-        <NSelect :value="editStyles.fontWeight || ''" size="small" :options="fontWeightOptions" @update:value="v => updateStyle('fontWeight', v)" />
-
-        <label class="text-xs font-medium text-gray-500">文字对齐</label>
-        <NSelect :value="editStyles.textAlign || ''" size="small" :options="textAlignOptions" @update:value="v => updateStyle('textAlign', v)" />
-
-        <label class="text-xs font-medium text-gray-500">行高</label>
-        <NInput :value="editStyles.lineHeight || ''" size="small" placeholder="如 1.5" @update:value="v => updateStyle('lineHeight', v)" />
-
-        <label class="text-xs font-medium text-gray-500">内边距 Padding</label>
-        <NInput :value="editStyles.padding || ''" size="small" placeholder="如 10px" @update:value="v => updateStyle('padding', v)" />
-
-        <label class="text-xs font-medium text-gray-500">外边距 Margin</label>
-        <NInput :value="editStyles.margin || ''" size="small" placeholder="如 0" @update:value="v => updateStyle('margin', v)" />
-
-        <label class="text-xs font-medium text-gray-500">边框</label>
-        <NInput :value="editStyles.border || ''" size="small" placeholder="如 1px solid #ccc" @update:value="v => updateStyle('border', v)" />
-
-        <label class="text-xs font-medium text-gray-500">圆角</label>
-        <NInput :value="editStyles.borderRadius || ''" size="small" placeholder="如 4px" @update:value="v => updateStyle('borderRadius', v)" />
-
-        <div class="mt-2 flex gap-2">
-          <NButton size="small" type="primary" @click="applyStyles">应用到元素</NButton>
-          <NButton size="small" @click="resetStyles">重置</NButton>
-        </div>
+      <!-- 提示：选择后的具体功能待规划 -->
+      <div class="rounded border border-dashed border-gray-200 border-solid p-3 text-xs text-gray-400 dark:border-gray-700">
+        <SvgIcon icon="mdi:information-outline" class="mr-1 text-14px" />
+        元素选择后的操作功能规划中
       </div>
-    </template>
-
-    <!-- 组件属性面板（选中组件时） -->
-    <template v-else-if="component">
-      <div class="mb-4 flex items-center gap-2 border-b border-gray-100 border-solid pb-3 dark:border-gray-700">
-        <NButton size="tiny" quaternary type="error" @click="store.removeComponent(component.id)">
-          <template #icon><SvgIcon icon="mdi:delete" /></template>
-        </NButton>
-        <SvgIcon :icon="component.component_icon || 'mdi:widget'" class="text-18px" />
-        <span class="font-semibold">{{ component.component_name }}</span>
-        <NSwitch
-          :value="component.is_visible !== false"
-          size="small"
-          class="ml-auto"
-          @update:value="toggleVisible"
-        />
-      </div>
-
-      <DynamicForm
-        :schema="component.config_schema"
-        :model-value="component.config"
-        @update:model-value="handleUpdate"
-      />
     </template>
 
     <!-- 站点配置面板（选中站点配置项时） -->
@@ -269,84 +206,41 @@
       </div>
     </template>
 
-    <!-- 空状态：未选中任何元素 -->
+    <!-- 空状态 -->
     <div v-else class="flex h-full flex-col items-center justify-center gap-3 text-gray-400">
-      <SvgIcon icon="mdi:gesture-tap" class="text-48px" />
-      <span class="text-sm">点击画布上的组件查看属性</span>
+      <SvgIcon icon="mdi:cog-outline" class="text-48px" />
+      <span class="text-sm">请从左侧选择一个配置项</span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
-import { NButton, NColorPicker, NInput, NSelect, NSwitch, NUpload, type UploadCustomRequestOptions } from 'naive-ui';
+import { computed, ref } from 'vue';
+import {
+  NButton,
+  NColorPicker,
+  NInput,
+  NSelect,
+  NSwitch,
+  NUpload,
+  type UploadCustomRequestOptions
+} from 'naive-ui';
 import { useDiyStore, SITE_CONFIG_ITEMS } from '@/store/modules/diy';
 import type { SelectedElementInfo } from '@/store/modules/diy';
-import { diyApi } from '@/service/api/diy';
-import DynamicForm from './DynamicForm.vue';
-
-const emit = defineEmits<{
-  (e: 'apply-styles', payload: { elid: string; styles: Record<string, string> }): void;
-  (e: 'reset-styles', payload: { elid: string }): void;
-}>();
+import { siteApi } from '@/service/api/diy';
 
 const store = useDiyStore();
 
-const component = computed<any | null>(() => store.activeComponent);
 const activeConfigKey = computed(() => store.activeSiteConfigItem);
 
-// ========== 选中元素面板（元素选择模式） ==========
+// ========== 选中元素（只读展示） ==========
 const selectedElement = computed<SelectedElementInfo | null>(() => store.selectedElement);
-/** 当前编辑中的样式（从 selectedElement.computedStyles 初始化，编辑后通过 applyStyles 应用到 iframe 元素） */
-const editStyles = ref<Record<string, string>>({});
-
-watch(
-  () => store.selectedElement?.elid,
-  (newElid) => {
-    if (newElid && store.selectedElement) {
-      editStyles.value = { ...store.selectedElement.computedStyles };
-    } else {
-      editStyles.value = {};
-    }
-  },
-  { immediate: true }
-);
-
-const fontWeightOptions = [
-  { label: '300 细体', value: '300' },
-  { label: '400 常规', value: '400' },
-  { label: '500 中等', value: '500' },
-  { label: '600 半粗', value: '600' },
-  { label: '700 粗体', value: '700' }
-];
-const textAlignOptions = [
-  { label: '左对齐', value: 'left' },
-  { label: '居中', value: 'center' },
-  { label: '右对齐', value: 'right' },
-  { label: '两端对齐', value: 'justify' }
-];
-
-function updateStyle(key: string, value: string) {
-  editStyles.value[key] = value;
-}
-
-function applyStyles() {
-  if (!store.selectedElement) return;
-  emit('apply-styles', { elid: store.selectedElement.elid, styles: { ...editStyles.value } });
-  window.$message?.success('样式已应用到元素');
-}
-
-function resetStyles() {
-  if (!store.selectedElement) return;
-  editStyles.value = { ...store.selectedElement.computedStyles };
-  emit('reset-styles', { elid: store.selectedElement.elid });
-  window.$message?.info('已重置为原始样式');
-}
 
 function clearSelectedElement() {
   store.setSelectedElement(null);
 }
 
+// ========== 站点配置编辑 ==========
 const configLabel = computed(() => {
   const item = SITE_CONFIG_ITEMS.find(i => i.key === activeConfigKey.value);
   return item?.label || '';
@@ -365,7 +259,8 @@ const localeOptions = [
   { label: '한국어', value: 'ko' },
   { label: 'Français', value: 'fr' },
   { label: 'Deutsch', value: 'de' },
-  { label: 'Español', value: 'es' }
+  { label: 'Español', value: 'es' },
+  { label: 'العربية', value: 'ar' }
 ];
 
 function addFlag() {
@@ -390,7 +285,7 @@ async function handleSaveSiteConfig() {
 async function handleLogoUpload({ file, onFinish, onError }: UploadCustomRequestOptions) {
   uploading.value = true;
   try {
-    const res = await diyApi.uploadImage(file.file as File);
+    const res = await siteApi.uploadImage(file.file as File);
     config.value.brand.logo.data = (res as any).data?.url || (res as any).url || '';
     onFinish();
   } catch {
@@ -398,18 +293,6 @@ async function handleLogoUpload({ file, onFinish, onError }: UploadCustomRequest
     onError();
   } finally {
     uploading.value = false;
-  }
-}
-
-function handleUpdate(configData: Record<string, any>) {
-  if (component.value) {
-    store.updateComponentConfig(component.value.id, configData);
-  }
-}
-
-function toggleVisible(visible: boolean) {
-  if (component.value) {
-    component.value.is_visible = visible;
   }
 }
 </script>

@@ -23,8 +23,6 @@ declare module "@elegant-router/types" {
     "admin-users": "/admin-users";
     "ai-probe": "/ai-probe";
     "dashboard": "/dashboard";
-    "diy": "/diy";
-    "diy-editor": "/diy-editor";
     "iframe-page": "/iframe-page/:url";
     "login": "/login/:module(pwd-login|code-login|register|reset-pwd|bind-wechat)?";
     "orders": "/orders";
@@ -36,6 +34,7 @@ declare module "@elegant-router/types" {
     "roles": "/roles";
     "settings": "/settings";
     "shipments": "/shipments";
+    "site-config": "/site-config";
     "suppliers": "/suppliers";
     "users": "/users";
   };
@@ -75,8 +74,6 @@ declare module "@elegant-router/types" {
     | "admin-users"
     | "ai-probe"
     | "dashboard"
-    | "diy"
-    | "diy-editor"
     | "iframe-page"
     | "login"
     | "orders"
@@ -88,6 +85,7 @@ declare module "@elegant-router/types" {
     | "roles"
     | "settings"
     | "shipments"
+    | "site-config"
     | "suppliers"
     | "users"
   >;
@@ -114,8 +112,6 @@ declare module "@elegant-router/types" {
     | "admin-users"
     | "ai-probe"
     | "dashboard"
-    | "diy-editor"
-    | "diy"
     | "orders-detail"
     | "orders"
     | "pricing"
@@ -125,6 +121,7 @@ declare module "@elegant-router/types" {
     | "roles"
     | "settings"
     | "shipments"
+    | "site-config"
     | "suppliers"
     | "users"
   >;

@@ -1,4 +1,4 @@
-﻿from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -45,13 +45,6 @@ try:
     from forge.api.v1.auth import router as public_auth_router
 
     app.include_router(public_auth_router, prefix="/api/v1")
-except ImportError:
-    pass
-
-try:
-    from forge.api.v1.diy import router as public_diy_router
-
-    app.include_router(public_diy_router, prefix="/api/v1")
 except ImportError:
     pass
 

@@ -1,13 +1,16 @@
-"""站点配置 API - 品牌、主题、导航等全量配置的读写。"""
+"""站点配置 API - 品牌、主题、导航等全量配置的读写 + 站点图片上传。"""
 from __future__ import annotations
 
 import json
 import os
 from pathlib import Path
+from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 from typing import Any, Dict
+
+from forge.main.dependencies import require_permission
 
 router = APIRouter()
 
@@ -92,3 +95,24 @@ async def save_site_config(payload: SiteConfigPayload):
     _deep_merge(config, payload.config)
     _save_to_file(config)
     return {"data": config}
+
+
+# ------------------------------------------------------------------
+# 图片上传（站点配置 Logo / 图片素材）
+# ------------------------------------------------------------------
+
+
+@router.post(
+    "/upload-image",
+    dependencies=[Depends(require_permission("settings", "manage"))],
+)
+async def upload_image(file: UploadFile = File(...)):
+    """上传站点配置图片。"""
+    upload_dir = Path("uploads/diy")
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    file_ext = os.path.splitext(file.filename or "image.png")[1]
+    file_name = f"{uuid4().hex}{file_ext}"
+    file_path = upload_dir / file_name
+    content = await file.read()
+    file_path.write_bytes(content)
+    return {"url": f"/uploads/diy/{file_name}"}

@@ -185,27 +185,15 @@ const customRoutes = [
       order: 6,
       roles: ['super_admin', 'admin', 'operator']
     },
-    redirect: '/site/decoration',
+    redirect: '/site/config',
     children: [
       {
-        name: 'site-decoration',
-        path: '/site/decoration',
-        component: 'layout.base$view.diy',
+        name: 'site-config',
+        path: '/site/config',
+        component: 'layout.base$view.site-config',
         meta: {
-          title: '页面装修',
-          i18nKey: 'route.site-decoration',
-          roles: ['super_admin', 'admin', 'operator']
-        }
-      },
-      {
-        name: 'site-decoration-editor',
-        path: '/site/decoration/editor/:id',
-        component: 'layout.base$view.diy-editor',
-        meta: {
-          title: '页面编辑器',
-          i18nKey: 'route.site-decoration-editor',
-          hideInMenu: true,
-          activeMenu: 'site-decoration',
+          title: '站点配置',
+          i18nKey: 'route.site-config',
           roles: ['super_admin', 'admin', 'operator']
         }
       }
@@ -272,7 +260,7 @@ export function createStaticRoutes() {
   // Filter out generated routes that are already defined in customRoutes
   // to prevent flat auto-generated routes from overriding the nested menu structure
   // Auto-generated routes to ignore (custom routes already define them differently)
-  const ignoreGeneratedRouteNames = new Set(['users', 'diy', 'diy-editor']);
+  const ignoreGeneratedRouteNames = new Set(['users', 'site-config']);
   const customRouteNames = new Set(customRoutes.flatMap((r: any) => {
     const names = [r.name];
     if (r.children) {
