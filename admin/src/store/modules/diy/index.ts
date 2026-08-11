@@ -121,8 +121,8 @@ export const useDiyStore = defineStore('diy-store', () => {
 
   /** 激活 tab（选中并标记 activeTabId） */
   function activateTab(id: string): boolean {
-    const t = openTabs.value.find(t => t.id === id);
-    if (!t) return false;
+    const found = openTabs.value.find(tab => tab.id === id);
+    if (!found) return false;
     activeTabId.value = id;
     return true;
   }
@@ -138,8 +138,8 @@ export const useDiyStore = defineStore('diy-store', () => {
 
   /** 同步更新某 tab 的状态（发布后刷新显示） */
   function updateTab(id: string, patch: Partial<DiyTabItem>) {
-    const t = openTabs.value.find(t => t.id === id);
-    if (t) Object.assign(t, patch);
+    const found = openTabs.value.find(tab => tab.id === id);
+    if (found) Object.assign(found, patch);
   }
 
   const pageComponents = computed<any[]>({
@@ -169,6 +169,41 @@ export const useDiyStore = defineStore('diy-store', () => {
   /** 从组件库添加组件到画布（使用 default_config 作为初始配置） */
   function addComponent(component: any, index?: number) {
     if (!currentPage.value) return;
+    // P0-4: 若 config_schema 为空，从 default_config 自动生成最简 schema，确保属性面板可用
+    let schema = component.config_schema || {};
+    if (!schema || Object.keys(schema).length === 0) {
+      const props: Record<string, any> = {};
+      const defaults = component.default_config || {};
+      Object.entries(defaults).forEach(([key, val]) => {
+        const field: Record<string, any> = { type: inferJsonSchemaType(val), title: key };
+        if (typeof val === 'string') {
+          field.type = 'string';
+          field['ui:widget'] = /color/i.test(key) ? 'color' : undefined;
+        } else if (typeof val === 'number') {
+          field.type = val % 1 === 0 ? 'integer' : 'number';
+        } else if (typeof val === 'boolean') {
+          field.type = 'boolean';
+        } else if (Array.isArray(val)) {
+          field.type = 'array';
+          if (val.length > 0 && typeof val[0] === 'object') {
+            field.items = { type: 'object', properties: {} };
+            Object.entries(val[0]).forEach(([k, v]) => {
+              field.items.properties[k] = { type: inferJsonSchemaType(v), title: k };
+            });
+          } else {
+            field.items = { type: 'string' };
+          }
+        } else if (typeof val === 'object' && val !== null) {
+          field.type = 'object';
+          field.properties = {};
+          Object.entries(val).forEach(([k, v]) => {
+            field.properties[k] = { type: inferJsonSchemaType(v), title: k };
+          });
+        }
+        props[key] = field;
+      });
+      schema = { type: 'object', properties: props };
+    }
     const pc = {
       id: crypto.randomUUID(),
       page_id: currentPage.value.id,
@@ -176,7 +211,7 @@ export const useDiyStore = defineStore('diy-store', () => {
       component_code: component.code,
       component_name: component.name,
       component_icon: component.icon,
-      config_schema: component.config_schema || {},
+      config_schema: schema,
       sort_order: 0,
       config: JSON.parse(JSON.stringify(component.default_config || {})),
       is_visible: true
@@ -189,6 +224,16 @@ export const useDiyStore = defineStore('diy-store', () => {
     });
     pageComponents.value = list;
     activeComponentId.value = pc.id;
+  }
+
+  /** 推断 JSON Schema 字段类型 */
+  function inferJsonSchemaType(val: any): string {
+    if (val === null || val === undefined) return 'string';
+    if (Array.isArray(val)) return 'array';
+    if (typeof val === 'object') return 'object';
+    if (typeof val === 'boolean') return 'boolean';
+    if (typeof val === 'number') return val % 1 === 0 ? 'integer' : 'number';
+    return 'string';
   }
 
   function removeComponent(id: string) {
@@ -259,10 +304,12 @@ export const useDiyStore = defineStore('diy-store', () => {
   async function fetchSiteConfig() {
     try {
       const res = await httpGet('/api/admin/v1/site/config');
-      if (res.data) {
+      // 后端返回格式：{ "data": configObject } 或 直接返回 configObject
+      const data = res.data?.data ?? res.data ?? res;
+      if (data && typeof data === 'object') {
         Object.keys(DEFAULT_SITE_CONFIG).forEach(k => {
-          if (res.data[k] !== undefined) {
-            siteConfig[k] = JSON.parse(JSON.stringify(res.data[k]));
+          if (data[k] !== undefined) {
+            siteConfig[k] = JSON.parse(JSON.stringify(data[k]));
           }
         });
       }
@@ -271,7 +318,17 @@ export const useDiyStore = defineStore('diy-store', () => {
 
   /** 保存站点配置 */
   async function saveSiteConfig() {
-    return httpPut('/api/admin/v1/site/config', { config: { ...siteConfig } });
+    const res = await httpPut('/api/admin/v1/site/config', { config: { ...siteConfig } });
+    // 后端返回格式：{ "data": configObject }
+    const data = res.data?.data ?? res.data;
+    if (data && typeof data === 'object') {
+      Object.keys(DEFAULT_SITE_CONFIG).forEach(k => {
+        if (data[k] !== undefined) {
+          siteConfig[k] = JSON.parse(JSON.stringify(data[k]));
+        }
+      });
+    }
+    return res;
   }
 
   function reset() {

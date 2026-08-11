@@ -1421,6 +1421,13 @@ watch(mode, newMode => {
   }
 });
 
+// 选择元素时自动打开右侧属性面板
+watch(() => store.selectedElement, (el) => {
+  if (el) {
+    panelVisible.value = true;
+  }
+});
+
 onUnmounted(() => {
   stopIframeUrlPolling();
   disableElementSelection();
