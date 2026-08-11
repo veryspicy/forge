@@ -44,6 +44,18 @@ export type DiyTabItem = {
   isPinned?: boolean;        // 固定标签（首页）不可关闭
 };
 
+/** 选中元素的信息（元素选择模式下从 iframe/canvas 中提取） */
+export type SelectedElementInfo = {
+  elid: string;              // data-marvis-elid UUID，用于精确定位
+  selector: string;          // CSS 选择器（人类可读，用于显示）
+  tag: string;               // 标签名，如 'DIV'
+  id: string;                // id 属性值（可为空）
+  classes: string[];         // class 列表
+  textContent: string;       // 文本内容（截断到 100 字符）
+  rect: { top: number; left: number; width: number; height: number };
+  computedStyles: Record<string, string>;
+};
+
 /** DIY 页面装修编辑器状态 */
 export const useDiyStore = defineStore('diy-store', () => {
   /** 当前编辑的页面数据（含 components 数组） */
@@ -56,6 +68,12 @@ export const useDiyStore = defineStore('diy-store', () => {
   const activeSiteConfigItem = ref<SiteConfigKey | null>(null);
   /** 站点配置数据 */
   const siteConfig = reactive<any>(JSON.parse(JSON.stringify(DEFAULT_SITE_CONFIG)));
+
+  // ========== 元素选择模式状态 ==========
+  /** 元素选择模式开关 */
+  const elementSelectMode = ref(false);
+  /** 当前选中的 iframe/canvas 元素信息 */
+  const selectedElement = ref<SelectedElementInfo | null>(null);
 
   // ========== Tab 管理（首页固定 + 动态打开的页面 tab） ==========
   /** 打开的标签页列表（首页永远第一个，isPinned=true 不可关） */
@@ -184,6 +202,7 @@ export const useDiyStore = defineStore('diy-store', () => {
 
   function selectComponent(id: string | null) {
     activeComponentId.value = id;
+    if (id) selectedElement.value = null;
   }
 
   function updateComponentConfig(id: string, config: Record<string, any>) {
@@ -216,7 +235,24 @@ export const useDiyStore = defineStore('diy-store', () => {
   function selectSiteConfigItem(key: SiteConfigKey | null) {
     activeSiteConfigItem.value = key;
     // 选择站点配置时取消组件选中
-    if (key) activeComponentId.value = null;
+    if (key) {
+      activeComponentId.value = null;
+      selectedElement.value = null;
+    }
+  }
+
+  /** 设置元素选择模式 */
+  function setElementSelectMode(v: boolean) {
+    elementSelectMode.value = v;
+  }
+
+  /** 设置当前选中的元素信息（来自 installMarvisOnDoc 回调） */
+  function setSelectedElement(el: SelectedElementInfo | null) {
+    selectedElement.value = el;
+    if (el) {
+      activeComponentId.value = null;
+      activeSiteConfigItem.value = null;
+    }
   }
 
   /** 加载站点配置 */
@@ -242,6 +278,7 @@ export const useDiyStore = defineStore('diy-store', () => {
     currentPage.value = null;
     activeComponentId.value = null;
     activeSiteConfigItem.value = null;
+    selectedElement.value = null;
   }
 
   return {
@@ -252,6 +289,11 @@ export const useDiyStore = defineStore('diy-store', () => {
     siteConfig,
     pageComponents,
     activeComponent,
+    // 元素选择模式
+    elementSelectMode,
+    selectedElement,
+    setElementSelectMode,
+    setSelectedElement,
     // tab 管理
     openTabs,
     activeTabId,

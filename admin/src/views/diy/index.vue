@@ -164,7 +164,7 @@
               ref="iframeRef"
               :src="iframeSrc"
               class="h-full w-full border-none"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox"
               @load="onIframeLoad"
             />
           </div>
@@ -292,7 +292,11 @@ const publishing = ref(false);
 const leftPanelVisible = ref(true);
 const panelVisible = ref(false);
 const iframeRef = ref<HTMLIFrameElement | null>(null);
-const elementSelectMode = ref(false);
+/** 元素选择模式：从 store 驱动，PropertyPanel 也能读取 */
+const elementSelectMode = computed({
+  get: () => store.elementSelectMode,
+  set: v => store.setElementSelectMode(v)
+});
 /** iframe src 手动控制：仅在 Tab 点击/关闭/初始化时更新，避免 iframe SPA 导航 → tab 创建 → previewUrl 变化 → iframe 重载 的反馈循环 */
 const iframeSrc = ref('');
 /** iframe key：每次 Tab 切换时递增，强制 iframe 重建（解决 SPA 导航后点击同 URL Tab 不触发导航的问题） */
@@ -313,7 +317,16 @@ const pageIcon = (pageType: string) => {
     home: 'mdi:home',
     category: 'mdi:shape',
     product_detail: 'mdi:package-variant',
-    custom: 'mdi:file-document'
+    custom: 'mdi:file-document',
+    // C端系统页面常用图标
+    system_products: 'mdi:shopping-outline',
+    system_pets: 'mdi:paw',
+    system_orders: 'mdi:cart-outline',
+    system_chat: 'mdi:robot-happy-outline',
+    system_cart: 'mdi:cart',
+    system_checkout: 'mdi:credit-card-outline',
+    system_login: 'mdi:login',
+    system_register: 'mdi:account-plus-outline'
   };
   return map[pageType] || 'mdi:file-document';
 };
@@ -324,6 +337,11 @@ const pageTypeName = (pageType: string, slug?: string) => {
     category: '分类页',
     product_detail: '商品详情'
   };
+  // C端已知系统路由（system_xxx 前缀）
+  if (pageType?.startsWith('system_')) {
+    const seg = pageType.slice('system_'.length);
+    return CEND_SYSTEM_ROUTES[seg] || map[pageType] || pageType;
+  }
   if (pageType === 'custom') return slug ? (allPagesCache.value.find(p => p.slug === slug)?.name || slug) : '自定义页';
   return map[pageType] || pageType;
 };
@@ -335,6 +353,7 @@ function buildPreviewUrl(tab: DiyTabItem | null | undefined): string {
   if (tab.page_type === 'home') return `${base}?preview=true`;
   if (tab.page_type === 'category') return `${base}/category/${tab.slug || 'all'}?preview=true`;
   if (tab.page_type === 'product_detail') return `${base}/products/${tab.slug || 'demo'}?preview=true`;
+  // C端已知系统路由：tab.slug 是 firstSeg（products / pets / orders / ...）→ 直接拼 /${slug}
   return `${base}/${tab.slug}?preview=true`;
 }
 
@@ -391,9 +410,13 @@ async function handleTabClick(tab: any) {
   iframeSrc.value = buildPreviewUrl(tab);
   iframeKey.value++;
   store.reset();
-  try {
-    await store.fetchPage(tab.id);
-  } catch { /* 页面未初始化时 fetch 失败，不影响 tab 切换 */ }
+  // system_* 类型（C 端系统路由如 products/pets/orders）没有 DIY 页面数据，
+  // 跳过 fetchPage 避免后端返回 400 "Invalid page key"
+  if (!tab.page_type?.startsWith('system_')) {
+    try {
+      await store.fetchPage(tab.id);
+    } catch { /* 页面未初始化时 fetch 失败，不影响 tab 切换 */ }
+  }
   // 切换 tab 后重新安装选择模式（如已开启）
   if (elementSelectMode.value) {
     setTimeout(() => {
@@ -477,6 +500,63 @@ function updateMarvisFloatTip(tip: string) {
   marvisFloatEl.title = tip;
 }
 
+/** 提取元素的关键 computed style 属性 */
+function extractComputedStyles(el: HTMLElement, win: Window): Record<string, string> {
+  const s = win.getComputedStyle(el);
+  return {
+    color: s.color,
+    backgroundColor: s.backgroundColor,
+    fontSize: s.fontSize,
+    fontWeight: s.fontWeight,
+    fontFamily: s.fontFamily,
+    textAlign: s.textAlign,
+    lineHeight: s.lineHeight,
+    letterSpacing: s.letterSpacing,
+    padding: s.padding,
+    margin: s.margin,
+    border: s.border,
+    borderRadius: s.borderRadius,
+    width: s.width,
+    height: s.height,
+    maxWidth: s.maxWidth,
+    opacity: s.opacity,
+    display: s.display,
+    flexDirection: s.flexDirection,
+    justifyContent: s.justifyContent,
+    alignItems: s.alignItems,
+    gap: s.gap,
+    boxShadow: s.boxShadow,
+    cursor: s.cursor
+  };
+}
+
+/** 构建 CSS 选择器（人类可读，用于显示；精确定位用 data-marvis-elid） */
+function buildSelector(el: HTMLElement, doc: Document): string {
+  if (el.id) return `#${CSS.escape(el.id)}`;
+  const parts: string[] = [];
+  let current: HTMLElement | null = el;
+  while (current && current !== doc.body && current !== doc.documentElement) {
+    let seg = current.tagName.toLowerCase();
+    if (current.classList.length > 0) {
+      seg += '.' + Array.from(current.classList).filter(c => !c.startsWith('marvis-')).map(c => CSS.escape(c)).join('.');
+    }
+    const parent = current.parentElement;
+    if (parent) {
+      const siblings = Array.from(parent.children).filter(c => c.tagName === current!.tagName);
+      if (siblings.length > 1) {
+        const idx = siblings.indexOf(current) + 1;
+        seg += `:nth-child(${idx})`;
+      }
+    }
+    parts.unshift(seg);
+    current = current.parentElement;
+  }
+  return parts.join(' > ');
+}
+
+/** 已应用样式的元素快照：key=elid, value={ el, originalStyleAttr } */
+const styleSnapshots = new Map<string, { el: HTMLElement; originalStyle: string | null }>();
+
 function installMarvisOnDoc(doc: Document, win: Window, isIframe: boolean) {
   const existingStyle = doc.getElementById('marvis-element-select');
   if (existingStyle) existingStyle.remove();
@@ -559,8 +639,6 @@ function installMarvisOnDoc(doc: Document, win: Window, isIframe: boolean) {
     const badge = ensureBadge(type);
     badge.textContent = el.tagName.toLowerCase();
     const r = getRect(el);
-    const scrollX = win.scrollX || 0;
-    const scrollY = win.scrollY || 0;
     Object.assign((badge as HTMLElement).style, {
       top: Math.max((isIframe ? 0 : r.top), 0) + (isIframe ? r.top : 0) + 'px',
       left: (isIframe ? r.left : r.left) + 'px'
@@ -577,13 +655,14 @@ function installMarvisOnDoc(doc: Document, win: Window, isIframe: boolean) {
 
   function clearSelected() {
     if (currentSelected) {
-      // 同时清除选中类与残留的 hover 高亮类
-      // （用户刚好 hover 在 A 上点击选 A → A 同时有 hover+selected 两个类；
-      //  切换选中到 B 时若只清 selected 不清 hover → A 的 hover 残留，直到再 hover 一次 A 并 mouseout 才被 remove）
       currentSelected.classList.remove('marvis-selected-highlight', 'marvis-hover-highlight');
+      // 清除 data-marvis-elid
+      delete currentSelected.dataset.marvisElid;
     }
     currentSelected = null;
     removeBadge('selected');
+    // 清除 store 中的选中状态
+    store.setSelectedElement(null);
   }
 
   function handleMouseOver(e: MouseEvent) {
@@ -606,8 +685,6 @@ function installMarvisOnDoc(doc: Document, win: Window, isIframe: boolean) {
     if (target === currentHover && target !== currentSelected) {
       target.classList.remove('marvis-hover-highlight');
     }
-    // 保险：mouseout 目标元素若恰好还有 hover 高亮（即使不是 currentHover 也清）
-    // 避免 Vue/Nuxt 重排导致节点引用与实际 DOM 不一致时 class 残留
     if (target !== currentSelected) {
       target.classList.remove('marvis-hover-highlight');
     }
@@ -633,12 +710,36 @@ function installMarvisOnDoc(doc: Document, win: Window, isIframe: boolean) {
     clearSelected();
     currentSelected = target;
     target.classList.add('marvis-selected-highlight');
+
+    // P1-1: 设置 data-marvis-elid UUID 作为精确定位标识
+    const elid = crypto.randomUUID();
+    target.dataset.marvisElid = elid;
+
     positionBadge(target, 'selected');
     clearHover();
 
+    // P0-2: 提取元素信息并同步写入 store
+    const rect = target.getBoundingClientRect();
+    const info = {
+      elid,
+      selector: buildSelector(target, doc),
+      tag: target.tagName,
+      id: target.id || '',
+      classes: Array.from(target.classList).filter(c => !c.startsWith('marvis-')),
+      textContent: (target.textContent || '').trim().slice(0, 100),
+      rect: {
+        top: Math.round(rect.top),
+        left: Math.round(rect.left),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height)
+      },
+      computedStyles: extractComputedStyles(target, win)
+    };
+    store.setSelectedElement(info);
+
     const tag = target.tagName.toLowerCase();
-    const id = target.id ? '#' + target.id : '';
-    (window as any).$message?.success('已选中元素: ' + tag + id);
+    const idStr = target.id ? '#' + target.id : '';
+    (window as any).$message?.success('已选中元素: ' + tag + idStr);
   }
 
   doc.addEventListener('mouseover', handleMouseOver, true);
@@ -674,6 +775,149 @@ function toggleElementSelect() {
   }
 }
 
+/** 在 iframe 文档 head 注入一个阻止跳出代理命名空间的导航守卫脚本。
+ *  logo 链接等 `<NuxtLink to="/">` 在 Nuxt 初始化后 router.push('/') 会让 iframe 的 pathname 变
+ *  为 /zh，而轮询会正确处理。但万一 Nuxt 做了 window.location.href='/' 或者用户点击 target="_top" 的
+ *  `<a>`，会让 iframe 整页跳到 admin 首页（/），所以要打补丁。 */
+function injectIframeNavigationGuard() {
+  const iframe = iframeRef.value;
+  if (!iframe) return;
+  let win: Window | null = null;
+  let doc: Document | null = null;
+  try {
+    win = iframe.contentWindow;
+    doc = iframe.contentDocument;
+    if (!win || !doc) return;
+  } catch { return; }
+
+  // 1) 拦截 DOM 内所有 <a> 点击：统一 target=_self，防止 _top/_parent 让 parent/admin 导航
+  try {
+    doc.addEventListener('click', (e) => {
+      const a = (e.target as HTMLElement | null)?.closest?.('a') as HTMLAnchorElement | null;
+      if (!a) return;
+      const tgt = a.getAttribute('target') || '';
+      // 仅允许 _self / _blank（新标签由浏览器处理），其它 target 全部降级为 _self，并且
+      // 对 href 指向本站（admin domain）的根页面纠正为 /portal-preview/zh 前缀
+      if (tgt && tgt !== '_self' && tgt !== '_blank') {
+        a.setAttribute('target', '_self');
+      }
+      // 如果 href 指向绝对路径 "/" 或 "/xxxx"（不含 /portal-preview/ 也不含 /zh 前缀），重写 href
+      let href = a.getAttribute('href') || '';
+      if (href && !href.startsWith('http') && !href.startsWith('#') && !href.startsWith('mailto:')) {
+        // 绝对路径 /xxx 但不含 /portal-preview 前缀 → 重写
+        if (href.startsWith('/') && !href.startsWith('/portal-preview/')) {
+          if (href === '/' || href === '') href = '/portal-preview/zh';
+          else if (href.startsWith('/zh/') || href === '/zh' || href.startsWith('/zh?')) href = '/portal-preview' + href;
+          else href = '/portal-preview/zh' + (href.startsWith('/') ? href : '/' + href);
+          try { a.setAttribute('href', href); } catch { /* noop */ }
+        }
+      }
+    }, true);
+  } catch { /* noop */ }
+
+  // 2) 安装守卫：禁止 Nuxt / window 通过 location 赋值跳出 /portal-preview 命名空间
+  //    但保留同 iframe 内的 SPA 导航（history.pushState）。如果遇到赋值型导航且赋值 URL 以
+  //    "/" 开头但缺少 /portal-preview/zh 前缀，就手动 push 到正确代理 URL 并阻止默认 setter。
+  try {
+    // 仅当 window.__diyGuardInstalled 不存在时安装一次，避免反复 patch
+    // eslint-disable-next-line no-underscore-dangle
+    if ((win as any).__diyGuardInstalled) return;
+    // eslint-disable-next-line no-underscore-dangle
+    (win as any).__diyGuardInstalled = true;
+
+    const rewrite = (raw: string): string | null => {
+      if (!raw) return null;
+      // 纯相对路径（不含协议）：如 "/"、"/zh/orders"、"/pets"
+      if (/^https?:\/\//.test(raw)) {
+        try {
+          const u = new URL(raw);
+          // 外部域名 → 放行（让浏览器正常跳转新标签）
+          if (u.hostname !== 'localhost' && u.hostname !== '127.0.0.1') return null;
+          raw = u.pathname + u.search + u.hash;
+        } catch { return null; }
+      }
+      if (raw.startsWith('/') && !raw.startsWith('/portal-preview/')) {
+        if (raw === '/' || raw === '') return '/portal-preview/zh';
+        if (raw.startsWith('/zh/') || raw === '/zh' || raw.startsWith('/zh?')) return '/portal-preview' + raw;
+        if (raw.startsWith('/en/') || raw === '/en' || raw.startsWith('/en?')) return '/portal-preview' + raw;
+        if (raw.startsWith('/ar/') || raw === '/ar' || raw.startsWith('/ar?')) return '/portal-preview' + raw;
+        // 未知语言 → 默认 zh
+        return '/portal-preview/zh' + (raw.startsWith('/') ? raw : '/' + raw);
+      }
+      return null;
+    };
+
+    // patch history.pushState / replaceState：Nuxt Router SPA 导航走的是 pushState，
+    // 不会触发 location.assign/replace。需要在 SPA 导航时给 URL 补上 preview=true，
+    // 否则客户端 auth middleware 会因缺少 preview query 而 redirect 到 /login。
+    try {
+      const ensurePreview = (url: string | URL | null | undefined): any => {
+        if (!url) return [url];
+        const raw = String(url);
+        // 只处理同源绝对路径或相对路径
+        let path = raw;
+        if (/^https?:\/\//.test(raw)) {
+          try {
+            const u = new URL(raw);
+            if (u.hostname !== 'localhost' && u.hostname !== '127.0.0.1') return [url];
+            path = u.pathname + u.search + u.hash;
+          } catch { return [url]; }
+        }
+        // 补 preview=true
+        if (!/[?&]preview=/.test(path)) {
+          const sep = path.includes('?') ? '&' : '?';
+          path = path + sep + 'preview=true';
+          if (/^https?:\/\//.test(raw)) {
+            try {
+              const u = new URL(raw);
+              u.searchParams.set('preview', 'true');
+              return [u.toString()];
+            } catch { /* fallthrough */ }
+          }
+          return [path];
+        }
+        return [url];
+      };
+      const hs = win.history;
+      const origPush = hs.pushState.bind(hs);
+      // eslint-disable-next-line no-underscore-dangle
+      const _pushState = origPush;
+      (hs as any).pushState = function (...args: any[]) {
+        const fixed = ensurePreview(args[2]);
+        args[2] = fixed[0];
+        return _pushState(...args);
+      };
+      const origReplace = hs.replaceState.bind(hs);
+      // eslint-disable-next-line no-underscore-dangle
+      const _replaceState = origReplace;
+      (hs as any).replaceState = function (...args: any[]) {
+        const fixed = ensurePreview(args[2]);
+        args[2] = fixed[0];
+        return _replaceState(...args);
+      };
+    } catch { /* noop */ }
+
+    // 包装 location.href 的 setter（Object.defineProperty 不可重写，但部分浏览器允许）。
+    //  更稳的做法是对 location.assign/replace 打补丁
+    try {
+      // eslint-disable-next-line no-underscore-dangle
+      const _assign = win.location.assign.bind(win.location);
+      (win.location as any).assign = function (url: string | URL) {
+        const fixed = rewrite(String(url));
+        if (fixed) return _assign(fixed);
+        return _assign(url);
+      };
+      // eslint-disable-next-line no-underscore-dangle
+      const _replace = win.location.replace.bind(win.location);
+      (win.location as any).replace = function (url: string | URL) {
+        const fixed = rewrite(String(url));
+        if (fixed) return _replace(fixed);
+        return _replace(url);
+      };
+    } catch { /* readonly in some browsers */ }
+  } catch { /* noop */ }
+}
+
 function onIframeLoad() {
   // 初始化 lastIframePath（用于后续轮询比对 SPA 路由变化）
   try {
@@ -682,6 +926,8 @@ function onIframeLoad() {
       lastIframePath = iframe.contentWindow.location.pathname + iframe.contentWindow.location.search;
     }
   } catch { /* ignore */ }
+  // 注入导航守卫：防止 logo/`<a target="_top">` 让 iframe 跳到 admin 首页
+  injectIframeNavigationGuard();
   // 若预览模式则启动 URL 轮询（监听 Nuxt SPA 路由跳转，动态添加 tab）
   if (mode.value === 'preview') {
     startIframeUrlPolling();
@@ -872,13 +1118,33 @@ async function handleCreate() {
 }
 
 // ========== iframe SPA 路由变更检测（轮询） ==========
-/** 常见 admin 内部路由 slug 黑名单：iframe 误入 admin SPA 时不应被当成自定义页面 */
-const ADMIN_SLUG_BLACKLIST = new Set([
-  'dashboard', 'site', 'orders', 'categories',
-  'users', 'roles', 'permissions', 'login', '404', '403', '500'
-]);
-/** Nuxt C 端系统路由前缀（有 slug 时识别为系统页；无 slug 时忽略，不创建 tab） */
-const NUXT_SYSTEM_ROUTE_PREFIXES = new Set(['category', 'products']);
+/** Nuxt C端已知系统页面路由（pages/目录下的实体文件，对应 navbar 的链接）：
+ *  key: 路由一级段名，value: DIY tab 显示名（或 page_type 占位名） */
+const CEND_SYSTEM_ROUTES: Record<string, string> = {
+  products: '商品列表',
+  pets: '我的宠物',
+  orders: '订单',
+  chat: 'AI 聊天',
+  cart: '购物车',
+  checkout: '结算',
+  login: '登录',
+  register: '注册',
+  blog: '博客',
+  faqs: '常见问题',
+  contact: '联系我们',
+  story: '品牌故事',
+  careers: '加入我们',
+  shipping: '配送',
+  returns: '退换货',
+  privacy: '隐私政策',
+  terms: '服务条款',
+  cookies: 'Cookie 政策',
+  sustainability: '可持续发展'
+};
+const CEND_SYSTEM_ROUTE_KEYS = new Set(Object.keys(CEND_SYSTEM_ROUTES));
+/** category 前缀仍需 slug，/zh/category 单独视为忽略（不创建 tab）；
+ *  products 列表无 slug 由 CEND_SYSTEM_ROUTES 处理（商品列表 tab） */
+const NUXT_PREFIX_NEED_SLUG = new Set(['category']);
 
 /** 从 iframe pathname 推断页面信息：page_type/slug/name。
  *  iframe 加载初期路径为 /portal-preview/zh/...，Nuxt 路由初始化后变为 /zh/...，
@@ -903,6 +1169,9 @@ function parseIframePath(fullPath: string): { page_type: string; slug: string; i
     return { page_type: 'home', slug: home.slug, id: home.id, name: home.name };
   }
   const segs = path.split('/').filter(Boolean);
+  const firstSeg = decodeURIComponent(segs[0] ?? '').toLowerCase();
+
+  // 1) 分类详情：/zh/category/${slug}
   if (segs[0] === 'category' && segs[1]) {
     const slug = decodeURIComponent(segs[1]);
     return {
@@ -912,6 +1181,7 @@ function parseIframePath(fullPath: string): { page_type: string; slug: string; i
       name: pageTypeName('category', slug)
     };
   }
+  // 2) 商品详情：/zh/products/${slug} （注意不是 /zh/products 列表）
   if (segs[0] === 'products' && segs[1]) {
     const slug = decodeURIComponent(segs[1]);
     return {
@@ -921,16 +1191,22 @@ function parseIframePath(fullPath: string): { page_type: string; slug: string; i
       name: pageTypeName('product_detail', slug)
     };
   }
-  // 系统路由前缀但无 slug（如 /zh/category, /zh/products 列表页）→ 不创建 tab
-  const firstSeg = decodeURIComponent(segs[0] ?? '');
-  if (!firstSeg || NUXT_SYSTEM_ROUTE_PREFIXES.has(firstSeg.toLowerCase())) {
+  // 3) C端已知系统路由（无 slug 或 多级段）
+  if (CEND_SYSTEM_ROUTE_KEYS.has(firstSeg)) {
+    // 对 orders/[id] pets/[id] products wizard 等多级段：仍用 firstSeg 作为 tab id（一个页面类型只开一个 tab）
+    const pageName = CEND_SYSTEM_ROUTES[firstSeg];
+    return {
+      page_type: `system_${firstSeg}`,   // 用 system_ 前缀区分于 DIY 自定义页，避免 create-all 误判
+      slug: firstSeg,                    // buildPreviewUrl 用 slug 拼 URL（/portal-preview/zh/${slug}）
+      id: `system_${firstSeg}`,          // tab 的唯一 id（按 firstSeg 去重）
+      name: pageName                     // tab 显示名："商品列表"/"我的宠物"
+    };
+  }
+  // 4) NUXT_PREFIX_NEED_SLUG（category）无 slug 忽略
+  if (NUXT_PREFIX_NEED_SLUG.has(firstSeg)) {
     return null;
   }
-  // admin 内部路由黑名单过滤
-  if (ADMIN_SLUG_BLACKLIST.has(firstSeg.toLowerCase())) {
-    return null;
-  }
-  // 其余：自定义页面 /:slug
+  // 5) 其余：自定义 DIY 页面 /:slug
   const slug = decodeURIComponent(segs.join('/'));
   const cached = allPagesCache.value.find(p => p.slug === slug && p.page_type === 'custom');
   return {
