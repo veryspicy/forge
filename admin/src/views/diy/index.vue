@@ -532,6 +532,9 @@ function extractComputedStyles(el: HTMLElement, win: Window): Record<string, str
 
 /** 构建 CSS 选择器（人类可读，用于显示；精确定位用 data-marvis-elid） */
 function buildSelector(el: HTMLElement, doc: Document): string {
+  // P1-1: 优先使用 data-marvis-elid 作为精确定位选择器
+  const elid = el.dataset.marvisElid;
+  if (elid) return `[data-marvis-elid="${elid}"]`;
   if (el.id) return `#${CSS.escape(el.id)}`;
   const parts: string[] = [];
   let current: HTMLElement | null = el;
@@ -554,8 +557,9 @@ function buildSelector(el: HTMLElement, doc: Document): string {
   return parts.join(' > ');
 }
 
-/** 已应用样式的元素快照：key=elid, value={ el, originalStyleAttr } */
-const styleSnapshots = new Map<string, { el: HTMLElement; originalStyle: string | null }>();
+/** 已应用样式的元素快照：key=elid, value={ el, originalStyle, appliedProps }
+ *  P1-2: appliedProps 记录应用过的 CSS 属性，支持增量清除和通用还原 */
+const styleSnapshots = new Map<string, { el: HTMLElement; originalStyle: string | null; appliedProps: Set<string> }>();
 
 function installMarvisOnDoc(doc: Document, win: Window, isIframe: boolean) {
   const existingStyle = doc.getElementById('marvis-element-select');
@@ -656,8 +660,8 @@ function installMarvisOnDoc(doc: Document, win: Window, isIframe: boolean) {
   function clearSelected() {
     if (currentSelected) {
       currentSelected.classList.remove('marvis-selected-highlight', 'marvis-hover-highlight');
-      // 清除 data-marvis-elid
-      delete currentSelected.dataset.marvisElid;
+      // P1-1: 保留 data-marvis-elid，避免后续 apply-styles 失效
+      // elid 会在 cleanup 时统一清除，或在下次选中新元素时被覆盖
     }
     currentSelected = null;
     removeBadge('selected');
@@ -756,6 +760,11 @@ function installMarvisOnDoc(doc: Document, win: Window, isIframe: boolean) {
     win.removeEventListener('scroll', handleScroll, true);
     clearHover();
     clearSelected();
+    // P1-1/P1-2: cleanup 时清除所有 data-marvis-elid 标识并恢复元素样式
+    doc.querySelectorAll('[data-marvis-elid]').forEach(el => {
+      delete (el as HTMLElement).dataset.marvisElid;
+    });
+    clearAllStyleSnapshots();
     doc.body.classList.remove('marvis-selecting-mode');
     style.remove();
   };
@@ -775,7 +784,8 @@ function toggleElementSelect() {
   }
 }
 
-/** PropertyPanel 应用样式到 iframe 内选中元素（通过 data-marvis-elid 精确定位） */
+/** PropertyPanel 应用样式到 iframe 内选中元素（通过 data-marvis-elid 精确定位）
+ *  P1-1: elid 失效时通过 selector 回退定位元素 */
 function handleApplyStyles({ elid, styles }: { elid: string; styles: Record<string, string> }) {
   const iframe = iframeRef.value;
   if (!iframe) return;
@@ -785,26 +795,42 @@ function handleApplyStyles({ elid, styles }: { elid: string; styles: Record<stri
   } catch { return; }
   if (!doc) return;
 
-  const el = doc.querySelector<HTMLElement>(`[data-marvis-elid="${elid}"]`);
+  // P1-1: 优先通过 data-marvis-elid 精确定位
+  let el = doc.querySelector<HTMLElement>(`[data-marvis-elid="${elid}"]`);
+
+  // P1-1: elid 失效时（iframe 刷新/SPA 导航后元素重建），通过 selector 回退定位
   if (!el) {
-    window.$message?.warning('未找到目标元素，可能已刷新或切换页面');
-    return;
+    const selectedInfo = store.selectedElement;
+    if (selectedInfo && selectedInfo.selector) {
+      try {
+        el = doc.querySelector<HTMLElement>(selectedInfo.selector);
+      } catch { /* selector 可能无效，忽略 */ }
+    }
+    if (!el) {
+      window.$message?.warning('未找到目标元素，可能已刷新或切换页面');
+      return;
+    }
+    // 重新打上 elid 标识，便于后续定位
+    el.dataset.marvisElid = elid;
   }
 
-  // 保存原始 style 属性（仅首次保存，便于 reset 还原）
+  // P1-2: 保存原始 style 属性（仅首次保存，便于 reset 还原）+ 初始化 appliedProps
   if (!styleSnapshots.has(elid)) {
-    styleSnapshots.set(elid, { el, originalStyle: el.getAttribute('style') });
+    styleSnapshots.set(elid, { el, originalStyle: el.getAttribute('style'), appliedProps: new Set() });
   }
+  const snapshot = styleSnapshots.get(elid)!;
 
-  // 应用编辑后的样式：camelCase → kebab-case
+  // 应用编辑后的样式：camelCase → kebab-case，并记录到 appliedProps
   Object.entries(styles).forEach(([key, value]) => {
     if (value === undefined || value === '') return;
     const cssKey = key.replace(/[A-Z]/g, m => '-' + m.toLowerCase());
-    el.style.setProperty(cssKey, value);
+    el!.style.setProperty(cssKey, value);
+    snapshot.appliedProps.add(cssKey);
   });
 }
 
-/** PropertyPanel 重置元素样式：恢复原始 style 属性 */
+/** PropertyPanel 重置元素样式：恢复原始 style 属性
+ *  P1-2: 通用还原策略，恢复到首次应用样式前的状态 */
 function handleResetStyles({ elid }: { elid: string }) {
   const iframe = iframeRef.value;
   if (!iframe) return;
@@ -817,12 +843,25 @@ function handleResetStyles({ elid }: { elid: string }) {
   const snapshot = styleSnapshots.get(elid);
   if (!snapshot) return;
 
+  // P1-2: 通用还原 - 恢复原始 style 属性（覆盖所有应用过的 CSS 属性）
   if (snapshot.originalStyle === null) {
     snapshot.el.removeAttribute('style');
   } else {
     snapshot.el.setAttribute('style', snapshot.originalStyle);
   }
   styleSnapshots.delete(elid);
+}
+
+/** P1-2: 清除所有 styleSnapshots 并恢复元素原始样式（切换 tab/cleanup 时调用） */
+function clearAllStyleSnapshots() {
+  styleSnapshots.forEach((snapshot) => {
+    if (snapshot.originalStyle === null) {
+      snapshot.el.removeAttribute('style');
+    } else {
+      snapshot.el.setAttribute('style', snapshot.originalStyle);
+    }
+  });
+  styleSnapshots.clear();
 }
 
 /** 在 iframe 文档 head 注入一个阻止跳出代理命名空间的导航守卫脚本。
