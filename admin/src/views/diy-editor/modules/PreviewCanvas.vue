@@ -57,20 +57,24 @@
     <!-- 实时预览模式（iframe 内嵌 Nuxt C 端） -->
     <div v-else class="flex-1 overflow-hidden">
       <iframe
+        ref="iframeRef"
         :src="previewUrl"
         class="h-full w-full border-none"
-        sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox"
+        @load="onIframeLoad"
       />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, onBeforeUnmount } from 'vue';
 import { VueDraggable } from 'vue-draggable-plus';
 import { NButton, NButtonGroup, NInput } from 'naive-ui';
 import { useDiyStore } from '@/store/modules/diy';
 import DraggableComponent from './DraggableComponent.vue';
+
+const iframeRef = ref<HTMLIFrameElement | null>(null);
 import BannerRenderer from './renderers/BannerRenderer.vue';
 import SearchBoxRenderer from './renderers/SearchBoxRenderer.vue';
 import ImageAdRenderer from './renderers/ImageAdRenderer.vue';
@@ -175,6 +179,124 @@ function onDragEnd() {
   });
   store.reorderComponents(list);
 }
+
+/** iframe load 时注入导航守卫：与 index.vue 同源，防止 logo/链接跳出代理命名空间到 admin 首页 */
+function onIframeLoad() {
+  const iframe = iframeRef.value;
+  if (!iframe) return;
+  let win: Window | null = null;
+  let doc: Document | null = null;
+  try { win = iframe.contentWindow; doc = iframe.contentDocument; if (!win || !doc) return; }
+  catch { return; }
+
+  try {
+    doc.addEventListener('click', (e) => {
+      const a = (e.target as HTMLElement | null)?.closest?.('a') as HTMLAnchorElement | null;
+      if (!a) return;
+      const tgt = a.getAttribute('target') || '';
+      if (tgt && tgt !== '_self' && tgt !== '_blank') a.setAttribute('target', '_self');
+      let href = a.getAttribute('href') || '';
+      if (href && !href.startsWith('http') && !href.startsWith('#') && !href.startsWith('mailto:')) {
+        if (href.startsWith('/') && !href.startsWith('/portal-preview/')) {
+          if (href === '/' || href === '') href = '/portal-preview/zh';
+          else if (href.startsWith('/zh/') || href === '/zh' || href.startsWith('/zh?')) href = '/portal-preview' + href;
+          else href = '/portal-preview/zh' + (href.startsWith('/') ? href : '/' + href);
+          try { a.setAttribute('href', href); } catch { /* noop */ }
+        }
+      }
+    }, true);
+  } catch { /* noop */ }
+
+  try {
+    // eslint-disable-next-line no-underscore-dangle
+    if ((win as any).__diyGuardInstalled) return;
+    // eslint-disable-next-line no-underscore-dangle
+    (win as any).__diyGuardInstalled = true;
+    const rewrite = (raw: string): string | null => {
+      if (!raw) return null;
+      if (/^https?:\/\//.test(raw)) {
+        try {
+          const u = new URL(raw);
+          if (u.hostname !== 'localhost' && u.hostname !== '127.0.0.1') return null;
+          raw = u.pathname + u.search + u.hash;
+        } catch { return null; }
+      }
+      if (raw.startsWith('/') && !raw.startsWith('/portal-preview/')) {
+        if (raw === '/' || raw === '') return '/portal-preview/zh';
+        if (raw.startsWith('/zh/') || raw === '/zh' || raw.startsWith('/zh?')) return '/portal-preview' + raw;
+        if (raw.startsWith('/en/') || raw === '/en' || raw.startsWith('/en?')) return '/portal-preview' + raw;
+        if (raw.startsWith('/ar/') || raw === '/ar' || raw.startsWith('/ar?')) return '/portal-preview' + raw;
+        return '/portal-preview/zh' + (raw.startsWith('/') ? raw : '/' + raw);
+      }
+      return null;
+    };
+    // patch history.pushState/replaceState：SPA 导航补 preview=true
+    try {
+      const ensurePreview = (url: string | URL | null | undefined): any => {
+        if (!url) return [url];
+        const raw = String(url);
+        let path = raw;
+        if (/^https?:\/\//.test(raw)) {
+          try {
+            const u = new URL(raw);
+            if (u.hostname !== 'localhost' && u.hostname !== '127.0.0.1') return [url];
+            path = u.pathname + u.search + u.hash;
+          } catch { return [url]; }
+        }
+        if (!/[?&]preview=/.test(path)) {
+          const sep = path.includes('?') ? '&' : '?';
+          path = path + sep + 'preview=true';
+          if (/^https?:\/\//.test(raw)) {
+            try {
+              const u = new URL(raw);
+              u.searchParams.set('preview', 'true');
+              return [u.toString()];
+            } catch { /* fallthrough */ }
+          }
+          return [path];
+        }
+        return [url];
+      };
+      const hs = win.history;
+      const origPush = hs.pushState.bind(hs);
+      // eslint-disable-next-line no-underscore-dangle
+      const _pushState = origPush;
+      (hs as any).pushState = function (...args: any[]) {
+        const fixed = ensurePreview(args[2]);
+        args[2] = fixed[0];
+        return _pushState(...args);
+      };
+      const origReplace = hs.replaceState.bind(hs);
+      // eslint-disable-next-line no-underscore-dangle
+      const _replaceState = origReplace;
+      (hs as any).replaceState = function (...args: any[]) {
+        const fixed = ensurePreview(args[2]);
+        args[2] = fixed[0];
+        return _replaceState(...args);
+      };
+    } catch { /* noop */ }
+    try {
+      // eslint-disable-next-line no-underscore-dangle
+      const _assign = win.location.assign.bind(win.location);
+      (win.location as any).assign = function (url: string | URL) {
+        const fixed = rewrite(String(url));
+        if (fixed) return _assign(fixed);
+        return _assign(url);
+      };
+      // eslint-disable-next-line no-underscore-dangle
+      const _replace = win.location.replace.bind(win.location);
+      (win.location as any).replace = function (url: string | URL) {
+        const fixed = rewrite(String(url));
+        if (fixed) return _replace(fixed);
+        return _replace(url);
+      };
+    } catch { /* readonly in some browsers */ }
+  } catch { /* noop */ }
+}
+
+onBeforeUnmount(() => {
+  // cleanup (noop)
+});
 </script>
 
 <style scoped>

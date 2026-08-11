@@ -15,6 +15,8 @@ export const useOrderStore = defineStore("order", () => {
     try {
       const result: any = await fetchOrders(params);
       orders.value = result.items || [];
+    } catch {
+      orders.value = [];
     } finally {
       loading.value = false;
     }
