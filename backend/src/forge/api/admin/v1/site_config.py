@@ -1,118 +1,109 @@
-"""站点配置 API - 品牌、主题、导航等全量配置的读写 + 站点图片上传。"""
+"""站点配置 API - 品牌/主题/导航/分类/页脚/i18n/功能开关/轮播图 等全量配置的读写 + 图片上传到 MinIO。
+
+注：站点配置写入数据库的 `site_profiles` 表（读取/更新 active profile），
+从而确保 C 端 `/api/v1/site-profile` 与 Admin 编辑端共享同一数据源。
+
+默认配置、别名规范化、深度合并逻辑统一放在
+:mod:`forge.infrastructure.site_defaults` 共享模块中维护，避免两端不一致。
+"""
 from __future__ import annotations
 
-import json
-import os
-from pathlib import Path
-from uuid import uuid4
+import logging
+from datetime import datetime
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
-from typing import Any, Dict
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from forge.main.dependencies import require_permission
+from forge.infrastructure.persistence.models import ORMSiteProfile
+from forge.infrastructure.persistence.repositories.site_profile_repo import SQLAlchemySiteProfileRepository
+from forge.infrastructure.services.minio_service import MinioService, get_minio_service
+from forge.infrastructure.site_defaults import merge_for_response, merge_for_save
+from forge.main.dependencies import get_current_admin, get_db
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# 配置存储路径（与 uploads/diy 同级，本地文件存储）
-_CONFIG_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent / "uploads" / "site-config"
-_CONFIG_FILE = _CONFIG_DIR / "site_config.json"
 
-# 默认配置（与前端 DEFAULT_SITE_CONFIG 对齐）
-DEFAULT_CONFIG: Dict[str, Any] = {
-    "brand": {"name": "Forge", "tagline": "", "logo": {"type": "text", "data": ""}},
-    "theme": {
-        "primaryColor": "#18a058", "primaryLight": "#36ad6a", "primaryDark": "#0c7a43",
-        "secondaryColor": "#f0a020", "accentColor": "#2080f0",
-        "fontHeading": "Inter", "fontBody": "Inter",
-    },
-    "nav": [
-        {"label": "首页", "url": "/"},
-        {"label": "商品", "url": "/products"},
-        {"label": "我的宠物", "url": "/pets"},
-        {"label": "订单", "url": "/orders"},
-        {"label": "AI客服", "url": "/chat"},
-    ],
-    "categories": [
-        {"slug": "cat-food", "nameKey": "footer.petFood", "icon": "mdi:food"},
-        {"slug": "toys", "nameKey": "footer.toys", "icon": "mdi:teddy-bear"},
-        {"slug": "health-wellness", "nameKey": "footer.healthWellness", "icon": "mdi:heart-pulse"},
-    ],
-    "footer": {"copyright": "© 2026 Forge. 版权所有。", "newsletter": True},
-    "seo": {"homeTitle": "Forge - 专业宠物用品商店", "metaDescription": "", "metaKeywords": ""},
-    "i18n": {"defaultLocale": "en", "locales": ["en"]},
-    "featureFlags": {"liveChat": True, "reviews": True, "wishlist": False},
-    "currencies": ["USD"],
-}
+# ----------------------------------------------------------------------
+# Helpers
+# ----------------------------------------------------------------------
 
+async def _get_active_profile(db: AsyncSession) -> Optional[ORMSiteProfile]:
+    return await SQLAlchemySiteProfileRepository.get_active(db)
+
+
+async def _upsert_active_config(db: AsyncSession, payload_config: dict) -> dict:
+    """写入 active profile：存在则合并更新，不存在则新建默认 profile 再合并。"""
+    merged_for_save = merge_for_save(payload_config)
+    profile = await _get_active_profile(db)
+    if profile is None:
+        profile = ORMSiteProfile(
+            name="default",
+            label="默认站点配置",
+            is_active=True,
+            config=merged_for_save,
+        )
+        db.add(profile)
+    else:
+        profile.config = merged_for_save
+    profile.updated_at = datetime.utcnow()
+    await db.commit()
+    await db.refresh(profile)
+    return profile.config or {}
+
+
+# ----------------------------------------------------------------------
+# Pydantic payload
+# ----------------------------------------------------------------------
 
 class SiteConfigPayload(BaseModel):
     config: Dict[str, Any]
 
 
-def _load_from_file() -> Dict[str, Any]:
-    """从 JSON 文件读取配置，不存在则返回默认值。"""
-    if not _CONFIG_FILE.exists():
-        return json.loads(json.dumps(DEFAULT_CONFIG))
-    try:
-        with open(_CONFIG_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        # 合并默认值（确保新增字段有默认）
-        merged = json.loads(json.dumps(DEFAULT_CONFIG))
-        _deep_merge(merged, data)
-        return merged
-    except (json.JSONDecodeError, OSError):
-        return json.loads(json.dumps(DEFAULT_CONFIG))
-
-
-def _save_to_file(config: Dict[str, Any]) -> None:
-    """保存配置到 JSON 文件。"""
-    _CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    with open(_CONFIG_FILE, "w", encoding="utf-8") as f:
-        json.dump(config, f, ensure_ascii=False, indent=2)
-
-
-def _deep_merge(base: dict, override: dict) -> None:
-    """深度合并：override 覆盖 base 的同名键，dict 类型递归合并。"""
-    for key, val in override.items():
-        if key in base and isinstance(base[key], dict) and isinstance(val, dict):
-            _deep_merge(base[key], val)
-        else:
-            base[key] = val
-
+# ----------------------------------------------------------------------
+# Routes
+# ----------------------------------------------------------------------
 
 @router.get("/config")
-async def get_site_config():
-    """获取站点全量配置。"""
-    config = _load_from_file()
-    return {"data": config}
+async def get_site_config(
+    admin: dict = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取站点全量配置（若 DB 无 active profile 则返回默认结构）。"""
+    profile = await _get_active_profile(db)
+    merged = merge_for_response(profile.config if profile else None)
+    return {"data": merged}
 
 
 @router.put("/config")
-async def save_site_config(payload: SiteConfigPayload):
-    """保存站点全量配置（覆盖写入）。"""
-    config = _load_from_file()
-    _deep_merge(config, payload.config)
-    _save_to_file(config)
-    return {"data": config}
+async def save_site_config(
+    payload: SiteConfigPayload,
+    admin: dict = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """保存站点全量配置 —— 写入 active profile 的 config 字段。"""
+    try:
+        saved = await _upsert_active_config(db, payload.config or {})
+        return {"data": merge_for_response(saved)}
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("保存站点配置失败")
+        raise HTTPException(status_code=500, detail=f"保存失败: {exc}")
 
 
-# ------------------------------------------------------------------
-# 图片上传（站点配置 Logo / 图片素材）
-# ------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# 图片上传（MinIO 优先，本地降级）
+# ----------------------------------------------------------------------
 
-
-@router.post(
-    "/upload-image",
-    dependencies=[Depends(require_permission("settings", "manage"))],
-)
-async def upload_image(file: UploadFile = File(...)):
-    """上传站点配置图片。"""
-    upload_dir = Path("uploads/diy")
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    file_ext = os.path.splitext(file.filename or "image.png")[1]
-    file_name = f"{uuid4().hex}{file_ext}"
-    file_path = upload_dir / file_name
+@router.post("/upload-image")
+async def upload_image(
+    file: UploadFile = File(...),
+    admin: dict = Depends(get_current_admin),
+    minio: MinioService = Depends(get_minio_service),
+):
+    """上传站点图片（Logo / 轮播 / 分类图等）。返回可直接在 C 端渲染的 URL。"""
     content = await file.read()
-    file_path.write_bytes(content)
-    return {"url": f"/uploads/diy/{file_name}"}
+    filename = file.filename or "image.png"
+    url = minio.upload_bytes(content, filename, prefix="site")
+    return {"url": url}

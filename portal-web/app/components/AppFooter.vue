@@ -1,133 +1,35 @@
 <template>
   <footer data-region="footer" class="bg-neutral-900 text-neutral-300">
     <div class="max-w-7xl mx-auto px-4 py-12">
-      <!-- Main Grid -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
-        <!-- Shop -->
-        <div>
+        <div v-for="group in visibleFooterLinkGroups" :key="group.key">
           <h4 class="text-sm font-heading font-semibold text-neutral-100 uppercase tracking-wider mb-4">
-            {{ $t('footer.shop') }}
+            {{ safeT(group.titleKey, group.title, group.key) }}
           </h4>
           <ul class="space-y-2.5">
-            <li>
-              <NuxtLink :to="localePath({ path: '/products', query: { category: 'pet-food' } })" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
-                {{ $t('footer.petFood') }}
-              </NuxtLink>
-            </li>
-            <li>
-              <NuxtLink :to="localePath({ path: '/products', query: { category: 'toys' } })" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
-                {{ $t('footer.toys') }}
-              </NuxtLink>
-            </li>
-            <li>
-              <NuxtLink :to="localePath({ path: '/products', query: { category: 'health-wellness' } })" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
-                {{ $t('footer.healthWellness') }}
-              </NuxtLink>
-            </li>
-            <li>
-              <NuxtLink :to="localePath({ path: '/products', query: { category: 'accessories' } })" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
-                {{ $t('footer.accessories') }}
-              </NuxtLink>
-            </li>
-            <li>
-              <NuxtLink :to="localePath({ path: '/products', query: { category: 'grooming' } })" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
-                {{ $t('footer.grooming') }}
-              </NuxtLink>
-            </li>
-          </ul>
-        </div>
-
-        <!-- Support -->
-        <div>
-          <h4 class="text-sm font-heading font-semibold text-neutral-100 uppercase tracking-wider mb-4">
-            {{ $t('footer.support') }}
-          </h4>
-          <ul class="space-y-2.5">
-            <li>
-              <NuxtLink :to="localePath('/faqs')" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
-                {{ $t('footer.faqs') }}
-              </NuxtLink>
-            </li>
-            <li>
-              <NuxtLink :to="localePath('/shipping')" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
-                {{ $t('footer.shippingInfo') }}
-              </NuxtLink>
-            </li>
-            <li>
-              <NuxtLink :to="localePath('/returns')" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
-                {{ $t('footer.returns') }}
-              </NuxtLink>
-            </li>
-            <li>
-              <NuxtLink :to="localePath('/contact')" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
-                {{ $t('footer.contactUs') }}
-              </NuxtLink>
-            </li>
-          </ul>
-        </div>
-
-        <!-- About -->
-        <div>
-          <h4 class="text-sm font-heading font-semibold text-neutral-100 uppercase tracking-wider mb-4">
-            {{ $t('footer.about') }}
-          </h4>
-          <ul class="space-y-2.5">
-            <li>
-              <NuxtLink :to="localePath('/story')" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
-                {{ $t('footer.ourStory') }}
-              </NuxtLink>
-            </li>
-            <li>
-              <NuxtLink :to="localePath('/sustainability')" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
-                {{ $t('footer.sustainability') }}
-              </NuxtLink>
-            </li>
-            <li>
-              <NuxtLink :to="localePath('/blog')" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
-                {{ $t('footer.blog') }}
-              </NuxtLink>
-            </li>
-            <li>
-              <NuxtLink :to="localePath('/careers')" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
-                {{ $t('footer.careers') }}
-              </NuxtLink>
-            </li>
-          </ul>
-        </div>
-
-        <!-- Legal -->
-        <div>
-          <h4 class="text-sm font-heading font-semibold text-neutral-100 uppercase tracking-wider mb-4">
-            {{ $t('footer.legal') }}
-          </h4>
-          <ul class="space-y-2.5">
-            <li>
-              <NuxtLink :to="localePath('/privacy')" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
-                {{ $t('footer.privacyPolicy') }}
-              </NuxtLink>
-            </li>
-            <li>
-              <NuxtLink :to="localePath('/terms')" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
-                {{ $t('footer.termsOfService') }}
-              </NuxtLink>
-            </li>
-            <li>
-              <NuxtLink :to="localePath('/cookies')" class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
-                {{ $t('footer.cookies') }}
+            <li v-for="link in group.links" :key="link.labelKey + link.to">
+              <NuxtLink
+                :to="localePath(normalizeTo(link.to))"
+                class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors"
+              >
+                {{ safeT(link.labelKey, link.label) }}
               </NuxtLink>
             </li>
           </ul>
         </div>
       </div>
 
-      <!-- Newsletter -->
-      <div data-newsletter class="mt-12 flex flex-col sm:flex-row items-start sm:items-center gap-4 p-6 rounded-2xl bg-neutral-800/50">
+      <div
+        v-if="hasFeature('show_newsletter') || profile.footer.newsletter"
+        data-newsletter
+        class="mt-12 flex flex-col sm:flex-row items-start sm:items-center gap-4 p-6 rounded-2xl bg-neutral-800/50"
+      >
         <div class="flex-shrink-0">
           <h4 class="text-base font-heading font-semibold text-neutral-100">
-            {{ $t('footer.stayInLoop') }}
+            {{ t('footer.stayInLoop') }}
           </h4>
           <p class="text-sm text-neutral-400 mt-0.5">
-            {{ $t('footer.newsletterHint') }}
+            {{ t('footer.newsletterHint') }}
           </p>
         </div>
         <form class="flex flex-1 w-full gap-2" @submit.prevent="onSubscribe">
@@ -135,28 +37,26 @@
             v-model="email"
             type="email"
             required
-            :placeholder="$t('footer.enterEmail')"
+            :placeholder="t('footer.enterEmail')"
             class="flex-1 text-sm bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-2.5 text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-primary-500 transition-colors"
           />
           <button
             type="submit"
             class="flex-shrink-0 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors"
           >
-            {{ $t('footer.subscribe') }}
+            {{ t('footer.subscribe') }}
           </button>
         </form>
       </div>
 
-      <!-- Divider -->
       <div class="border-t border-neutral-800 my-8" />
 
-      <!-- Bottom Bar -->
       <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
         <p data-copyright class="text-sm text-neutral-500">
-          {{ $t('footer.copyright') }}
+          {{ profile.footer.copyright || t('footer.copyright') || '© 2026 Forge' }}
         </p>
         <p class="text-sm text-neutral-500">
-          {{ $t('footer.paymentMethods') }}
+          {{ t('footer.paymentMethods') }}
         </p>
       </div>
     </div>
@@ -165,11 +65,36 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useSiteProfile } from '~/composables/useSiteProfile'
+
+const { t, te } = useI18n()
 const localePath = useLocalePath()
+const { profile, visibleFooterLinkGroups, hasFeature } = useSiteProfile()
 const email = ref('')
 
+// t(missingKey) 返回字符串 key（truthy），|| 回退会失效，必须先 te() 判断存在
+function safeT(key: string | undefined, ...fallbacks: (string | undefined)[]): string {
+  if (key && te(key)) return t(key)
+  for (const f of fallbacks) if (f) return f
+  return ''
+}
+
+function normalizeTo(to: string): string | { path: string; query: Record<string, string> } {
+  if (to.startsWith('/products?')) {
+    const [path, queryStr] = to.split('?')
+    const query: Record<string, string> = {}
+    if (queryStr) {
+      queryStr.split('&').forEach((pair) => {
+        const [k, v] = pair.split('=')
+        if (k) query[k] = v || ''
+      })
+    }
+    return { path, query }
+  }
+  return to
+}
+
 function onSubscribe() {
-  // Placeholder: subscription logic will be wired later
   email.value = ''
 }
 </script>

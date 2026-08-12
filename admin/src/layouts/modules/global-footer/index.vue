@@ -10,4 +10,8 @@ defineOptions({
   </DarkModeContainer>
 </template>
 
-<style scoped></style>
+<style scoped>
+:deep(.bg-container.text-base-text.transition-300.h-full.flex-center) {
+  width: 600px;
+}
+</style>

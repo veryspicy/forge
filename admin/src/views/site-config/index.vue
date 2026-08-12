@@ -48,6 +48,14 @@
             </template>
             开启选择元素模式
           </NTooltip>
+          <NTooltip trigger="hover">
+            <template #trigger>
+              <NButton size="small" quaternary @click="refreshIframe">
+                <template #icon><SvgIcon icon="mdi:refresh" class="text-16px" /></template>
+              </NButton>
+            </template>
+            刷新预览 iframe
+          </NTooltip>
         </div>
         <div class="flex items-center gap-1">
           <NButton size="small" :type="device === 'desktop' ? 'primary' : 'default'" quaternary @click="device = 'desktop'">
@@ -102,7 +110,15 @@ const siteConfigItems = SITE_CONFIG_ITEMS;
 
 // ========== 左右面板可见性 ==========
 const leftPanelVisible = ref(true);
-const panelVisible = ref(true);
+const panelVisible = ref(false);
+
+/** 选中左侧配置项或元素时自动打开右侧面板 */
+watch(
+  () => [store.activeSiteConfigItem, store.selectedElement],
+  ([configKey, element]) => {
+    if (configKey || element) panelVisible.value = true;
+  }
+);
 
 // ========== iframe 预览 ==========
 const iframeRef = ref<HTMLIFrameElement | null>(null);
@@ -126,6 +142,11 @@ function onIframeLoad() {
 /** 在浏览器新窗口打开当前预览页 */
 function openInBrowser() {
   window.open(iframeSrc.value, '_blank');
+}
+
+/** 刷新 iframe 预览（强制重新加载 C 端） */
+function refreshIframe() {
+  iframeKey.value += 1;
 }
 
 // ========== 元素选择模式 ==========

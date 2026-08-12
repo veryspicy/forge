@@ -1,9 +1,14 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from forge.main.config import settings
+
+_UPLOADS_DIR = Path(__file__).resolve().parents[3] / "uploads"
+_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 @asynccontextmanager
@@ -26,6 +31,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.mount(
+    "/uploads",
+    StaticFiles(directory=str(_UPLOADS_DIR), check_dir=False),
+    name="uploads",
+)
+
+try:
+    from forge.api.minio_proxy import minio_router
+
+    app.include_router(minio_router)
+except ImportError:
+    pass
 
 
 @app.get("/health")
