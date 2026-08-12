@@ -123,7 +123,7 @@ watch(
 // ========== iframe 预览 ==========
 const iframeRef = ref<HTMLIFrameElement | null>(null);
 const iframeKey = ref(0);
-const iframeSrc = ref('/portal-preview/zh');
+const iframeSrc = ref('/zh?preview=true');
 const device = ref<'desktop' | 'tablet' | 'mobile'>('desktop');
 
 const deviceFrameClass = computed(() => {

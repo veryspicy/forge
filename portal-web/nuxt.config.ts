@@ -3,6 +3,10 @@
 
 import tailwindcss from "@tailwindcss/vite";
 
+// 容器内 routeRules/devProxy 的 backend 代理目标（compose 注入 NUXT_BACKEND_URL=http://backend:8000；
+// 本地开发未注入时回退 127.0.0.1:8000）
+const backendUrl = process.env.NUXT_BACKEND_URL || "http://127.0.0.1:8000";
+
 export default defineNuxtConfig({
   srcDir: "app",
   css: ["~/assets/css/main.css"],
@@ -81,18 +85,18 @@ export default defineNuxtConfig({
     // （/api/v1 由 app/server/api/v1/[...path].ts 处理）
     routeRules: {
       "/api/images/**": {
-        proxy: { to: "http://127.0.0.1:8000/api/images/**" },
+        proxy: { to: `${backendUrl}/api/images/**` },
       },
       "/uploads/**": {
-        proxy: { to: "http://127.0.0.1:8000/uploads/**" },
+        proxy: { to: `${backendUrl}/uploads/**` },
       },
       "/minio/**": {
-        proxy: { to: "http://127.0.0.1:8000/minio/**" },
+        proxy: { to: `${backendUrl}/minio/**` },
       },
     },
     devProxy: {
-      "/uploads": { target: "http://127.0.0.1:8000", changeOrigin: true },
-      "/minio": { target: "http://127.0.0.1:8000", changeOrigin: true },
+      "/uploads": { target: backendUrl, changeOrigin: true },
+      "/minio": { target: backendUrl, changeOrigin: true },
     },
   },
 

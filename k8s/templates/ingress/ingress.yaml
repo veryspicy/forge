@@ -1,6 +1,19 @@
 {{- if .Values.ingress.enabled }}
 {{- if eq .Values.ingress.className "traefik" }}
 ---
+# 前缀剥离 Middleware（/admin/xxx → admin 收到 /xxx）
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ include "forge.fullname" . }}-strip-admin
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "forge.labels" . | nindent 4 }}
+spec:
+  stripPrefix:
+    prefixes:
+      - /admin
+---
 # Traefik IngressRoute (K3s built-in Traefik v3)
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
@@ -13,16 +26,27 @@ spec:
   entryPoints:
     - web
   routes:
-    - match: Host(`{{ .Values.ingress.hosts[0].host }}`) && PathPrefix(`/api`)
+    # Admin：/admin/xxx → admin:80/xxx（stripPrefix 剥离）
+    - match: Host(`{{ .Values.ingress.hosts[0].host }}`) && PathPrefix(`/admin`)
+      kind: Rule
+      middlewares:
+        - name: {{ include "forge.fullname" . }}-strip-admin
+      services:
+        - name: {{ include "forge.fullname" . }}-admin
+          port: 80
+    # 后端 API 与静态/上传资源：直通 backend
+    - match: Host(`{{ .Values.ingress.hosts[0].host }}`) && (PathPrefix(`/api`) || PathPrefix(`/images`) || PathPrefix(`/uploads`) || PathPrefix(`/minio`))
       kind: Rule
       services:
         - name: {{ include "forge.fullname" . }}-backend
           port: 8000
+    # AI 服务
     - match: Host(`{{ .Values.ingress.hosts[0].host }}`) && PathPrefix(`/ai`)
       kind: Rule
       services:
         - name: {{ include "forge.fullname" . }}-ai-service
           port: 8001
+    # C 端兜底：根路径 → portal-web
     - match: Host(`{{ .Values.ingress.hosts[0].host }}`)
       kind: Rule
       services:
@@ -31,6 +55,7 @@ spec:
 {{- else }}
 ---
 # Standard Kubernetes Ingress (fallback for non-Traefik ingress controllers)
+# /admin 前缀剥离通过 rewrite-target + 捕获组实现，与 compose 网关 strip 语义一致
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -39,6 +64,9 @@ metadata:
   labels:
     {{- include "forge.labels" . | nindent 4 }}
   annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/proxy-body-size: 50m
     {{- with .Values.ingress.annotations }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -49,22 +77,59 @@ spec:
     - host: {{ .host | quote }}
       http:
         paths:
-          {{- range .paths }}
-          - path: {{ .path }}
-            pathType: {{ .pathType }}
+          # Admin：/admin/xxx → admin:80/xxx（rewrite-target 剥离前缀）
+          - path: /admin(/|$)(.*)
+            pathType: ImplementationSpecific
             backend:
               service:
-                name: {{ include "forge.fullname" $ }}-{{ .service }}
+                name: {{ include "forge.fullname" $ }}-admin
                 port:
-                  number:
-                    {{- if eq .service "portal-web" }}
-                    3000
-                    {{- else if eq .service "backend" }}
-                    8000
-                    {{- else if eq .service "ai-service" }}
-                    8001
-                    {{- end }}
-          {{- end }}
+                  number: 80
+          # 后端 API 与静态/上传资源：直通 backend
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "forge.fullname" $ }}-backend
+                port:
+                  number: 8000
+          - path: /images
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "forge.fullname" $ }}-backend
+                port:
+                  number: 8000
+          - path: /uploads
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "forge.fullname" $ }}-backend
+                port:
+                  number: 8000
+          - path: /minio
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "forge.fullname" $ }}-backend
+                port:
+                  number: 8000
+          # AI 服务
+          - path: /ai
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "forge.fullname" $ }}-ai-service
+                port:
+                  number: 8001
+          # C 端兜底：根路径 → portal-web
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "forge.fullname" $ }}-portal-web
+                port:
+                  number: 3000
     {{- end }}
   {{- if .Values.ingress.tls }}
   tls:
