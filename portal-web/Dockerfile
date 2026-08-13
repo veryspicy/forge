@@ -6,7 +6,7 @@ WORKDIR /app
 COPY .npmrc ./
 
 # Install pnpm globally
-RUN npm install -g pnpm@11.8.0
+RUN npm install -g pnpm@11.21.0
 
 # Install dependencies (ignore scripts first to avoid ERR_PNPM_IGNORED_BUILDS)
 COPY package.json pnpm-lock.yaml ./
