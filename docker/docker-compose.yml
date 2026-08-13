@@ -206,6 +206,7 @@ services:
     build:
       context: ../admin
       dockerfile: Dockerfile
+    image: localhost/forge-admin:latest
     container_name: forge-admin
     restart: unless-stopped
     networks:
