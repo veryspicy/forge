@@ -195,6 +195,11 @@
           </NButton>
         </div>
 
+        <!-- 公共前缀置顶：导航项 i18n key 统一以 nav. 开头，下方只需填后缀 -->
+        <div class="rounded border border-dashed border-gray-200 border-solid p-2 text-[11px] leading-relaxed text-gray-400 dark:border-gray-700">
+          🔑 公共前缀：导航翻译 key 统一以 <b>nav.</b> 开头，下方每个导航项的「翻译 Key 后缀」只需填写后半段，保存时自动拼接（如 <code>myPets</code> → <code>nav.myPets</code>）。
+        </div>
+
         <template v-if="config.navigation.length === 0">
           <div class="rounded border border-dashed border-gray-200 border-solid p-6 text-center text-sm text-gray-400 dark:border-gray-700">
             暂无导航项，点击下方按钮添加或使用上方快捷预设
@@ -256,8 +261,11 @@
                 />
               </div>
               <div class="flex flex-col gap-1">
-                <FieldLabel label="翻译 Key" name="labelKey" type="string" range="i18n key，点分命名" example="nav.myPets" desc="导航名称对应的 i18n 翻译 key；留空时按名称自动生成。" />
-                <NInput :value="navItem.labelKey" @update:value="v => onNavLabelKeyChanged(idx, navItem.labelKey, v)" size="small" placeholder="如 nav.myPets（留空将自动生成）" />
+                <FieldLabel label="翻译 Key 后缀" name="labelKey" type="string" range="自动拼接 nav. 前缀" example="myPets" desc="导航 i18n key 统一以 nav. 开头（公共前缀已置顶展示），此处只填后缀，保存时自动拼接为 nav.myPets；留空则按名称自动生成。" />
+                <div class="flex items-center gap-1">
+                  <NTag size="small" type="info" :bordered="false" class="shrink-0" title="导航 i18n key 公共前缀，自动拼接">nav.</NTag>
+                  <NInput :value="navKeySuffix(navItem.labelKey)" @update:value="v => onNavLabelKeyChanged(idx, navItem.labelKey, v)" size="small" placeholder="如 myPets（留空将自动生成）" />
+                </div>
               </div>
               <div class="flex flex-col gap-1">
                 <FieldLabel label="联动功能开关" name="featureFlag" type="string (flag key)" range="功能开关 key 或留空" example="show_ai_chat" desc="关联功能开关：开关关闭时自动隐藏该导航项。" />
@@ -280,7 +288,7 @@
         </NButton>
 
         <div class="rounded border border-dashed border-gray-200 border-solid p-2 text-[11px] leading-relaxed text-gray-400 dark:border-gray-700">
-          💡 提示：修改「名称」将自动生成唯一 labelKey 并回填 zh/en 翻译；关联 feature flag 后，开关关闭会自动隐藏此导航项。
+          💡 提示：翻译 key 自动拼接 nav. 前缀；修改「名称」将自动生成唯一后缀并回填 zh/en 翻译；关联 feature flag 后，开关关闭会自动隐藏此导航项。
         </div>
       </div>
 
@@ -904,11 +912,21 @@ function renameTranslationKey(oldKey: string, newKey: string, fallbackValue?: st
 
 function onNavLabelKeyChanged(idx: number | string, oldKey: string, v: string | number) {
   const i = Number(idx);
-  const newKey = String(v ?? '').trim();
   const item: any = config.value.navigation?.[i];
   if (!item) return;
+  // 自动剥离并拼接 nav. 公共前缀：输入框只填后缀，存储为完整 key（兼容粘贴完整 key 的场景）
+  const raw = String(v ?? '').trim();
+  let suffix = raw.startsWith('nav.') ? raw.slice(4) : raw;
+  suffix = suffix.replace(/^\.+/, '');
+  const newKey = suffix ? `nav.${suffix}` : '';
   item.labelKey = newKey;
   renameTranslationKey(oldKey, newKey, item.label);
+}
+
+/** 导航 labelKey 显示为去前缀后的后缀（输入框只展示/编辑 nav. 之后的部分） */
+function navKeySuffix(key: string): string {
+  const k = (key || '').trim();
+  return k.startsWith('nav.') ? k.slice(4) : k;
 }
 
 function onCategoryNameKeyChanged(idx: number | string, oldKey: string, v: string | number) {

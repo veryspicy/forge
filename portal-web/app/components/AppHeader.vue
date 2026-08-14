@@ -3,53 +3,7 @@
     <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
       <!-- Brand -->
       <NuxtLink to="/" data-brand-name class="flex items-center gap-2.5 flex-shrink-0 min-w-0">
-        <!-- 动态 Logo（站点配置：图片 / 文字 / SVG 代码） -->
-        <template v-if="brandLogoAsset.type === 'image' && brandLogoAsset.data">
-          <img
-            :src="resolveImageUrl(brandLogoAsset.data)"
-            :alt="brandName"
-            class="h-9 md:h-10 w-auto max-w-[160px] object-contain rounded"
-            :onerror="(e: any) => (e.target.style.display = 'none')"
-          />
-        </template>
-        <template v-else-if="brandLogoAsset.type === 'svg' && brandLogoAsset.data">
-          <div
-            class="h-9 md:h-10 w-auto max-w-[160px] flex items-center justify-center [&>svg]:h-full [&>svg]:w-auto [&>svg]:max-h-full"
-            v-html="sanitizeSvg(brandLogoAsset.data)"
-          />
-        </template>
-        <template v-else-if="brandLogoAsset.type === 'text' && brandLogoAsset.data">
-          <span class="flex items-center justify-center h-8 md:h-9 px-2 rounded-md font-heading font-bold text-lg md:text-xl text-white"
-            :style="{ background: `linear-gradient(135deg, var(--color-primary-500), var(--color-accent-500, #2080f0))` }">
-            {{ brandLogoAsset.data.slice(0, 2) }}
-          </span>
-        </template>
-        <!-- 默认 Logo（SVG 爪印） -->
-        <svg
-          v-else
-          width="28"
-          height="28"
-          viewBox="0 0 28 28"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
-          class="shrink-0"
-        >
-          <path
-            d="M14 18c-2.5 0-4.5-1.5-5.5-3.5-0.5-1-0.3-2 0.5-2.5 1-0.5 2.5 0 3 1 0.3 0.5 1 1 2 1s1.7-0.5 2-1c0.5-1 2-1.5 3-1 0.8 0.5 1 1.5 0.5 2.5C18.5 16.5 16.5 18 14 18z"
-            fill="url(#pawGradient)"
-          />
-          <ellipse cx="10" cy="11" rx="2.5" ry="3" transform="rotate(-20 10 11)" fill="url(#pawGradient)" />
-          <ellipse cx="18" cy="11" rx="2.5" ry="3" transform="rotate(20 18 11)" fill="url(#pawGradient)" />
-          <ellipse cx="7" cy="14" rx="2" ry="2.5" transform="rotate(-35 7 14)" fill="url(#pawGradient)" />
-          <ellipse cx="21" cy="14" rx="2" ry="2.5" transform="rotate(35 21 14)" fill="url(#pawGradient)" />
-          <defs>
-            <linearGradient id="pawGradient" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
-              <stop stop-color="var(--color-primary-500)" />
-              <stop offset="1" stop-color="var(--color-secondary-400)" />
-            </linearGradient>
-          </defs>
-        </svg>
+        <!-- Logo 展示已移除（裂图/渐变文字块不再渲染），仅保留品牌文字标题 -->
         <div class="flex flex-col justify-center leading-tight min-w-0">
           <span class="text-lg md:text-xl font-heading font-semibold gradient-brand bg-clip-text text-transparent truncate">
             {{ brandName }}
@@ -346,66 +300,7 @@ const navLinks = computed(() => {
   ]
 })
 
-const brandLogoAsset = computed(() => {
-  const logo = profile.value.brand?.logo
-  if (logo && typeof logo === 'object') {
-    const type = logo.type || 'text'
-    const data = logo.data || ''
-    // 支持 'svg' 类型（SVG 源码字符串）
-    if (type === 'svg' && data) return { type: 'svg', data }
-    if (type === 'image' && data) return { type: 'image', data }
-    if (type === 'text') return { type: 'text', data }
-  }
-  return { type: 'svg', data: '' }
-})
-
-/**
- * 简易 SVG sanitize：过滤 <script>/<iframe>/object/embed/a/onxxx=/javascript: 等注入点。
- * 如需严格防护可接入 dompurify。
- */
-function sanitizeSvg(input: string): string {
-  if (!input) return ''
-  let s = input
-  s = s.replace(/<\s*(script|iframe|object|embed|form|input|button|a)\b[\s\S]*?<\/\s*\1\s*>/gi, '')
-  s = s.replace(/<\s*(script|iframe|object|embed|form|input|button|a)\b[^>]*(\/)?>/gi, '')
-  s = s.replace(/<!DOCTYPE[\s\S]*?>/gi, '')
-  s = s.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, '')
-  s = s.replace(/<\?[\s\S]*?\?>/g, '')
-  s = s.replace(/\son[a-z]+\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/gi, '')
-  s = s.replace(/(\s(?:href|src|srcdoc|xlink:href|action|style)\s*=\s*)("([^"]*)"|'([^']*)')/gi, (match, _attr, quoted: string) => {
-    const inner = quoted.slice(1, -1).trim()
-    if (/^(javascript|vbscript|data:text)/i.test(inner.replace(/\s+/g, ''))) return ''
-    return match
-  })
-  s = s.replace(/(\sstyle\s*=\s*)("([^"]*)"|'([^']*)')/gi, (_attr: string, quoted: string) => {
-    const raw = quoted.slice(1, -1)
-    const cleaned = raw
-      .replace(/expression\s*\(/gi, '')
-      .replace(/url\s*\(\s*['"]?\s*javascript:/gi, 'url("')
-    return `style="${cleaned}"`
-  })
-  return s
-}
-
-/** 兼容多种来源的图片 URL：MinIO 相对路径、本地相对路径、远程 http(s) URL。
- *  若图片 URL 以 /minio/ 或 /uploads/ 开头，在 SSR 上下文下保持原样（Nitro 代理可处理），
- *  CSR 下也同样。远程 URL 直接返回。
- */
-function resolveImageUrl(url: string): string {
-  if (!url) return ''
-  if (/^https?:\/\//i.test(url)) return url
-  if (url.startsWith('data:')) return url
-  // 相对路径：保持原样，让浏览器基于当前域解析（由 Vite 代理 / 后端静态服务提供）
-  return url
-}
-
-const brandLogo = computed(() => {
-  const a = brandLogoAsset.value
-  if (a.type === 'image' && a.data) return resolveImageUrl(a.data)
-  return null
-})
 const brandName = computed(() => profile.value.brand.name || 'Forge')
-const brandTagline = computed(() => profile.value.brand.tagline || '')
 
 const availableCurrencies = computed(() =>
   profile.value.currencies.length > 0 ? profile.value.currencies : ['USD'],

@@ -191,9 +191,14 @@ export const useDiyStore = defineStore('diy-store', () => {
   }
 
   async function saveSiteConfig() {
-    // 保存前按 order 字段同步导航顺序
+    // 保存前按 order 字段同步导航顺序，并兜底拼接 nav. 前缀（兼容历史数据/直接编辑漏前缀）
     if (Array.isArray(siteConfig.navigation)) {
-      siteConfig.navigation.forEach((n: any, i: number) => { n.order = i; });
+      siteConfig.navigation.forEach((n: any, i: number) => {
+        n.order = i;
+        if (n.labelKey && !String(n.labelKey).trim().startsWith('nav.')) {
+          n.labelKey = `nav.${String(n.labelKey).trim().replace(/^\.+/, '')}`;
+        }
+      });
     }
     if (Array.isArray(siteConfig.categories)) {
       siteConfig.categories.forEach((c: any, i: number) => { c.order = i; });
