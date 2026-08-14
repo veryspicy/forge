@@ -3,9 +3,15 @@
     <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
       <!-- Brand -->
       <NuxtLink to="/" data-brand-name class="flex items-center gap-2.5 flex-shrink-0 min-w-0">
-        <!-- Logo 展示已移除（裂图/渐变文字块不再渲染），仅保留品牌文字标题 -->
-        <div class="flex flex-col justify-center leading-tight min-w-0">
-          <span class="text-lg md:text-xl font-heading font-semibold gradient-brand bg-clip-text text-transparent truncate">
+        <!-- 品牌 Logo：按站点配置类型渲染（image/svg/text），加载异常时优雅回退品牌文字 -->
+        <template v-if="brandLogo.type === 'image' && brandLogo.data && !logoError">
+          <img :src="brandLogo.data" :alt="brandName" class="h-9 w-auto max-w-[160px] object-contain" @error="logoError = true" />
+        </template>
+        <template v-else-if="brandLogo.type === 'svg' && brandLogo.data && !logoError">
+          <span class="inline-flex h-9 w-auto max-w-[160px] items-center text-neutral-900" v-html="sanitizedBrandSvg" />
+        </template>
+        <div v-if="!brandLogo.data || brandLogo.type === 'text' || logoError" class="flex flex-col justify-center leading-tight min-w-0">
+          <span class="text-lg md:text-xl font-heading font-semibold text-neutral-900 truncate">
             {{ brandName }}
           </span>
         </div>
@@ -34,17 +40,13 @@
 
       <!-- Right Section -->
       <div class="flex items-center gap-3">
-        <!-- Language Select -->
+        <!-- Language Select：选项由站点 i18n 配置驱动，支持任意启用语言 -->
         <select
           v-model="currentLocale"
           class="hidden sm:block text-xs bg-transparent border border-neutral-200 rounded-md px-2 py-1.5 text-neutral-600 focus:outline-none focus:border-primary-400 cursor-pointer"
           @change="onLocaleChange"
         >
-          <option value="en">EN</option>
-          <option value="zh">ZH</option>
-          <option value="ar">AR</option>
-          <option value="de">DE</option>
-          <option value="fr">FR</option>
+          <option v-for="opt in enabledLocaleOptions" :key="opt.code" :value="opt.code">{{ opt.label }}</option>
         </select>
 
         <!-- Currency Select -->
@@ -222,11 +224,7 @@
               class="text-sm bg-transparent border border-neutral-200 rounded-md px-3 py-2 text-neutral-600 focus:outline-none focus:border-primary-400"
               @change="onLocaleChange"
             >
-              <option value="en">EN</option>
-              <option value="zh">ZH</option>
-              <option value="ar">AR</option>
-              <option value="de">DE</option>
-              <option value="fr">FR</option>
+              <option v-for="opt in enabledLocaleOptions" :key="opt.code" :value="opt.code">{{ opt.label }}</option>
             </select>
           </div>
           <div class="flex items-center justify-between">
@@ -269,6 +267,30 @@ const userMenuRef = ref<HTMLElement | null>(null)
 const currentLocale = ref(locale.value)
 watch(locale, (val) => { currentLocale.value = val })
 
+// ---- 品牌 Logo ----
+const logoError = ref(false)
+const brandName = computed(() => profile.value.brand.name || 'Forge')
+const brandLogo = computed(() => profile.value.brand.logo ?? { type: 'text', data: '' })
+const sanitizedBrandSvg = computed(() => {
+  const raw = brandLogo.value.data || ''
+  return raw
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .trim()
+})
+watch(() => brandLogo.value.data, () => { logoError.value = false })
+
+// ---- 语言选项：由站点 i18n 配置驱动（profile.i18n.locales） ----
+const LOCALE_LABELS: Record<string, string> = {
+  en: 'EN', 'zh': 'ZH', 'zh-CN': '简体中文', 'zh-TW': '繁體中文',
+  ar: 'AR', de: 'DE', fr: 'FR', es: 'ES', ja: 'JA', ko: 'KO',
+  pt: 'PT', ru: 'RU', it: 'IT', nl: 'NL', pl: 'PL', tr: 'TR',
+}
+const enabledLocaleOptions = computed(() => {
+  const codes = profile.value.i18n.locales?.length ? profile.value.i18n.locales : ['en']
+  return codes.map((c: string) => ({ code: c, label: LOCALE_LABELS[c] || c.toUpperCase() }))
+})
+
 const navLinks = computed(() => {
   // 安全解析 labelKey：t(missingKey) 返回自身字符串（truthy）导致 || 回退失效，
   // 必须用 te(key) 判断存在才取 t(key)，否则走 n.label 等文案兜底。
@@ -299,8 +321,6 @@ const navLinks = computed(() => {
     { to: localePath('/products'), label: resolveText('nav.products', '商品') },
   ]
 })
-
-const brandName = computed(() => profile.value.brand.name || 'Forge')
 
 const availableCurrencies = computed(() =>
   profile.value.currencies.length > 0 ? profile.value.currencies : ['USD'],
