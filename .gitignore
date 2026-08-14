@@ -25,4 +25,6 @@ temp_*
 .codebuddy/
 *.pid
 *.ps1
+!docker/rebuild-admin.ps1
+!docker/check-admin.ps1
 portal-web/.output/
