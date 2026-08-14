@@ -28,15 +28,15 @@ const DEFAULT_SITE_CONFIG = {
   navigation: [
     { key: 'home', to: '/', labelKey: 'nav.home', label: '首页', visible: true, order: 0 },
     { key: 'products', to: '/products', labelKey: 'nav.products', label: '商品', visible: true, order: 1 },
-    { key: 'pets', to: '/pets', labelKey: 'nav.pets', label: '我的宠物', visible: true, order: 2 },
+    { key: 'pets', to: '/pets', labelKey: 'nav.pets', label: '我的宠物', visible: true, order: 2, featureFlag: 'show_pets_page' },
     { key: 'orders', to: '/orders', labelKey: 'nav.orders', label: '订单', visible: true, order: 3 },
-    { key: 'chat', to: '/chat', labelKey: 'nav.chat', label: 'AI客服', visible: true, order: 4 },
-  ] as { key: string; to: string; labelKey: string; label: string; visible: boolean; order: number }[],
+    { key: 'chat', to: '/chat', labelKey: 'nav.chat', label: 'AI客服', visible: true, order: 4, featureFlag: 'show_ai_chat' },
+  ] as { key: string; to: string; labelKey: string; label: string; visible: boolean; order: number; featureFlag?: string }[],
   categories: [
-    { slug: 'cat-food', nameKey: 'footer.petFood', name: '宠物食品', icon: '🍖', image: '', visible: true, order: 0 },
-    { slug: 'toys', nameKey: 'footer.toys', name: '玩具', icon: '🎾', image: '', visible: true, order: 1 },
-    { slug: 'health-wellness', nameKey: 'footer.healthWellness', name: '健康护理', icon: '💊', image: '', visible: true, order: 2 },
-    { slug: 'accessories', nameKey: 'footer.accessories', name: '配件', icon: '🎀', image: '', visible: true, order: 3 },
+    { slug: 'cat-food', nameKey: 'cat.food', name: '宠物食品', icon: '🍖', image: '', visible: true, order: 0 },
+    { slug: 'toys', nameKey: 'cat.toys', name: '玩具', icon: '🎾', image: '', visible: true, order: 1 },
+    { slug: 'health-wellness', nameKey: 'cat.healthWellness', name: '健康护理', icon: '💊', image: '', visible: true, order: 2 },
+    { slug: 'accessories', nameKey: 'cat.accessories', name: '配件', icon: '🎀', image: '', visible: true, order: 3 },
   ] as { slug: string; nameKey: string; name: string; icon: string; image: string; visible: boolean; order: number }[],
   footer: {
     copyright: '© 2026 Forge. 版权所有。',
@@ -65,7 +65,51 @@ const DEFAULT_SITE_CONFIG = {
   i18n: {
     defaultLocale: 'en',
     locales: ['en', 'zh', 'ar', 'de', 'fr'] as string[],
-    translations: { en: {}, zh: {}, ar: {}, de: {}, fr: {} } as Record<string, Record<string, string>>,
+    // 预置默认站点配置引用的所有动态 i18n key（nav./cat./footer.），
+    // C 端切换语言时由 useSiteProfile.applyI18nTranslations 合并进 vue-i18n 运行时。
+    // 新增语言只需在 locales 数组追加 code，并在 translations 补一份对应文案表（后台 i18n 面板可按语言 Tab 编辑）。
+    translations: {
+      en: {
+        'nav.home': 'Home', 'nav.products': 'Products', 'nav.pets': 'My Pets', 'nav.orders': 'Orders', 'nav.chat': 'AI Chat',
+        'cat.food': 'Pet Food', 'cat.toys': 'Toys', 'cat.healthWellness': 'Health & Wellness', 'cat.accessories': 'Accessories',
+        'footer.shop': 'Shop', 'footer.support': 'Support', 'footer.about': 'About', 'footer.legal': 'Legal',
+        'footer.petFood': 'Pet Food', 'footer.toys': 'Toys', 'footer.healthWellness': 'Health & Wellness',
+        'footer.faqs': 'FAQ', 'footer.shippingInfo': 'Shipping Info', 'footer.ourStory': 'Our Story', 'footer.blog': 'Blog',
+        'footer.privacyPolicy': 'Privacy Policy', 'footer.termsOfService': 'Terms of Service',
+      },
+      zh: {
+        'nav.home': '首页', 'nav.products': '商品', 'nav.pets': '我的宠物', 'nav.orders': '订单', 'nav.chat': 'AI客服',
+        'cat.food': '宠物食品', 'cat.toys': '玩具', 'cat.healthWellness': '健康护理', 'cat.accessories': '配件',
+        'footer.shop': '购物', 'footer.support': '帮助', 'footer.about': '关于', 'footer.legal': '法律',
+        'footer.petFood': '宠物食品', 'footer.toys': '玩具', 'footer.healthWellness': '健康护理',
+        'footer.faqs': '常见问题', 'footer.shippingInfo': '配送说明', 'footer.ourStory': '我们的故事', 'footer.blog': '博客',
+        'footer.privacyPolicy': '隐私政策', 'footer.termsOfService': '服务条款',
+      },
+      de: {
+        'nav.home': 'Startseite', 'nav.products': 'Produkte', 'nav.pets': 'Meine Haustiere', 'nav.orders': 'Bestellungen', 'nav.chat': 'KI-Chat',
+        'cat.food': 'Tierfutter', 'cat.toys': 'Spielzeug', 'cat.healthWellness': 'Gesundheit & Wohlbefinden', 'cat.accessories': 'Zubehör',
+        'footer.shop': 'Shop', 'footer.support': 'Hilfe', 'footer.about': 'Über uns', 'footer.legal': 'Rechtliches',
+        'footer.petFood': 'Tierfutter', 'footer.toys': 'Spielzeug', 'footer.healthWellness': 'Gesundheit & Wohlbefinden',
+        'footer.faqs': 'FAQ', 'footer.shippingInfo': 'Versandinformationen', 'footer.ourStory': 'Unsere Geschichte', 'footer.blog': 'Blog',
+        'footer.privacyPolicy': 'Datenschutzrichtlinie', 'footer.termsOfService': 'Nutzungsbedingungen',
+      },
+      fr: {
+        'nav.home': 'Accueil', 'nav.products': 'Produits', 'nav.pets': 'Mes animaux', 'nav.orders': 'Commandes', 'nav.chat': 'Chat IA',
+        'cat.food': 'Aliments pour animaux', 'cat.toys': 'Jouets', 'cat.healthWellness': 'Santé et bien-être', 'cat.accessories': 'Accessoires',
+        'footer.shop': 'Boutique', 'footer.support': 'Aide', 'footer.about': 'À propos', 'footer.legal': 'Légal',
+        'footer.petFood': 'Aliments pour animaux', 'footer.toys': 'Jouets', 'footer.healthWellness': 'Santé et bien-être',
+        'footer.faqs': 'FAQ', 'footer.shippingInfo': 'Informations de livraison', 'footer.ourStory': 'Notre histoire', 'footer.blog': 'Blog',
+        'footer.privacyPolicy': 'Politique de confidentialité', 'footer.termsOfService': "Conditions d'utilisation",
+      },
+      ar: {
+        'nav.home': 'الرئيسية', 'nav.products': 'المنتجات', 'nav.pets': 'حيواناتي الأليفة', 'nav.orders': 'الطلبات', 'nav.chat': 'الدردشة الذكية',
+        'cat.food': 'طعام الحيوانات الأليفة', 'cat.toys': 'الألعاب', 'cat.healthWellness': 'الصحة والعافية', 'cat.accessories': 'الإكسسوارات',
+        'footer.shop': 'المتجر', 'footer.support': 'الدعم', 'footer.about': 'من نحن', 'footer.legal': 'القانون',
+        'footer.petFood': 'طعام الحيوانات الأليفة', 'footer.toys': 'الألعاب', 'footer.healthWellness': 'الصحة والعافية',
+        'footer.faqs': 'الأسئلة الشائعة', 'footer.shippingInfo': 'معلومات الشحن', 'footer.ourStory': 'قصتنا', 'footer.blog': 'المدونة',
+        'footer.privacyPolicy': 'سياسة الخصوصية', 'footer.termsOfService': 'شروط الخدمة',
+      },
+    } as Record<string, Record<string, string>>,
   },
   featureFlags: {
     show_pets_page: true,
@@ -201,7 +245,16 @@ export const useDiyStore = defineStore('diy-store', () => {
       });
     }
     if (Array.isArray(siteConfig.categories)) {
-      siteConfig.categories.forEach((c: any, i: number) => { c.order = i; });
+      siteConfig.categories.forEach((c: any, i: number) => {
+        c.order = i;
+        // 分类 i18n key 统一 cat. 前缀（兼容历史 footer. 开头 / 漏前缀数据）
+        if (c.nameKey) {
+          const k = String(c.nameKey).trim().replace(/^\.+/, '');
+          if (k.startsWith('cat.')) { c.nameKey = k; }
+          else if (k.startsWith('footer.')) { c.nameKey = `cat.${k.replace(/^footer\./, '')}`; }
+          else { c.nameKey = `cat.${k}`; }
+        }
+      });
     }
     if (siteConfig.footer?.linkGroups) {
       siteConfig.footer.linkGroups.forEach((g: any, i: number) => { g.order = i; });

@@ -378,7 +378,10 @@
                 style="flex:1"
                 @update:value="v => onGroupTitleChanged(gIdx, v)"
               />
-              <NInput v-model:value="group.titleKey" size="small" placeholder="i18n key（留空自动生成）" style="width:150px" />
+              <div class="flex items-center gap-1">
+                <NTag size="small" type="info" :bordered="false" class="shrink-0" title="页脚分组 i18n key 公共前缀，自动拼接">footer.</NTag>
+                <NInput :value="footerKeySuffix(group.titleKey)" @update:value="v => onGroupTitleKeyChanged(gIdx, group.titleKey, v)" size="small" placeholder="如 support（留空自动生成）" style="width:150px" />
+              </div>
               <NButton size="tiny" quaternary type="error" @click="config.footer.linkGroups.splice(gIdx, 1)">
                 <template #icon><SvgIcon icon="mdi:close" /></template>
               </NButton>
@@ -402,8 +405,11 @@
                 <!-- 第二行：i18n key + 跳转路径 -->
                 <div class="flex flex-col gap-2">
                   <div class="flex flex-col gap-0.5">
-                    <FieldLabel label="翻译 Key" name="labelKey" type="string (i18n key)" range="点分命名，留空自动生成" example="footer.faqs" desc="链接文字的 i18n 翻译 key。" />
-                    <NInput v-model:value="link.labelKey" size="small" placeholder="i18n key" />
+                    <FieldLabel label="翻译 Key 后缀" name="labelKey" type="string" range="自动拼接 footer. 前缀" example="faqs" desc="链接翻译 key 统一以 footer. 开头，此处只填后缀，保存时自动拼接为 footer.faqs；留空则按链接文字自动生成。" />
+                    <div class="flex items-center gap-1">
+                      <NTag size="small" type="info" :bordered="false" class="shrink-0" title="页脚链接 i18n key 公共前缀，自动拼接">footer.</NTag>
+                      <NInput :value="footerKeySuffix(link.labelKey)" @update:value="v => onLinkLabelKeyChanged(gIdx, lIdx, link.labelKey, v)" size="small" placeholder="如 faqs（留空自动生成）" />
+                    </div>
                   </div>
                   <div class="flex flex-col gap-0.5">
                     <FieldLabel label="跳转路径" name="to" type="string" range="站内路径，/ 开头" example="/faqs" desc="链接点击跳转路径。" />
@@ -931,28 +937,52 @@ function navKeySuffix(key: string): string {
 
 function onCategoryNameKeyChanged(idx: number | string, oldKey: string, v: string | number) {
   const i = Number(idx);
-  const newKey = String(v ?? '').trim();
   const cat: any = config.value.categories?.[i];
   if (!cat) return;
+  // 自动剥离并拼接 cat. 公共前缀（兼容粘贴完整 cat.xxx 或历史 footer.xxx 的场景）
+  const raw = String(v ?? '').trim();
+  let suffix = raw.startsWith('cat.') ? raw.slice(4) : raw;
+  suffix = suffix.replace(/^\.+/, '');
+  const newKey = suffix ? `cat.${suffix}` : '';
   cat.nameKey = newKey;
   renameTranslationKey(oldKey, newKey, cat.name);
 }
 
+/** 分类 nameKey 显示为去前缀后的后缀（输入框只展示/编辑 cat. 之后的部分） */
+function catKeySuffix(key: string): string {
+  const k = (key || '').trim();
+  return k.startsWith('cat.') ? k.slice(4) : k;
+}
+
 function onGroupTitleKeyChanged(gIdx: number | string, oldKey: string, v: string | number) {
   const gi = Number(gIdx);
-  const newKey = String(v ?? '').trim();
   const group: any = config.value.footer?.linkGroups?.[gi];
   if (!group) return;
+  // 自动剥离并拼接 footer. 公共前缀（兼容粘贴完整 footer.xxx 的场景）
+  const raw = String(v ?? '').trim();
+  let suffix = raw.startsWith('footer.') ? raw.slice(7) : raw;
+  suffix = suffix.replace(/^\.+/, '');
+  const newKey = suffix ? `footer.${suffix}` : '';
   group.titleKey = newKey;
   renameTranslationKey(oldKey, newKey, group.title);
+}
+
+/** 页脚 key 显示为去前缀后的后缀（输入框只展示/编辑 footer. 之后的部分） */
+function footerKeySuffix(key: string): string {
+  const k = (key || '').trim();
+  return k.startsWith('footer.') ? k.slice(7) : k;
 }
 
 function onLinkLabelKeyChanged(gIdx: number | string, lIdx: number | string, oldKey: string, v: string | number) {
   const gi = Number(gIdx);
   const li = Number(lIdx);
-  const newKey = String(v ?? '').trim();
   const link: any = config.value.footer?.linkGroups?.[gi]?.links?.[li];
   if (!link) return;
+  // 自动剥离并拼接 footer. 公共前缀（兼容粘贴完整 footer.xxx 或 footer.link.xxx 的场景）
+  const raw = String(v ?? '').trim();
+  let suffix = raw.startsWith('footer.') ? raw.slice(7) : raw;
+  suffix = suffix.replace(/^\.+/, '');
+  const newKey = suffix ? `footer.${suffix}` : '';
   link.labelKey = newKey;
   renameTranslationKey(oldKey, newKey, link.label);
 }

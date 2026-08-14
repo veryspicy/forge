@@ -182,9 +182,14 @@ export function useSiteProfile() {
   }
 
   /** Get visible navigation links (sorted by order). */
+  // 联动过滤：导航项配置 featureFlag 时，对应开关关闭则整项隐藏（如 show_pets_page=false 时宠物导航消失）。
   const visibleNav = computed(() =>
     [...profile.value.navigation]
       .filter((n) => n.visible !== false)
+      .filter((n) => {
+        if (!n.featureFlag) return true
+        return hasFeature(n.featureFlag)
+      })
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
   )
 
@@ -235,6 +240,8 @@ export interface NavItem {
   label?: string
   visible: boolean
   order?: number
+  /** 联动功能开关：配置后该导航项显隐由 featureFlags[featureFlag] 控制 */
+  featureFlag?: string
 }
 
 export interface Section {
