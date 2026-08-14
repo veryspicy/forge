@@ -49,11 +49,11 @@
 
       <!-- 1. 品牌配置 -->
       <div v-if="activeConfigKey === 'brand'" class="flex flex-col gap-3">
-        <label class="text-xs font-medium text-gray-500">品牌名称</label>
+        <FieldLabel label="品牌名称" name="name" type="string" range="≤ 50 字符" example="Forge" desc="品牌名称，显示在站点页头/页脚及浏览器标题。" />
         <NInput v-model:value="config.brand.name" placeholder="请输入品牌名称" />
-        <label class="text-xs font-medium text-gray-500">品牌标语</label>
+        <FieldLabel label="品牌标语" name="tagline" type="string" range="≤ 120 字符" example="AI 驱动的宠物用品商店" desc="一句话品牌介绍（可留空），显示在页头副标题区域。" />
         <NInput v-model:value="config.brand.tagline" placeholder="一句话品牌介绍（可留空）" />
-        <label class="text-xs font-medium text-gray-500">Logo 类型</label>
+        <FieldLabel label="Logo 类型" name="logo.type" type="enum" range="text | image | svg" example="text" desc="Logo 渲染方式：文字 / 图片 / 内联 SVG 代码。" />
         <NSelect
           v-model:value="config.brand.logo.type"
           :options="[
@@ -64,11 +64,11 @@
           size="small"
         />
         <template v-if="config.brand.logo.type === 'text'">
-          <label class="text-xs font-medium text-gray-500">Logo 文字</label>
+          <FieldLabel label="Logo 文字" name="logo.data" type="string" range="≤ 30 字符" example="Forge" desc="显示在 Logo 位置的文字。" />
           <NInput v-model:value="config.brand.logo.data" placeholder="显示在 Logo 位置的文字" />
         </template>
         <template v-else-if="config.brand.logo.type === 'image'">
-          <label class="text-xs font-medium text-gray-500">上传 Logo 图片</label>
+          <FieldLabel label="Logo 图片" name="logo.data" type="image URL" range="http(s):// 或 data:image" example="https://example.com/logo.png" desc="上传 Logo 图片，或手动输入图片 URL。" />
           <NUpload :show-file-list="false" accept="image/*" :custom-request="(opt) => handleImageUpload(opt, { target: 'brandLogo' })">
             <NButton size="small" :loading="uploadingBrandLogo">
               <template #icon><SvgIcon icon="mdi:upload" /></template>
@@ -82,11 +82,11 @@
               <template #icon><SvgIcon icon="mdi:close" /></template>
             </NButton>
           </div>
-          <label class="text-xs font-medium text-gray-500">或手动输入图片 URL</label>
+          <FieldLabel label="Logo 图片 URL" name="logo.data (URL)" type="string" range="http(s)://" example="https://example.com/logo.png" desc="或手动输入图片 URL。" />
           <NInput v-model:value="config.brand.logo.data" placeholder="https://example.com/logo.png" />
         </template>
         <template v-else-if="config.brand.logo.type === 'svg'">
-          <label class="text-xs font-medium text-gray-500">粘贴 SVG 源码</label>
+          <FieldLabel label="Logo SVG 代码" name="logo.data" type="string (SVG)" range="合法 SVG 源码" example='<svg viewBox="0 0 100 100">...</svg>' desc="粘贴 SVG 源码，将过滤 script / on* 等注入后实时预览。" />
           <NInput
             v-model:value="config.brand.logo.data"
             type="textarea"
@@ -129,7 +129,7 @@
 
       <!-- 2. 主题配置 -->
       <div v-else-if="activeConfigKey === 'theme'" class="flex flex-col gap-4">
-        <label class="text-xs font-medium text-gray-500">主题预设</label>
+        <FieldLabel label="主题预设" name="preset" type="enum" range="forge | apple | cloudflare | linear | vercel | stripe | notik | shopify" example="forge" desc="一键套用预置配色方案，点击后覆盖下方各色值。" />
         <div class="grid grid-cols-2 gap-2">
           <div
             v-for="(preset, presetKey) in THEME_PRESETS"
@@ -146,34 +146,34 @@
         </div>
         <div class="border-t border-gray-100 border-solid pt-3 dark:border-gray-700" />
         <div class="flex flex-col gap-3">
-          <label class="text-xs font-medium text-gray-500">主色 Primary</label>
+          <FieldLabel label="主色" name="primaryColor" type="hex color" range="#000000 ~ #ffffff" example="#18a058" desc="主题主色，用于按钮/链接/选中态等核心交互元素。" />
           <div class="flex items-center gap-2">
             <NColorPicker :value="config.theme.primaryColor" @update:value="v => (config.theme.primaryColor = v)" size="small" />
             <NInput v-model:value="config.theme.primaryColor" size="small" style="flex:1" />
           </div>
-          <label class="text-xs font-medium text-gray-500">浅主色 Primary Light</label>
+          <FieldLabel label="主色浅变体" name="primaryLight" type="hex color" range="#000000 ~ #ffffff" example="#36ad6a" desc="主色的浅色变体，用于 hover 状态 / 浅色背景。" />
           <div class="flex items-center gap-2">
             <NColorPicker :value="config.theme.primaryLight" @update:value="v => (config.theme.primaryLight = v)" size="small" />
             <NInput v-model:value="config.theme.primaryLight" size="small" style="flex:1" />
           </div>
-          <label class="text-xs font-medium text-gray-500">深主色 Primary Dark</label>
+          <FieldLabel label="主色深变体" name="primaryDark" type="hex color" range="#000000 ~ #ffffff" example="#0c7a43" desc="主色的深色变体，用于 active 状态 / 强调文字。" />
           <div class="flex items-center gap-2">
             <NColorPicker :value="config.theme.primaryDark" @update:value="v => (config.theme.primaryDark = v)" size="small" />
             <NInput v-model:value="config.theme.primaryDark" size="small" style="flex:1" />
           </div>
-          <label class="text-xs font-medium text-gray-500">辅助色 Secondary</label>
+          <FieldLabel label="辅助色" name="secondaryColor" type="hex color" range="#000000 ~ #ffffff" example="#f0a020" desc="辅助色，用于次要按钮 / 标签 / 价格等。" />
           <div class="flex items-center gap-2">
             <NColorPicker :value="config.theme.secondaryColor" @update:value="v => (config.theme.secondaryColor = v)" size="small" />
             <NInput v-model:value="config.theme.secondaryColor" size="small" style="flex:1" />
           </div>
-          <label class="text-xs font-medium text-gray-500">强调色 Accent</label>
+          <FieldLabel label="强调色" name="accentColor" type="hex color" range="#000000 ~ #ffffff" example="#2080f0" desc="强调色，用于促销/提示/链接等需要突出的元素。" />
           <div class="flex items-center gap-2">
             <NColorPicker :value="config.theme.accentColor" @update:value="v => (config.theme.accentColor = v)" size="small" />
             <NInput v-model:value="config.theme.accentColor" size="small" style="flex:1" />
           </div>
-          <label class="text-xs font-medium text-gray-500">标题字体</label>
+          <FieldLabel label="标题字体" name="fontHeading" type="string (font-family)" range="CSS font-family 值" example="Inter, sans-serif" desc="标题字体栈，可填 Google Fonts 字体名 + 兜底字体。" />
           <NInput v-model:value="config.theme.fontHeading" placeholder="如 Inter, sans-serif" />
-          <label class="text-xs font-medium text-gray-500">正文字体</label>
+          <FieldLabel label="正文字体" name="fontBody" type="string (font-family)" range="CSS font-family 值" example="Inter, sans-serif" desc="正文字体栈，可填 Google Fonts 字体名 + 兜底字体。" />
           <NInput v-model:value="config.theme.fontBody" placeholder="如 Inter, sans-serif" />
         </div>
       </div>
@@ -243,9 +243,9 @@
             </div>
 
             <!-- 展开的详细配置 -->
-            <div v-if="navItem._open !== false" class="grid grid-cols-6 gap-2 p-2">
-              <div class="col-span-2 flex flex-col gap-1">
-                <label class="text-[10px] text-gray-400">跳转路径 to</label>
+            <div v-if="navItem._open !== false" class="flex flex-col gap-3 p-2">
+              <div class="flex flex-col gap-1">
+                <FieldLabel label="跳转路径" name="to" type="string" range="站内路径，/ 开头" example="/products" desc="导航项点击跳转的站内路由路径。" />
                 <NSelect
                   v-model:value="navItem.to"
                   filterable
@@ -255,12 +255,12 @@
                   placeholder="选择或输入路径"
                 />
               </div>
-              <div class="col-span-2 flex flex-col gap-1">
-                <label class="text-[10px] text-gray-400">i18n labelKey</label>
+              <div class="flex flex-col gap-1">
+                <FieldLabel label="翻译 Key" name="labelKey" type="string" range="i18n key，点分命名" example="nav.myPets" desc="导航名称对应的 i18n 翻译 key；留空时按名称自动生成。" />
                 <NInput :value="navItem.labelKey" @update:value="v => onNavLabelKeyChanged(idx, navItem.labelKey, v)" size="small" placeholder="如 nav.myPets（留空将自动生成）" />
               </div>
-              <div class="col-span-2 flex flex-col gap-1">
-                <label class="text-[10px] text-gray-400">关联功能开关（可选）</label>
+              <div class="flex flex-col gap-1">
+                <FieldLabel label="联动功能开关" name="featureFlag" type="string (flag key)" range="功能开关 key 或留空" example="show_ai_chat" desc="关联功能开关：开关关闭时自动隐藏该导航项。" />
                 <NSelect
                   v-model:value="navItem.featureFlag"
                   :options="FLAG_OPTIONS"
@@ -288,42 +288,50 @@
       <div v-else-if="activeConfigKey === 'categories'" class="flex flex-col gap-3">
         <VueDraggable v-model="config.categories" handle=".cat-drag-handle" :animation="150" class="flex flex-col gap-3">
           <div v-for="(cat, idx) in config.categories" :key="cat.slug || idx" class="rounded border border-gray-200 border-solid p-3 dark:border-gray-700">
-            <div class="grid grid-cols-12 gap-2">
-              <div class="col-span-1 flex items-center justify-center">
-                <SvgIcon icon="mdi:drag-vertical" class="cat-drag-handle cursor-grab text-gray-400 hover:text-gray-600" />
-              </div>
-              <div class="col-span-1 flex items-center justify-center">
-                <NSwitch v-model:value="cat.visible" size="small" />
-              </div>
-              <div class="col-span-4 flex flex-col gap-2">
+            <!-- 第一行：拖拽 + 显隐 + 名称 + 删除 -->
+            <div class="mb-2 flex items-center gap-2 border-b border-gray-100 border-solid pb-2 dark:border-gray-700">
+              <SvgIcon icon="mdi:drag-vertical" class="cat-drag-handle cursor-grab text-gray-400 hover:text-gray-600" />
+              <NSwitch v-model:value="cat.visible" size="small" />
+              <NInput
+                v-model:value="cat.name"
+                size="small"
+                placeholder="分类名称"
+                style="flex:1"
+                @update:value="v => onCategoryNameChanged(idx, v)"
+              />
+              <NButton size="tiny" quaternary type="error" @click="config.categories.splice(idx, 1)">
+                <template #icon><SvgIcon icon="mdi:close" /></template>
+              </NButton>
+            </div>
+            <!-- 第二行：图片/图标 + 字段 -->
+            <div class="flex items-start gap-3">
+              <div class="flex shrink-0 flex-col items-center gap-1">
                 <NUpload v-if="!cat.image" :show-file-list="false" accept="image/*" :custom-request="(opt) => handleImageUpload(opt, { target: 'categoryImage', index: Number(idx) })">
-                  <div class="flex h-14 w-14 cursor-pointer items-center justify-center rounded border border-dashed border-gray-300 border-solid text-xs text-gray-400 hover:border-gray-400 dark:border-gray-600">
+                  <div class="flex h-16 w-16 cursor-pointer items-center justify-center rounded border border-dashed border-gray-300 border-solid text-xs text-gray-400 hover:border-gray-400 dark:border-gray-600">
                     <SvgIcon icon="mdi:upload" />
                   </div>
                 </NUpload>
                 <div v-else class="relative">
-                  <img :src="cat.image" class="h-14 w-14 rounded object-cover" alt="分类图" />
+                  <img :src="cat.image" class="h-16 w-16 rounded object-cover" alt="分类图" />
                   <NButton size="tiny" quaternary type="error" class="absolute -right-1 -top-1 !p-0 !h-4 !w-4" @click="cat.image = ''">
                     <template #icon><SvgIcon icon="mdi:close" class="text-10px" /></template>
                   </NButton>
                 </div>
-                <label class="text-[10px] text-gray-400">或使用 Emoji 图标</label>
-                <NInput v-model:value="cat.icon" size="small" placeholder="📦" style="width:56px" />
+                <NInput v-model:value="cat.icon" size="small" placeholder="📦" style="width:56px" class="!text-center" />
               </div>
-              <div class="col-span-5 flex flex-col gap-2">
-                <NInput
-                  v-model:value="cat.name"
-                  size="small"
-                  placeholder="分类名称"
-                  @update:value="v => onCategoryNameChanged(idx, v)"
-                />
-                <NInput v-model:value="cat.nameKey" size="small" placeholder="i18n key（留空将自动生成）" />
-                <NInput v-model:value="cat.slug" size="small" placeholder="路径片段 slug" />
-              </div>
-              <div class="col-span-1 flex items-start justify-end">
-                <NButton size="tiny" quaternary type="error" @click="config.categories.splice(idx, 1)">
-                  <template #icon><SvgIcon icon="mdi:close" /></template>
-                </NButton>
+              <div class="flex min-w-0 flex-1 flex-col gap-2">
+                <div class="flex flex-col gap-1">
+                  <FieldLabel label="分类图片" name="image" type="image URL" range="http(s):// 或上传" example="https://cdn.example.com/cat-food.png" desc="分类卡片展示图；未上传时可用 Emoji 图标替代。" />
+                  <NInput v-model:value="cat.image" size="small" placeholder="分类图 URL（可选）" />
+                </div>
+                <div class="flex flex-col gap-1">
+                  <FieldLabel label="翻译 Key" name="nameKey" type="string (i18n key)" range="点分命名，留空自动生成" example="cat.food" desc="分类名称的 i18n 翻译 key；修改名称时自动生成并回填翻译。" />
+                  <NInput v-model:value="cat.nameKey" size="small" placeholder="i18n key（留空将自动生成）" />
+                </div>
+                <div class="flex flex-col gap-1">
+                  <FieldLabel label="路径片段" name="slug" type="string" range="小写字母/数字/中划线" example="cat-food" desc="URL 路径片段，用于分类路由与商品过滤参数。" />
+                  <NInput v-model:value="cat.slug" size="small" placeholder="路径片段 slug" />
+                </div>
               </div>
             </div>
           </div>
@@ -337,10 +345,10 @@
       <!-- 5. 页脚链接配置 -->
       <div v-else-if="activeConfigKey === 'footer'" class="flex flex-col gap-4">
         <div class="flex flex-col gap-3">
-          <label class="text-xs font-medium text-gray-500">版权信息</label>
+          <FieldLabel label="版权文案" name="copyright" type="string" range="≤ 200 字符" example="© 2026 Forge. 版权所有。" desc="页脚底部版权文案。" />
           <NInput v-model:value="config.footer.copyright" placeholder="© 2026 Forge. 版权所有。" />
           <div class="flex items-center justify-between">
-            <label class="text-xs font-medium text-gray-500">显示 Newsletter 订阅</label>
+            <FieldLabel label="邮件订阅" name="newsletter" type="boolean" range="true | false" example="true" desc="是否在页脚显示 Newsletter 订阅输入框。" />
             <NSwitch v-model:value="config.footer.newsletter" />
           </div>
         </div>
@@ -368,20 +376,32 @@
               </NButton>
             </div>
             <div class="flex flex-col gap-2">
-              <div v-for="(link, lIdx) in group.links" :key="lIdx" class="flex items-center gap-2">
-                <NSwitch v-model:value="link.visible" size="small" />
-                <NInput
-                  v-model:value="link.label"
-                  size="small"
-                  placeholder="链接文字"
-                  style="flex:1"
-                  @update:value="v => onLinkLabelChanged(gIdx, lIdx, v)"
-                />
-                <NInput v-model:value="link.labelKey" size="small" placeholder="i18n key" style="width:120px" />
-                <NInput v-model:value="link.to" size="small" placeholder="/path" style="width:90px" />
-                <NButton size="tiny" quaternary type="error" @click="group.links.splice(lIdx, 1)">
-                  <template #icon><SvgIcon icon="mdi:close" /></template>
-                </NButton>
+              <div v-for="(link, lIdx) in group.links" :key="lIdx" class="rounded border border-gray-100 border-solid p-2 dark:border-gray-700">
+                <!-- 第一行：开关 + 链接文字 + 删除 -->
+                <div class="mb-1.5 flex items-center gap-2">
+                  <NSwitch v-model:value="link.visible" size="small" />
+                  <NInput
+                    v-model:value="link.label"
+                    size="small"
+                    placeholder="链接文字"
+                    style="flex:1"
+                    @update:value="v => onLinkLabelChanged(gIdx, lIdx, v)"
+                  />
+                  <NButton size="tiny" quaternary type="error" @click="group.links.splice(lIdx, 1)">
+                    <template #icon><SvgIcon icon="mdi:close" /></template>
+                  </NButton>
+                </div>
+                <!-- 第二行：i18n key + 跳转路径 -->
+                <div class="flex flex-col gap-2">
+                  <div class="flex flex-col gap-0.5">
+                    <FieldLabel label="翻译 Key" name="labelKey" type="string (i18n key)" range="点分命名，留空自动生成" example="footer.faqs" desc="链接文字的 i18n 翻译 key。" />
+                    <NInput v-model:value="link.labelKey" size="small" placeholder="i18n key" />
+                  </div>
+                  <div class="flex flex-col gap-0.5">
+                    <FieldLabel label="跳转路径" name="to" type="string" range="站内路径，/ 开头" example="/faqs" desc="链接点击跳转路径。" />
+                    <NInput v-model:value="link.to" size="small" placeholder="/path" />
+                  </div>
+                </div>
               </div>
               <NButton size="tiny" dashed @click="addLinkToGroup(group)">
                 <template #icon><SvgIcon icon="mdi:plus" /></template>
@@ -395,36 +415,36 @@
       <!-- 6. 首页 Hero / 轮播配置 -->
       <div v-else-if="activeConfigKey === 'homeHero'" class="flex flex-col gap-4">
         <div class="flex items-center justify-between rounded bg-gray-50 p-3 dark:bg-gray-800">
-          <span class="text-sm font-medium">使用轮播模式</span>
+          <FieldLabel label="轮播模式" name="useCarousel" type="boolean" range="true | false" example="false" desc="开启后使用轮播模式（多图自动播放），关闭则为单张 Hero 大图。" />
           <NSwitch v-model:value="config.homeHero.useCarousel" />
         </div>
 
         <template v-if="!config.homeHero.useCarousel">
-          <label class="text-xs font-medium text-gray-500">标题</label>
+          <FieldLabel label="Hero 主标题" name="hero.title" type="string" range="≤ 60 字符" example="Smart Shopping for Your Pet" desc="Hero 大标题文案。" />
           <NInput v-model:value="config.homeHero.hero.title" placeholder="Hero 大标题" />
-          <label class="text-xs font-medium text-gray-500">标题 i18n key</label>
+          <FieldLabel label="主标题翻译 Key" name="hero.titleKey" type="string (i18n key)" range="点分命名" example="home.heroTitle" desc="标题对应的 i18n 翻译 key。" />
           <NInput v-model:value="config.homeHero.hero.titleKey" placeholder="home.heroTitle" />
-          <label class="text-xs font-medium text-gray-500">副标题</label>
+          <FieldLabel label="Hero 副标题" name="hero.subtitle" type="string" range="≤ 120 字符" example="AI-powered product recommendations..." desc="Hero 副标题描述文案。" />
           <NInput v-model:value="config.homeHero.hero.subtitle" placeholder="描述文字" />
-          <label class="text-xs font-medium text-gray-500">副标题 i18n key</label>
+          <FieldLabel label="副标题翻译 Key" name="hero.subtitleKey" type="string (i18n key)" range="点分命名" example="home.heroDesc" desc="副标题对应的 i18n 翻译 key。" />
           <NInput v-model:value="config.homeHero.hero.subtitleKey" placeholder="home.heroDesc" />
 
           <div class="border-t border-gray-100 border-solid pt-3 dark:border-gray-700" />
-          <label class="text-xs font-medium text-gray-500">主按钮 CTA1</label>
-          <div class="grid grid-cols-3 gap-2">
-            <NInput v-model:value="config.homeHero.hero.cta1Label" size="small" placeholder="按钮文字" />
-            <NInput v-model:value="config.homeHero.hero.cta1LabelKey" size="small" placeholder="i18n key" />
-            <NInput v-model:value="config.homeHero.hero.cta1To" size="small" placeholder="/path" />
-          </div>
-          <label class="text-xs font-medium text-gray-500">次按钮 CTA2</label>
-          <div class="grid grid-cols-3 gap-2">
-            <NInput v-model:value="config.homeHero.hero.cta2Label" size="small" placeholder="按钮文字" />
-            <NInput v-model:value="config.homeHero.hero.cta2LabelKey" size="small" placeholder="i18n key" />
-            <NInput v-model:value="config.homeHero.hero.cta2To" size="small" placeholder="/path" />
-          </div>
+          <FieldLabel label="主按钮文字" name="hero.cta1Label" type="string" range="≤ 20 字符" example="Shop Now" desc="主按钮 CTA1 的文字。" />
+          <NInput v-model:value="config.homeHero.hero.cta1Label" size="small" placeholder="按钮文字" />
+          <FieldLabel label="主按钮翻译 Key" name="hero.cta1LabelKey" type="string (i18n key)" range="点分命名" example="home.shopNow" desc="主按钮 CTA1 文字对应的 i18n 翻译 key。" />
+          <NInput v-model:value="config.homeHero.hero.cta1LabelKey" size="small" placeholder="i18n key" />
+          <FieldLabel label="主按钮跳转路径" name="hero.cta1To" type="string" range="/ 开头" example="/products" desc="主按钮 CTA1 的跳转路径。" />
+          <NInput v-model:value="config.homeHero.hero.cta1To" size="small" placeholder="/path" />
+          <FieldLabel label="次按钮文字" name="hero.cta2Label" type="string" range="≤ 20 字符" example="Add Your Pet" desc="次按钮 CTA2 的文字。" />
+          <NInput v-model:value="config.homeHero.hero.cta2Label" size="small" placeholder="按钮文字" />
+          <FieldLabel label="次按钮翻译 Key" name="hero.cta2LabelKey" type="string (i18n key)" range="点分命名" example="home.addPet" desc="次按钮 CTA2 文字对应的 i18n 翻译 key。" />
+          <NInput v-model:value="config.homeHero.hero.cta2LabelKey" size="small" placeholder="i18n key" />
+          <FieldLabel label="次按钮跳转路径" name="hero.cta2To" type="string" range="/ 开头" example="/pets" desc="次按钮 CTA2 的跳转路径。" />
+          <NInput v-model:value="config.homeHero.hero.cta2To" size="small" placeholder="/path" />
 
           <div class="border-t border-gray-100 border-solid pt-3 dark:border-gray-700" />
-          <label class="text-xs font-medium text-gray-500">背景图</label>
+          <FieldLabel label="Hero 背景图" name="hero.backgroundImage" type="image URL" range="http(s):// 或上传" example="https://cdn.example.com/hero.png" desc="Hero 背景图；留空使用默认渐变背景。" />
           <NUpload :show-file-list="false" accept="image/*" :custom-request="(opt) => handleImageUpload(opt, { target: 'heroBg' })">
             <NButton size="small" :loading="uploadingHeroBg">
               <template #icon><SvgIcon icon="mdi:upload" /></template>
@@ -440,18 +460,18 @@
         </template>
 
         <template v-else>
-          <div class="flex items-center gap-4 rounded bg-gray-50 p-3 dark:bg-gray-800">
-            <div class="flex items-center gap-2">
-              <span class="text-xs text-gray-500">自动播放</span>
+          <div class="flex flex-col gap-3 rounded bg-gray-50 p-3 dark:bg-gray-800">
+            <div class="flex items-center justify-between">
+              <FieldLabel label="自动轮播" name="carousel.autoplay" type="boolean" range="true | false" example="true" desc="是否自动轮播。" />
               <NSwitch v-model:value="config.homeHero.carousel.autoplay" size="small" />
             </div>
-            <div class="flex items-center gap-2">
-              <span class="text-xs text-gray-500">间隔 (ms)</span>
+            <div class="flex flex-col gap-1">
+              <FieldLabel label="轮播间隔" name="carousel.interval" type="number (ms)" range="≥ 500，步进 500" example="4000" desc="自动轮播间隔（毫秒）。" />
               <NInputNumber v-model:value="config.homeHero.carousel.interval" :min="500" :step="500" size="small" style="width:120px" />
             </div>
           </div>
 
-          <label class="text-xs font-medium text-gray-500">轮播图片</label>
+          <FieldLabel label="轮播图片列表" name="carousel.images[]" type="array<{url,alt,link,title}>" range="url 必填" example="url: https://.../banner.png" desc="轮播图片列表：每张图可配置标题、Alt 文本与跳转链接。" />
           <VueDraggable v-model="config.homeHero.carousel.images" handle=".carousel-drag-handle" :animation="150" class="flex flex-col gap-3">
             <div v-for="(img, iIdx) in config.homeHero.carousel.images" :key="iIdx" class="rounded border border-gray-200 border-solid p-3 dark:border-gray-700">
               <div class="grid grid-cols-12 gap-2">
@@ -474,8 +494,11 @@
                   </div>
                 </div>
                 <div class="col-span-7 flex flex-col gap-2">
+                  <FieldLabel label="图片标题" name="title" type="string" range="≤ 40 字符" example="夏日促销" desc="轮播图标题（部分主题展示在图片上）。" />
                   <NInput v-model:value="img.title" size="small" placeholder="标题" />
+                  <FieldLabel label="Alt 文本" name="alt" type="string" range="≤ 100 字符" example="宠物食品促销横幅" desc="图片 Alt 文本，用于无障碍与 SEO。" />
                   <NInput v-model:value="img.alt" size="small" placeholder="Alt 文本" />
+                  <FieldLabel label="跳转链接" name="link" type="string" range="站内路径 / 开头" example="/products" desc="点击轮播图跳转路径。" />
                   <NInput v-model:value="img.link" size="small" placeholder="跳转链接（如 /products）" />
                 </div>
                 <div class="col-span-1 flex items-start justify-end">
@@ -498,21 +521,21 @@
 
       <!-- 7. SEO 配置 -->
       <div v-else-if="activeConfigKey === 'seo'" class="flex flex-col gap-3">
-        <label class="text-xs font-medium text-gray-500">标题模板</label>
+        <FieldLabel label="标题模板" name="seo.titleTemplate" type="string" range="含 %s 占位符，≤ 80 字符" example="%s | Forge" desc="页面标题模板：%s 会被替换为当前页面标题。" />
         <NInput v-model:value="config.seo.titleTemplate" placeholder="%s | Forge" />
-        <label class="text-xs font-medium text-gray-500">首页标题</label>
+        <FieldLabel label="首页标题" name="seo.homeTitle" type="string" range="≤ 60 字符" example="Forge 宠物商城 - AI 驱动" desc="首页浏览器标题。" />
         <NInput v-model:value="config.seo.homeTitle" placeholder="首页 SEO 标题" />
-        <label class="text-xs font-medium text-gray-500">Meta 描述</label>
+        <FieldLabel label="页面描述" name="seo.description" type="string" range="≤ 150 字符" example="AI 驱动的宠物用品商城" desc="首页 Meta 描述，展示在搜索结果摘要。" />
         <NInput v-model:value="config.seo.description" type="textarea" placeholder="页面描述（150字以内）" :rows="4" />
-        <label class="text-xs font-medium text-gray-500">Meta 关键词</label>
+        <FieldLabel label="关键词" name="seo.metaKeywords" type="string" range="英文逗号分隔，≤ 20 个" example="宠物,宠物食品,AI商城" desc="首页 Meta 关键词。" />
         <NInput v-model:value="config.seo.metaKeywords" placeholder="关键词, 用逗号分隔" />
       </div>
 
       <!-- 8. i18n 多语言配置 -->
       <div v-else-if="activeConfigKey === 'i18n'" class="flex flex-col gap-4">
-        <label class="text-xs font-medium text-gray-500">默认语言</label>
+        <FieldLabel label="默认语言" name="i18n.defaultLocale" type="enum" range="见下拉选项" example="zh-CN" desc="站点默认语言；未启用语言中不可选。" />
         <NSelect v-model:value="config.i18n.defaultLocale" :options="localeOptions" size="small" />
-        <label class="text-xs font-medium text-gray-500">启用语言（多选）</label>
+        <FieldLabel label="启用语言" name="i18n.locales[]" type="array<enum>" range="至少 1 个" example="['zh-CN','en-US']" desc="启用的语言列表；切换 Tab 编辑各语言翻译。" />
         <NSelect v-model:value="config.i18n.locales" :options="localeOptions" multiple size="small" />
 
         <div class="border-t border-gray-100 border-solid pt-3 dark:border-gray-700" />
@@ -568,10 +591,12 @@
 
       <!-- 9. 功能开关 -->
       <div v-else-if="activeConfigKey === 'featureFlags'" class="flex flex-col gap-2">
+        <FieldLabel label="内置功能开关" name="featureFlags.<key>" type="boolean" range="true | false" example="show_ai_chat: true" desc="内置功能开关；关闭后对应功能在前台隐藏。导航项可通过 featureFlag 关联联动显隐。" />
         <div v-for="(label, key) in FLAG_LABELS" :key="key" class="flex items-center justify-between rounded border border-gray-100 border-solid p-2 dark:border-gray-700">
           <span class="text-sm">{{ label }}</span>
           <NSwitch v-model:value="config.featureFlags[key]" />
         </div>
+        <FieldLabel label="自定义功能开关" name="featureFlags.<自定义key>" type="boolean" range="小写字母/数字/下划线" example="enable_loyalty" desc="自定义功能开关；输入 key 后添加，供前台按 key 判断。" />
         <div v-for="(val, key) in customFlags" :key="key" class="flex items-center justify-between rounded border border-gray-100 border-solid p-2 dark:border-gray-700">
           <span class="text-sm font-mono text-xs">{{ key }}</span>
           <div class="flex items-center gap-2">
@@ -589,6 +614,7 @@
 
       <!-- 10. 货币配置 -->
       <div v-else-if="activeConfigKey === 'currencies'" class="flex flex-col gap-2">
+        <FieldLabel label="结算货币" name="currencies[]" type="array<string (ISO 4217)>" range="3 位大写字母代码" example="['CNY','USD']" desc="启用的结算货币列表；第一个为默认展示货币。" />
         <div v-for="(cur, idx) in config.currencies" :key="idx" class="flex items-center gap-2">
           <NInput v-model:value="config.currencies[idx]" size="small" placeholder="货币代码 (如 USD, CNY, EUR)" style="flex:1" />
           <NButton size="tiny" quaternary type="error" @click="config.currencies.splice(idx, 1)">
@@ -628,6 +654,7 @@ import { VueDraggable } from 'vue-draggable-plus';
 import { useDiyStore, SITE_CONFIG_ITEMS, THEME_PRESETS } from '@/store/modules/diy';
 import type { SelectedElementInfo } from '@/store/modules/diy';
 import { siteApi } from '@/service/api/diy';
+import FieldLabel from './FieldLabel.vue';
 
 const store = useDiyStore();
 

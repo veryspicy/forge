@@ -92,8 +92,18 @@
       </div>
     </div>
 
+    <!-- 右侧拖拽分隔条 -->
+    <div
+      v-if="panelVisible"
+      class="group flex w-1 shrink-0 cursor-col-resize items-center justify-center bg-transparent"
+      title="拖拽调整面板宽度 (260~520px)"
+      @mousedown="startPanelResize"
+    >
+      <div class="h-10 w-0.5 rounded bg-gray-200 transition-colors group-hover:bg-green-400 dark:bg-gray-700" />
+    </div>
+
     <!-- 右侧面板：站点配置编辑表单 / 选中元素信息 -->
-    <div v-if="panelVisible" class="w-[300px] shrink-0 overflow-hidden">
+    <div v-if="panelVisible" class="shrink-0 overflow-hidden" :style="{ width: panelWidth + 'px' }">
       <PropertyPanel />
     </div>
   </div>
@@ -111,6 +121,41 @@ const siteConfigItems = SITE_CONFIG_ITEMS;
 // ========== 左右面板可见性 ==========
 const leftPanelVisible = ref(true);
 const panelVisible = ref(false);
+/** 右侧属性面板宽度（可拖拽调整，260~520px） */
+const panelWidth = ref(300);
+const PANEL_WIDTH_MIN = 260;
+const PANEL_WIDTH_MAX = 520;
+
+/** 开始拖拽右侧面板分隔条（rAF 节流，避免每帧更新响应式导致卡顿） */
+let panelResizeRaf = 0;
+function startPanelResize(e: MouseEvent) {
+  e.preventDefault();
+  const startX = e.clientX;
+  const startWidth = panelWidth.value;
+  function onMove(ev: MouseEvent) {
+    const delta = startX - ev.clientX;
+    const next = Math.min(PANEL_WIDTH_MAX, Math.max(PANEL_WIDTH_MIN, startWidth + delta));
+    if (panelResizeRaf) cancelAnimationFrame(panelResizeRaf);
+    panelResizeRaf = requestAnimationFrame(() => {
+      panelWidth.value = next;
+      panelResizeRaf = 0;
+    });
+  }
+  function onUp() {
+    if (panelResizeRaf) {
+      cancelAnimationFrame(panelResizeRaf);
+      panelResizeRaf = 0;
+    }
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+}
 
 /** 选中左侧配置项或元素时自动打开右侧面板 */
 watch(
