@@ -20,6 +20,7 @@ x-common-vars: &common-vars
   MINIO_ENDPOINT: minio:9000
   MINIO_ACCESS_KEY: minioadmin
   MINIO_SECRET_KEY: minioadmin
+  MINIO_SECURE: "false"
   ROCKETMQ_PROXY: http://rocketmq-proxy:8081
   OPENAI_API_KEY: ${OPENAI_API_KEY:-sk-placeholder}
   JWT_SECRET_KEY: dev-secret-key-change-in-production
@@ -142,6 +143,7 @@ services:
       TZ: Asia/Shanghai
     volumes:
       - ../backend/src:/app/src  # 热重载
+      - ../backend/uploads:/app/uploads  # 本地降级图片持久化，容器重建不丢
     depends_on:
       postgres:
         condition: service_healthy

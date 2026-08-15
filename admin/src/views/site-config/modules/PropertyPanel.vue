@@ -52,24 +52,33 @@
         <!-- 品牌预览卡片：Logo + 品牌名称/标语 -->
         <ConfigCard title="品牌预览">
           <div class="flex items-center gap-3">
-            <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded border border-gray-200 border-solid bg-white dark:border-gray-700 dark:bg-dark">
-              <img
+            <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden">
+              <div
                 v-if="config.brand.logo.type === 'image' && config.brand.logo.data"
-                :src="config.brand.logo.data"
-                class="max-h-full max-w-full object-contain"
-                alt="Logo"
-              />
+                class="flex h-full w-full items-center justify-center"
+                :style="{
+                  backgroundImage:
+                    'conic-gradient(#d4d4d4 25%, transparent 0 50%, #d4d4d4 0 75%, transparent 0)',
+                  backgroundSize: '8px 8px'
+                }"
+              >
+                <img
+                  :src="config.brand.logo.data"
+                  class="max-h-full max-w-full object-contain"
+                  alt="Logo"
+                />
+              </div>
               <div
                 v-else-if="config.brand.logo.type === 'svg' && brandSvgPreview"
                 class="flex h-full w-full items-center justify-center [&>svg]:h-6 [&>svg]:w-auto"
                 v-html="brandSvgPreview"
               />
-              <span v-else class="px-1 text-center text-sm font-semibold text-gray-700 dark:text-gray-200">
+              <span v-else class="px-1 text-center text-sm font-semibold text-gray-700 dark:text-gray-200" :style="{ color: brandNameColor }">
                 {{ config.brand.name || 'Forge' }}
               </span>
             </div>
             <div class="min-w-0 flex-1">
-              <div class="truncate text-sm font-semibold text-gray-800 dark:text-gray-100">
+              <div class="truncate text-sm font-semibold text-gray-800 dark:text-gray-100" :style="{ color: brandNameColor }">
                 {{ config.brand.name || 'Forge' }}
               </div>
               <div v-if="config.brand.tagline" class="truncate text-xs text-gray-500">{{ config.brand.tagline }}</div>
@@ -81,6 +90,26 @@
         <NInput v-model:value="config.brand.name" placeholder="请输入品牌名称" />
         <FieldLabel label="品牌标语" name="tagline" type="string" range="≤ 120 字符" example="AI 驱动的宠物用品商店" desc="一句话品牌介绍（可留空），显示在页头副标题区域。" />
         <NInput v-model:value="config.brand.tagline" placeholder="一句话品牌介绍（可留空）" />
+        <FieldLabel label="品牌文字颜色" name="brand.nameColor" type="color" range="auto | #hex" example="#18a058" desc="auto=跟随主题主色（主题变化时品牌文字颜色随之变化）；或选择自定义固定颜色。C 端品牌名称/文字 Logo 与预览一致。" />
+        <div class="flex items-center gap-2">
+          <NSelect
+            v-model:value="brandNameColorMode"
+            :options="[
+              { label: '自动（跟随主题主色）', value: 'auto' },
+              { label: '自定义颜色', value: 'custom' },
+            ]"
+            size="small"
+            class="flex-1"
+          />
+          <NColorPicker
+            v-if="brandNameColorMode === 'custom'"
+            v-model:value="config.brand.nameColor"
+            :show-alpha="false"
+            :modes="['hex']"
+            size="small"
+            style="width: 180px"
+          />
+        </div>
         <FieldLabel label="Logo 类型" name="logo.type" type="enum" range="text | image | svg" example="text" desc="Logo 渲染方式：文字 / 图片 / 内联 SVG 代码。" />
         <NSelect
           v-model:value="config.brand.logo.type"
@@ -390,6 +419,22 @@
             <div class="flex items-center justify-between">
               <FieldLabel label="邮件订阅" name="newsletter" type="boolean" range="true | false" example="true" desc="是否在页脚显示 Newsletter 订阅输入框。" />
               <NSwitch v-model:value="config.footer.newsletter" />
+            </div>
+          </div>
+        </ConfigCard>
+
+        <ConfigCard title="社交媒体">
+          <div class="flex flex-col gap-2">
+            <FieldLabel label="平台开关与链接" name="social" type="object[]" range="facebook / x / instagram / youtube / tiktok / linkedin" desc="开启后，C 端页脚将显示对应平台图标，点击跳转到所填 URL（需以 http(s):// 开头）。" />
+            <div v-for="(item, sIdx) in config.footer.social || []" :key="item.platform || sIdx" class="flex items-center gap-2 rounded border border-gray-200 border-solid bg-white px-2 py-1.5 dark:border-gray-700 dark:bg-dark">
+              <span class="w-20 shrink-0 text-xs font-medium capitalize text-gray-600 dark:text-gray-300">{{ item.platform }}</span>
+              <NSwitch v-model:value="item.enabled" size="small" class="shrink-0" />
+              <NInput
+                v-model:value="item.url"
+                size="small"
+                placeholder="https://facebook.com/yourpage"
+                style="flex:1;min-width:0"
+              />
             </div>
           </div>
         </ConfigCard>
@@ -788,6 +833,24 @@ const brandSvgPreview = computed(() => {
   return sanitizeSvg(config.value.brand?.logo?.data || '');
 });
 
+/** 品牌文字颜色：auto=跟随主题主色（随主题变化）；#hex=自定义固定颜色 */
+const brandNameColor = computed(() => {
+  const c = config.value.brand?.nameColor;
+  if (c && c !== 'auto' && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(c)) return c;
+  return config.value.theme?.primaryColor || '#4f46e5';
+});
+/** 品牌文字颜色模式：auto / custom（custom 时 nameColor 存储 hex） */
+const brandNameColorMode = computed({
+  get: () => (config.value.brand?.nameColor && config.value.brand.nameColor !== 'auto' ? 'custom' : 'auto'),
+  set: (v: string) => {
+    if (v === 'auto') {
+      config.value.brand.nameColor = 'auto';
+    } else if (!config.value.brand.nameColor || config.value.brand.nameColor === 'auto') {
+      config.value.brand.nameColor = config.value.theme?.primaryColor || '#18a058';
+    }
+  },
+});
+
 const saving = ref(false);
 
 const uploadingBrandLogo = ref(false);
@@ -854,11 +917,14 @@ const PATH_OPTIONS = NAV_PRESETS.map(p => ({ label: `${p.label}  →  ${p.to}`, 
   { label: '/terms 服务条款', value: '/terms' }
 ]);
 
-/** feature flag 下拉选项 */
-const FLAG_OPTIONS = Object.entries(FLAG_LABELS).map(([value, label]) => ({
-  label: `${value} (${label})`,
-  value
-}));
+/** feature flag 下拉选项（首项为空值=不联动，保证已选后可取消） */
+const FLAG_OPTIONS = [
+  { label: '不联动（留空）', value: '' },
+  ...Object.entries(FLAG_LABELS).map(([value, label]) => ({
+    label: `${value} (${label})`,
+    value
+  }))
+];
 
 /**
  * ============ 自动 i18n 工具函数 ============
@@ -1049,16 +1115,24 @@ function onLinkLabelKeyChanged(gIdx: number | string, lIdx: number | string, old
   renameTranslationKey(oldKey, newKey, link.label);
 }
 
+/** 历史 home.* hero 键 → hero.* 标准键 的后缀映射（兼容旧数据，编辑时自动迁移） */
+const HERO_LEGACY_SUFFIX_MAP: Record<string, string> = {
+  heroTitle: 'title', heroDesc: 'subtitle', shopNow: 'cta1Label', addPet: 'cta2Label',
+};
+
 function heroKeySuffix(key: string): string {
   const k = (key || '').trim();
-  return k.startsWith('hero.') ? k.slice(5) : k;
+  if (k.startsWith('hero.')) return k.slice(5);
+  if (k.startsWith('home.')) return HERO_LEGACY_SUFFIX_MAP[k.slice(5)] ?? k.slice(5);
+  return k;
 }
 
 function onHeroTextKeyChanged(field: 'titleKey' | 'subtitleKey' | 'cta1LabelKey' | 'cta2LabelKey', oldKey: string, v: string | number) {
-  // 自动剥离并拼接 hero. 公共前缀（兼容粘贴完整 hero.xxx 的场景）
+  // 自动剥离并拼接 hero. 公共前缀（兼容粘贴完整 hero.xxx / 历史 home.xxx 的场景，旧 key 自动迁移为 hero.*）
   const raw = String(v ?? '').trim();
-  let suffix = raw.startsWith('hero.') ? raw.slice(5) : raw;
+  let suffix = raw.startsWith('hero.') ? raw.slice(5) : (raw.startsWith('home.') ? raw.slice(5) : raw);
   suffix = suffix.replace(/^\.+/, '');
+  suffix = HERO_LEGACY_SUFFIX_MAP[suffix] ?? suffix;
   const newKey = suffix ? `hero.${suffix}` : '';
   const hero: any = config.value.homeHero?.hero;
   if (!hero) return;

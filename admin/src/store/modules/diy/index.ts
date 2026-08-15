@@ -41,6 +41,14 @@ const DEFAULT_SITE_CONFIG = {
   footer: {
     copyright: '© 2026 Forge. 版权所有。',
     newsletter: true,
+    social: [
+      { platform: 'facebook', enabled: false, url: '' },
+      { platform: 'x', enabled: false, url: '' },
+      { platform: 'instagram', enabled: false, url: '' },
+      { platform: 'youtube', enabled: false, url: '' },
+      { platform: 'tiktok', enabled: false, url: '' },
+      { platform: 'linkedin', enabled: false, url: '' },
+    ] as { platform: string; enabled: boolean; url: string }[],
     linkGroups: [
       { key: 'shop', titleKey: 'footer.shop', title: '购物', visible: true, order: 0, links: [
         { labelKey: 'footer.petFood', label: '宠物食品', to: '/products?category=pet-food', visible: true },
@@ -84,6 +92,7 @@ const DEFAULT_SITE_CONFIG = {
         'footer.petFood': '宠物食品', 'footer.toys': '玩具', 'footer.healthWellness': '健康护理',
         'footer.faqs': '常见问题', 'footer.shippingInfo': '配送说明', 'footer.ourStory': '我们的故事', 'footer.blog': '博客',
         'footer.privacyPolicy': '隐私政策', 'footer.termsOfService': '服务条款',
+        'hero.title': '给宠物最好的陪伴', 'hero.subtitle': 'AI 驱动的智能购物，为您的毛孩子挑选最好的。', 'hero.cta1Label': '立即选购', 'hero.cta2Label': '添加您的宠物',
       },
       de: {
         'nav.home': 'Startseite', 'nav.products': 'Produkte', 'nav.pets': 'Meine Haustiere', 'nav.orders': 'Bestellungen', 'nav.chat': 'KI-Chat',
@@ -92,6 +101,7 @@ const DEFAULT_SITE_CONFIG = {
         'footer.petFood': 'Tierfutter', 'footer.toys': 'Spielzeug', 'footer.healthWellness': 'Gesundheit & Wohlbefinden',
         'footer.faqs': 'FAQ', 'footer.shippingInfo': 'Versandinformationen', 'footer.ourStory': 'Unsere Geschichte', 'footer.blog': 'Blog',
         'footer.privacyPolicy': 'Datenschutzrichtlinie', 'footer.termsOfService': 'Nutzungsbedingungen',
+        'hero.title': 'Ihr Haustier verdient das Beste', 'hero.subtitle': 'Intelligentes Einkaufen für Ihre pelzigen Freunde, unterstützt von KI.', 'hero.cta1Label': 'Jetzt einkaufen', 'hero.cta2Label': 'Haustier hinzufügen',
       },
       fr: {
         'nav.home': 'Accueil', 'nav.products': 'Produits', 'nav.pets': 'Mes animaux', 'nav.orders': 'Commandes', 'nav.chat': 'Chat IA',
@@ -100,6 +110,7 @@ const DEFAULT_SITE_CONFIG = {
         'footer.petFood': 'Aliments pour animaux', 'footer.toys': 'Jouets', 'footer.healthWellness': 'Santé et bien-être',
         'footer.faqs': 'FAQ', 'footer.shippingInfo': 'Informations de livraison', 'footer.ourStory': 'Notre histoire', 'footer.blog': 'Blog',
         'footer.privacyPolicy': 'Politique de confidentialité', 'footer.termsOfService': "Conditions d'utilisation",
+        'hero.title': 'Votre animal mérite le meilleur', 'hero.subtitle': "Shopping intelligent pour vos amis à fourrure, propulsé par l'IA.", 'hero.cta1Label': 'Acheter maintenant', 'hero.cta2Label': 'Ajouter votre animal',
       },
       ar: {
         'nav.home': 'الرئيسية', 'nav.products': 'المنتجات', 'nav.pets': 'حيواناتي الأليفة', 'nav.orders': 'الطلبات', 'nav.chat': 'الدردشة الذكية',
@@ -108,6 +119,7 @@ const DEFAULT_SITE_CONFIG = {
         'footer.petFood': 'طعام الحيوانات الأليفة', 'footer.toys': 'الألعاب', 'footer.healthWellness': 'الصحة والعافية',
         'footer.faqs': 'الأسئلة الشائعة', 'footer.shippingInfo': 'معلومات الشحن', 'footer.ourStory': 'قصتنا', 'footer.blog': 'المدونة',
         'footer.privacyPolicy': 'سياسة الخصوصية', 'footer.termsOfService': 'شروط الخدمة',
+        'hero.title': 'حيوانك الأليف يستحق الأفضل', 'hero.subtitle': 'تسوق ذكي لأصدقائك ذوي الفراء، مدعوم بالذكاء الاصطناعي.', 'hero.cta1Label': 'تسوق الآن', 'hero.cta2Label': 'أضف حيوانك الأليف',
       },
     } as Record<string, Record<string, string>>,
   },
@@ -127,10 +139,10 @@ const DEFAULT_SITE_CONFIG = {
   homeHero: {
     useCarousel: false,
     hero: {
-      titleKey: 'home.heroTitle', title: 'Smart Shopping for Your Pet',
-      subtitleKey: 'home.heroDesc', subtitle: 'AI-powered product recommendations tailored to your pet.',
-      cta1LabelKey: 'home.shopNow', cta1Label: 'Shop Now', cta1To: '/products',
-      cta2LabelKey: 'home.addPet', cta2Label: 'Add Your Pet', cta2To: '/pets',
+      titleKey: 'hero.title', title: 'Smart Shopping for Your Pet',
+      subtitleKey: 'hero.subtitle', subtitle: 'AI-powered product recommendations tailored to your pet.',
+      cta1LabelKey: 'hero.cta1Label', cta1Label: 'Shop Now', cta1To: '/products',
+      cta2LabelKey: 'hero.cta2Label', cta2Label: 'Add Your Pet', cta2To: '/pets',
       backgroundImage: '',
     },
     carousel: {
@@ -258,6 +270,46 @@ export const useDiyStore = defineStore('diy-store', () => {
     }
     if (siteConfig.footer?.linkGroups) {
       siteConfig.footer.linkGroups.forEach((g: any, i: number) => { g.order = i; });
+    }
+    // Hero i18n key 统一 hero. 前缀（兼容历史 home. 前缀数据，保存时迁移为 hero.*）
+    const heroCfg: any = siteConfig.homeHero?.hero;
+    if (heroCfg && typeof heroCfg === 'object') {
+      const HERO_KEY_MAP: Record<string, string> = {
+        'home.heroTitle': 'hero.title',
+        'home.heroDesc': 'hero.subtitle',
+        'home.shopNow': 'hero.cta1Label',
+        'home.addPet': 'hero.cta2Label',
+      };
+      (['titleKey', 'subtitleKey', 'cta1LabelKey', 'cta2LabelKey'] as const).forEach((f) => {
+        const k = String(heroCfg[f] || '').trim().replace(/^\.+/, '');
+        if (!k) { heroCfg[f] = ''; return; }
+        if (k.startsWith('hero.')) { heroCfg[f] = k; return; }
+        if (k.startsWith('home.')) {
+          heroCfg[f] = HERO_KEY_MAP[k] || `hero.${k.replace(/^home\./, '')}`;
+          return;
+        }
+        heroCfg[f] = `hero.${k}`;
+      });
+    }
+    // translations 中 home.* hero 键迁移为 hero.*（避免 C 端旧 key 失效）
+    const heroLegacyMap: Record<string, string> = {
+      'home.heroTitle': 'hero.title',
+      'home.heroDesc': 'hero.subtitle',
+      'home.shopNow': 'hero.cta1Label',
+      'home.addPet': 'hero.cta2Label',
+    };
+    const tDicts: any = siteConfig.i18n?.translations;
+    if (tDicts && typeof tDicts === 'object') {
+      Object.keys(tDicts).forEach((lc) => {
+        const dict = tDicts[lc];
+        if (!dict || typeof dict !== 'object') return;
+        Object.keys(heroLegacyMap).forEach((oldK) => {
+          if (oldK in dict && !(heroLegacyMap[oldK] in dict)) {
+            dict[heroLegacyMap[oldK]] = dict[oldK];
+          }
+          delete dict[oldK];
+        });
+      });
     }
     const res = await httpPut('/api/admin/v1/site/config', { config: deepClone(siteConfig) });
     const data = res.data?.data ?? res.data;

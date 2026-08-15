@@ -126,12 +126,17 @@ const panelWidth = ref(300);
 const PANEL_WIDTH_MIN = 260;
 const PANEL_WIDTH_MAX = 520;
 
-/** 开始拖拽右侧面板分隔条（rAF 节流，避免每帧更新响应式导致卡顿） */
+/** 开始拖拽右侧面板分隔条（rAF 节流，避免每帧更新响应式导致卡顿）。
+ *  拖拽期间将 iframe 置为 pointer-events:none，防止鼠标移入预览区域后被 iframe 吞掉
+ *  mousemove/mouseup（iframe 是独立文档，事件不会冒泡到父 document），
+ *  否则会表现为"拖拽不跟手、松开后监听器残留继续抖"。 */
 let panelResizeRaf = 0;
 function startPanelResize(e: MouseEvent) {
   e.preventDefault();
   const startX = e.clientX;
   const startWidth = panelWidth.value;
+  const iframe = iframeRef.value;
+  if (iframe) iframe.style.pointerEvents = 'none';
   function onMove(ev: MouseEvent) {
     const delta = startX - ev.clientX;
     const next = Math.min(PANEL_WIDTH_MAX, Math.max(PANEL_WIDTH_MIN, startWidth + delta));
@@ -148,6 +153,7 @@ function startPanelResize(e: MouseEvent) {
     }
     document.removeEventListener('mousemove', onMove);
     document.removeEventListener('mouseup', onUp);
+    if (iframe) iframe.style.pointerEvents = '';
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
   }

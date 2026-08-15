@@ -1,4 +1,4 @@
-"""Seed RBAC + Site Profile data into the database.
+﻿"""Seed RBAC + Site Profile data into the database.
 
 Creates:
 - 1 super admin user (admin@forge.dev / admin123)
@@ -83,6 +83,7 @@ DEFAULT_SITE_CONFIG = {
     "brand": {
         "name": "Forge",
         "tagline": "Smart Shopping for Your Pet",
+        "nameColor": "auto",
         "logo": {"type": "svg", "data": ""},
     },
     "theme": {
@@ -105,10 +106,10 @@ DEFAULT_SITE_CONFIG = {
             "type": "hero",
             "visible": True,
             "config": {
-                "titleKey": "home.heroTitle",
-                "descKey": "home.heroDesc",
-                "primaryButton": {"labelKey": "home.shopNow", "to": "/products"},
-                "secondaryButton": {"labelKey": "home.addPet", "to": "/pets"},
+                "titleKey": "hero.title",
+                "descKey": "hero.subtitle",
+                "primaryButton": {"labelKey": "hero.cta1Label", "to": "/products"},
+                "secondaryButton": {"labelKey": "hero.cta2Label", "to": "/pets"},
             },
         },
         {"type": "tailored_pets", "visible": True, "config": {}},

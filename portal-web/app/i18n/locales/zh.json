@@ -1,4 +1,10 @@
 {
+  "hero": {
+    "title": "给宠物最好的陪伴",
+    "subtitle": "AI 驱动的智能购物，为您的毛孩子挑选最好的。",
+    "cta1Label": "立即选购",
+    "cta2Label": "添加您的宠物"
+  },
   "auth": {
     "confirmPassword": "确认密码",
     "createAccount": "创建账户",
@@ -100,14 +106,10 @@
     "toys": "玩具"
   },
   "home": {
-    "addPet": "添加您的宠物",
     "aiTeaser": "AI 智能购物",
     "aiTeaserDesc": "告诉我们的 AI 助手您的宠物信息，即可获得个性化产品推荐。",
     "categories": "分类",
     "featured": "精选产品",
-    "heroDesc": "AI 驱动的智能购物，为您的毛孩子挑选最好的。",
-    "heroTitle": "给宠物最好的陪伴",
-    "shopNow": "立即选购",
     "startChat": "开始聊天"
   },
   "orders": {
@@ -253,7 +255,10 @@
     "currency": "货币",
     "login": "登录",
     "logout": "退出",
-    "register": "注册"
+    "register": "注册",
+    "home": "首页",
+    "pets": "我的宠物",
+    "chat": "AI 助手"
   },
   "categories": {
     "food": "食品",
