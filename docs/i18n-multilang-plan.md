@@ -1,3 +1,14 @@
+---
+AIGC:
+    Label: "1"
+    ContentProducer: 001191440300708461136T1XGW3
+    ProduceID: 14f48488fead00d28e11c31f9845685c_8302bcd097fb11f1a98a525400f8a581
+    ReservedCode1: 2ZUCJL6m+m0TgzTWeYhVBxPUpkLBQiaFyciMXtplSQTrVN8ruLTz6oXd+c2ExO1lpxf5iq/zENWXdSVRExJy9BG2LNiJu7rQ877JVbC9a7OXLWUns9AGXoTA28AeNb6s/xHkr43HlInnw7aWuyva9R51vtnWB0ovyrximx4KKQ9VRmhRrO8Yn3QcVIc=
+    ContentPropagator: 001191440300708461136T1XGW3
+    PropagateID: 14f48488fead00d28e11c31f9845685c_8302bcd097fb11f1a98a525400f8a581
+    ReservedCode2: 2ZUCJL6m+m0TgzTWeYhVBxPUpkLBQiaFyciMXtplSQTrVN8ruLTz6oXd+c2ExO1lpxf5iq/zENWXdSVRExJy9BG2LNiJu7rQ877JVbC9a7OXLWUns9AGXoTA28AeNb6s/xHkr43HlInnw7aWuyva9R51vtnWB0ovyrximx4KKQ9VRmhRrO8Yn3QcVIc=
+---
+
 # C 端多语言（i18n）规划：切换机制与配置规范
 
 > 适用范围：Forge portal-web（Nuxt C 端）+ admin 站点配置（site-config）。
@@ -70,3 +81,4 @@
 | fr | Français | - | fr.json | ✓ |
 
 扩展候选（localeOptions 已内置标签）：es / ja / ko / pt / ru / it / nl / pl / tr。
+*（内容由AI生成，仅供参考）*
