@@ -284,6 +284,7 @@ const local: App.I18n.Schema = {
     'iframe-page': 'Iframe',
     home: 'Home',
     dashboard: 'Dashboard',
+    resources: 'Resources',
     merchandise: 'Merchandise',
     suppliers: 'Suppliers',
     pricing: 'Pricing',

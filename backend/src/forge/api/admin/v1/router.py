@@ -80,3 +80,6 @@ except ImportError:
 
 # Site decoration & config
 _safe_include("site_config", prefix="/site", tags=["Admin - Site Config"])
+
+# Resources (全站统一上传入口)
+_safe_include("resources", prefix="/resources", tags=["Admin - Resources"])

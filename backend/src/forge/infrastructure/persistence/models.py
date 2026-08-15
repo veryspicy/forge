@@ -31,6 +31,8 @@ __all__ = [
     "ORMOrderItem",
     "ORMOrder",
     "ORMSiteProfile",
+    "ORMResource",
+    "ORMResourceRef",
 ]
 
 
@@ -187,4 +189,41 @@ class ORMSiteProfile(Base):
     created_at = Column(DateTime(timezone=False), nullable=False,
                         server_default="now()")
     updated_at = Column(DateTime(timezone=False), nullable=False,
+                        server_default="now()")
+
+
+class ORMResource(Base):
+    """资源表 - 全站统一上传入口登记（软删，回收站式）。"""
+
+    __tablename__ = "resource"
+
+    id = Column(UUID(as_uuid=True), primary_key=True,
+                server_default="gen_random_uuid()")
+    site_id = Column(UUID(as_uuid=True), nullable=False)
+    bucket = Column(String(128), nullable=False, default="")
+    object_key = Column(String(512), nullable=False, default="")
+    url = Column(String(1024), nullable=False, default="")
+    file_type = Column(String(32), nullable=False, default="document")
+    mime = Column(String(128), nullable=False, default="")
+    file_size = Column(Integer, nullable=False, default=0)
+    sha256 = Column(String(64), nullable=True)
+    name = Column(String(255), nullable=False, default="")
+    created_by = Column(UUID(as_uuid=True), nullable=True)
+    created_at = Column(DateTime(timezone=False), nullable=False,
+                        server_default="now()")
+    deleted_at = Column(DateTime(timezone=False), nullable=True)
+
+
+class ORMResourceRef(Base):
+    """资源引用关系表 - 用于"引用位置"追踪。"""
+
+    __tablename__ = "resource_ref"
+
+    id = Column(UUID(as_uuid=True), primary_key=True,
+                server_default="gen_random_uuid()")
+    resource_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    ref_type = Column(String(64), nullable=False, default="")
+    ref_id = Column(String(128), nullable=False, default="")
+    ref_label = Column(String(255), nullable=False, default="")
+    created_at = Column(DateTime(timezone=False), nullable=False,
                         server_default="now()")
