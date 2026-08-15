@@ -56,7 +56,8 @@ class MinioService:
             logger.warning("Minio library not installed; falling back to local file storage")
             return
         try:
-            secure = not self._endpoint.startswith("localhost") and not self._endpoint.startswith("127.0.0.1")
+            # 协议由配置显式指定（MINIO_SECURE），避免把容器服务名误判为 HTTPS
+            secure = settings.minio_secure
             self._client = Minio(
                 self._endpoint,
                 access_key=self._access_key,

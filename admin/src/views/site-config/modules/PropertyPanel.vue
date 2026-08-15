@@ -854,11 +854,14 @@ const PATH_OPTIONS = NAV_PRESETS.map(p => ({ label: `${p.label}  →  ${p.to}`, 
   { label: '/terms 服务条款', value: '/terms' }
 ]);
 
-/** feature flag 下拉选项 */
-const FLAG_OPTIONS = Object.entries(FLAG_LABELS).map(([value, label]) => ({
-  label: `${value} (${label})`,
-  value
-}));
+/** feature flag 下拉选项（首项为空值=不联动，保证已选后可取消） */
+const FLAG_OPTIONS = [
+  { label: '不联动（留空）', value: '' },
+  ...Object.entries(FLAG_LABELS).map(([value, label]) => ({
+    label: `${value} (${label})`,
+    value
+  }))
+];
 
 /**
  * ============ 自动 i18n 工具函数 ============

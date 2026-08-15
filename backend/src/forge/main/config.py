@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     minio_access_key: str = "minioadmin"
     minio_secret_key: str = "minioadmin"
     minio_bucket: str = "product-images"
+    # 显式指定 MinIO 协议（true=HTTPS），不依赖主机名猜测；容器内服务名走 HTTP
+    minio_secure: bool = False
 
     # JWT
     access_token_expire_minutes: int = 30

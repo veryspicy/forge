@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <header data-region="header" class="sticky top-0 z-50 bg-neutral-50/95 backdrop-blur shadow-sm">
     <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
       <!-- Brand -->
@@ -7,10 +7,10 @@
         <template v-if="brandLogo.type === 'image' && brandLogo.data && !logoError">
           <img :src="brandLogo.data" :alt="brandName" class="h-9 w-auto max-w-[160px] object-contain" @error="logoError = true" />
         </template>
-        <template v-else-if="brandLogo.type === 'svg' && brandLogo.data && !logoError">
+        <template v-else-if="brandLogo.type === 'svg' && brandLogo.data && !logoError && isSvgLogoUsable">
           <span class="inline-flex h-9 w-auto max-w-[160px] items-center text-neutral-900" v-html="sanitizedBrandSvg" />
         </template>
-        <div v-if="!brandLogo.data || brandLogo.type === 'text' || logoError" class="flex flex-col justify-center leading-tight min-w-0">
+        <div v-if="!brandLogo.data || brandLogo.type === 'text' || logoError || (brandLogo.type === 'svg' && !isSvgLogoUsable)" class="flex flex-col justify-center leading-tight min-w-0">
           <span class="text-lg md:text-xl font-heading font-semibold text-neutral-900 truncate">
             {{ brandName }}
           </span>
@@ -271,6 +271,8 @@ watch(locale, (val) => { currentLocale.value = val })
 const logoError = ref(false)
 const brandName = computed(() => profile.value.brand.name || 'Forge')
 const brandLogo = computed(() => profile.value.brand.logo ?? { type: 'text', data: '' })
+// SVG 合法性校验：仅当 data 包含 <svg 标记时才按 SVG 渲染，否则回退品牌文字
+const isSvgLogoUsable = computed(() => /<svg[\s>]/i.test(brandLogo.value.data || ''))
 const sanitizedBrandSvg = computed(() => {
   const raw = brandLogo.value.data || ''
   return raw
@@ -278,7 +280,27 @@ const sanitizedBrandSvg = computed(() => {
     .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
     .trim()
 })
-watch(() => brandLogo.value.data, () => { logoError.value = false })
+// 程序化图片预加载兜底：SSR 首屏 <img> 的 error 事件可能在 hydration 前触发而丢失，
+// 依赖原生 @error 不可靠；这里用 new Image() 主动探测，失败立即回退品牌文字。
+const LOGO_URL_RE = /^(https?:\/\/|\/|data:image)/i
+watch(
+  () => brandLogo.value.data,
+  (val) => {
+    logoError.value = false
+    if (!val || brandLogo.value.type !== 'image') return
+    if (import.meta.client) {
+      if (!LOGO_URL_RE.test(val)) {
+        logoError.value = true
+        return
+      }
+      const img = new Image()
+      img.onload = () => { logoError.value = false }
+      img.onerror = () => { logoError.value = true }
+      img.src = val
+    }
+  },
+  { immediate: true },
+)
 
 // ---- 语言选项：由站点 i18n 配置驱动（profile.i18n.locales） ----
 const LOCALE_LABELS: Record<string, string> = {
