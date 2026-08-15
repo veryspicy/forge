@@ -2,20 +2,7 @@
   <header data-region="header" class="sticky top-0 z-50 bg-neutral-50/95 backdrop-blur shadow-sm">
     <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
       <!-- Brand -->
-      <NuxtLink to="/" data-brand-name class="flex items-center gap-2.5 flex-shrink-0 min-w-0">
-        <!-- 品牌 Logo：按站点配置类型渲染（image/svg/text），加载异常时优雅回退品牌文字 -->
-        <template v-if="brandLogo.type === 'image' && brandLogo.data && !logoError">
-          <img :src="brandLogo.data" :alt="brandName" class="h-9 w-auto max-w-[160px] object-contain" @error="logoError = true" />
-        </template>
-        <template v-else-if="brandLogo.type === 'svg' && brandLogo.data && !logoError && isSvgLogoUsable">
-          <span class="inline-flex h-9 w-auto max-w-[160px] items-center text-neutral-900" v-html="sanitizedBrandSvg" />
-        </template>
-        <div v-if="!brandLogo.data || brandLogo.type === 'text' || logoError || (brandLogo.type === 'svg' && !isSvgLogoUsable)" class="flex flex-col justify-center leading-tight min-w-0">
-          <span class="text-lg md:text-xl font-heading font-semibold text-neutral-900 truncate">
-            {{ brandName }}
-          </span>
-        </div>
-      </NuxtLink>
+      <BrandBadge />
 
       <!-- Desktop Nav -->
       <nav data-nav class="hidden md:flex items-center gap-1">
@@ -259,48 +246,13 @@ const authStore = useAuthStore()
 const { isAuthenticated, user } = storeToRefs(authStore)
 const { logout, fetchUser } = authStore
 const { currency: currentCurrency, setCurrency } = useCurrency()
-const { profile, visibleNav } = useSiteProfile()
+const { profile, visibleNav, resolveText } = useSiteProfile()
 
 const mobileMenuOpen = ref(false)
 const userDropdownOpen = ref(false)
 const userMenuRef = ref<HTMLElement | null>(null)
 const currentLocale = ref(locale.value)
 watch(locale, (val) => { currentLocale.value = val })
-
-// ---- 品牌 Logo ----
-const logoError = ref(false)
-const brandName = computed(() => profile.value.brand.name || 'Forge')
-const brandLogo = computed(() => profile.value.brand.logo ?? { type: 'text', data: '' })
-// SVG 合法性校验：仅当 data 包含 <svg 标记时才按 SVG 渲染，否则回退品牌文字
-const isSvgLogoUsable = computed(() => /<svg[\s>]/i.test(brandLogo.value.data || ''))
-const sanitizedBrandSvg = computed(() => {
-  const raw = brandLogo.value.data || ''
-  return raw
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    .trim()
-})
-// 程序化图片预加载兜底：SSR 首屏 <img> 的 error 事件可能在 hydration 前触发而丢失，
-// 依赖原生 @error 不可靠；这里用 new Image() 主动探测，失败立即回退品牌文字。
-const LOGO_URL_RE = /^(https?:\/\/|\/|data:image)/i
-watch(
-  () => brandLogo.value.data,
-  (val) => {
-    logoError.value = false
-    if (!val || brandLogo.value.type !== 'image') return
-    if (import.meta.client) {
-      if (!LOGO_URL_RE.test(val)) {
-        logoError.value = true
-        return
-      }
-      const img = new Image()
-      img.onload = () => { logoError.value = false }
-      img.onerror = () => { logoError.value = true }
-      img.src = val
-    }
-  },
-  { immediate: true },
-)
 
 // ---- 语言选项：由站点 i18n 配置驱动（profile.i18n.locales） ----
 const LOCALE_LABELS: Record<string, string> = {
@@ -314,18 +266,14 @@ const enabledLocaleOptions = computed(() => {
 })
 
 const navLinks = computed(() => {
-  // 安全解析 labelKey：t(missingKey) 返回自身字符串（truthy）导致 || 回退失效，
-  // 必须用 te(key) 判断存在才取 t(key)，否则走 n.label 等文案兜底。
-  const resolveText = (key: string | undefined, fallback1?: string, fallback2?: string, fallback3?: string) => {
-    if (key && te(key)) return t(key)
-    return fallback1 || fallback2 || fallback3 || ''
-  }
+  // 统一走 useSiteProfile.resolveText：优先 t(key) → 站点 translations 字典 → fallback，
+  // 避免 SSR/水合时序下 te(key) 未就绪导致文案在语言之间跳动。
   const raw = visibleNav.value
   // 1) 站点配置里已经有导航项 → 直接按配置渲染（不再强制前置首页，避免重复）
   if (raw.length > 0) {
     const links = raw.map((n) => ({
       to: localePath(n.to ?? '/'),
-      label: resolveText(n.labelKey, n.label, n.labelKey, n.key),
+      label: resolveText(n.labelKey, n.label ?? '', n.labelKey ?? ''),
     }))
     // 至少保证有 1 个首页入口：若配置里无 '/' 路径且无空路径，才兜底前置首页
     const hasHome = raw.some((n) => {

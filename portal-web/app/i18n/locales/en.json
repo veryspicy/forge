@@ -1,4 +1,10 @@
 {
+  "hero": {
+    "title": "Your Pet Deserves the Best",
+    "subtitle": "Smart shopping for your furry friends, powered by AI.",
+    "cta1Label": "Shop Now",
+    "cta2Label": "Add Your Pet"
+  },
   "auth": {
     "confirmPassword": "Confirm Password",
     "createAccount": "Create Account",
@@ -100,14 +106,10 @@
     "toys": "Toys"
   },
   "home": {
-    "addPet": "Add Your Pet",
     "aiTeaser": "AI-Powered Shopping",
     "aiTeaserDesc": "Tell our AI assistant about your pet and get personalized product recommendations instantly.",
     "categories": "Categories",
     "featured": "Featured Products",
-    "heroDesc": "Smart shopping for your furry friends, powered by AI.",
-    "heroTitle": "Your Pet Deserves the Best",
-    "shopNow": "Shop Now",
     "startChat": "Start Chatting"
   },
   "orders": {
@@ -253,7 +255,10 @@
     "currency": "Currency",
     "login": "Login",
     "logout": "Logout",
-    "register": "Register"
+    "register": "Register",
+    "home": "Home",
+    "pets": "My Pets",
+    "chat": "AI Chat"
   },
   "categories": {
     "food": "Food",

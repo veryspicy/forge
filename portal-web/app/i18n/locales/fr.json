@@ -1,4 +1,10 @@
 {
+  "hero": {
+    "title": "Votre animal mérite le meilleur",
+    "subtitle": "Shopping intelligent pour vos amis à fourrure, propulsé par l'IA.",
+    "cta1Label": "Acheter maintenant",
+    "cta2Label": "Ajouter votre animal"
+  },
   "auth": {
     "confirmPassword": "Confirmer le mot de passe",
     "createAccount": "Créer un compte",
@@ -100,14 +106,10 @@
     "toys": "Jouets"
   },
   "home": {
-    "addPet": "Ajouter votre animal",
     "aiTeaser": "Shopping assisté par IA",
     "aiTeaserDesc": "Parlez de votre animal à notre assistant IA et obtenez des recommandations personnalisées instantanément.",
     "categories": "Catégories",
     "featured": "Produits vedettes",
-    "heroDesc": "Shopping intelligent pour vos amis à fourrure, propulsé par l'IA.",
-    "heroTitle": "Votre animal mérite le meilleur",
-    "shopNow": "Acheter maintenant",
     "startChat": "Démarrer le chat"
   },
   "orders": {
@@ -253,7 +255,10 @@
     "currency": "Devise",
     "login": "Connexion",
     "logout": "Déconnexion",
-    "register": "Inscription"
+    "register": "Inscription",
+    "home": "Accueil",
+    "pets": "Mes animaux",
+    "chat": "Chat IA"
   },
   "categories": {
     "food": "Nourriture",

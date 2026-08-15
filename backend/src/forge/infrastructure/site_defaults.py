@@ -39,6 +39,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "brand": {
         "name": "Forge",
         "tagline": "",
+        "nameColor": "auto",
         "logo": {"type": "text", "data": ""},
     },
     "theme": {
@@ -67,6 +68,14 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "footer": {
         "copyright": "© 2026 Forge. 版权所有。",
         "newsletter": True,
+        "social": [
+            {"platform": "facebook", "enabled": False, "url": ""},
+            {"platform": "x", "enabled": False, "url": ""},
+            {"platform": "instagram", "enabled": False, "url": ""},
+            {"platform": "youtube", "enabled": False, "url": ""},
+            {"platform": "tiktok", "enabled": False, "url": ""},
+            {"platform": "linkedin", "enabled": False, "url": ""},
+        ],
         "columns": ["shop", "support", "about", "legal"],
         "linkGroups": [
             {
@@ -167,14 +176,14 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "homeHero": {
         "useCarousel": False,
         "hero": {
-            "titleKey": "home.heroTitle",
+            "titleKey": "hero.title",
             "title": "Smart Shopping for Your Pet",
-            "subtitleKey": "home.heroDesc",
+            "subtitleKey": "hero.subtitle",
             "subtitle": "AI-powered product recommendations tailored to your pet's breed, age, and health needs.",
-            "cta1LabelKey": "home.shopNow",
+            "cta1LabelKey": "hero.cta1Label",
             "cta1Label": "Shop Now",
             "cta1To": "/products",
-            "cta2LabelKey": "home.addPet",
+            "cta2LabelKey": "hero.cta2Label",
             "cta2Label": "Add Your Pet",
             "cta2To": "/pets",
             "backgroundImage": "",
@@ -246,6 +255,25 @@ def _normalize_aliases(payload: dict) -> dict:
         footer.setdefault("copyright", DEFAULT_CONFIG["footer"]["copyright"])
         footer.setdefault("newsletter", True)
         footer.setdefault("columns", list(DEFAULT_CONFIG["footer"]["columns"]))
+
+    # homeHero.hero legacy i18n keys: home.* -> hero.* (canonical)
+    home_hero = payload.get("homeHero") or {}
+    hero_cfg = home_hero.get("hero")
+    if isinstance(hero_cfg, dict):
+        HERO_LEGACY_KEY_MAP = {
+            "home.heroTitle": "hero.title",
+            "home.heroDesc": "hero.subtitle",
+            "home.shopNow": "hero.cta1Label",
+            "home.addPet": "hero.cta2Label",
+        }
+        for f in ("titleKey", "subtitleKey", "cta1LabelKey", "cta2LabelKey"):
+            v = hero_cfg.get(f)
+            if isinstance(v, str) and v:
+                v = v.strip()
+                if v in HERO_LEGACY_KEY_MAP:
+                    hero_cfg[f] = HERO_LEGACY_KEY_MAP[v]
+                elif v.startswith("home.") and not v.startswith("hero."):
+                    hero_cfg[f] = f"hero.{v[len('home.'):]}"
 
     return payload
 

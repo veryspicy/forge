@@ -73,7 +73,7 @@ export function useSiteProfile() {
       const r = (raw?.data?.config ?? raw?.data ?? raw ?? {}) as Record<string, any>
       const nav = (r.navigation || r.nav || []) as NavItem[]
       return {
-        brand: { name: 'Forge', tagline: '', logo: null, ...(r.brand || {}) },
+        brand: { name: 'Forge', tagline: '', nameColor: 'auto', logo: null, ...(r.brand || {}) },
         theme: { preset: 'forge', primaryColor: '#4f46e5', primaryLight: '', primaryDark: '', secondaryColor: '', accentColor: '', fontHeading: 'Inter', fontBody: 'Inter', ...(r.theme || {}) },
         navigation: nav.map((n, i) => ({ ...n, order: n.order ?? i, visible: n.visible ?? true })),
         sections: (r.sections || []) as Section[],
@@ -82,6 +82,7 @@ export function useSiteProfile() {
           columns: ['shop', 'support', 'about', 'legal'],
           newsletter: true,
           copyright: '© 2026 Forge',
+          social: [],
           linkGroups: [] as FooterLinkGroup[],
           ...(r.footer || {}),
         },
@@ -93,7 +94,7 @@ export function useSiteProfile() {
         diyPageSlug: (r.diy_page_slug || r.diyPageSlug || '') as string,
         homeHero: {
           useCarousel: false,
-          hero: { titleKey: '', title: '', subtitleKey: '', subtitle: '', cta1LabelKey: '', cta1Label: '', cta1To: '/products', cta2LabelKey: '', cta2Label: '', cta2To: '/pets', backgroundImage: '' },
+          hero: { titleKey: 'hero.title', title: '', subtitleKey: 'hero.subtitle', subtitle: '', cta1LabelKey: 'hero.cta1Label', cta1Label: '', cta1To: '/products', cta2LabelKey: 'hero.cta2Label', cta2Label: '', cta2To: '/pets', backgroundImage: '' },
           carousel: { images: [] as CarouselImage[], autoplay: true, interval: 4000 },
           ...(r.homeHero || {}),
         },
@@ -102,19 +103,19 @@ export function useSiteProfile() {
   })
 
   const defaultProfile: SiteProfile = {
-    brand: { name: 'Forge', tagline: '', logo: null },
+    brand: { name: 'Forge', tagline: '', nameColor: 'auto', logo: null },
     theme: { preset: 'forge', primaryColor: '#4f46e5', primaryLight: '', primaryDark: '', secondaryColor: '', accentColor: '', fontHeading: 'Inter', fontBody: 'Inter' },
     navigation: [],
     sections: [],
     categories: [],
-    footer: { columns: [], newsletter: false, copyright: '', linkGroups: [] },
+    footer: { columns: [], newsletter: false, copyright: '', social: [], linkGroups: [] },
     seo: { titleTemplate: '', description: '', homeTitle: '', metaKeywords: '' },
     featureFlags: {},
     currencies: [],
     i18n: { defaultLocale: 'en', locales: ['en'], translations: {} },
     regions: [],
     diyPageSlug: '',
-    homeHero: { useCarousel: false, hero: { titleKey: '', title: '', subtitleKey: '', subtitle: '', cta1LabelKey: '', cta1Label: '', cta1To: '/products', cta2LabelKey: '', cta2Label: '', cta2To: '/pets', backgroundImage: '' }, carousel: { images: [], autoplay: true, interval: 4000 } },
+    homeHero: { useCarousel: false, hero: { titleKey: 'hero.title', title: '', subtitleKey: 'hero.subtitle', subtitle: '', cta1LabelKey: 'hero.cta1Label', cta1Label: '', cta1To: '/products', cta2LabelKey: 'hero.cta2Label', cta2Label: '', cta2To: '/pets', backgroundImage: '' }, carousel: { images: [], autoplay: true, interval: 4000 } },
   }
 
   const profile = computed(() => data.value ?? defaultProfile)
@@ -176,6 +177,24 @@ export function useSiteProfile() {
     { immediate: true, deep: false },
   )
 
+  /**
+   * 解析站点配置动态 i18n key（nav./hero./footer. 等）：
+   * 优先取运行时 t(key)（已合并站点 translations）；未命中时回退站点配置 translations 字典原始 key；
+   * 再回退 fallback（站点配置里的默认文案）；最终回退 defaultValue。用于 SSR/水合时序下 key 未合并时的安全兜底。
+   */
+  function resolveText(key: string | undefined | null, fallback: string, defaultValue = ''): string {
+    const k = (key || '').trim()
+    if (!k) return fallback || defaultValue
+    try {
+      const localized = t(k)
+      if (localized && localized !== k) return localized
+    } catch { /* ignore */ }
+    const curLocale = (locale as unknown as { value?: string })?.value
+    const dict: Record<string, string> | undefined = (profile.value.i18n?.translations as any)?.[curLocale || 'en']
+    if (dict && typeof dict[k] === 'string' && dict[k]) return dict[k]
+    return fallback || defaultValue
+  }
+
   /** Whether a specific feature flag is enabled. */
   function hasFeature(flag: string): boolean {
     return !!(profile.value.featureFlags as Record<string, boolean>)[flag]
@@ -224,6 +243,7 @@ export function useSiteProfile() {
     error,
     refresh,
     hasFeature,
+    resolveText,
     visibleNav,
     visibleSections,
     visibleCategories,
@@ -288,6 +308,7 @@ export interface SiteProfile {
   brand: {
     name: string
     tagline: string
+    nameColor?: string
     logo: { type: string; data: string } | null
   }
   theme: {
@@ -308,6 +329,7 @@ export interface SiteProfile {
     newsletter: boolean
     copyright?: string
     linkGroups: FooterLinkGroup[]
+    social?: { platform: string; enabled: boolean; url: string }[]
   }
   seo: {
     titleTemplate: string

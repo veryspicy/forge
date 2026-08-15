@@ -1,4 +1,10 @@
 {
+  "hero": {
+    "title": "Ihr Haustier verdient das Beste",
+    "subtitle": "Intelligentes Einkaufen für Ihre pelzigen Freunde, unterstützt von KI.",
+    "cta1Label": "Jetzt einkaufen",
+    "cta2Label": "Haustier hinzufügen"
+  },
   "auth": {
     "confirmPassword": "Passwort bestätigen",
     "createAccount": "Konto erstellen",
@@ -100,14 +106,10 @@
     "toys": "Spielzeug"
   },
   "home": {
-    "addPet": "Haustier hinzufügen",
     "aiTeaser": "KI-gestütztes Einkaufen",
     "aiTeaserDesc": "Erzählen Sie unserem KI-Assistenten von Ihrem Haustier und erhalten Sie sofort personalisierte Produktempfehlungen.",
     "categories": "Kategorien",
     "featured": "Empfohlene Produkte",
-    "heroDesc": "Intelligentes Einkaufen für Ihre pelzigen Freunde, unterstützt von KI.",
-    "heroTitle": "Ihr Haustier verdient das Beste",
-    "shopNow": "Jetzt einkaufen",
     "startChat": "Chat starten"
   },
   "orders": {
@@ -253,7 +255,10 @@
     "currency": "Währung",
     "login": "Anmelden",
     "logout": "Abmelden",
-    "register": "Registrieren"
+    "register": "Registrieren",
+    "home": "Startseite",
+    "pets": "Meine Haustiere",
+    "chat": "KI-Chat"
   },
   "categories": {
     "food": "Futter",

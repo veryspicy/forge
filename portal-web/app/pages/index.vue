@@ -307,7 +307,7 @@ const heroSectionCls = computed(() => {
 
 const title = computed(() => {
   const h = profile.value.homeHero.hero
-  return safeT(h.titleKey, h.title, safeT('home.heroTitle', 'Smart Shopping for Your Pet'))
+  return safeT(h.titleKey, h.title, safeT('hero.title', 'Smart Shopping for Your Pet'))
 })
 
 const subtitle = computed(() => {
@@ -316,7 +316,7 @@ const subtitle = computed(() => {
     h.subtitleKey,
     h.subtitle,
     safeT(
-      'home.heroDesc',
+      'hero.subtitle',
       "AI-powered product recommendations tailored to your pet's breed, age, and health needs. Discover the best food, toys, and accessories.",
     ),
   )
@@ -324,7 +324,7 @@ const subtitle = computed(() => {
 
 const cta1 = computed(() => {
   const h = profile.value.homeHero.hero
-  return safeT(h.cta1LabelKey, h.cta1Label, safeT('home.shopNow', 'Shop Now'))
+  return safeT(h.cta1LabelKey, h.cta1Label, safeT('hero.cta1Label', 'Shop Now'))
 })
 
 const cta1To = computed(() => {
@@ -333,7 +333,7 @@ const cta1To = computed(() => {
 
 const cta2 = computed(() => {
   const h = profile.value.homeHero.hero
-  return safeT(h.cta2LabelKey, h.cta2Label, safeT('home.addPet', 'Add Your Pet'))
+  return safeT(h.cta2LabelKey, h.cta2Label, safeT('hero.cta2Label', 'Add Your Pet'))
 })
 
 const cta2To = computed(() => {
