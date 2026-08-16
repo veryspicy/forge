@@ -148,7 +148,7 @@ async function selectDetail(r: ResourceItem) {
   currentRefs.value = [];
   try {
     const res = await resourceApi.detail(r.id);
-    const data = (res as any).data ?? res;
+    const data = (res as any).data?.data ?? (res as any).data ?? res;
     currentDetail.value = data;
     currentRefs.value = data?.refs ?? [];
     renameValue.value = data?.name ?? r.name;
