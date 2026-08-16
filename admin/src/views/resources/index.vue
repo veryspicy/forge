@@ -39,6 +39,9 @@ const currentDetail = ref<ResourceItem | null>(null);
 const currentRefs = ref<Array<{ ref_type: string; ref_id: string; ref_label: string }>>([]);
 const renameValue = ref('');
 const fileInput = ref<HTMLInputElement | null>(null);
+const previewVisible = ref(false);
+const previewUrl = ref('');
+const previewType = ref<'image' | 'video' | 'audio' | 'other'>('other');
 
 const typeCounts = computed(() => {
   const map: Record<string, number> = {};
@@ -75,6 +78,18 @@ function isPreviewableVideo(r: ResourceItem) {
 
 function isPreviewableAudio(r: ResourceItem) {
   return r.file_type === 'audio';
+}
+
+function openPreview(r: ResourceItem) {
+  previewUrl.value = r.url;
+  previewType.value = isPreviewableImage(r)
+    ? 'image'
+    : isPreviewableVideo(r)
+      ? 'video'
+      : isPreviewableAudio(r)
+        ? 'audio'
+        : 'other';
+  previewVisible.value = true;
 }
 
 async function loadList() {
@@ -184,6 +199,8 @@ async function doDelete(r: ResourceItem) {
       try {
         await resourceApi.remove(r.id);
         message.success('已删除');
+        selectedIds.value.delete(r.id);
+        selectedIds.value = new Set(selectedIds.value);
         if (currentDetail.value?.id === r.id) currentDetail.value = null;
         await loadList();
       } catch (e: any) {
@@ -217,6 +234,16 @@ async function doBatchDelete() {
       }
     }
   });
+}
+
+function handleDeleteBySelection() {
+  const ids = Array.from(selectedIds.value);
+  if (ids.length === 1) {
+    const r = items.value.find(it => it.id === ids[0]);
+    if (r) doDelete(r);
+  } else if (ids.length > 1) {
+    doBatchDelete();
+  }
 }
 
 async function copyUrl(url: string) {
@@ -274,13 +301,17 @@ onMounted(loadList);
             <template #icon><SvgIcon icon="mdi:upload" class="text-16px" /></template>
             上传资源
           </NButton>
-          <NButton size="small" type="error" secondary :disabled="!selectedIds.size" @click="doBatchDelete">
-            <template #icon><SvgIcon icon="mdi:delete-outline" class="text-16px" /></template>
-            批量删除
+          <NButton size="small" type="error" secondary :disabled="!selectedIds.size" @click="handleDeleteBySelection">
+            <template #icon><SvgIcon :icon="selectedIds.size > 1 ? 'mdi:delete-sweep-outline' : 'mdi:delete-outline'" class="text-16px" /></template>
+            {{ selectedIds.size > 1 ? '批量删除' : '删除' }}
           </NButton>
           <input ref="fileInput" type="file" class="hidden" @change="onFileChange" />
         </div>
         <div class="flex items-center gap-2">
+          <NButton size="small" @click="loadList">
+            <template #icon><SvgIcon icon="mdi:refresh" class="text-16px" /></template>
+            刷新
+          </NButton>
           <NInput
             v-model:value="keyword"
             placeholder="搜索名称 / URL"
@@ -325,9 +356,16 @@ onMounted(loadList);
                   <span class="mt-1 text-xs">文档</span>
                 </div>
               </div>
+              <div
+                v-if="isPreviewableImage(r) || isPreviewableVideo(r) || isPreviewableAudio(r)"
+                class="absolute inset-0 z-10 hidden cursor-zoom-in items-center justify-center bg-black/30 group-hover:flex"
+                @click.stop="openPreview(r)"
+              >
+                <SvgIcon icon="mdi:magnify-plus-outline" class="text-32px text-white" />
+              </div>
               <div class="truncate px-2 py-1.5 text-xs" :title="r.name">{{ r.name }}</div>
               <div
-                class="absolute top-1.5 right-1.5 flex h-4.5 w-4.5 items-center justify-center rounded border border-gray-300 border-solid bg-white text-xs dark:bg-gray-700"
+                class="absolute top-1.5 right-1.5 z-20 flex h-5 w-5 cursor-pointer items-center justify-center rounded border border-gray-300 border-solid bg-white text-xs dark:bg-gray-700"
                 :class="selectedIds.has(r.id) ? 'bg-green-500 border-green-500 text-white' : ''"
                 @click.stop="toggleSelect(r.id)"
               >
@@ -358,7 +396,10 @@ onMounted(loadList);
       </div>
       <div v-if="currentDetail" class="flex-1 overflow-y-auto p-4">
         <!-- 预览 -->
-        <div class="mb-3 flex h-[160px] items-center justify-center overflow-hidden rounded bg-gray-50 dark:bg-gray-800">
+        <div
+          class="mb-3 flex h-[160px] cursor-zoom-in items-center justify-center overflow-hidden rounded bg-gray-50 dark:bg-gray-800"
+          @click="openPreview(currentDetail)"
+        >
           <img v-if="isPreviewableImage(currentDetail)" :src="currentDetail.url" class="h-full w-full object-contain" />
           <video v-else-if="isPreviewableVideo(currentDetail)" :src="currentDetail.url" controls class="h-full w-full" />
           <audio v-else-if="isPreviewableAudio(currentDetail)" :src="currentDetail.url" controls class="w-full px-3" />
@@ -414,6 +455,23 @@ onMounted(loadList);
         <span class="text-sm">选择左侧资源查看详情</span>
       </div>
     </div>
+
+    <NModal
+      v-model:show="previewVisible"
+      preset="card"
+      :title="previewType === 'image' ? '图片预览' : previewType === 'video' ? '视频预览' : previewType === 'audio' ? '音频预览' : '资源预览'"
+      style="width: 80%; max-width: 960px"
+    >
+      <div class="flex items-center justify-center">
+        <img v-if="previewType === 'image'" :src="previewUrl" class="max-h-[70vh] max-w-full object-contain" alt="预览" />
+        <video v-else-if="previewType === 'video'" :src="previewUrl" controls autoplay class="max-h-[70vh] max-w-full" />
+        <audio v-else-if="previewType === 'audio'" :src="previewUrl" controls autoplay class="w-full" />
+        <div v-else class="flex flex-col items-center gap-2 py-10 text-gray-400">
+          <SvgIcon icon="mdi:file-document-outline" class="text-60px" />
+          <span class="text-sm">该类型暂不支持预览，可通过下载查看</span>
+        </div>
+      </div>
+    </NModal>
   </div>
 </template>
 
