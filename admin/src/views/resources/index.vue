@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import { useDialog, useMessage } from 'naive-ui';
 import { useRouter } from 'vue-router';
 import { resourceApi } from '@/service/api/resources';
@@ -884,10 +884,6 @@ onBeforeUnmount(() => {
             <template #icon><SvgIcon icon="mdi:tag-plus-outline" class="text-16px" /></template>
             批量打标
           </NButton>
-          <NButton size="small" secondary @click="openTrash">
-            <template #icon><SvgIcon icon="mdi:delete-restore-outline" class="text-16px" /></template>
-            回收站
-          </NButton>
           <input ref="fileInput" type="file" multiple class="hidden" @change="onFileChange" />
           <input ref="folderInput" type="file" webkitdirectory multiple class="hidden" @change="onFolderChange" />
         </div>
@@ -1014,7 +1010,13 @@ onBeforeUnmount(() => {
 
       <!-- 分页 -->
       <div class="flex items-center justify-between border-t border-gray-100 border-solid px-4 py-2 dark:border-gray-700">
-        <span class="text-xs text-gray-500">共 {{ total }} 个资源</span>
+        <div class="flex items-center gap-3">
+          <span class="text-xs text-gray-500">共 {{ total }} 个资源</span>
+          <NButton size="small" tertiary @click="openTrash">
+            <template #icon><SvgIcon icon="mdi:delete-restore-outline" class="text-16px" /></template>
+            回收站
+          </NButton>
+        </div>
         <NPagination
           :page="page"
           :page-size="pageSize"
@@ -1131,12 +1133,12 @@ onBeforeUnmount(() => {
               复制 URL
             </NButton>
           </div>
-          <div class="flex items-center gap-2">
-            <NButton size="small" block @click="download(currentDetail)">
+          <div class="grid grid-cols-2 gap-2">
+            <NButton size="small" @click="download(currentDetail)">
               <template #icon><SvgIcon icon="mdi:download" class="text-14px" /></template>
               下载
             </NButton>
-            <NButton size="small" type="error" secondary block @click="doDelete(currentDetail)">
+            <NButton size="small" type="error" secondary @click="doDelete(currentDetail)">
               <template #icon><SvgIcon icon="mdi:delete-outline" class="text-14px" /></template>
               删除
             </NButton>
