@@ -11,12 +11,18 @@ from __future__ import annotations
 import hashlib
 import logging
 import uuid
+from io import BytesIO
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+try:
+    from PIL import Image as PILImage
+except ImportError:  # pragma: no cover
+    PILImage = None  # type: ignore[assignment]
 
 from forge.infrastructure.persistence.models import (
     ORMAdminUser,
@@ -93,6 +99,7 @@ def _serialize(res: ORMResource) -> dict:
         "bucket": res.bucket,
         "object_key": res.object_key,
         "url": res.url,
+        "thumb_url": _derive_thumb_url(res),
         "file_type": res.file_type,
         "mime": res.mime,
         "file_size": res.file_size,
@@ -103,6 +110,29 @@ def _serialize(res: ORMResource) -> dict:
         "created_at": res.created_at.isoformat() if res.created_at else None,
         "deleted_at": res.deleted_at.isoformat() if res.deleted_at else None,
     }
+
+
+def _derive_thumb_url(res: ORMResource) -> str:
+    """推导图片缩略图 URL（约定式：site/{site}/resources/thumbs/{uuid}.jpg）。
+
+    仅 image 类型且非 SVG 时返回；缩略图由上传流程生成，若缺失前端回退原图。
+    """
+    if res.file_type != "image" or not res.object_key:
+        return ""
+    if res.object_key.lower().endswith(".svg"):
+        return ""
+    # 从 object_key 推导缩略图键：resources/{uuid}.{ext} -> resources/thumbs/{uuid}.jpg
+    marker = "/resources/"
+    idx = res.object_key.rfind(marker)
+    if idx < 0:
+        return ""
+    fname = res.object_key[idx + len(marker):]
+    stem = fname.rsplit(".", 1)[0]
+    thumb_key = f"{res.object_key[:idx]}/resources/thumbs/{stem}.jpg"
+    if res.url.startswith("/uploads/site/"):
+        return f"/uploads/site/{thumb_key}"
+    return f"/minio/{res.bucket}/{thumb_key}"
+
 
 
 async def _get_tags_map(db: AsyncSession, resource_ids: list[uuid.UUID]) -> dict[str, list[str]]:
@@ -199,6 +229,30 @@ async def upload_resource(
             object_key = parts[3]
     elif url.startswith("/uploads/site/"):
         object_key = url[len("/uploads/site/"):]
+
+    # 图片生成 400px 缩略图（约定键名 resources/thumbs/{uuid}.jpg），失败不阻塞上传
+    thumb_url = ""
+    if file_type == "image" and not ext.lower() == ".svg" and PILImage is not None:
+        try:
+            img = PILImage.open(BytesIO(content))
+            img.thumbnail((400, 400))
+            # 统一输出 JPEG：RGBA/LA/P 先合成白底，避免缩略图键名与推导不一致
+            if img.mode in ("RGBA", "LA", "P"):
+                rgba = img.convert("RGBA")
+                bg = PILImage.new("RGB", rgba.size, (255, 255, 255))
+                bg.paste(rgba, mask=rgba.split()[-1])
+                img = bg
+            else:
+                img = img.convert("RGB")
+            thumb_buf = BytesIO()
+            img.save(thumb_buf, format="JPEG", quality=82)
+            thumb_key = f"site/{site_id}/resources/thumbs/{res_uuid}.jpg"
+            thumb_url = minio.upload_object(
+                thumb_buf.getvalue(), thumb_key, content_type="image/jpeg"
+            )
+        except Exception as exc:  # noqa: BLE001 — 缩略图失败不阻塞上传
+            logger.warning("thumbnail generation failed: %s", exc)
+            thumb_url = ""
 
     # created_by：admin["sub"] 是 email，需查 admin_users 表取 UUID
     created_by = None
@@ -376,6 +430,217 @@ async def check_resource_name(
             "trash_count": len(rows) - len(active),
         }
     }
+
+
+class CheckNamesPayload(BaseModel):
+    names: list[str]
+
+
+@router.post("/check-names")
+async def check_resource_names(
+    payload: CheckNamesPayload,
+    admin: dict = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """批量重名检测：返回已存在的同名资源（仅 active，排除软删）。"""
+    if not admin:
+        raise HTTPException(status_code=401, detail="未登录")
+    names = [(n or "").strip() for n in payload.names or []]
+    names = list(dict.fromkeys(n for n in names if n))
+    if not names:
+        return {"data": {"existing": {}}}
+
+    rows = (await db.execute(
+        select(ORMResource).where(
+            ORMResource.name.in_(names),
+            ORMResource.deleted_at.is_(None),
+        )
+    )).scalars().all()
+    existing: dict[str, int] = {}
+    for r in rows:
+        existing.setdefault(r.name, 0)
+        existing[r.name] += 1
+    return {"data": {"existing": existing}}
+
+
+# ---------------------------------------------------------------------------
+# 回收站
+# ---------------------------------------------------------------------------
+class TrashPayload(BaseModel):
+    ids: list[str]
+
+
+class TrashListResponse(BaseModel):
+    items: list[dict]
+    total: int
+
+
+@router.get("/trash", response_model=TrashListResponse)
+async def list_trash(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=24, ge=1, le=200),
+    keyword: Optional[str] = Query(default=None),
+    file_type: Optional[str] = Query(default=None),
+    admin: dict = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """回收站列表：仅软删资源（deleted_at 非空）。"""
+    if not admin:
+        raise HTTPException(status_code=401, detail="未登录")
+
+    query = select(ORMResource).where(ORMResource.deleted_at.isnot(None))
+    if keyword and keyword.strip():
+        query = query.where(ORMResource.name.ilike(f"%{keyword.strip()}%"))
+    if file_type and file_type.strip():
+        query = query.where(ORMResource.file_type == file_type.strip())
+
+    total = (await db.execute(
+        select(func.count()).select_from(query.subquery())
+    )).scalar() or 0
+    rows = (await db.execute(
+        query.order_by(ORMResource.deleted_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )).scalars().all()
+    return {"items": [_serialize(r) for r in rows], "total": total}
+
+
+@router.post("/trash/restore")
+async def restore_resources(
+    payload: TrashPayload,
+    admin: dict = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """恢复回收站资源（单/批量）：清除 deleted_at。"""
+    if not admin:
+        raise HTTPException(status_code=401, detail="未登录")
+    if admin.get("role") not in ("super_admin", "admin"):
+        raise HTTPException(status_code=403, detail="无恢复权限")
+
+    restored = 0
+    skipped: list[str] = []
+    for raw_id in payload.ids or []:
+        try:
+            rid = uuid.UUID(raw_id)
+        except ValueError:
+            skipped.append(raw_id)
+            continue
+        res = (await db.execute(
+            select(ORMResource).where(
+                ORMResource.id == rid,
+                ORMResource.deleted_at.isnot(None),
+            )
+        )).scalar_one_or_none()
+        if res is None:
+            skipped.append(raw_id)
+            continue
+        res.deleted_at = None
+        restored += 1
+    await db.commit()
+    return {"data": {"restored": restored, "skipped": skipped}}
+
+
+@router.delete("/trash")
+async def purge_resources(
+    payload: TrashPayload,
+    admin: dict = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+    minio: MinioService = Depends(get_minio_service),
+):
+    """彻底删除回收站资源（单/批量）：物理删 MinIO 对象（含缩略图）+ 删 DB 行 + 清关联。
+
+    高风险操作：前端必须二次确认后调用。
+    """
+    if not admin:
+        raise HTTPException(status_code=401, detail="未登录")
+    if admin.get("role") not in ("super_admin", "admin"):
+        raise HTTPException(status_code=403, detail="无彻底删除权限")
+
+    purged = 0
+    skipped: list[str] = []
+    for raw_id in payload.ids or []:
+        try:
+            rid = uuid.UUID(raw_id)
+        except ValueError:
+            skipped.append(raw_id)
+            continue
+        res = (await db.execute(
+            select(ORMResource).where(
+                ORMResource.id == rid,
+                ORMResource.deleted_at.isnot(None),
+            )
+        )).scalar_one_or_none()
+        if res is None:
+            skipped.append(raw_id)
+            continue
+
+        # 物理删除 MinIO 对象与缩略图
+        if res.object_key:
+            minio.remove_object(res.object_key)
+        thumb_key = _thumb_object_key(res)
+        if thumb_key:
+            minio.remove_object(thumb_key)
+        # 清关联表（引用、标签）
+        await db.execute(
+            delete(ORMResourceRef).where(ORMResourceRef.resource_id == rid)
+        )
+        await db.execute(
+            delete(ORMResourceTagMap).where(ORMResourceTagMap.resource_id == rid)
+        )
+        await db.delete(res)
+        purged += 1
+    await db.commit()
+    return {"data": {"purged": purged, "skipped": skipped}}
+
+
+@router.delete("/trash/empty")
+async def empty_trash(
+    admin: dict = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+    minio: MinioService = Depends(get_minio_service),
+):
+    """清空回收站：彻底删除所有软删资源。高风险操作，前端必须二次确认。"""
+    if not admin:
+        raise HTTPException(status_code=401, detail="未登录")
+    if admin.get("role") not in ("super_admin", "admin"):
+        raise HTTPException(status_code=403, detail="无彻底删除权限")
+
+    rows = (await db.execute(
+        select(ORMResource).where(ORMResource.deleted_at.isnot(None))
+    )).scalars().all()
+    purged = 0
+    for res in rows:
+        if res.object_key:
+            minio.remove_object(res.object_key)
+        thumb_key = _thumb_object_key(res)
+        if thumb_key:
+            minio.remove_object(thumb_key)
+        await db.execute(
+            delete(ORMResourceRef).where(ORMResourceRef.resource_id == res.id)
+        )
+        await db.execute(
+            delete(ORMResourceTagMap).where(ORMResourceTagMap.resource_id == res.id)
+        )
+        await db.delete(res)
+        purged += 1
+    await db.commit()
+    return {"data": {"purged": purged}}
+
+
+def _thumb_object_key(res: ORMResource) -> str:
+    """根据原 object_key 推导缩略图键名（与 _derive_thumb_url 一致）。"""
+    if res.file_type != "image" or not res.object_key:
+        return ""
+    if res.object_key.lower().endswith(".svg"):
+        return ""
+    marker = "/resources/"
+    idx = res.object_key.rfind(marker)
+    if idx < 0:
+        return ""
+    fname = res.object_key[idx + len(marker):]
+    stem = fname.rsplit(".", 1)[0]
+    return f"{res.object_key[:idx]}/resources/thumbs/{stem}.jpg"
+
 
 
 # ---------------------------------------------------------------------------

@@ -28,6 +28,18 @@ export const resourceApi = {
   /** 重名检测 */
   checkName: (name: string, excludeId?: string) =>
     get('/api/admin/v1/resources/check-name', { name, exclude_id: excludeId }),
+  /** 批量重名检测（上传前） */
+  checkNames: (names: string[]) =>
+    post('/api/admin/v1/resources/check-names', { names }),
+  /** 回收站列表 */
+  trashList: (params: { keyword?: string; fileType?: string; page?: number; pageSize?: number }) =>
+    get('/api/admin/v1/resources/trash', params),
+  /** 恢复（单/批量） */
+  restoreTrash: (ids: string[]) => post('/api/admin/v1/resources/trash/restore', { ids }),
+  /** 彻底删除（单/批量） */
+  purgeTrash: (ids: string[]) => del('/api/admin/v1/resources/trash', { ids }),
+  /** 清空回收站 */
+  emptyTrash: () => del('/api/admin/v1/resources/trash/empty'),
   /** 批量移动到目录 */
   move: (ids: string[], directory: string) => post('/api/admin/v1/resources/move', { ids, directory }),
   /** 批量打标 */

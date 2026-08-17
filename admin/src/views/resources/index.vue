@@ -7,6 +7,7 @@ import { resourceApi } from '@/service/api/resources';
 interface ResourceItem {
   id: string;
   url: string;
+  thumb_url?: string;
   file_type: string;
   mime: string;
   file_size: number;
@@ -58,6 +59,14 @@ const folderInput = ref<HTMLInputElement | null>(null);
 const dragActive = ref(false);
 const dragResourceIds = ref<string[]>([]);
 const tagInputValue = ref('');
+const trashVisible = ref(false);
+const trashItems = ref<ResourceItem[]>([]);
+const trashTotal = ref(0);
+const trashPage = ref(1);
+const trashPageSize = ref(24);
+const trashLoading = ref(false);
+const trashKeyword = ref('');
+const trashSelected = ref<Set<string>>(new Set());
 const moveDialogVisible = ref(false);
 const moveTargetDir = ref('');
 const tagDialogVisible = ref(false);
@@ -159,6 +168,126 @@ function selectType(key: string) {
   loadList();
 }
 
+// ---------------------------------------------------------------------------
+// 回收站
+// ---------------------------------------------------------------------------
+async function loadTrash() {
+  trashLoading.value = true;
+  try {
+    const res = await resourceApi.trashList({
+      keyword: trashKeyword.value || undefined,
+      page: trashPage.value,
+      pageSize: trashPageSize.value
+    }) as any;
+    const data = res?.data?.data ?? res?.data ?? res;
+    trashItems.value = data?.items ?? [];
+    trashTotal.value = data?.total ?? 0;
+  } catch (e: any) {
+    message.error(`加载回收站失败: ${e?.message || e}`);
+  } finally {
+    trashLoading.value = false;
+  }
+}
+
+function openTrash() {
+  trashVisible.value = true;
+  trashPage.value = 1;
+  trashSelected.value = new Set();
+  loadTrash();
+}
+
+function onTrashSearch() {
+  trashPage.value = 1;
+  loadTrash();
+}
+
+function onTrashPageChange(p: number) {
+  trashPage.value = p;
+  loadTrash();
+}
+
+function toggleTrashSelect(id: string) {
+  const s = new Set(trashSelected.value);
+  if (s.has(id)) s.delete(id);
+  else s.add(id);
+  trashSelected.value = s;
+}
+
+async function restoreTrashSelection() {
+  if (!trashSelected.value.size) {
+    message.warning('请先勾选要恢复的资源');
+    return;
+  }
+  const ids = Array.from(trashSelected.value);
+  dialog.warning({
+    title: '确认恢复',
+    content: `确定恢复选中的 ${ids.length} 个资源吗？恢复后重新出现在资源列表。`,
+    positiveText: '恢复',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        const res = await resourceApi.restoreTrash(ids) as any;
+        const data = res?.data?.data ?? res?.data ?? res;
+        message.success(`已恢复 ${data?.restored ?? ids.length} 个资源`);
+        trashSelected.value = new Set();
+        loadTrash();
+        loadList();
+      } catch (e: any) {
+        message.error(`恢复失败: ${e?.message || e}`);
+      }
+    }
+  });
+}
+
+async function purgeTrashSelection() {
+  if (!trashSelected.value.size) {
+    message.warning('请先勾选要彻底删除的资源');
+    return;
+  }
+  const ids = Array.from(trashSelected.value);
+  dialog.warning({
+    title: '确认彻底删除',
+    content: `将永久删除选中的 ${ids.length} 个资源（MinIO 文件与数据库记录一并清除，不可恢复）。确定继续？`,
+    positiveText: '彻底删除',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        const res = await resourceApi.purgeTrash(ids) as any;
+        const data = res?.data?.data ?? res?.data ?? res;
+        message.success(`已彻底删除 ${data?.purged ?? ids.length} 个资源`);
+        trashSelected.value = new Set();
+        loadTrash();
+        loadMeta();
+      } catch (e: any) {
+        message.error(`彻底删除失败: ${e?.message || e}`);
+      }
+    }
+  });
+}
+
+async function emptyTrashAll() {
+  if (!trashTotal.value) return;
+  dialog.warning({
+    title: '清空回收站',
+    content: `将永久删除回收站全部 ${trashTotal.value} 个资源，不可恢复。确定继续？`,
+    positiveText: '清空',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        const res = await resourceApi.emptyTrash() as any;
+        const data = res?.data?.data ?? res?.data ?? res;
+        message.success(`已清空回收站（${data?.purged ?? trashTotal.value} 个）`);
+        trashSelected.value = new Set();
+        loadTrash();
+        loadMeta();
+      } catch (e: any) {
+        message.error(`清空失败: ${e?.message || e}`);
+      }
+    }
+  });
+}
+
+
 function selectDirectory(dir: string) {
   activeDirectory.value = activeDirectory.value === dir ? null : dir;
   activeTag.value = '';
@@ -232,15 +361,61 @@ function collectDropFiles(dataTransfer: DataTransfer): Promise<{ file: File; dir
   })();
 }
 
+/** 上传前批量重名检测：返回已占用名称集合（用于自动加后缀） */
+async function fetchExistingNames(names: string[]): Promise<Set<string>> {
+  try {
+    const res = await resourceApi.checkNames(names) as any;
+    const info = res?.data?.data ?? res?.data ?? res;
+    const existing = info?.existing ?? {};
+    return new Set(Object.keys(existing));
+  } catch {
+    return new Set();
+  }
+}
+
+/** 将同名文件自动重命名为 name(1).ext / name(2).ext，返回新 File 列表 */
+async function dedupeUploadList(list: { file: File; directory?: string }[]) {
+  const names = list.map(i => i.file.name);
+  const existing = await fetchExistingNames(names);
+  const used = new Map<string, number>(); // 记录本轮已占用的原名计数
+  return list.map((item) => {
+    const { file } = item;
+    const dot = file.name.lastIndexOf('.');
+    const stem = dot > 0 ? file.name.slice(0, dot) : file.name;
+    const ext = dot > 0 ? file.name.slice(dot) : '';
+    let finalName = file.name;
+    let candidate = file.name;
+    let seq = 0;
+    while (existing.has(candidate) || (used.get(candidate) ?? 0) > 0) {
+      seq += 1;
+      candidate = `${stem}(${seq})${ext}`;
+    }
+    used.set(candidate, 1);
+    existing.add(candidate);
+    finalName = candidate;
+    if (finalName === file.name) {
+      return item;
+    }
+    return {
+      directory: item.directory,
+      file: new File([file], finalName, { type: file.type })
+    };
+  });
+}
+
 /** 顺序上传文件队列：每个成功后短暂停留，全部完成汇总提示 */
 async function uploadFiles(list: { file: File; directory?: string }[]) {
   if (!list.length) return;
-  uploadTotal.value = list.length;
+  const finalList = await dedupeUploadList(list);
+  if (finalList.some((item, idx) => item.file.name !== list[idx].file.name)) {
+    message.info('检测到同名文件，已自动重命名（如 name(1).png）后上传');
+  }
+  uploadTotal.value = finalList.length;
   uploadDone.value = 0;
   uploading.value = true;
   let okCount = 0;
   let failCount = 0;
-  for (const item of list) {
+  for (const item of finalList) {
     uploadQueue.value += 1;
     try {
       const res = await resourceApi.upload(item.file, {
@@ -250,7 +425,7 @@ async function uploadFiles(list: { file: File; directory?: string }[]) {
       const data = (res as any).data?.data ?? (res as any).data;
       okCount += 1;
       message.success(`「${item.file.name}」上传成功`);
-      if (data?.id && list.length === 1) selectDetail(data);
+      if (data?.id && finalList.length === 1) selectDetail(data);
       await new Promise(resolve => setTimeout(resolve, 300));
     } catch (err: any) {
       failCount += 1;
@@ -338,7 +513,8 @@ async function doRename() {
       const check = (await resourceApi.checkName(name, currentDetail.value.id)) as any;
       const info = check?.data?.data ?? check?.data ?? check;
       if (info?.exists) {
-        message.warning(`重名提示：已有 ${info.active_count} 个同名资源${info.trash_count ? `（回收站 ${info.trash_count} 个）` : ''}`);
+        message.warning(`重名提示：已有 ${info.active_count} 个同名资源${info.trash_count ? `（回收站 ${info.trash_count} 个）` : ''}，请更换名称`);
+        return;
       }
     } catch {
       // 检测失败不阻塞重命名
@@ -435,23 +611,28 @@ async function confirmTags() {
 }
 
 /** 引用跳转：ref_type 映射到对应管理路由 */
+const REF_ROUTE_MAP: Record<string, string> = {
+  product: '/products',
+  products: '/products',
+  article: '/ai-probe',
+  articles: '/ai-probe',
+  order: '/orders',
+  orders: '/orders',
+  user: '/users',
+  users: '/users',
+  supplier: '/suppliers',
+  suppliers: '/suppliers',
+  shipment: '/shipments',
+  shipments: '/shipments',
+  site: '/site-config'
+};
+
+function canJumpRef(refInfo: RefInfo) {
+  return Boolean(REF_ROUTE_MAP[refInfo.ref_type]);
+}
+
 function jumpToRef(refInfo: RefInfo) {
-  const routeMap: Record<string, string> = {
-    product: '/products',
-    products: '/products',
-    article: '/ai-probe',
-    articles: '/ai-probe',
-    order: '/orders',
-    orders: '/orders',
-    user: '/users',
-    users: '/users',
-    supplier: '/suppliers',
-    suppliers: '/suppliers',
-    shipment: '/shipments',
-    shipments: '/shipments',
-    site: '/site-config'
-  };
-  const target = routeMap[refInfo.ref_type];
+  const target = REF_ROUTE_MAP[refInfo.ref_type];
   if (target) {
     router.push(target);
     return;
@@ -646,6 +827,10 @@ onMounted(() => {
             <template #icon><SvgIcon icon="mdi:tag-plus-outline" class="text-16px" /></template>
             批量打标
           </NButton>
+          <NButton size="small" secondary @click="openTrash">
+            <template #icon><SvgIcon icon="mdi:delete-restore-outline" class="text-16px" /></template>
+            回收站
+          </NButton>
           <input ref="fileInput" type="file" multiple class="hidden" @change="onFileChange" />
           <input ref="folderInput" type="file" webkitdirectory multiple class="hidden" @change="onFolderChange" />
         </div>
@@ -714,7 +899,7 @@ onMounted(() => {
               @dragstart="onCardDragStart($event, r)"
             >
               <div class="flex h-[110px] items-center justify-center bg-gray-50 dark:bg-gray-800">
-                <img v-if="isPreviewableImage(r)" :src="r.url" class="h-full w-full object-cover" loading="lazy" />
+                <img v-if="isPreviewableImage(r)" :src="r.thumb_url || r.url" :data-origin="r.url" class="h-full w-full object-cover" loading="lazy" @error="(e) => { const el = e.target as HTMLImageElement; if (el.src !== el.dataset.origin) el.src = el.dataset.origin || ''; }" />
                 <div v-else-if="isPreviewableVideo(r)" class="flex flex-col items-center text-gray-400">
                   <SvgIcon icon="mdi:play-circle-outline" class="text-30px" />
                   <span class="mt-1 text-xs">视频</span>
@@ -860,12 +1045,21 @@ onMounted(() => {
             </div>
             <div v-for="(ref, idx) in currentRefs" :key="`${ref.ref_type}-${ref.ref_id}-${idx}`">
               <div
+                v-if="canJumpRef(ref)"
                 class="flex cursor-pointer items-center justify-between gap-2 rounded bg-gray-50 px-2 py-1 text-xs hover:bg-green-50 dark:bg-gray-800 dark:hover:bg-green-900/20"
                 :title="`跳转到 ${ref.ref_label}`"
                 @click="jumpToRef(ref)"
               >
                 <span class="truncate">{{ ref.ref_label || ref.ref_type }}</span>
                 <SvgIcon icon="mdi:open-in-new" class="text-13px shrink-0 text-green-500" />
+              </div>
+              <div
+                v-else
+                class="flex cursor-not-allowed items-center justify-between gap-2 rounded bg-gray-50 px-2 py-1 text-xs opacity-60 dark:bg-gray-800"
+                :title="`ref_type=${ref.ref_type} 无对应路由`"
+              >
+                <span class="truncate">{{ ref.ref_label || ref.ref_type }}</span>
+                <span class="rounded bg-gray-200 px-1 text-[10px] leading-4 text-gray-500 dark:bg-gray-700 dark:text-gray-400">无路由</span>
               </div>
             </div>
           </div>
@@ -953,6 +1147,81 @@ onMounted(() => {
         <div class="flex justify-end gap-2">
           <NButton size="small" @click="tagDialogVisible = false">取消</NButton>
           <NButton size="small" type="primary" @click="confirmTags">打标</NButton>
+        </div>
+      </template>
+    </NModal>
+
+    <!-- 回收站 -->
+    <NModal
+      v-model:show="trashVisible"
+      preset="card"
+      title="回收站"
+      style="width: 720px"
+    >
+      <div class="mb-3 flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <NInput
+            v-model:value="trashKeyword"
+            placeholder="搜索名称"
+            size="small"
+            clearable
+            style="width: 200px"
+            @keyup.enter="onTrashSearch"
+          >
+            <template #prefix><SvgIcon icon="mdi:magnify" class="text-14px" /></template>
+          </NInput>
+          <NButton size="small" @click="onTrashSearch">搜索</NButton>
+          <NButton size="small" type="primary" :disabled="!trashSelected.size" @click="restoreTrashSelection">
+            <template #icon><SvgIcon icon="mdi:restore" class="text-14px" /></template>
+            恢复选中（{{ trashSelected.size }}）
+          </NButton>
+          <NButton size="small" type="error" secondary :disabled="!trashSelected.size" @click="purgeTrashSelection">
+            <template #icon><SvgIcon icon="mdi:delete-forever-outline" class="text-14px" /></template>
+            彻底删除
+          </NButton>
+        </div>
+        <NButton size="small" type="error" tertiary :disabled="!trashTotal" @click="emptyTrashAll">
+          <template #icon><SvgIcon icon="mdi:delete-sweep-outline" class="text-14px" /></template>
+          清空回收站
+        </NButton>
+      </div>
+      <NSpin :show="trashLoading">
+        <div v-if="!trashItems.length && !trashLoading" class="flex flex-col items-center justify-center py-16 text-gray-400">
+          <SvgIcon icon="mdi:delete-restore-outline" class="text-40px mb-2" />
+          <span>回收站是空的</span>
+        </div>
+        <div v-else class="max-h-[46vh] overflow-y-auto">
+          <div
+            v-for="r in trashItems"
+            :key="r.id"
+            class="flex cursor-pointer items-center gap-3 rounded border border-gray-100 border-solid px-3 py-2 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
+            :class="trashSelected.has(r.id) ? 'border-green-400 bg-green-50/50 dark:bg-green-900/10' : ''"
+            @click="toggleTrashSelect(r.id)"
+          >
+            <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded bg-gray-100 dark:bg-gray-800">
+              <img v-if="isPreviewableImage(r)" :src="r.thumb_url || r.url" class="h-full w-full object-cover" loading="lazy" />
+              <SvgIcon v-else-if="isPreviewableVideo(r)" icon="mdi:play-circle-outline" class="text-20px text-gray-400" />
+              <SvgIcon v-else-if="isPreviewableAudio(r)" icon="mdi:music-note" class="text-20px text-gray-400" />
+              <SvgIcon v-else icon="mdi:file-document-outline" class="text-20px text-gray-400" />
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="truncate text-sm">{{ r.name }}</div>
+              <div class="text-xs text-gray-400">{{ r.directory ? `目录：${r.directory}` : '未归档' }} · {{ formatSize(r.file_size) }}</div>
+            </div>
+            <div class="shrink-0 text-xs text-gray-400">删除于 {{ (r.deleted_at || '').slice(0, 10) }}</div>
+          </div>
+        </div>
+      </NSpin>
+      <template #footer>
+        <div class="flex items-center justify-between">
+          <span class="text-xs text-gray-500">共 {{ trashTotal }} 个</span>
+          <NPagination
+            :page="trashPage"
+            :page-size="trashPageSize"
+            :item-count="trashTotal"
+            size="small"
+            @update:page="onTrashPageChange"
+          />
         </div>
       </template>
     </NModal>

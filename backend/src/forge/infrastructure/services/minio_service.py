@@ -111,6 +111,57 @@ class MinioService:
         # ---- 本地降级 ----
         return self._save_local(object_name, data)
 
+    def remove_object(self, object_key: str) -> bool:
+        """删除一个对象（回收站彻底删除时使用）。本地降级路径同样清理。
+
+        返回 True 表示已删除（或对象本就不存在）；网络异常时记录日志并返回 False。
+        """
+        if not object_key:
+            return True
+        if self._available and self._client is not None:
+            try:
+                self._client.remove_object(self._bucket, object_key)
+                return True
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("MinIO remove failed (%s)", exc)
+                return False
+        # ---- 本地降级 ----
+        try:
+            path = _LOCAL_FALLBACK_DIR / object_key
+            if path.exists():
+                path.unlink()
+            return True
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Local remove failed (%s)", exc)
+            return False
+
+    def upload_object(
+        self,
+        data: bytes,
+        object_key: str,
+        content_type: Optional[str] = None,
+    ) -> str:
+        """上传到指定 object_key（不自动生成键名），返回公开 URL。
+
+        用于缩略图等需要固定键名的场景；本地降级时同样写入 /uploads/site/{object_key}。
+        """
+        if not object_key:
+            return ""
+        ctype = content_type or "application/octet-stream"
+        if self._available and self._client is not None:
+            try:
+                self._client.put_object(
+                    self._bucket,
+                    object_key,
+                    BytesIO(data),
+                    length=len(data),
+                    content_type=ctype,
+                )
+                return self._public_url(object_key)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("MinIO upload failed (%s); falling back to local", exc)
+        return self._save_local(object_key, data)
+
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
