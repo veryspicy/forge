@@ -76,6 +76,45 @@ const uploadDone = ref(0);
 const previewVisible = ref(false);
 const previewUrl = ref('');
 const previewType = ref<'image' | 'video' | 'audio' | 'other'>('other');
+const gridScrollRef = ref<HTMLElement | null>(null);
+let smoothScrollCleanup: (() => void) | null = null;
+
+/** 为网格容器绑定平滑滚动：限制单次滚轮增量 + rAF 缓动，降低顿挫感 */
+function bindSmoothScroll(el: HTMLElement | null) {
+  smoothScrollCleanup?.();
+  if (!el) return;
+  let current = el.scrollTop;
+  let target = el.scrollTop;
+  let rafId: number | null = null;
+
+  function onWheel(e: WheelEvent) {
+    e.preventDefault();
+    const maxStep = 80; // 单次滚轮最大滚动距离（px），控制滑动速度
+    const delta = Math.max(-maxStep, Math.min(maxStep, e.deltaY));
+    const maxScroll = el.scrollHeight - el.clientHeight;
+    target = Math.max(0, Math.min(target + delta, maxScroll));
+    if (rafId !== null) return;
+    current = el.scrollTop;
+    const tick = () => {
+      const diff = target - current;
+      if (Math.abs(diff) < 0.5) {
+        el.scrollTop = target;
+        rafId = null;
+        return;
+      }
+      current += diff * 0.18; // 缓动系数：越小越平滑
+      el.scrollTop = current;
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+  }
+
+  el.addEventListener('wheel', onWheel, { passive: false });
+  smoothScrollCleanup = () => {
+    el.removeEventListener('wheel', onWheel);
+    if (rafId !== null) cancelAnimationFrame(rafId);
+  };
+}
 
 const typeCounts = computed(() => {
   const map: Record<string, number> = {};
@@ -135,7 +174,7 @@ async function loadList() {
       directory: activeDirectory.value !== null ? activeDirectory.value : undefined,
       tag: activeTag.value || undefined,
       page: page.value,
-      pageSize: pageSize.value
+      page_size: pageSize.value
     });
     const data = (res as any).data ?? res;
     items.value = data.items ?? [];
@@ -177,7 +216,7 @@ async function loadTrash() {
     const res = await resourceApi.trashList({
       keyword: trashKeyword.value || undefined,
       page: trashPage.value,
-      pageSize: trashPageSize.value
+      page_size: trashPageSize.value
     }) as any;
     const data = res?.data?.data ?? res?.data ?? res;
     trashItems.value = data?.items ?? [];
@@ -373,32 +412,45 @@ async function fetchExistingNames(names: string[]): Promise<Set<string>> {
   }
 }
 
-/** 将同名文件自动重命名为 name(1).ext / name(2).ext，返回新 File 列表 */
+/** 将同名文件自动重命名为 name(1).ext / name(2).ext，返回新 File 列表。
+ * 迭代检查：每轮把当前候选名提交服务器核对，冲突项继续递增，直到全部无冲突。
+ * 修复连续上传同名文件时重复生成相同 (n) 后缀的问题（如第二次仍生成 (1) 而非 (2)）。 */
 async function dedupeUploadList(list: { file: File; directory?: string }[]) {
-  const names = list.map(i => i.file.name);
-  const existing = await fetchExistingNames(names);
-  const used = new Map<string, number>(); // 记录本轮已占用的原名计数
-  return list.map((item) => {
+  const pending = list.map((item) => {
     const { file } = item;
     const dot = file.name.lastIndexOf('.');
-    const stem = dot > 0 ? file.name.slice(0, dot) : file.name;
-    const ext = dot > 0 ? file.name.slice(dot) : '';
-    let finalName = file.name;
-    let candidate = file.name;
-    let seq = 0;
-    while (existing.has(candidate) || (used.get(candidate) ?? 0) > 0) {
-      seq += 1;
-      candidate = `${stem}(${seq})${ext}`;
-    }
-    used.set(candidate, 1);
-    existing.add(candidate);
-    finalName = candidate;
-    if (finalName === file.name) {
-      return item;
-    }
     return {
-      directory: item.directory,
-      file: new File([file], finalName, { type: file.type })
+      item,
+      stem: dot > 0 ? file.name.slice(0, dot) : file.name,
+      ext: dot > 0 ? file.name.slice(dot) : '',
+      candidate: file.name
+    };
+  });
+
+  // 迭代直至稳定：候选名被服务器占用或批内占用时递增 (n)，新候选名再交给服务器核对
+  for (;;) {
+    const names = pending.map(p => p.candidate);
+    const existing = await fetchExistingNames(names);
+    const used = new Set(existing); // 服务器已占用 + 本批已分配
+    let dirty = false;
+    for (const p of pending) {
+      let seq = 0;
+      while (used.has(p.candidate)) {
+        dirty = true;
+        seq += 1;
+        p.candidate = `${p.stem}(${seq})${p.ext}`;
+        if (!used.has(p.candidate)) break;
+      }
+      used.add(p.candidate);
+    }
+    if (!dirty) break;
+  }
+
+  return pending.map((p) => {
+    if (p.candidate === p.item.file.name) return p.item;
+    return {
+      directory: p.item.directory,
+      file: new File([p.item.file], p.candidate, { type: p.item.file.type })
     };
   });
 }
@@ -714,6 +766,11 @@ function download(r: ResourceItem) {
 onMounted(() => {
   loadList();
   loadMeta();
+  bindSmoothScroll(gridScrollRef.value);
+});
+
+onBeforeUnmount(() => {
+  smoothScrollCleanup?.();
 });
 </script>
 
@@ -855,6 +912,7 @@ onMounted(() => {
 
       <!-- 缩略图网格（拖拽上传区） -->
       <div
+        ref="gridScrollRef"
         class="relative flex-1 overflow-y-auto p-3"
         :class="dragActive ? 'bg-green-50/60 dark:bg-green-900/10' : ''"
         @dragover.prevent="dragActive = true"
@@ -899,7 +957,7 @@ onMounted(() => {
               @dragstart="onCardDragStart($event, r)"
             >
               <div class="flex h-[110px] items-center justify-center bg-gray-50 dark:bg-gray-800">
-                <img v-if="isPreviewableImage(r)" :src="r.thumb_url || r.url" :data-origin="r.url" class="h-full w-full object-cover" loading="lazy" @error="(e) => { const el = e.target as HTMLImageElement; if (el.src !== el.dataset.origin) el.src = el.dataset.origin || ''; }" />
+                <img v-if="isPreviewableImage(r)" :src="r.thumb_url || r.url" :data-origin="r.url" class="h-full w-full object-cover" loading="lazy" decoding="async" @error="(e) => { const el = e.target as HTMLImageElement; if (el.src !== el.dataset.origin) el.src = el.dataset.origin || ''; }" />
                 <div v-else-if="isPreviewableVideo(r)" class="flex flex-col items-center text-gray-400">
                   <SvgIcon icon="mdi:play-circle-outline" class="text-30px" />
                   <span class="mt-1 text-xs">视频</span>
