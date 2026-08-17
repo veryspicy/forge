@@ -196,16 +196,16 @@ async function doDelete(r: ResourceItem) {
     positiveText: '删除',
     negativeText: '取消',
     onPositiveClick: async () => {
-      try {
-        await resourceApi.remove(r.id);
-        message.success('已删除');
-        selectedIds.value.delete(r.id);
-        selectedIds.value = new Set(selectedIds.value);
-        if (currentDetail.value?.id === r.id) currentDetail.value = null;
-        await loadList();
-      } catch (e: any) {
-        message.error(`删除失败: ${e?.message || e}`);
+      const { error } = await resourceApi.remove(r.id) as any;
+      if (error) {
+        message.error(`删除失败: ${error.response?.data?.detail || error.message}`);
+        return;
       }
+      message.success('已删除');
+      selectedIds.value.delete(r.id);
+      selectedIds.value = new Set(selectedIds.value);
+      if (currentDetail.value?.id === r.id) currentDetail.value = null;
+      await loadList();
     }
   });
 }
@@ -222,16 +222,15 @@ async function doBatchDelete() {
     positiveText: '删除',
     negativeText: '取消',
     onPositiveClick: async () => {
-      try {
-        const res = await resourceApi.batchRemove(ids);
-        const data = (res as any).data;
-        message.success(`已删除 ${data?.deleted ?? ids.length} 个`);
-        selectedIds.value = new Set();
-        currentDetail.value = null;
-        await loadList();
-      } catch (e: any) {
-        message.error(`批量删除失败: ${e?.message || e}`);
+      const { data, error } = await resourceApi.batchRemove(ids) as any;
+      if (error) {
+        message.error(`批量删除失败: ${error.response?.data?.detail || error.message}`);
+        return;
       }
+      message.success(`已删除 ${data?.deleted ?? ids.length} 个`);
+      selectedIds.value = new Set();
+      currentDetail.value = null;
+      await loadList();
     }
   });
 }
@@ -365,8 +364,10 @@ onMounted(loadList);
               </div>
               <div class="truncate px-2 py-1.5 text-xs" :title="r.name">{{ r.name }}</div>
               <div
-                class="absolute top-1.5 right-1.5 z-20 flex h-5 w-5 cursor-pointer items-center justify-center rounded border border-gray-300 border-solid bg-white text-xs dark:bg-gray-700"
-                :class="selectedIds.has(r.id) ? 'bg-green-500 border-green-500 text-white' : ''"
+                class="absolute top-1.5 right-1.5 z-20 flex h-5 w-5 cursor-pointer items-center justify-center rounded border border-solid text-xs transition-colors"
+                :class="selectedIds.has(r.id)
+                  ? 'border-green-500 bg-green-500 text-white'
+                  : 'border-gray-300 bg-white text-gray-400 dark:border-gray-500 dark:bg-gray-700'"
                 @click.stop="toggleSelect(r.id)"
               >
                 <SvgIcon v-if="selectedIds.has(r.id)" icon="mdi:check" class="text-12px" />

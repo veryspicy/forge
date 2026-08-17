@@ -72,6 +72,17 @@ async def _resolve_upload_site_id(db: AsyncSession, admin: dict, requested: Opti
         raise HTTPException(status_code=500, detail="未找到 active 站点配置")
     return str(profile.id)
 
+async def _resolve_site_id(db: AsyncSession, admin: dict, requested: Optional[str]) -> str:
+    """解析资源列表/详情的站点作用域：显式指定优先；super_admin 可查看全部；否则 active profile。"""
+    if requested:
+        return requested
+    if admin.get("role") == "super_admin":
+        return "all"
+    profile = await SQLAlchemySiteProfileRepository.get_active(db)
+    if profile is None:
+        raise HTTPException(status_code=500, detail="未找到 active 站点配置")
+    return str(profile.id)
+
 
 def _serialize(res: ORMResource) -> dict:
     return {
