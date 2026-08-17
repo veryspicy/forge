@@ -47,7 +47,7 @@ const tags = ref<{ name: string; count: number }[]>([]);
 const items = ref<ResourceItem[]>([]);
 const total = ref(0);
 const page = ref(1);
-const pageSize = ref(25);
+const pageSize = ref(30);
 const loading = ref(false);
 const uploading = ref(false);
 const selectedIds = ref<Set<string>>(new Set());
@@ -857,6 +857,12 @@ onBeforeUnmount(() => {
           <div v-if="!tags.length" class="px-2 py-1 text-xs text-gray-400">暂无标签</div>
         </div>
       </div>
+      <div class="border-t border-gray-100 border-solid p-2 dark:border-gray-700">
+        <NButton size="small" secondary block @click="openTrash">
+          <template #icon><SvgIcon icon="mdi:delete-restore-outline" class="text-16px" /></template>
+          回收站
+        </NButton>
+      </div>
     </div>
 
     <!-- 中：资源列表 -->
@@ -942,7 +948,7 @@ onBeforeUnmount(() => {
             <SvgIcon icon="mdi:image-off-outline" class="text-40px mb-2" />
             <span>暂无资源，点击右上角上传</span>
           </div>
-          <div v-else class="grid grid-cols-4 gap-2.5 xl:grid-cols-5">
+          <div v-else class="grid grid-cols-4 gap-3 xl:grid-cols-5">
             <div
               v-for="r in items"
               :key="r.id"
@@ -952,7 +958,7 @@ onBeforeUnmount(() => {
               @click="selectedIds.size > 1 ? toggleSelect(r.id) : selectDetail(r)"
               @dragstart="onCardDragStart($event, r)"
             >
-              <div class="flex h-[96px] items-center justify-center bg-gray-50 dark:bg-gray-800">
+              <div class="flex h-[110px] items-center justify-center bg-gray-50 dark:bg-gray-800">
                 <img v-if="isPreviewableImage(r)" :src="r.thumb_url || r.url" :data-origin="r.url" class="h-full w-full object-cover" loading="lazy" decoding="async" @error="(e) => { const el = e.target as HTMLImageElement; if (el.src !== el.dataset.origin) el.src = el.dataset.origin || ''; }" />
                 <div v-else-if="isPreviewableVideo(r)" class="flex flex-col items-center text-gray-400">
                   <SvgIcon icon="mdi:play-circle-outline" class="text-30px" />
@@ -1010,13 +1016,7 @@ onBeforeUnmount(() => {
 
       <!-- 分页 -->
       <div class="flex items-center justify-between border-t border-gray-100 border-solid px-4 py-2 dark:border-gray-700">
-        <div class="flex items-center gap-3">
-          <span class="text-xs text-gray-500">共 {{ total }} 个资源</span>
-          <NButton size="small" tertiary @click="openTrash">
-            <template #icon><SvgIcon icon="mdi:delete-restore-outline" class="text-16px" /></template>
-            回收站
-          </NButton>
-        </div>
+        <span class="text-xs text-gray-500">共 {{ total }} 个资源</span>
         <NPagination
           :page="page"
           :page-size="pageSize"
