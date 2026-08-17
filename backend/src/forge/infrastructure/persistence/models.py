@@ -208,10 +208,36 @@ class ORMResource(Base):
     file_size = Column(Integer, nullable=False, default=0)
     sha256 = Column(String(64), nullable=True)
     name = Column(String(255), nullable=False, default="")
+    directory = Column(String(255), nullable=False, default="")
     created_by = Column(UUID(as_uuid=True), nullable=True)
     created_at = Column(DateTime(timezone=False), nullable=False,
                         server_default="now()")
     deleted_at = Column(DateTime(timezone=False), nullable=True)
+
+
+class ORMResourceTag(Base):
+    """资源标签表（全局标签，name 唯一）。"""
+
+    __tablename__ = "resource_tag"
+
+    id = Column(UUID(as_uuid=True), primary_key=True,
+                server_default="gen_random_uuid()")
+    name = Column(String(64), nullable=False, unique=True, index=True)
+    created_at = Column(DateTime(timezone=False), nullable=False,
+                        server_default="now()")
+
+
+class ORMResourceTagMap(Base):
+    """资源-标签关联表（多对多）。"""
+
+    __tablename__ = "resource_tag_map"
+
+    id = Column(UUID(as_uuid=True), primary_key=True,
+                server_default="gen_random_uuid()")
+    resource_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    tag_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=False), nullable=False,
+                        server_default="now()")
 
 
 class ORMResourceRef(Base):

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useDialog, useMessage } from 'naive-ui';
+import { useRouter } from 'vue-router';
 import { resourceApi } from '@/service/api/resources';
 
 interface ResourceItem {
@@ -12,11 +13,21 @@ interface ResourceItem {
   name: string;
   created_at: string;
   object_key: string;
+  directory?: string;
+  tags?: string[];
+  ref_count?: number;
   deleted_at?: string | null;
+}
+
+interface RefInfo {
+  ref_type: string;
+  ref_id: string;
+  ref_label: string;
 }
 
 const dialog = useDialog();
 const message = useMessage();
+const router = useRouter();
 
 const typeTabs = [
   { key: '', label: '全部', icon: 'mdi:view-grid-outline' },
@@ -28,6 +39,10 @@ const typeTabs = [
 
 const activeType = ref('');
 const keyword = ref('');
+const activeDirectory = ref<string | null>(null); // null=不过滤，''=未归档
+const activeTag = ref('');
+const directories = ref<{ directory: string; count: number }[]>([]);
+const tags = ref<{ name: string; count: number }[]>([]);
 const items = ref<ResourceItem[]>([]);
 const total = ref(0);
 const page = ref(1);
@@ -36,9 +51,19 @@ const loading = ref(false);
 const uploading = ref(false);
 const selectedIds = ref<Set<string>>(new Set());
 const currentDetail = ref<ResourceItem | null>(null);
-const currentRefs = ref<Array<{ ref_type: string; ref_id: string; ref_label: string }>>([]);
+const currentRefs = ref<RefInfo[]>([]);
 const renameValue = ref('');
 const fileInput = ref<HTMLInputElement | null>(null);
+const folderInput = ref<HTMLInputElement | null>(null);
+const dragActive = ref(false);
+const dragResourceIds = ref<string[]>([]);
+const tagInputValue = ref('');
+const moveDialogVisible = ref(false);
+const moveTargetDir = ref('');
+const tagDialogVisible = ref(false);
+const uploadQueue = ref(0);
+const uploadTotal = ref(0);
+const uploadDone = ref(0);
 const previewVisible = ref(false);
 const previewUrl = ref('');
 const previewType = ref<'image' | 'video' | 'audio' | 'other'>('other');
@@ -98,6 +123,8 @@ async function loadList() {
     const res = await resourceApi.list({
       type: activeType.value || undefined,
       keyword: keyword.value || undefined,
+      directory: activeDirectory.value !== null ? activeDirectory.value : undefined,
+      tag: activeTag.value || undefined,
       page: page.value,
       pageSize: pageSize.value
     });
@@ -111,8 +138,37 @@ async function loadList() {
   }
 }
 
+async function loadMeta() {
+  try {
+    const [dirRes, tagRes] = await Promise.all([
+      resourceApi.directories(),
+      resourceApi.tags()
+    ]);
+    const dirData = (dirRes as any).data?.data ?? (dirRes as any).data ?? [];
+    const tagData = (tagRes as any).data?.data ?? (tagRes as any).data ?? [];
+    directories.value = Array.isArray(dirData) ? dirData : [];
+    tags.value = Array.isArray(tagData) ? tagData : [];
+  } catch {
+    // 元数据加载失败不阻塞主列表
+  }
+}
+
 function selectType(key: string) {
   activeType.value = key;
+  page.value = 1;
+  loadList();
+}
+
+function selectDirectory(dir: string) {
+  activeDirectory.value = activeDirectory.value === dir ? null : dir;
+  activeTag.value = '';
+  page.value = 1;
+  loadList();
+}
+
+function selectTag(tag: string) {
+  activeTag.value = activeTag.value === tag ? '' : tag;
+  activeDirectory.value = null;
   page.value = 1;
   loadList();
 }
@@ -131,23 +187,117 @@ function triggerUpload() {
   fileInput.value?.click();
 }
 
-async function onFileChange(e: Event) {
-  const input = e.target as HTMLInputElement;
-  const file = input.files?.[0];
-  if (!file) return;
-  uploading.value = true;
-  try {
-    const res = await resourceApi.upload(file);
-    message.success('上传成功');
-    await loadList();
-    const data = (res as any).data;
-    if (data?.id) selectDetail(data);
-  } catch (err: any) {
-    message.error(`上传失败: ${err?.message || err}`);
-  } finally {
-    uploading.value = false;
-    input.value = '';
+function triggerFolderUpload() {
+  folderInput.value?.click();
+}
+
+/** 解析拖拽的文件列表，支持文件与文件夹混拖 */
+function collectDropFiles(dataTransfer: DataTransfer): Promise<{ file: File; directory?: string }[]> {
+  const entries = Array.from(dataTransfer.items || [])
+    .map(item => item.webkitGetAsEntry?.() as any)
+    .filter(Boolean);
+  const results: { file: File; directory?: string }[] = [];
+
+  async function walk(entry: any, dirPath = ''): Promise<void> {
+    if (entry.isFile) {
+      const file = await new Promise<File>((resolve, reject) => {
+        entry.file(resolve, reject);
+      });
+      results.push({ file, directory: dirPath || undefined });
+      return;
+    }
+    if (entry.isDirectory) {
+      const reader = entry.createReader();
+      const children: any[] = [];
+      // 一次性读可能截断，循环读直到为空
+      for (;;) {
+        const batch = await new Promise<any[]>((resolve, reject) => {
+          reader.readEntries(resolve, reject);
+        });
+        if (!batch.length) break;
+        children.push(...batch);
+      }
+      const subPath = dirPath ? `${dirPath}/${entry.name}` : entry.name;
+      for (const child of children) {
+        await walk(child, subPath);
+      }
+    }
   }
+
+  return (async () => {
+    for (const entry of entries) {
+      await walk(entry);
+    }
+    return results;
+  })();
+}
+
+/** 顺序上传文件队列：每个成功后短暂停留，全部完成汇总提示 */
+async function uploadFiles(list: { file: File; directory?: string }[]) {
+  if (!list.length) return;
+  uploadTotal.value = list.length;
+  uploadDone.value = 0;
+  uploading.value = true;
+  let okCount = 0;
+  let failCount = 0;
+  for (const item of list) {
+    uploadQueue.value += 1;
+    try {
+      const res = await resourceApi.upload(item.file, {
+        directory: item.directory,
+        tags: item.directory ? [item.directory] : undefined
+      });
+      const data = (res as any).data?.data ?? (res as any).data;
+      okCount += 1;
+      message.success(`「${item.file.name}」上传成功`);
+      if (data?.id && list.length === 1) selectDetail(data);
+      await new Promise(resolve => setTimeout(resolve, 300));
+    } catch (err: any) {
+      failCount += 1;
+      // 请求层已弹出错误消息，这里仅计数，避免双弹窗
+    } finally {
+      uploadQueue.value -= 1;
+      uploadDone.value += 1;
+    }
+  }
+  uploading.value = false;
+  await Promise.all([loadList(), loadMeta()]);
+  if (failCount === 0) {
+    message.success(`全部 ${okCount} 个文件上传完成`);
+  } else if (okCount > 0) {
+    message.warning(`上传完成：成功 ${okCount} 个，失败 ${failCount} 个`);
+  } else {
+    message.error(`全部 ${failCount} 个文件上传失败`);
+  }
+}
+
+function onFileChange(e: Event) {
+  const input = e.target as HTMLInputElement;
+  const files = Array.from(input.files || []);
+  input.value = '';
+  if (!files.length) return;
+  uploadFiles(files.map(f => ({ file: f })));
+}
+
+function onFolderChange(e: Event) {
+  const input = e.target as HTMLInputElement;
+  const files = Array.from(input.files || []);
+  input.value = '';
+  if (!files.length) return;
+  // 文件夹选择器会带 webkitRelativePath，如 folder/sub/file.png
+  const list = files.map(f => {
+    const rel = f.webkitRelativePath || '';
+    const seg = rel.split('/');
+    const directory = seg.length > 1 ? seg[0] : undefined;
+    return { file: f, directory };
+  });
+  uploadFiles(list);
+}
+
+function onDrop(e: DragEvent) {
+  dragActive.value = false;
+  if (!e.dataTransfer) return;
+  collectDropFiles(e.dataTransfer).then(uploadFiles);
 }
 
 function toggleSelect(id: string) {
@@ -155,6 +305,10 @@ function toggleSelect(id: string) {
   if (s.has(id)) s.delete(id);
   else s.add(id);
   selectedIds.value = s;
+  // 多选态下右侧面板显示"N 项已选中"；清空时若存在当前详情则保持
+  if (selectedIds.value.size > 1) {
+    currentDetail.value = null;
+  }
 }
 
 async function selectDetail(r: ResourceItem) {
@@ -179,14 +333,130 @@ async function doRename() {
     message.warning('名称不能为空');
     return;
   }
+  if (name !== currentDetail.value.name) {
+    try {
+      const check = (await resourceApi.checkName(name, currentDetail.value.id)) as any;
+      const info = check?.data?.data ?? check?.data ?? check;
+      if (info?.exists) {
+        message.warning(`重名提示：已有 ${info.active_count} 个同名资源${info.trash_count ? `（回收站 ${info.trash_count} 个）` : ''}`);
+      }
+    } catch {
+      // 检测失败不阻塞重命名
+    }
+  }
   try {
     await resourceApi.rename(currentDetail.value.id, name);
     message.success('重命名成功');
     currentDetail.value.name = name;
-    await loadList();
+    await Promise.all([loadList(), loadMeta()]);
   } catch (e: any) {
     message.error(`重命名失败: ${e?.message || e}`);
   }
+}
+
+/** 卡片拖拽开始：记录拖拽的资源 id（多选时拖全部选中项） */
+function onCardDragStart(e: DragEvent, r: ResourceItem) {
+  dragResourceIds.value = selectedIds.value.has(r.id)
+    ? Array.from(selectedIds.value)
+    : [r.id];
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', dragResourceIds.value.join(','));
+  }
+}
+
+/** 目录树条目接收拖拽：移动到该目录 */
+async function onDirDrop(dir: string) {
+  const ids = dragResourceIds.value;
+  dragResourceIds.value = [];
+  if (!ids.length) return;
+  try {
+    const res = await resourceApi.move(ids, dir) as any;
+    const data = res?.data?.data ?? res?.data ?? res;
+    const moved = data?.moved ?? ids.length;
+    message.success(`已移动 ${moved} 个资源到「${dir || '未归档'}」`);
+    await Promise.all([loadList(), loadMeta()]);
+  } catch (e: any) {
+    message.error(`移动失败: ${e?.message || e}`);
+  }
+}
+
+/** 批量移动到目录：弹窗选择 */
+function showMoveDialog() {
+  const ids = Array.from(selectedIds.value);
+  if (!ids.length) {
+    message.warning('请先选择资源');
+    return;
+  }
+  moveTargetDir.value = '';
+  moveDialogVisible.value = true;
+}
+
+async function confirmMove() {
+  const ids = Array.from(selectedIds.value);
+  try {
+    const res = await resourceApi.move(ids, moveTargetDir.value) as any;
+    const data = res?.data?.data ?? res?.data ?? res;
+    const moved = data?.moved ?? ids.length;
+    message.success(`已移动 ${moved} 个资源到「${moveTargetDir.value || '未归档'}」`);
+    moveDialogVisible.value = false;
+    await Promise.all([loadList(), loadMeta()]);
+  } catch (e: any) {
+    message.error(`移动失败: ${e?.message || e}`);
+  }
+}
+
+/** 批量打标：弹窗输入标签（逗号/空格分隔） */
+function showTagDialog() {
+  const ids = Array.from(selectedIds.value);
+  if (!ids.length) {
+    message.warning('请先选择资源');
+    return;
+  }
+  tagInputValue.value = '';
+  tagDialogVisible.value = true;
+}
+
+async function confirmTags() {
+  const ids = Array.from(selectedIds.value);
+  const tagList = tagInputValue.value.split(/[,，\s]+/).map(t => t.trim()).filter(Boolean);
+  if (!tagList.length) {
+    message.warning('请输入标签');
+    return;
+  }
+  try {
+    await resourceApi.setTags(ids, tagList) as any;
+    message.success(`已为 ${ids.length} 个资源添加 ${tagList.length} 个标签`);
+    tagDialogVisible.value = false;
+    await Promise.all([loadList(), loadMeta()]);
+  } catch (e: any) {
+    message.error(`打标失败: ${e?.message || e}`);
+  }
+}
+
+/** 引用跳转：ref_type 映射到对应管理路由 */
+function jumpToRef(refInfo: RefInfo) {
+  const routeMap: Record<string, string> = {
+    product: '/products',
+    products: '/products',
+    article: '/ai-probe',
+    articles: '/ai-probe',
+    order: '/orders',
+    orders: '/orders',
+    user: '/users',
+    users: '/users',
+    supplier: '/suppliers',
+    suppliers: '/suppliers',
+    shipment: '/shipments',
+    shipments: '/shipments',
+    site: '/site-config'
+  };
+  const target = routeMap[refInfo.ref_type];
+  if (target) {
+    router.push(target);
+    return;
+  }
+  message.info(`引用位置「${refInfo.ref_label}」暂无跳转路由（ref_type=${refInfo.ref_type}）`);
 }
 
 async function doDelete(r: ResourceItem) {
@@ -196,16 +466,14 @@ async function doDelete(r: ResourceItem) {
     positiveText: '删除',
     negativeText: '取消',
     onPositiveClick: async () => {
-      const { error } = await resourceApi.remove(r.id) as any;
-      if (error) {
-        message.error(`删除失败: ${error.response?.data?.detail || error.message}`);
-        return;
-      }
+      // 请求层 onError 已全局弹出错误消息，这里只处理成功分支，避免双弹窗
+      const { data } = await resourceApi.remove(r.id) as any;
+      if (!data) return;
       message.success('已删除');
       selectedIds.value.delete(r.id);
       selectedIds.value = new Set(selectedIds.value);
       if (currentDetail.value?.id === r.id) currentDetail.value = null;
-      await loadList();
+      await Promise.all([loadList(), loadMeta()]);
     }
   });
 }
@@ -216,21 +484,25 @@ async function doBatchDelete() {
     message.warning('请先选择资源');
     return;
   }
+  // 拦截：选中的资源中包含被引用资源，取消删除并提示
+  const refItem = items.value.find(it => ids.includes(it.id) && (it.ref_count ?? 0) > 0);
+  if (refItem) {
+    message.warning('选中的资源中包含被引用的资源，请将其释放后再试');
+    return;
+  }
   dialog.warning({
     title: '确认批量删除',
     content: `确定删除选中的 ${ids.length} 个资源吗？（软删）`,
     positiveText: '删除',
     negativeText: '取消',
     onPositiveClick: async () => {
-      const { data, error } = await resourceApi.batchRemove(ids) as any;
-      if (error) {
-        message.error(`批量删除失败: ${error.response?.data?.detail || error.message}`);
-        return;
-      }
-      message.success(`已删除 ${data?.deleted ?? ids.length} 个`);
+      const { data } = await resourceApi.batchRemove(ids) as any;
+      if (!data) return;
+      const deletedCount = data?.data?.deleted ?? data?.deleted ?? ids.length;
+      message.success(`已删除 ${deletedCount} 个`);
       selectedIds.value = new Set();
       currentDetail.value = null;
-      await loadList();
+      await Promise.all([loadList(), loadMeta()]);
     }
   });
 }
@@ -258,35 +530,93 @@ function download(r: ResourceItem) {
   window.open(r.url, '_blank');
 }
 
-onMounted(loadList);
+onMounted(() => {
+  loadList();
+  loadMeta();
+});
 </script>
 
 <template>
   <div class="resource-page flex gap-4" style="min-height: calc(100vh - 180px)">
-    <!-- 左：资源类型列表 -->
-    <div class="flex w-[200px] shrink-0 flex-col overflow-hidden rounded bg-white shadow-sm dark:bg-dark">
+    <!-- 左：资源类型 / 目录 / 标签 -->
+    <div class="flex w-[220px] shrink-0 flex-col overflow-hidden rounded bg-white shadow-sm dark:bg-dark">
       <div class="flex items-center gap-2 border-b border-gray-100 border-solid px-4 py-3 dark:border-gray-700">
         <SvgIcon icon="mdi:folder-multiple-image" class="text-18px text-green-600" />
         <span class="text-sm font-semibold">资源管理</span>
       </div>
-      <div class="flex flex-1 flex-col gap-1 overflow-y-auto p-2">
-        <div
-          v-for="t in typeTabs"
-          :key="t.key"
-          class="flex cursor-pointer items-center justify-between rounded px-2 py-2 text-sm transition-colors"
-          :class="activeType === t.key
-            ? 'bg-green-50 text-green-700 font-medium dark:bg-green-900/20 dark:text-green-400'
-            : 'hover:bg-gray-50 dark:hover:bg-gray-800'"
-          @click="selectType(t.key)"
-        >
-          <span class="flex items-center gap-2">
-            <SvgIcon :icon="t.icon" class="text-16px shrink-0" />
-            {{ t.label }}
+      <div class="flex-1 overflow-y-auto p-2">
+        <div class="mb-1 text-xs text-gray-400">类型</div>
+        <div class="mb-2 flex flex-col gap-1">
+          <div
+            v-for="t in typeTabs"
+            :key="t.key"
+            class="flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-sm transition-colors"
+            :class="activeType === t.key
+              ? 'bg-green-50 text-green-700 font-medium dark:bg-green-900/20 dark:text-green-400'
+              : 'hover:bg-gray-50 dark:hover:bg-gray-800'"
+            @click="selectType(t.key)"
+          >
+            <span class="flex items-center gap-2">
+              <SvgIcon :icon="t.icon" class="text-16px shrink-0" />
+              {{ t.label }}
+            </span>
+            <span
+              v-if="t.key && typeCounts[t.key]"
+              class="rounded-full bg-gray-100 px-1.5 text-xs text-gray-500 dark:bg-gray-800"
+            >{{ typeCounts[t.key] }}</span>
+          </div>
+        </div>
+
+        <div class="mb-1 mt-3 flex items-center justify-between text-xs text-gray-400">
+          <span class="flex items-center gap-1">
+            <SvgIcon icon="mdi:folder-outline" class="text-13px" />目录
           </span>
-          <span
-            v-if="t.key && typeCounts[t.key]"
-            class="rounded-full bg-gray-100 px-1.5 text-xs text-gray-500 dark:bg-gray-800"
-          >{{ typeCounts[t.key] }}</span>
+          <span v-if="activeDirectory !== null" class="cursor-pointer text-green-500" @click="selectDirectory(activeDirectory as string)">清除</span>
+        </div>
+        <div class="mb-2 flex flex-col gap-0.5">
+          <div
+            v-for="d in directories"
+            :key="d.directory"
+            class="flex cursor-grab items-center justify-between rounded px-2 py-1.5 text-sm transition-colors"
+            :class="activeDirectory === d.directory
+              ? 'bg-green-50 text-green-700 font-medium dark:bg-green-900/20 dark:text-green-400'
+              : 'hover:bg-gray-50 dark:hover:bg-gray-800'"
+            @click="selectDirectory(d.directory)"
+            @dragover.prevent
+            @drop.prevent="onDirDrop(d.directory)"
+          >
+            <span class="flex items-center gap-1.5 truncate" :title="d.directory || '未归档'">
+              <SvgIcon :icon="d.directory ? 'mdi:folder-outline' : 'mdi:folder-open-outline'" class="text-15px shrink-0 text-gray-400" />
+              <span class="truncate">{{ d.directory || '未归档' }}</span>
+            </span>
+            <span class="rounded-full bg-gray-100 px-1.5 text-xs text-gray-500 dark:bg-gray-800">{{ d.count }}</span>
+          </div>
+          <div v-if="!directories.length" class="px-2 py-1 text-xs text-gray-400">暂无目录</div>
+        </div>
+
+        <div class="mb-1 mt-3 flex items-center justify-between text-xs text-gray-400">
+          <span class="flex items-center gap-1">
+            <SvgIcon icon="mdi:tag-multiple-outline" class="text-13px" />标签
+          </span>
+          <span v-if="activeTag" class="cursor-pointer text-green-500" @click="selectTag(activeTag)">清除</span>
+        </div>
+        <div class="flex flex-col gap-0.5">
+          <div
+            v-for="t in tags"
+            :key="t.name"
+            class="flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-sm transition-colors"
+            :class="activeTag === t.name
+              ? 'bg-green-50 text-green-700 font-medium dark:bg-green-900/20 dark:text-green-400'
+              : 'hover:bg-gray-50 dark:hover:bg-gray-800'"
+            @click="selectTag(t.name)"
+          >
+            <span class="flex items-center gap-1.5 truncate" :title="t.name">
+              <SvgIcon icon="mdi:tag-outline" class="text-15px shrink-0 text-gray-400" />
+              <span class="truncate">{{ t.name }}</span>
+            </span>
+            <span class="rounded-full bg-gray-100 px-1.5 text-xs text-gray-500 dark:bg-gray-800">{{ t.count }}</span>
+          </div>
+          <div v-if="!tags.length" class="px-2 py-1 text-xs text-gray-400">暂无标签</div>
         </div>
       </div>
     </div>
@@ -300,11 +630,24 @@ onMounted(loadList);
             <template #icon><SvgIcon icon="mdi:upload" class="text-16px" /></template>
             上传资源
           </NButton>
+          <NButton size="small" secondary @click="triggerFolderUpload">
+            <template #icon><SvgIcon icon="mdi:folder-upload-outline" class="text-16px" /></template>
+            上传文件夹
+          </NButton>
           <NButton size="small" type="error" secondary :disabled="!selectedIds.size" @click="handleDeleteBySelection">
             <template #icon><SvgIcon :icon="selectedIds.size > 1 ? 'mdi:delete-sweep-outline' : 'mdi:delete-outline'" class="text-16px" /></template>
             {{ selectedIds.size > 1 ? '批量删除' : '删除' }}
           </NButton>
-          <input ref="fileInput" type="file" class="hidden" @change="onFileChange" />
+          <NButton v-if="selectedIds.size > 1" size="small" secondary :disabled="!selectedIds.size" @click="showMoveDialog">
+            <template #icon><SvgIcon icon="mdi:folder-move-outline" class="text-16px" /></template>
+            移动到目录
+          </NButton>
+          <NButton v-if="selectedIds.size > 1" size="small" secondary :disabled="!selectedIds.size" @click="showTagDialog">
+            <template #icon><SvgIcon icon="mdi:tag-plus-outline" class="text-16px" /></template>
+            批量打标
+          </NButton>
+          <input ref="fileInput" type="file" multiple class="hidden" @change="onFileChange" />
+          <input ref="folderInput" type="file" webkitdirectory multiple class="hidden" @change="onFolderChange" />
         </div>
         <div class="flex items-center gap-2">
           <NButton size="small" @click="loadList">
@@ -325,8 +668,36 @@ onMounted(loadList);
         </div>
       </div>
 
-      <!-- 缩略图网格 -->
-      <div class="flex-1 overflow-y-auto p-3">
+      <!-- 缩略图网格（拖拽上传区） -->
+      <div
+        class="relative flex-1 overflow-y-auto p-3"
+        :class="dragActive ? 'bg-green-50/60 dark:bg-green-900/10' : ''"
+        @dragover.prevent="dragActive = true"
+        @dragleave.prevent="dragActive = false"
+        @drop.prevent="onDrop"
+      >
+        <div
+          v-if="dragActive"
+          class="pointer-events-none absolute inset-0 z-30 flex items-center justify-center border-2 border-green-500 border-dashed rounded-xl bg-green-50/80 dark:bg-green-900/20"
+        >
+          <div class="flex flex-col items-center text-green-600">
+            <SvgIcon icon="mdi:upload-multiple" class="text-44px mb-2" />
+            <span class="text-sm font-medium">松开鼠标上传文件 / 文件夹</span>
+          </div>
+        </div>
+        <div v-if="uploading" class="mb-3">
+          <NProgress
+            type="line"
+            :percentage="Math.round((uploadDone / uploadTotal) * 100)"
+            :show-indicator="false"
+            :height="4"
+            color="#22c55e"
+          />
+          <div class="mt-1 flex justify-between text-xs text-gray-500">
+            <span>{{ uploadDone }} / {{ uploadTotal }}</span>
+            <span>{{ uploadQueue > 0 ? '正在上传…' : '处理中…' }}</span>
+          </div>
+        </div>
         <NSpin :show="loading">
           <div v-if="!items.length && !loading" class="flex flex-col items-center justify-center py-20 text-gray-400">
             <SvgIcon icon="mdi:image-off-outline" class="text-40px mb-2" />
@@ -336,9 +707,11 @@ onMounted(loadList);
             <div
               v-for="r in items"
               :key="r.id"
+              draggable="true"
               class="group relative cursor-pointer overflow-hidden rounded-lg border border-gray-100 border-solid dark:border-gray-700"
-              :class="currentDetail?.id === r.id ? 'ring-2 ring-green-500' : ''"
-              @click="selectDetail(r)"
+              :class="currentDetail?.id === r.id ? 'ring-2 ring-green-500' : selectedIds.has(r.id) ? 'ring-2 ring-green-400' : ''"
+              @click="selectedIds.size > 1 ? toggleSelect(r.id) : selectDetail(r)"
+              @dragstart="onCardDragStart($event, r)"
             >
               <div class="flex h-[110px] items-center justify-center bg-gray-50 dark:bg-gray-800">
                 <img v-if="isPreviewableImage(r)" :src="r.url" class="h-full w-full object-cover" loading="lazy" />
@@ -357,21 +730,40 @@ onMounted(loadList);
               </div>
               <div
                 v-if="isPreviewableImage(r) || isPreviewableVideo(r) || isPreviewableAudio(r)"
-                class="absolute inset-0 z-10 hidden cursor-zoom-in items-center justify-center bg-black/30 group-hover:flex"
+                class="absolute top-9 right-1.5 z-10 hidden h-6 w-6 cursor-zoom-in items-center justify-center rounded-full bg-black/50 text-white group-hover:flex hover:bg-black/70"
                 @click.stop="openPreview(r)"
               >
-                <SvgIcon icon="mdi:magnify-plus-outline" class="text-32px text-white" />
+                <SvgIcon icon="mdi:magnify-plus-outline" class="text-14px" />
               </div>
               <div class="truncate px-2 py-1.5 text-xs" :title="r.name">{{ r.name }}</div>
+              <div
+                v-if="r.tags?.length"
+                class="flex flex-wrap gap-1 px-2 pb-1.5"
+              >
+                <span
+                  v-for="t in r.tags.slice(0, 3)"
+                  :key="t"
+                  class="max-w-[80px] truncate rounded bg-blue-50 px-1 text-[10px] leading-4 text-blue-500 dark:bg-blue-900/30 dark:text-blue-300"
+                >#{{ t }}</span>
+                <span v-if="r.tags.length > 3" class="text-[10px] leading-4 text-gray-400">+{{ r.tags.length - 3 }}</span>
+              </div>
               <div
                 class="absolute top-1.5 right-1.5 z-20 flex h-5 w-5 cursor-pointer items-center justify-center rounded border border-solid text-xs transition-colors"
                 :class="selectedIds.has(r.id)
                   ? 'border-green-500 bg-green-500 text-white'
-                  : 'border-gray-300 bg-white text-gray-400 dark:border-gray-500 dark:bg-gray-700'"
+                  : (r.ref_count ?? 0) > 0
+                    ? 'border-orange-400 bg-orange-50 text-orange-500 dark:bg-orange-900/30'
+                    : 'border-gray-300 bg-white text-gray-400 dark:border-gray-500 dark:bg-gray-700'"
+                :title="(r.ref_count ?? 0) > 0 ? `被引用 ${r.ref_count} 处，不可删除` : '选择'"
                 @click.stop="toggleSelect(r.id)"
               >
                 <SvgIcon v-if="selectedIds.has(r.id)" icon="mdi:check" class="text-12px" />
               </div>
+              <div
+                v-if="(r.ref_count ?? 0) > 0"
+                class="absolute bottom-1.5 left-1.5 z-10 rounded bg-orange-500/90 px-1 text-[10px] leading-4 text-white"
+                title="被引用资源，不可删除"
+              >引用 {{ r.ref_count }}</div>
             </div>
           </div>
         </NSpin>
@@ -393,9 +785,31 @@ onMounted(loadList);
     <!-- 右：详情 -->
     <div class="flex w-[300px] shrink-0 flex-col overflow-hidden rounded bg-white shadow-sm dark:bg-dark">
       <div class="border-b border-gray-100 border-solid px-4 py-3 dark:border-gray-700">
-        <span class="text-sm font-semibold">资源详情</span>
+        <span class="text-sm font-semibold">{{ selectedIds.size > 1 ? '批量操作' : '资源详情' }}</span>
       </div>
-      <div v-if="currentDetail" class="flex-1 overflow-y-auto p-4">
+      <div v-if="selectedIds.size > 1" class="flex flex-1 flex-col items-center justify-center gap-3 p-4">
+        <SvgIcon icon="mdi:checkbox-multiple-marked-outline" class="text-40px text-green-500" />
+        <span class="text-sm text-gray-600 dark:text-gray-300">已选中 {{ selectedIds.size }} 项</span>
+        <div class="flex w-full flex-col gap-2">
+          <NButton size="small" type="primary" secondary block @click="showMoveDialog">
+            <template #icon><SvgIcon icon="mdi:folder-move-outline" class="text-14px" /></template>
+            移动到目录
+          </NButton>
+          <NButton size="small" secondary block @click="showTagDialog">
+            <template #icon><SvgIcon icon="mdi:tag-plus-outline" class="text-14px" /></template>
+            批量打标
+          </NButton>
+          <NButton size="small" type="error" secondary block @click="handleDeleteBySelection">
+            <template #icon><SvgIcon icon="mdi:delete-sweep-outline" class="text-14px" /></template>
+            批量删除
+          </NButton>
+          <NButton size="small" block @click="selectedIds = new Set()">
+            <template #icon><SvgIcon icon="mdi:close-circle-outline" class="text-14px" /></template>
+            取消选择
+          </NButton>
+        </div>
+      </div>
+      <div v-else-if="currentDetail" class="flex-1 overflow-y-auto p-4">
         <!-- 预览 -->
         <div
           class="mb-3 flex h-[160px] cursor-zoom-in items-center justify-center overflow-hidden rounded bg-gray-50 dark:bg-gray-800"
@@ -422,12 +836,38 @@ onMounted(loadList);
           <div class="flex justify-between"><span class="text-gray-500">大小</span><span>{{ formatSize(currentDetail.file_size) }}</span></div>
           <div class="flex justify-between"><span class="text-gray-500">上传时间</span><span>{{ formatTime(currentDetail.created_at) }}</span></div>
           <div class="flex justify-between gap-2">
+            <span class="text-gray-500 shrink-0">目录</span>
+            <span class="truncate" :title="currentDetail.directory || '未归档'">{{ currentDetail.directory || '未归档' }}</span>
+          </div>
+          <div v-if="currentDetail.tags?.length" class="flex justify-between gap-2">
+            <span class="text-gray-500 shrink-0">标签</span>
+            <span class="flex flex-wrap justify-end gap-1">
+              <span
+                v-for="t in currentDetail.tags"
+                :key="t"
+                class="rounded bg-blue-50 px-1 text-[10px] leading-4 text-blue-500 dark:bg-blue-900/30 dark:text-blue-300"
+              >#{{ t }}</span>
+            </span>
+          </div>
+          <div class="flex justify-between gap-2">
             <span class="text-gray-500 shrink-0">MinIO 路径</span>
             <span class="truncate" :title="currentDetail.object_key || currentDetail.url">{{ currentDetail.object_key || '-' }}</span>
           </div>
-          <div class="flex justify-between gap-2">
-            <span class="text-gray-500 shrink-0">引用位置</span>
-            <span class="truncate text-right" :title="currentDetailRefsLabel">{{ currentDetailRefsLabel }}</span>
+          <div class="flex flex-col gap-1">
+            <div class="flex justify-between gap-2">
+              <span class="text-gray-500 shrink-0">引用位置</span>
+              <span v-if="!currentRefs.length" class="text-right">无引用</span>
+            </div>
+            <div v-for="(ref, idx) in currentRefs" :key="`${ref.ref_type}-${ref.ref_id}-${idx}`">
+              <div
+                class="flex cursor-pointer items-center justify-between gap-2 rounded bg-gray-50 px-2 py-1 text-xs hover:bg-green-50 dark:bg-gray-800 dark:hover:bg-green-900/20"
+                :title="`跳转到 ${ref.ref_label}`"
+                @click="jumpToRef(ref)"
+              >
+                <span class="truncate">{{ ref.ref_label || ref.ref_type }}</span>
+                <SvgIcon icon="mdi:open-in-new" class="text-13px shrink-0 text-green-500" />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -472,6 +912,49 @@ onMounted(loadList);
           <span class="text-sm">该类型暂不支持预览，可通过下载查看</span>
         </div>
       </div>
+    </NModal>
+
+    <NModal
+      v-model:show="moveDialogVisible"
+      preset="card"
+      title="移动到目录"
+      style="width: 420px"
+    >
+      <NSelect
+        v-model:value="moveTargetDir"
+        clearable
+        filterable
+        placeholder="选择目录（留空=未归档）"
+        :options="[
+          { label: '未归档（根目录）', value: '' },
+          ...Array.from(new Set(directories.map(d => d.directory).filter(Boolean))).map(d => ({ label: d, value: d }))
+        ]"
+      />
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <NButton size="small" @click="moveDialogVisible = false">取消</NButton>
+          <NButton size="small" type="primary" @click="confirmMove">移动</NButton>
+        </div>
+      </template>
+    </NModal>
+
+    <NModal
+      v-model:show="tagDialogVisible"
+      preset="card"
+      title="批量添加标签"
+      style="width: 420px"
+    >
+      <NInput
+        v-model:value="tagInputValue"
+        placeholder="多个标签用逗号或空格分隔，如：主图, banner"
+        size="small"
+      />
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <NButton size="small" @click="tagDialogVisible = false">取消</NButton>
+          <NButton size="small" type="primary" @click="confirmTags">打标</NButton>
+        </div>
+      </template>
     </NModal>
   </div>
 </template>

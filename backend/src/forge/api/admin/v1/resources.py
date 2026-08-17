@@ -13,7 +13,7 @@ import logging
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +22,8 @@ from forge.infrastructure.persistence.models import (
     ORMAdminUser,
     ORMResource,
     ORMResourceRef,
+    ORMResourceTag,
+    ORMResourceTagMap,
     ORMSiteProfile,
 )
 from forge.infrastructure.persistence.repositories.site_profile_repo import SQLAlchemySiteProfileRepository
@@ -96,10 +98,60 @@ def _serialize(res: ORMResource) -> dict:
         "file_size": res.file_size,
         "sha256": res.sha256,
         "name": res.name,
+        "directory": res.directory or "",
         "created_by": str(res.created_by) if res.created_by else None,
         "created_at": res.created_at.isoformat() if res.created_at else None,
         "deleted_at": res.deleted_at.isoformat() if res.deleted_at else None,
     }
+
+
+async def _get_tags_map(db: AsyncSession, resource_ids: list[uuid.UUID]) -> dict[str, list[str]]:
+    """批量查询资源标签：返回 {resource_id_str: [tag_name, ...]}。"""
+    if not resource_ids:
+        return {}
+    rows = (await db.execute(
+        select(ORMResourceTagMap.resource_id, ORMResourceTag.name)
+        .join(ORMResourceTag, ORMResourceTag.id == ORMResourceTagMap.tag_id)
+        .where(ORMResourceTagMap.resource_id.in_(resource_ids))
+    )).all()
+    result: dict[str, list[str]] = {}
+    for rid, tag_name in rows:
+        result.setdefault(str(rid), []).append(tag_name)
+    return result
+
+
+async def _attach_tags(db: AsyncSession, item: dict) -> dict:
+    """为单个序列化结果附加 tags 列表。"""
+    tags_map = await _get_tags_map(db, [uuid.UUID(item["id"])])
+    item["tags"] = tags_map.get(item["id"], [])
+    return item
+
+
+async def _save_tags(db: AsyncSession, resource_id: uuid.UUID, tags: list[str]) -> None:
+    """创建/复用标签并建立资源关联（幂等）。"""
+    names = []
+    for t in tags or []:
+        name = (t or "").strip()
+        if name and name not in names:
+            names.append(name)
+    if not names:
+        return
+    for name in names:
+        tag = (await db.execute(
+            select(ORMResourceTag).where(ORMResourceTag.name == name)
+        )).scalar_one_or_none()
+        if tag is None:
+            tag = ORMResourceTag(name=name)
+            db.add(tag)
+            await db.flush()
+        exists = (await db.execute(
+            select(ORMResourceTagMap).where(
+                ORMResourceTagMap.resource_id == resource_id,
+                ORMResourceTagMap.tag_id == tag.id,
+            )
+        )).scalar_one_or_none()
+        if exists is None:
+            db.add(ORMResourceTagMap(resource_id=resource_id, tag_id=tag.id))
 
 
 # ---------------------------------------------------------------------------
@@ -108,11 +160,13 @@ def _serialize(res: ORMResource) -> dict:
 @router.post("/upload")
 async def upload_resource(
     file: UploadFile = File(...),
+    directory: str = Form(default=""),
+    tags: list[str] = Form(default=[]),
     admin: dict = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
     minio: MinioService = Depends(get_minio_service),
 ):
-    """上传资源：写入 MinIO + 登记 resource 表。"""
+    """上传资源：写入 MinIO + 登记 resource 表（可选目录与标签）。"""
     if not admin:
         raise HTTPException(status_code=401, detail="未登录")
 
@@ -165,12 +219,19 @@ async def upload_resource(
         file_size=len(content),
         sha256=hashlib.sha256(content).hexdigest(),
         name=filename,
+        directory=(directory or "").strip(),
         created_by=created_by,
     )
     db.add(res)
+    await db.flush()
+
+    if tags:
+        await _save_tags(db, res.id, tags)
+
     await db.commit()
     await db.refresh(res)
-    return {"data": _serialize(res)}
+    data = await _attach_tags(db, _serialize(res))
+    return {"data": data}
 
 
 # ---------------------------------------------------------------------------
@@ -186,12 +247,14 @@ async def list_resources(
     file_type: Optional[str] = Query(default=None, alias="type"),
     site_id: Optional[str] = Query(default=None),
     keyword: Optional[str] = Query(default=None),
+    directory: Optional[str] = Query(default=None),
+    tag: Optional[str] = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=200),
     admin: dict = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """资源列表：支持 type / site_id / keyword / page 过滤，默认上传时间倒序（不含软删）。"""
+    """资源列表：支持 type / site_id / keyword / directory / tag / page 过滤，默认上传时间倒序（不含软删）。"""
     query = select(ORMResource).where(ORMResource.deleted_at.is_(None))
 
     resolved_site = await _resolve_site_id(db, admin, site_id)
@@ -206,6 +269,15 @@ async def list_resources(
             ORMResource.name.ilike(like),
             ORMResource.url.ilike(like),
         ))
+    if directory is not None:
+        # 精确目录；空串表示"未归档"（根目录）
+        query = query.where(ORMResource.directory == directory)
+    if tag:
+        query = query.where(ORMResource.id.in_(
+            select(ORMResourceTagMap.resource_id)
+            .join(ORMResourceTag, ORMResourceTag.id == ORMResourceTagMap.tag_id)
+            .where(ORMResourceTag.name == tag)
+        ))
 
     total_query = select(func.count()).select_from(query.subquery())
     total = (await db.execute(total_query)).scalar_one()
@@ -215,7 +287,95 @@ async def list_resources(
     result = await db.execute(query)
     items = result.scalars().all()
 
-    return {"items": [_serialize(r) for r in items], "total": total}
+    # 引用计数 + 标签：仅统计当前页资源，供前端橙色标识与批量删除拦截
+    ids = [r.id for r in items]
+    ref_counts: dict[str, int] = {}
+    if ids:
+        rows = (await db.execute(
+            select(ORMResourceRef.resource_id, func.count())
+            .where(ORMResourceRef.resource_id.in_(ids))
+            .group_by(ORMResourceRef.resource_id)
+        )).all()
+        ref_counts = {str(rid): cnt for rid, cnt in rows}
+    tags_map = await _get_tags_map(db, ids)
+
+    data = []
+    for r in items:
+        item = _serialize(r)
+        item["ref_count"] = ref_counts.get(str(r.id), 0)
+        item["tags"] = tags_map.get(str(r.id), [])
+        data.append(item)
+
+    return {"items": data, "total": total}
+
+
+# ---------------------------------------------------------------------------
+# 目录树 / 标签列表（供左侧筛选）
+# ---------------------------------------------------------------------------
+@router.get("/meta/directories")
+async def list_directories(
+    admin: dict = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """目录树：按 directory 分组统计资源数（不含软删），未归档资源归入 ''。"""
+    if not admin:
+        raise HTTPException(status_code=401, detail="未登录")
+
+    rows = (await db.execute(
+        select(ORMResource.directory, func.count())
+        .where(ORMResource.deleted_at.is_(None))
+        .group_by(ORMResource.directory)
+        .order_by(ORMResource.directory)
+    )).all()
+    return {"data": [{"directory": d or "", "count": c} for d, c in rows]}
+
+
+@router.get("/meta/tags")
+async def list_tags(
+    admin: dict = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """标签列表：按标签统计资源数（不含软删）。"""
+    if not admin:
+        raise HTTPException(status_code=401, detail="未登录")
+
+    rows = (await db.execute(
+        select(ORMResourceTag.name, func.count(ORMResourceTagMap.id))
+        .join(ORMResourceTagMap, ORMResourceTagMap.tag_id == ORMResourceTag.id)
+        .join(ORMResource, ORMResource.id == ORMResourceTagMap.resource_id)
+        .where(ORMResource.deleted_at.is_(None))
+        .group_by(ORMResourceTag.name)
+        .order_by(ORMResourceTag.name)
+    )).all()
+    return {"data": [{"name": name, "count": c} for name, c in rows]}
+
+
+@router.get("/check-name")
+async def check_resource_name(
+    name: str = Query(...),
+    exclude_id: Optional[str] = Query(default=None),
+    admin: dict = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """重名检测：同名资源（含软删）返回是否存在及数量。"""
+    if not admin:
+        raise HTTPException(status_code=401, detail="未登录")
+
+    query = select(ORMResource).where(ORMResource.name == name.strip())
+    if exclude_id:
+        try:
+            query = query.where(ORMResource.id != uuid.UUID(exclude_id))
+        except ValueError:
+            pass
+    rows = (await db.execute(query)).scalars().all()
+    active = [r for r in rows if r.deleted_at is None]
+    return {
+        "data": {
+            "exists": len(active) > 0,
+            "active_count": len(active),
+            "trash_count": len(rows) - len(active),
+        }
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -242,7 +402,7 @@ async def get_resource(
         select(ORMResourceRef).where(ORMResourceRef.resource_id == rid)
     )).scalars().all()
 
-    data = _serialize(res)
+    data = await _attach_tags(db, _serialize(res))
     data["refs"] = [
         {
             "ref_type": r.ref_type,
@@ -289,6 +449,72 @@ async def rename_resource(
     await db.commit()
     await db.refresh(res)
     return {"data": _serialize(res)}
+
+
+# ---------------------------------------------------------------------------
+# 目录 / 标签 批量操作（拖拽移动、批量打标、重名检测）
+# ---------------------------------------------------------------------------
+class MovePayload(BaseModel):
+    ids: list[str]
+    directory: str
+
+
+@router.post("/move")
+async def move_resources(
+    payload: MovePayload,
+    admin: dict = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """批量移动资源到目录（拖拽移动）。directory 传 '' 表示移到根目录/未归档。"""
+    if not admin:
+        raise HTTPException(status_code=401, detail="未登录")
+
+    directory = (payload.directory or "").strip().strip("/")
+    moved = 0
+    for raw_id in payload.ids or []:
+        try:
+            rid = uuid.UUID(raw_id)
+        except ValueError:
+            continue
+        res = (await db.execute(
+            select(ORMResource).where(ORMResource.id == rid, ORMResource.deleted_at.is_(None))
+        )).scalar_one_or_none()
+        if res is None:
+            continue
+        res.directory = directory
+        moved += 1
+    await db.commit()
+    return {"data": {"moved": moved}}
+
+
+class TagsPayload(BaseModel):
+    ids: list[str]
+    tags: list[str]
+
+
+@router.post("/tags")
+async def set_resource_tags(
+    payload: TagsPayload,
+    admin: dict = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """批量设置资源标签（追加语义，幂等去重）。"""
+    if not admin:
+        raise HTTPException(status_code=401, detail="未登录")
+
+    for raw_id in payload.ids or []:
+        try:
+            rid = uuid.UUID(raw_id)
+        except ValueError:
+            continue
+        res = (await db.execute(
+            select(ORMResource).where(ORMResource.id == rid, ORMResource.deleted_at.is_(None))
+        )).scalar_one_or_none()
+        if res is None:
+            continue
+        await _save_tags(db, rid, payload.tags)
+    await db.commit()
+    return {"data": {"updated": len(payload.ids or [])}}
 
 
 # ---------------------------------------------------------------------------
