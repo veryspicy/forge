@@ -25,13 +25,14 @@ forge/
 ├── admin/                     # 管理后台前端（Vue3 + Vite）
 ├── ai-service/                # AI 对话服务（Python/FastAPI）
 ├── backend/                   # 主后端服务（Python/FastAPI + DDD）
-├── frontend/                  # 用户端前端（Nuxt3 + Vue3 + i18n）
+├── portal-web/                # 用户端前端（Nuxt3 + Vue3 + i18n）
+├── gateway/                   # 网关（Nginx 反向代理）
 ├── docker/                    # Docker Compose 编排
 │   ├── docker-compose.yml     # 本地开发编排文件
 │   └── Containerfile.pgvector # pgvector 扩展镜像（备用）
 ├── docs/                      # 【所有文档的唯一存放位置】
 ├── k8s/                       # K3s 生产部署配置
-└── temp_product_images/       # 临时产品图片（开发/测试用）
+└── uploads/                   # 上传文件存储（含 .gitkeep）
 ```
 
 ### 文档存放规则
@@ -48,19 +49,18 @@ forge/
 
 ---
 
-## 2. frontend/ — 用户端前端
+## 2. portal-web/ — 用户端前端
 
 ```
-frontend/
+portal-web/
 ├── Dockerfile                 # Docker 镜像构建（node:22-alpine + pnpm）
 ├── .npmrc                     # npm/pnpm 镜像源（registry.npmmirror.com）
 ├── package.json / pnpm-lock.yaml
 ├── nuxt.config.ts             # Nuxt 配置（SSR + i18n + TailwindCSS）
 ├── tsconfig.json
-├── tailwind.config.ts
+├── vitest.config.ts           # 单元测试配置（tests/）
 ├── app/                       # 【Nuxt 应用主目录 → bind-mount 到容器 /app/app】
 │   ├── app.vue                # 根组件
-│   ├── nuxt.config.ts         # Nuxt 配置
 │   ├── pages/                 # 页面组件（自动路由）
 │   │   ├── index.vue          # 首页
 │   │   ├── products.vue       # 产品列表
@@ -68,21 +68,26 @@ frontend/
 │   │   ├── cart.vue           # 购物车
 │   │   ├── orders.vue         # 订单列表
 │   │   ├── pets.vue           # 宠物管理
-│   │   └── settings.vue       # 用户设置
+│   │   └── admin/             # 管理端页面（orders/pricing/products/...）
 │   ├── components/            # 可复用组件
 │   │   ├── AppHeader.vue      # 顶部导航栏（含多语言/货币切换）
 │   │   ├── CartDrawer.vue     # 购物车侧边栏
 │   │   ├── OrderStatusBadge.vue
+│   │   ├── admin/             # 管理端组件（DataTable/StatCard/...）
+│   │   ├── diy/               # DIY 装修组件（DiyBanner/DiyGoodsList/...）
 │   │   └── products/          # 产品相关组件
 │   │       ├── ProductCard.vue
 │   │       └── FilterSidebar.vue
 │   ├── composables/           # 组合式函数（API 调用、状态管理）
 │   ├── i18n/                  # 国际化配置
-│   │   ├── i18n.config.ts     # i18n 模块配置
 │   │   └── locales/           # 【翻译文件：en/zh/ar/de/fr.json】
-│   ├── public/                # 静态资源
-│   └── server/                # Nuxt API 路由（BFF 层）
-├── i18n/                      # Nuxt i18n 生成目录（自动生成，勿手动编辑）
+│   ├── layouts/               # 布局（default/admin）
+│   ├── stores/                # Pinia 状态（auth/cart/order/pet/...）
+│   ├── server/                # Nuxt API 路由（BFF 层）
+│   └── utils/                 # 工具函数
+├── i18n/                      # i18n 配置与 locales
+├── server/                    # Nitro API 路由（server/api/v1/[...path].ts 代理）
+├── tests/                     # Vitest 单元测试（components/stores/pages）
 ├── node_modules/              # 依赖（容器内安装，本地用于 IDE）
 └── .nuxt/                     # Nuxt 构建缓存
 ```
@@ -114,15 +119,17 @@ admin/
 ```
 backend/
 ├── Dockerfile                 # Python 3.12-slim（uvicorn --reload）
-├── pyproject.toml             # 依赖声明（pip）
+├── pyproject.toml / uv.lock   # 依赖声明（uv 管理）
 ├── alembic.ini                # 数据库迁移配置
-├── src/                       # 【后端源码 → bind-mount 到容器 /app/src】
-│   ├── main.py                # FastAPI 入口
-│   ├── config.py              # 配置管理
-│   ├── api/                   # API 路由（按模块分）
+├── run.py                     # FastAPI 本地启动入口
+├── migrations/                # Alembic 迁移脚本（versions/）
+├── src/forge/                 # 【后端源码 → bind-mount 到容器 /app/src】
+│   ├── main/                  # 应用装配（application.py / config.py / dependencies.py）
+│   ├── api/                   # API 路由（admin/v1、v1、minio_proxy）
+│   ├── application/           # 应用层服务（services/）
 │   ├── domain/                # DDD 领域层（实体、值对象、聚合）
-│   └── infrastructure/        # 基础设施（ORM、缓存、消息队列）
-├── tests/
+│   └── infrastructure/        # 基础设施（persistence/models、repositories、services）
+├── tests/                     # 单元与功能测试
 └── .venv/                     # Python 虚拟环境（本地用）
 ```
 
@@ -164,15 +171,20 @@ docker/
 
 ```
 k8s/
-├── common/                    # 公共配置（ConfigMap、Secret）
-├── database/                  # PostgreSQL 部署
-├── backend/                   # 后端 Deployment + Service
-├── frontend/                  # 前端 Deployment + Service
-├── ai-service/                # AI 服务部署
-├── ingress/                   # Traefik Ingress
-├── monitoring/                # Prometheus + Grafana
-├── network-policies/          # 网络策略
-└── templates/                 # K8s 模板
+├── database/                  # PostgreSQL 部署（postgres/ + init-scripts）
+└── templates/                 # Helm 模板
+    ├── admin/                 # 管理后台部署
+    ├── ai-service/            # AI 服务部署
+    ├── backend/               # 后端 Deployment + Service
+    ├── portal-web/            # 用户端前端部署
+    ├── ingress/               # Traefik Ingress
+    ├── jobs/                  # 初始化 Jobs
+    ├── minio/                 # 对象存储
+    ├── monitoring/            # Prometheus + Grafana
+    ├── network-policies/      # 网络策略
+    ├── postgres/              # PostgreSQL
+    ├── redis/                 # 缓存
+    └── rocketmq/              # 消息队列
 ```
 
 ---
@@ -187,13 +199,18 @@ k8s/
 | `DDD-AGGREGATES.md` | DDD 聚合设计 |
 | `DEPLOYMENT.md` | 部署手册（本地/生产） |
 | `DEPLOYMENT-MOP.md` | 部署操作流程 |
+| `DEV-RULES.md` | 开发规则手册（Marvis 强制执行） |
 | `DEVELOPMENT-LOG.md` | 开发日志 |
 | `FRONTEND-SURVEY.md` | 前端调研 |
+| `GIT-WORKFLOW.md` | Git Flow 工作流 |
 | `NETWORK-DESIGN.md` | 网络设计 |
 | `ROLE-PERMISSION.md` | 角色权限设计 |
-| `REQUIREMENT-*.md` | 各模块需求文档 |
+| `REQUIREMENT-*.md` | 各模块需求文档（ADMIN/AI-SERVICE/BACKEND/FRONTEND/USER-MGMT-RBAC） |
+| `PLAN-*.md` / `IMPLEMENTATION-PLAN-*.md` | 功能规划与实施计划（RBAC/DIY） |
+| `PROMPT-DIY-DEVELOPMENT.md` | DIY 装修功能开发提示词 |
+| `SOP-*.md` | 操作规范（compose-rebuild / podman-testing） |
 | `STAGE*-DONE.md` | 阶段完成记录 |
-| `SOP-compose-rebuild.md` | Compose 重建策略 SOP |
+| `i18n-multilang-plan.md` | 多语言方案 |
 | `implementation-summary.md` | 实现汇总 |
 
 ---

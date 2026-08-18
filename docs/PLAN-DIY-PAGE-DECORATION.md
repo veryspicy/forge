@@ -34,7 +34,7 @@ AIGC:
 | **Admin 前端** | Vue 3 + Vite + TypeScript + NaiveUI + UnoCSS + Pinia |
 | **拖拽库（已有）** | vue-draggable-plus 0.6.1 |
 | **前端（C端）** | Nuxt 3 + Vue 3 + Tailwind CSS 4 + @nuxt/ui + @nuxt/image |
-| **包管理** | pnpm (monorepo) → admin / frontend 独立 package.json |
+| **包管理** | pnpm (monorepo) → admin / portal-web 独立 package.json |
 
 ### 后端分层架构（DDD）
 

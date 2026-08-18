@@ -1,0 +1,31 @@
+# backend 提交前检查（需 pre-commit 框架）
+# 安装：uv tool install pre-commit && cd backend && pre-commit install
+# 手动运行：cd backend && pre-commit run --all-files
+repos:
+  # commit-msg 校验：Conventional Commits（feat/fix/docs/...），规则见 DEV-RULES §15
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.6.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: [feat, fix, docs, chore, refactor, perf, test, build, ci, style, revert]
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check src/
+        language: system
+        types: [python]
+        pass_filenames: false
+      - id: ruff-format
+        name: ruff format --check
+        entry: uv run ruff format --check src/
+        language: system
+        types: [python]
+        pass_filenames: false
+      - id: mypy
+        name: mypy strict
+        entry: uv run mypy src/
+        language: system
+        types: [python]
+        pass_filenames: false

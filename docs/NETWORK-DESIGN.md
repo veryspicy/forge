@@ -91,7 +91,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      app: frontend
+      app.kubernetes.io/component: portal-web
   policyTypes:
     - Ingress
   ingress:
@@ -165,10 +165,10 @@ spec:
 
 ```
 Listener: HTTPS 443
-  ├── Backend Set: frontend-set
-  │   ├── 10.244.1.10:3000 (frontend pod 1)
-  │   ├── 10.244.1.11:3000 (frontend pod 2)
-  │   └── 10.244.1.12:3000 (frontend pod 3)
+  ├── Backend Set: portal-web-set
+  │   ├── 10.244.1.10:3000 (portal-web pod 1)
+  │   ├── 10.244.1.11:3000 (portal-web pod 2)
+  │   └── 10.244.1.12:3000 (portal-web pod 3)
   │   Health Check: HTTP GET / HTTP/1.1 → 200
   │
   ├── Backend Set: api-set
@@ -183,7 +183,7 @@ Listener: HTTPS 443
       Health Check: HTTP GET /health HTTP/1.1 → 200
 
 Routing Rule:
-  ├── URL Path / → frontend-set
+  ├── URL Path / → portal-web-set
   ├── URL Path /api/* → api-set
   ├── URL Path /ws/* → api-set
   └── URL Path /ai/* → ai-set
@@ -206,7 +206,7 @@ spec:
     - match: Host(`portal-web.forge.com`)
       kind: Rule
       services:
-        - name: frontend-svc
+        - name: portal-web-svc
           port: 3000
     # API
     - match: Host(`api.forge.com`) && PathPrefix(`/api`)

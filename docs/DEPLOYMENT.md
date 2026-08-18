@@ -47,7 +47,7 @@ kubectl apply -f k8s/ingress/tls.yaml
 
 ```bash
 #!/bin/bash
-# scripts/setup-k3s-master-na.sh
+# setup-k3s-master-na.sh
 
 # 安装 K3s
 curl -sfL https://get.k3s.io | sh -s - server \
@@ -89,7 +89,7 @@ kubectl config set-context k3s-na --cluster=k3s-na
 
 ```bash
 #!/bin/bash
-# scripts/setup-k3s-worker-na.sh
+# setup-k3s-worker-na.sh
 
 # 从 Master 获取 join token
 # 在 Master 上执行: cat /var/lib/rancher/k3s/server/node-token
@@ -104,7 +104,7 @@ curl -sfL https://get.k3s.io | sh -s - agent \
 
 ```bash
 #!/bin/bash
-# scripts/setup-bastion.sh
+# setup-bastion.sh
 
 # 安装 HAProxy (出口代理)
 apt update && apt install -y haproxy
@@ -173,7 +173,7 @@ ufw enable
 
 ```bash
 #!/bin/bash
-# scripts/setup-harbor.sh
+# setup-harbor.sh
 
 # 下载 Harbor
 wget https://github.com/goharbor/harbor/releases/download/v2.12.0/harbor-online-installer-v2.12.0.tgz
@@ -296,9 +296,9 @@ pipeline {
             steps {
                 container('node:20-alpine') {
                     sh '''
-                        cd frontend
-                        npm ci
-                        npm run build
+                        cd portal-web
+                        pnpm install --frozen-lockfile
+                        pnpm build
                     '''
                 }
             }
@@ -318,8 +318,8 @@ pipeline {
                     
                     // Frontend
                     sh """
-                        docker build -t ${HARBOR_SERVER}/${HARBOR_PROJECT}/frontend:${VERSION} frontend/
-                        docker push ${HARBOR_SERVER}/${HARBOR_PROJECT}/frontend:${VERSION}
+                        docker build -t ${HARBOR_SERVER}/${HARBOR_PROJECT}/portal-web:${VERSION} portal-web/
+                        docker push ${HARBOR_SERVER}/${HARBOR_PROJECT}/portal-web:${VERSION}
                     """
                     
                     // AI Service
@@ -342,7 +342,7 @@ pipeline {
                     sh """
                         kubectl --context k3s-na \\
                             set image deployment/portal-web \\
-                            frontend=${HARBOR_SERVER}/${HARBOR_PROJECT}/frontend:${env.IMAGE_VERSION} \\
+                            portal-web=${HARBOR_SERVER}/${HARBOR_PROJECT}/portal-web:${env.IMAGE_VERSION} \\
                             -n ${NAMESPACE_NA}
                         
                         kubectl --context k3s-na \\
@@ -371,7 +371,7 @@ pipeline {
                     sh """
                         kubectl --context k3s-eu \\
                             set image deployment/portal-web \\
-                            frontend=${HARBOR_SERVER}/${HARBOR_PROJECT}/frontend:${env.IMAGE_VERSION} \\
+                            portal-web=${HARBOR_SERVER}/${HARBOR_PROJECT}/portal-web:${env.IMAGE_VERSION} \\
                             -n ${NAMESPACE_EU}
                         
                         kubectl --context k3s-eu \\
@@ -447,7 +447,7 @@ spec:
 region: na
 environment: production
 
-frontend:
+portal-web:
   image:
     repository: harbor.forge.com/forge/portal-web
     tag: latest
@@ -506,7 +506,7 @@ ai_service:
 region: eu
 environment: production
 
-frontend:
+portal-web:
   env:
     NUXT_PUBLIC_REGION: "eu"
     NUXT_PUBLIC_DEFAULT_CURRENCY: "EUR"
@@ -527,7 +527,7 @@ backend:
 
 ```bash
 #!/bin/bash
-# scripts/deploy.sh
+# deploy.sh
 
 set -euo pipefail
 
@@ -541,7 +541,7 @@ docker login harbor.forge.com
 
 # Build images
 echo "Building images..."
-docker build -t harbor.forge.com/forge/portal-web:${IMAGE_TAG} ./frontend/
+docker build -t harbor.forge.com/forge/portal-web:${IMAGE_TAG} ./portal-web/
 docker build -t harbor.forge.com/forge/backend:${IMAGE_TAG} ./backend/
 docker build -t harbor.forge.com/forge/ai-service:${IMAGE_TAG} ./ai-service/
 
@@ -562,7 +562,7 @@ fi
 
 echo "Deploying with kubectl --context ${CONTEXT}..."
 kubectl --context ${CONTEXT} set image \
-    deployment/portal-web frontend=harbor.forge.com/forge/portal-web:${IMAGE_TAG} \
+    deployment/portal-web portal-web=harbor.forge.com/forge/portal-web:${IMAGE_TAG} \
     -n forge-public
 
 kubectl --context ${CONTEXT} set image \
@@ -588,7 +588,7 @@ echo "API: https://api.forge.com"
 
 ```bash
 #!/bin/bash
-# scripts/rollback.sh
+# rollback.sh
 
 set -euo pipefail
 
@@ -632,7 +632,7 @@ kubectl --context k3s-na exec -it deployment/backend -n forge-public -- \
 # 手动扩容
 kubectl --context k3s-na scale deployment/backend --replicas=5 -n forge-public
 
-# HPA 自动扩容 (由 k8s/frontend/hpa.yaml 等配置)
+# HPA 自动扩容 (由 k8s/templates/portal-web/hpa.yaml 等配置)
 kubectl --context k3s-na get hpa -n forge-public
 ```
 

@@ -13,13 +13,15 @@
 
 ```
 forge/
-├── frontend/          # Nuxt 3 SSR 前端
-├── backend/           # FastAPI DDD 后端
-├── ai-service/        # AI 推理微服务
-├── k8s/               # Helm Chart 一键部署（中间件/数据库/Jobs/Ingress 等全栈配置）
-├── docker/            # Docker Compose 本地开发
-├── scripts/           # 部署脚本
-└── docs/              # 架构文档
+├── admin/           # 管理后台前端（Vue3 + Vite + UnoCSS）
+├── portal-web/      # 用户端前端（Nuxt 3 SSR + Vue 3）
+├── backend/         # FastAPI DDD 后端
+├── ai-service/      # AI 推理微服务
+├── gateway/         # Nginx 网关
+├── k8s/             # K3s 生产部署（templates/ Helm 模板）
+├── docker/          # Docker Compose 本地开发
+├── uploads/         # 上传文件存储
+└── docs/            # 架构文档（所有文档唯一存放位置）
 ```
 
 ## 快速开始
@@ -57,7 +59,7 @@ python run.py
 ### 3. 启动前端 (Nuxt 3)
 
 ```bash
-cd frontend
+cd portal-web
 pnpm install
 pnpm dev
 ```

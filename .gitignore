@@ -14,14 +14,17 @@ venv/
 .helm/
 .kube/
 *.log
+*.bak
 .DS_Store
 Thumbs.db
 *.tar.gz
 harbor-config/
 .kube/config
 browser-test-screenshots/
+temp/
 temp_product_images/
 temp_*
+.pnpm-store/
 .codebuddy/
 *.pid
 *.ps1
