@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
+import { ref, watch, onMounted, onBeforeUnmount, computed } from 'vue';
 import { useDialog, useMessage } from 'naive-ui';
 import { useRouter } from 'vue-router';
 import { resourceApi } from '@/service/api/resources';
+import { marked } from 'marked';
+import { renderAsync } from 'docx-preview';
+import JSZip from 'jszip';
 
 interface ResourceItem {
   id: string;
@@ -75,7 +78,13 @@ const uploadTotal = ref(0);
 const uploadDone = ref(0);
 const previewVisible = ref(false);
 const previewUrl = ref('');
-const previewType = ref<'image' | 'video' | 'audio' | 'other'>('other');
+type PreviewType = 'image' | 'video' | 'audio' | 'pdf' | 'docx' | 'md' | 'text' | 'zip' | 'other';
+const previewType = ref<PreviewType>('other');
+const previewText = ref('');
+const previewHtml = ref('');
+const previewDocxRef = ref<HTMLElement | null>(null);
+const zipFiles = ref<string[]>([]);
+const zipLoading = ref(false);
 const gridScrollRef = ref<HTMLElement | null>(null);
 let smoothScrollCleanup: (() => void) | null = null;
 
@@ -153,17 +162,92 @@ function isPreviewableAudio(r: ResourceItem) {
   return r.file_type === 'audio';
 }
 
+const TEXT_EXTENSIONS = ['txt', 'json', 'csv', 'xml', 'yml', 'yaml', 'log', 'ini', 'conf', 'sql', 'sh', 'py', 'js', 'ts', 'html', 'css', 'env', 'gitignore'];
+
+function resolvePreviewType(r: ResourceItem): PreviewType {
+  if (isPreviewableImage(r)) return 'image';
+  if (isPreviewableVideo(r)) return 'video';
+  if (isPreviewableAudio(r)) return 'audio';
+  const ext = (r.name.split('.').pop() || '').toLowerCase();
+  if (ext === 'pdf') return 'pdf';
+  if (ext === 'docx') return 'docx';
+  if (ext === 'zip') return 'zip';
+  if (ext === 'md') return 'md';
+  if (TEXT_EXTENSIONS.includes(ext)) return 'text';
+  return 'other';
+}
+
 function openPreview(r: ResourceItem) {
   previewUrl.value = r.url;
-  previewType.value = isPreviewableImage(r)
-    ? 'image'
-    : isPreviewableVideo(r)
-      ? 'video'
-      : isPreviewableAudio(r)
-        ? 'audio'
-        : 'other';
+  previewType.value = resolvePreviewType(r);
   previewVisible.value = true;
 }
+
+/** 文本/md/docx/zip 类资源：打开弹窗后异步加载内容 */
+async function loadPreviewContent() {
+  previewText.value = '';
+  previewHtml.value = '';
+  zipFiles.value = [];
+  zipLoading.value = false;
+  if (!previewUrl.value) return;
+
+  if (previewType.value === 'text' || previewType.value === 'md') {
+    try {
+      const res = await fetch(previewUrl.value);
+      const text = await res.text();
+      previewText.value = text;
+      if (previewType.value === 'md') {
+        previewHtml.value = marked.parse(text) as string;
+      }
+    } catch {
+      previewText.value = '预览内容加载失败，可通过下载查看';
+    }
+    return;
+  }
+
+  if (previewType.value === 'docx') {
+    try {
+      const res = await fetch(previewUrl.value);
+      const blob = await res.blob();
+      if (previewDocxRef.value) {
+        previewDocxRef.value.innerHTML = '';
+        await renderAsync(blob, previewDocxRef.value, undefined, {
+          ignoreLastRenderedPageBreak: true,
+          useBase64URL: true
+        });
+      }
+    } catch {
+      if (previewDocxRef.value) {
+        previewDocxRef.value.innerHTML = '<p class="p-4 text-center text-sm text-gray-400">docx 渲染失败，可通过下载查看</p>';
+      }
+    }
+    return;
+  }
+
+  if (previewType.value === 'zip') {
+    zipLoading.value = true;
+    try {
+      const res = await fetch(previewUrl.value);
+      const blob = await res.blob();
+      const zip = await JSZip.loadAsync(blob);
+      zipFiles.value = Object.keys(zip.files).filter(name => !zip.files[name].dir);
+    } catch {
+      zipFiles.value = ['压缩包解析失败，可通过下载查看'];
+    } finally {
+      zipLoading.value = false;
+    }
+  }
+}
+
+watch(
+  previewVisible,
+  visible => {
+    if (visible) {
+      loadPreviewContent();
+    }
+  },
+  { flush: 'post' }
+);
 
 async function loadList() {
   loading.value = true;
@@ -351,12 +435,65 @@ function onPageChange(p: number) {
   loadList();
 }
 
-function triggerUpload() {
+async function triggerUpload() {
+  const w = window as any;
+  if (w.showOpenFilePicker) {
+    try {
+      const handles = await w.showOpenFilePicker({ multiple: true });
+      const files = await Promise.all(handles.map((h: any) => h.getFile()));
+      uploadFiles(files.map(f => ({ file: f })));
+      return;
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return; // 用户取消选择
+    }
+  }
   fileInput.value?.click();
 }
 
-function triggerFolderUpload() {
+/** 递归读取目录句柄，保留相对目录结构（File System Access API） */
+async function collectDirHandle(dirHandle: any): Promise<{ file: File; directory?: string }[]> {
+  const out: { file: File; directory?: string }[] = [];
+  async function walk(handle: any, prefix: string) {
+    for await (const entry of handle.values()) {
+      if (entry.kind === 'file') {
+        out.push({ file: await entry.getFile(), directory: prefix || undefined });
+      } else if (entry.kind === 'directory') {
+        await walk(entry, prefix ? `${prefix}/${entry.name}` : entry.name);
+      }
+    }
+  }
+  await walk(dirHandle, '');
+  return out;
+}
+
+async function triggerFolderUpload() {
+  const w = window as any;
+  if (w.showDirectoryPicker) {
+    try {
+      const dirHandle = await w.showDirectoryPicker({ mode: 'read' });
+      const list = await collectDirHandle(dirHandle);
+      if (!list.length) return;
+      uploadFiles(list);
+      return;
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return; // 用户取消选择
+    }
+  }
   folderInput.value?.click();
+}
+
+const folderOption = [
+  {
+    label: '上传文件夹',
+    key: 'folder',
+    props: {
+      class: 'upload-folder-option'
+    }
+  }
+];
+
+function onFolderSelect() {
+  triggerFolderUpload();
 }
 
 /** 解析拖拽的文件列表，支持文件与文件夹混拖 */
@@ -870,14 +1007,19 @@ onBeforeUnmount(() => {
       <!-- 工具栏 -->
       <div class="flex items-center justify-between gap-2 border-b border-gray-100 border-solid px-4 py-3 dark:border-gray-700">
         <div class="flex items-center gap-2">
-          <NButton type="primary" size="small" :loading="uploading" @click="triggerUpload">
-            <template #icon><SvgIcon icon="mdi:upload" class="text-16px" /></template>
-            上传资源
-          </NButton>
-          <NButton size="small" secondary @click="triggerFolderUpload">
-            <template #icon><SvgIcon icon="mdi:folder-upload-outline" class="text-16px" /></template>
-            上传文件夹
-          </NButton>
+            <div class="flex items-center">
+              <NDropdown trigger="click" :options="folderOption" @select="onFolderSelect" placement="bottom-start" :dropdown-props="{ class: 'upload-folder-menu' }">
+                <div class="flex items-center">
+                  <NButton type="primary" size="small" :loading="uploading" class="!rounded-r-none" @click.stop="triggerUpload">
+                    <template #icon><SvgIcon icon="mdi:upload" class="text-16px" /></template>
+                    上传
+                  </NButton>
+                  <NButton type="primary" size="small" :loading="uploading" class="!rounded-l-none">
+                    <template #icon><SvgIcon icon="mdi:chevron-down" class="text-16px" /></template>
+                  </NButton>
+                </div>
+              </NDropdown>
+            </div>
           <NButton size="small" type="error" secondary :disabled="!selectedIds.size" @click="handleDeleteBySelection">
             <template #icon><SvgIcon :icon="selectedIds.size > 1 ? 'mdi:delete-sweep-outline' : 'mdi:delete-outline'" class="text-16px" /></template>
             {{ selectedIds.size > 1 ? '批量删除' : '删除' }}
@@ -943,26 +1085,31 @@ onBeforeUnmount(() => {
             <span>{{ uploadQueue > 0 ? '正在上传…' : '处理中…' }}</span>
           </div>
         </div>
-        <NSpin :show="loading">
-          <div v-if="!items.length && !loading" class="flex flex-col items-center justify-center py-20 text-gray-400">
-            <SvgIcon icon="mdi:image-off-outline" class="text-40px mb-2" />
-            <span>暂无资源，点击右上角上传</span>
-          </div>
-          <div v-else class="grid grid-cols-4 gap-3 xl:grid-cols-5">
+        <div v-if="loading" class="flex h-full items-center justify-center text-gray-400">
+          <NSpin size="small" />
+          <span class="ml-2">资源加载中…</span>
+        </div>
+        <div v-else-if="!items.length" class="flex flex-col items-center justify-center py-20 text-gray-400">
+          <SvgIcon icon="mdi:image-off-outline" class="text-40px mb-2" />
+          <span>暂无资源，点击右上角上传</span>
+        </div>
+        <div v-else class="grid h-full grid-cols-4 grid-rows-6 gap-3 xl:grid-cols-5">
             <div
               v-for="r in items"
               :key="r.id"
               draggable="true"
-              class="group relative cursor-pointer overflow-hidden rounded-lg border border-gray-100 border-solid dark:border-gray-700"
+              class="group relative flex min-h-0 cursor-pointer flex-col overflow-hidden rounded-lg border border-gray-100 border-solid dark:border-gray-700"
               :class="currentDetail?.id === r.id ? 'ring-2 ring-green-500' : selectedIds.has(r.id) ? 'ring-2 ring-green-400' : ''"
               @click="selectedIds.size > 1 ? toggleSelect(r.id) : selectDetail(r)"
               @dragstart="onCardDragStart($event, r)"
             >
-              <div class="flex h-[110px] items-center justify-center bg-gray-50 dark:bg-gray-800">
+              <div class="flex min-h-0 flex-1 items-center justify-center bg-gray-50 dark:bg-gray-800">
                 <img v-if="isPreviewableImage(r)" :src="r.thumb_url || r.url" :data-origin="r.url" class="h-full w-full object-cover" loading="lazy" decoding="async" @error="(e) => { const el = e.target as HTMLImageElement; if (el.src !== el.dataset.origin) el.src = el.dataset.origin || ''; }" />
-                <div v-else-if="isPreviewableVideo(r)" class="flex flex-col items-center text-gray-400">
-                  <SvgIcon icon="mdi:play-circle-outline" class="text-30px" />
-                  <span class="mt-1 text-xs">视频</span>
+                <div v-else-if="isPreviewableVideo(r)" class="relative h-full w-full">
+                  <video :src="r.url" preload="metadata" muted playsinline class="h-full w-full object-cover" />
+                  <span class="pointer-events-none absolute inset-0 flex items-center justify-center">
+                    <SvgIcon icon="mdi:play-circle-outline" class="text-24px text-white/85 drop-shadow" />
+                  </span>
                 </div>
                 <div v-else-if="isPreviewableAudio(r)" class="flex flex-col items-center text-gray-400">
                   <SvgIcon icon="mdi:music-note" class="text-30px" />
@@ -1011,7 +1158,6 @@ onBeforeUnmount(() => {
               >引用 {{ r.ref_count }}</div>
             </div>
           </div>
-        </NSpin>
       </div>
 
       <!-- 分页 -->
@@ -1154,13 +1300,23 @@ onBeforeUnmount(() => {
     <NModal
       v-model:show="previewVisible"
       preset="card"
-      :title="previewType === 'image' ? '图片预览' : previewType === 'video' ? '视频预览' : previewType === 'audio' ? '音频预览' : '资源预览'"
+      :title="previewType === 'image' ? '图片预览' : previewType === 'video' ? '视频预览' : previewType === 'audio' ? '音频预览' : previewType === 'pdf' ? 'PDF 预览' : previewType === 'docx' ? 'Word 预览' : previewType === 'md' ? 'Markdown 预览' : previewType === 'zip' ? '压缩包内容' : '资源预览'"
       style="width: 80%; max-width: 960px"
     >
       <div class="flex items-center justify-center">
         <img v-if="previewType === 'image'" :src="previewUrl" class="max-h-[70vh] max-w-full object-contain" alt="预览" />
         <video v-else-if="previewType === 'video'" :src="previewUrl" controls autoplay class="max-h-[70vh] max-w-full" />
         <audio v-else-if="previewType === 'audio'" :src="previewUrl" controls autoplay class="w-full" />
+        <iframe v-else-if="previewType === 'pdf'" :src="previewUrl" class="h-[70vh] w-full rounded-md border" />
+        <div v-else-if="previewType === 'docx'" ref="previewDocxRef" class="max-h-[70vh] w-full overflow-auto rounded-md border bg-white p-4 text-left" />
+        <div v-else-if="previewType === 'md'" class="max-h-[70vh] w-full overflow-auto rounded-md border bg-white p-4 text-left" v-html="previewHtml" />
+        <pre v-else-if="previewType === 'text'" class="max-h-[70vh] w-full overflow-auto rounded-md border bg-gray-50 p-4 text-left text-xs">{{ previewText }}</pre>
+        <div v-else-if="previewType === 'zip'" class="max-h-[70vh] w-full overflow-auto rounded-md border bg-gray-50 p-4 text-left text-sm">
+          <div v-if="zipLoading" class="text-gray-400">正在解析压缩包...</div>
+          <ul v-else class="list-disc pl-5">
+            <li v-for="f in zipFiles" :key="f">{{ f }}</li>
+          </ul>
+        </div>
         <div v-else class="flex flex-col items-center gap-2 py-10 text-gray-400">
           <SvgIcon icon="mdi:file-document-outline" class="text-60px" />
           <span class="text-sm">该类型暂不支持预览，可通过下载查看</span>
@@ -1259,8 +1415,8 @@ onBeforeUnmount(() => {
             @click="toggleTrashSelect(r.id)"
           >
             <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded bg-gray-100 dark:bg-gray-800">
-              <img v-if="isPreviewableImage(r)" :src="r.thumb_url || r.url" class="h-full w-full object-cover" loading="lazy" />
-              <SvgIcon v-else-if="isPreviewableVideo(r)" icon="mdi:play-circle-outline" class="text-20px text-gray-400" />
+              <img v-if="isPreviewableImage(r)" :src="r.thumb_url || r.url" :data-origin="r.url" class="h-full w-full object-cover" loading="lazy" @error="(e) => { const el = e.target as HTMLImageElement; if (el.src !== el.dataset.origin) el.src = el.dataset.origin || ''; }" />
+              <video v-else-if="isPreviewableVideo(r)" :src="r.url" preload="metadata" muted playsinline class="h-full w-full object-cover" />
               <SvgIcon v-else-if="isPreviewableAudio(r)" icon="mdi:music-note" class="text-20px text-gray-400" />
               <SvgIcon v-else icon="mdi:file-document-outline" class="text-20px text-gray-400" />
             </div>
@@ -1269,6 +1425,9 @@ onBeforeUnmount(() => {
               <div class="text-xs text-gray-400">{{ r.directory ? `目录：${r.directory}` : '未归档' }} · {{ formatSize(r.file_size) }}</div>
             </div>
             <div class="shrink-0 text-xs text-gray-400">删除于 {{ (r.deleted_at || '').slice(0, 10) }}</div>
+            <NButton size="tiny" quaternary @click.stop="openPreview(r)">
+              <template #icon><SvgIcon icon="mdi:magnify-plus-outline" class="text-14px" /></template>
+            </NButton>
           </div>
         </div>
       </NSpin>
@@ -1291,5 +1450,25 @@ onBeforeUnmount(() => {
 <style scoped>
 .hidden {
   display: none;
+}
+</style>
+
+<style>
+/* 上传文件夹下拉菜单：去边框、尺寸与「上传」按钮对齐（teleport 到 body，需全局样式） */
+.upload-folder-menu .n-dropdown-menu {
+  padding: 0;
+  border: none !important;
+  border-radius: 0 0 4px 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+.upload-folder-menu .n-dropdown-option {
+  min-width: 80px;
+  height: 28px;
+}
+.upload-folder-menu .n-dropdown-option-body {
+  justify-content: center;
+  padding: 0 6px;
+  white-space: nowrap;
 }
 </style>
