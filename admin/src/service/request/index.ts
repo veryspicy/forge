@@ -39,6 +39,9 @@ export const request = createFlatRequest(
 
       if (error.code === BACKEND_ERROR_CODE) {
         message = error.response?.data?.detail || error.response?.data?.msg || message;
+      } else if (error.response?.data?.detail) {
+        // HTTP 状态码错误（如 409 引用冲突）优先展示后端具体原因
+        message = error.response.data.detail;
       }
 
       // Handle 401: extract backend error code and map to i18n

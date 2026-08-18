@@ -280,6 +280,7 @@ const local: App.I18n.Schema = {
     'iframe-page': '外链页面',
     home: '首页',
     dashboard: '仪表盘',
+    resources: '资源管理',
     merchandise: '商品管理',
     suppliers: '供应商',
     pricing: '定价',

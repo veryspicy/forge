@@ -174,7 +174,21 @@ const customRoutes = [
     }
   },
 
-  // ============ 6. Site ============
+  // ============ 6. Resources ============
+  {
+    name: 'resources',
+    path: '/resources',
+    component: 'layout.base$view.resources',
+    meta: {
+      title: 'Resources',
+      i18nKey: 'route.resources',
+      icon: 'mdi:folder-multiple-image',
+      order: 6,
+      roles: ['super_admin', 'admin', 'operator']
+    }
+  },
+
+  // ============ 7. Site ============
   {
     name: 'site',
     path: '/site',
@@ -182,7 +196,7 @@ const customRoutes = [
       title: '站点',
       i18nKey: 'route.site',
       icon: 'mdi:web',
-      order: 6,
+      order: 7,
       roles: ['super_admin', 'admin', 'operator']
     },
     redirect: '/site/config',

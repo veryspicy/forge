@@ -145,6 +145,15 @@ export const generatedRoutes: GeneratedRoute[] = [
     }
   },
   {
+    name: 'resources',
+    path: '/resources',
+    component: 'layout.base$view.resources',
+    meta: {
+      title: 'resources',
+      i18nKey: 'route.resources'
+    }
+  },
+  {
     name: 'roles',
     path: '/roles',
     component: 'layout.base$view.roles',

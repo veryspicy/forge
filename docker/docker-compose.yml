@@ -212,7 +212,9 @@ services:
     container_name: forge-admin
     restart: unless-stopped
     networks:
-      - forge
+      forge:
+        aliases:
+          - admin
     # ports:                        # 网关接管对外入口，admin 仅内部可达
     #   - "8080:80"
     depends_on:
