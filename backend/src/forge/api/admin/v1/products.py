@@ -49,6 +49,9 @@ class ProductCreate(BaseModel):
     category: str
     description: str | None = None
     ai_description: str | None = None
+    name_translations: dict[str, str] | None = None
+    description_translations: dict[str, str] | None = None
+    ai_description_translations: dict[str, str] | None = None
     price: float
     cost: float | None = 0.0
     inventory: int = 0
@@ -68,6 +71,9 @@ class ProductUpdate(BaseModel):
     category: str | None = None
     description: str | None = None
     ai_description: str | None = None
+    name_translations: dict[str, str] | None = None
+    description_translations: dict[str, str] | None = None
+    ai_description_translations: dict[str, str] | None = None
     price: float | None = None
     cost: float | None = None
     inventory: int | None = None

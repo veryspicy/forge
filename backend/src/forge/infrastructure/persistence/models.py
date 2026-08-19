@@ -25,6 +25,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 __all__ = [
     "Base",
     "ORMProduct",
+    "ORMSupplier",
     "ORMUser",
     "ORMAdminUser",
     "ORMRole",
@@ -57,6 +58,9 @@ class ORMProduct(Base):
     name = Column(String(500), nullable=False)
     description = Column(Text, nullable=True)
     ai_description = Column(Text, nullable=True)
+    name_translations = Column(JSONB, nullable=False, default=dict)
+    description_translations = Column(JSONB, nullable=False, default=dict)
+    ai_description_translations = Column(JSONB, nullable=False, default=dict)
     price = Column(Numeric(12, 2), nullable=False)
     cost = Column(Numeric(12, 2), nullable=False)
     category = Column(String(50), nullable=False, index=True)
@@ -86,6 +90,9 @@ class ORMProduct(Base):
             "name": self.name,
             "description": self.description,
             "ai_description": self.ai_description,
+            "name_translations": self.name_translations or {},
+            "description_translations": self.description_translations or {},
+            "ai_description_translations": self.ai_description_translations or {},
             "price": float(self.price) if self.price else 0,
             "cost": float(self.cost) if self.cost else 0,
             "category": self.category,
@@ -104,6 +111,37 @@ class ORMProduct(Base):
             "seo_title": self.seo_title,
             "seo_description": self.seo_description,
             "seo_keywords": self.seo_keywords or [],
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class ORMSupplier(Base):
+    """供应商表（P1 落地，products.supplier_id 届时补外键）。"""
+
+    __tablename__ = "suppliers"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
+    name = Column(String(255), nullable=False, unique=True)
+    contact_email = Column(String(320), nullable=True)
+    contact_phone = Column(String(50), nullable=True)
+    integration_type = Column(String(32), nullable=False, default="manual")
+    shipping_regions: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
+    default_currency = Column(String(10), nullable=False, default="USD")
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+    updated_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "name": self.name,
+            "contact_email": self.contact_email,
+            "contact_phone": self.contact_phone,
+            "integration_type": self.integration_type or "manual",
+            "shipping_regions": self.shipping_regions or [],
+            "default_currency": self.default_currency or "USD",
+            "is_active": bool(self.is_active),
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -251,3 +289,71 @@ class ORMResourceRef(Base):
     ref_id = Column(String(128), nullable=False, default="")
     ref_label = Column(String(255), nullable=False, default="")
     created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+
+
+class ORMPricingRule(Base):
+    """定价规则表（P1：区域倍率 + 固定运费，按优先级匹配）。"""
+
+    __tablename__ = "pricing_rules"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
+    name = Column(String(255), nullable=False)
+    region = Column(String(16), nullable=False, default="GLOBAL", index=True)
+    markup_multiplier = Column(Numeric(10, 4), nullable=False, default=1.4)
+    fixed_shipping_fee = Column(Numeric(12, 2), nullable=False, default=0.0)
+    priority = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+    is_default = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+    updated_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "name": self.name,
+            "region": self.region or "GLOBAL",
+            "markup_multiplier": float(self.markup_multiplier or 1.4),
+            "fixed_shipping_fee": float(self.fixed_shipping_fee or 0.0),
+            "priority": self.priority or 0,
+            "is_active": bool(self.is_active),
+            "is_default": bool(self.is_default),
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class ORMPromotion(Base):
+    """促销活动表（P1：优惠券/折扣/捆绑）。"""
+
+    __tablename__ = "promotions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
+    name = Column(String(255), nullable=False)
+    type = Column(String(32), nullable=False, default="COUPON")
+    applicable_regions: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
+    applicable_categories: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
+    start_date = Column(DateTime(timezone=False), nullable=True)
+    end_date = Column(DateTime(timezone=False), nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+    stackable = Column(Boolean, nullable=False, default=False)
+    priority = Column(Integer, nullable=False, default=0)
+    config = Column(JSONB, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+    updated_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "name": self.name,
+            "type": self.type or "COUPON",
+            "applicable_regions": self.applicable_regions or [],
+            "applicable_categories": self.applicable_categories or [],
+            "start_date": self.start_date.isoformat() if self.start_date else None,
+            "end_date": self.end_date.isoformat() if self.end_date else None,
+            "is_active": bool(self.is_active),
+            "stackable": bool(self.stackable),
+            "priority": self.priority or 0,
+            "config": self.config or {},
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }

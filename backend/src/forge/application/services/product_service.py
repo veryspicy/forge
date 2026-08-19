@@ -211,4 +211,18 @@ class ProductService:
         if "slug" in data and data["slug"] and len(str(data["slug"])) > 500:
             errors["slug"] = "slug 长度不能超过 500"
 
+        for field in ("name_translations", "description_translations", "ai_description_translations"):
+            if field in data and data[field] is not None:
+                translations = data[field]
+                if not isinstance(translations, dict):
+                    errors[field] = f"{field} 必须是语言代码到文本的映射对象"
+                else:
+                    for lang, text in translations.items():
+                        if not isinstance(lang, str) or not lang.strip():
+                            errors[field] = f"{field} 的语言代码必须是非空字符串"
+                            break
+                        if text is not None and not isinstance(text, str):
+                            errors[field] = f"{field} 的 {lang} 值必须是字符串"
+                            break
+
         return errors
