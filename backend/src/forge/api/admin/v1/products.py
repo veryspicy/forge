@@ -24,7 +24,7 @@ from forge.application.services.product_service import (
     ProductSkuConflictError,
     ProductValidationError,
 )
-from forge.infrastructure.persistence.models import ORMProduct, ORMResource
+from forge.infrastructure.persistence.models import ORMProduct, ORMProductVariant, ORMResource
 from forge.infrastructure.persistence.repositories.product_repo import (
     SQLAlchemyProductRepository,
 )
@@ -90,6 +90,28 @@ class ProductUpdate(BaseModel):
 
 class StatusPayload(BaseModel):
     status: str
+
+
+class VariantCreate(BaseModel):
+    sku: str
+    name: str
+    attributes: dict[str, Any] | None = None
+    price: float | None = None
+    cost: float | None = None
+    inventory: int | None = 0
+    status: str | None = "active"
+    is_default: bool | None = False
+
+
+class VariantUpdate(BaseModel):
+    sku: str | None = None
+    name: str | None = None
+    attributes: dict[str, Any] | None = None
+    price: float | None = None
+    cost: float | None = None
+    inventory: int | None = None
+    status: str | None = None
+    is_default: bool | None = None
 
 
 class ProductListResponse(BaseModel):
@@ -222,7 +244,10 @@ async def get_product(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     product = await _get_product_or_404(db, product_id)
-    return {"data": _serialize_product(product)}
+    data = _serialize_product(product)
+    variants = await SQLAlchemyProductRepository.list_variants(db, str(product.id))
+    data["variants"] = [v.to_dict() for v in variants]
+    return {"data": data}
 
 
 # ---------------------------------------------------------------------------
@@ -372,3 +397,94 @@ async def delete_product_image(
     await db.commit()
     await db.refresh(product)
     return {"data": _serialize_product(product)}
+
+
+# ---------------------------------------------------------------------------
+# 8. 变体管理（P2-1）
+# ---------------------------------------------------------------------------
+async def _get_variant_or_404(db: AsyncSession, raw_id: str) -> ORMProductVariant:
+    variant_id = _coerce_uuid(raw_id, "变体 ID")
+    variant = await SQLAlchemyProductRepository.get_variant_by_id(db, variant_id)
+    if variant is None:
+        raise HTTPException(status_code=404, detail="变体不存在")
+    return variant
+
+
+@router.get("/{product_id}/variants")
+async def list_product_variants(
+    product_id: str,
+    admin: dict[str, Any] = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    product = await _get_product_or_404(db, product_id)
+    variants = await SQLAlchemyProductRepository.list_variants(db, str(product.id))
+    return {"data": [v.to_dict() for v in variants]}
+
+
+@router.post("/{product_id}/variants", status_code=201)
+async def create_product_variant(
+    product_id: str,
+    payload: VariantCreate,
+    admin: dict[str, Any] = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    if not admin:
+        raise HTTPException(status_code=401, detail="未登录")
+
+    product = await _get_product_or_404(db, product_id)
+    data = payload.model_dump()
+    try:
+        variant = await ProductService.create_variant(db, product, data)
+    except ProductSkuConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+    except ProductValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+
+    await db.commit()
+    await db.refresh(variant)
+    return {"data": variant.to_dict()}
+
+
+@router.patch("/{product_id}/variants/{variant_id}")
+async def update_product_variant(
+    product_id: str,
+    variant_id: str,
+    payload: VariantUpdate,
+    admin: dict[str, Any] = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    if not admin:
+        raise HTTPException(status_code=401, detail="未登录")
+
+    await _get_product_or_404(db, product_id)
+    variant = await _get_variant_or_404(db, variant_id)
+    data = _clean_payload(payload.model_dump())
+    if not data:
+        raise HTTPException(status_code=400, detail="无更新字段")
+
+    try:
+        variant = await ProductService.update_variant(db, variant, data)
+    except ProductSkuConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+    except ProductValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+
+    await db.commit()
+    await db.refresh(variant)
+    return {"data": variant.to_dict()}
+
+
+@router.delete("/{product_id}/variants/{variant_id}", status_code=204)
+async def delete_product_variant(
+    product_id: str,
+    variant_id: str,
+    admin: dict[str, Any] = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    if not admin:
+        raise HTTPException(status_code=401, detail="未登录")
+
+    await _get_product_or_404(db, product_id)
+    variant = await _get_variant_or_404(db, variant_id)
+    await SQLAlchemyProductRepository.delete_variant(db, variant)
+    await db.commit()

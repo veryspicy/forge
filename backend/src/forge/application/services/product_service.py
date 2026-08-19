@@ -12,7 +12,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from forge.infrastructure.persistence.models import ORMProduct
+from forge.infrastructure.persistence.models import ORMProduct, ORMProductVariant
 from forge.infrastructure.persistence.repositories.product_repo import (
     SQLAlchemyProductRepository,
 )
@@ -226,3 +226,91 @@ class ProductService:
                             break
 
         return errors
+
+    # ------------------------------------------------------------------
+    # 变体业务（P2-1）
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _validate_variant(data: dict[str, Any], partial: bool = False) -> dict[str, str]:
+        errors: dict[str, str] = {}
+
+        if "sku" in data or not partial:
+            sku = data.get("sku")
+            if not sku or not str(sku).strip():
+                errors["sku"] = "SKU 不能为空"
+            elif len(str(sku)) > 100:
+                errors["sku"] = "SKU 长度不能超过 100"
+
+        if "name" in data or not partial:
+            name = data.get("name")
+            if not name or not str(name).strip():
+                errors["name"] = "变体名称不能为空"
+            elif len(str(name)) > 255:
+                errors["name"] = "变体名称长度不能超过 255"
+
+        if "attributes" in data and data["attributes"] is not None:
+            attributes = data["attributes"]
+            if not isinstance(attributes, dict):
+                errors["attributes"] = "attributes 必须是对象"
+
+        if "price" in data and data["price"] is not None:
+            try:
+                if float(data["price"]) <= 0:
+                    errors["price"] = "价格必须大于 0"
+            except (TypeError, ValueError):
+                errors["price"] = "价格格式错误"
+
+        if "inventory" in data and data["inventory"] is not None:
+            try:
+                if int(data["inventory"]) < 0:
+                    errors["inventory"] = "库存不能为负"
+            except (TypeError, ValueError):
+                errors["inventory"] = "库存格式错误"
+
+        if "status" in data and data["status"] not in VALID_STATUSES:
+            errors["status"] = f"status 必须为 {sorted(VALID_STATUSES)} 之一"
+
+        return errors
+
+    @staticmethod
+    async def create_variant(
+        db: AsyncSession,
+        product: ORMProduct,
+        data: dict[str, Any],
+    ) -> ORMProductVariant:
+        errors = ProductService._validate_variant(data)
+        if errors:
+            raise ProductValidationError("变体参数校验失败", errors)
+
+        sku = str(data["sku"]).strip()
+        existing = await SQLAlchemyProductRepository.get_variant_by_sku(db, sku)
+        if existing:
+            raise ProductSkuConflictError(f"变体 SKU 已存在: {sku}")
+
+        payload = dict(data)
+        payload["product_id"] = product.id
+        payload["sku"] = sku
+        payload.setdefault("attributes", {})
+        payload.setdefault("inventory", 0)
+        payload.setdefault("status", "active")
+        payload.setdefault("is_default", False)
+        return await SQLAlchemyProductRepository.create_variant(db, payload)
+
+    @staticmethod
+    async def update_variant(
+        db: AsyncSession,
+        variant: ORMProductVariant,
+        data: dict[str, Any],
+    ) -> ORMProductVariant:
+        errors = ProductService._validate_variant(data, partial=True)
+        if errors:
+            raise ProductValidationError("变体参数校验失败", errors)
+
+        if "sku" in data and data["sku"] != variant.sku:
+            new_sku = str(data["sku"]).strip()
+            existing = await SQLAlchemyProductRepository.get_variant_by_sku(db, new_sku)
+            if existing and existing.id != variant.id:
+                raise ProductSkuConflictError(f"变体 SKU 已存在: {new_sku}")
+            data["sku"] = new_sku
+
+        return await SQLAlchemyProductRepository.update_variant(db, variant, data)
