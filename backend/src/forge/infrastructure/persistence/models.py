@@ -283,3 +283,71 @@ class ORMResourceRef(Base):
     ref_id = Column(String(128), nullable=False, default="")
     ref_label = Column(String(255), nullable=False, default="")
     created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+
+
+class ORMPricingRule(Base):
+    """定价规则表（P1：区域倍率 + 固定运费，按优先级匹配）。"""
+
+    __tablename__ = "pricing_rules"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
+    name = Column(String(255), nullable=False)
+    region = Column(String(16), nullable=False, default="GLOBAL", index=True)
+    markup_multiplier = Column(Numeric(10, 4), nullable=False, default=1.4)
+    fixed_shipping_fee = Column(Numeric(12, 2), nullable=False, default=0.0)
+    priority = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+    is_default = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+    updated_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "name": self.name,
+            "region": self.region or "GLOBAL",
+            "markup_multiplier": float(self.markup_multiplier or 1.4),
+            "fixed_shipping_fee": float(self.fixed_shipping_fee or 0.0),
+            "priority": self.priority or 0,
+            "is_active": bool(self.is_active),
+            "is_default": bool(self.is_default),
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class ORMPromotion(Base):
+    """促销活动表（P1：优惠券/折扣/捆绑）。"""
+
+    __tablename__ = "promotions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
+    name = Column(String(255), nullable=False)
+    type = Column(String(32), nullable=False, default="COUPON")
+    applicable_regions: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
+    applicable_categories: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
+    start_date = Column(DateTime(timezone=False), nullable=True)
+    end_date = Column(DateTime(timezone=False), nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+    stackable = Column(Boolean, nullable=False, default=False)
+    priority = Column(Integer, nullable=False, default=0)
+    config = Column(JSONB, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+    updated_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "name": self.name,
+            "type": self.type or "COUPON",
+            "applicable_regions": self.applicable_regions or [],
+            "applicable_categories": self.applicable_categories or [],
+            "start_date": self.start_date.isoformat() if self.start_date else None,
+            "end_date": self.end_date.isoformat() if self.end_date else None,
+            "is_active": bool(self.is_active),
+            "stackable": bool(self.stackable),
+            "priority": self.priority or 0,
+            "config": self.config or {},
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
