@@ -58,6 +58,9 @@ class ORMProduct(Base):
     name = Column(String(500), nullable=False)
     description = Column(Text, nullable=True)
     ai_description = Column(Text, nullable=True)
+    name_translations = Column(JSONB, nullable=False, default=dict)
+    description_translations = Column(JSONB, nullable=False, default=dict)
+    ai_description_translations = Column(JSONB, nullable=False, default=dict)
     price = Column(Numeric(12, 2), nullable=False)
     cost = Column(Numeric(12, 2), nullable=False)
     category = Column(String(50), nullable=False, index=True)
@@ -87,6 +90,9 @@ class ORMProduct(Base):
             "name": self.name,
             "description": self.description,
             "ai_description": self.ai_description,
+            "name_translations": self.name_translations or {},
+            "description_translations": self.description_translations or {},
+            "ai_description_translations": self.ai_description_translations or {},
             "price": float(self.price) if self.price else 0,
             "cost": float(self.cost) if self.cost else 0,
             "category": self.category,

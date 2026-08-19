@@ -31,6 +31,35 @@
         </NGrid>
       </NCard>
 
+      <!-- Translations -->
+      <NCard title="多语言内容" size="small" class="md:col-span-2">
+        <NFormItem label="语言">
+          <NSelect
+            :value="currentLang"
+            :options="langOptions"
+            style="width:200px"
+            @update:value="switchLang"
+          />
+        </NFormItem>
+        <NGrid :cols="2" :x-gap="16" responsive="screen">
+          <NGi span="2">
+            <NFormItem label="名称翻译">
+              <NInput v-model:value="translationName" @update:value="syncLang('name')" />
+            </NFormItem>
+          </NGi>
+          <NGi span="2">
+            <NFormItem label="描述翻译">
+              <NInput v-model:value="translationDesc" type="textarea" :rows="3" @update:value="syncLang('desc')" />
+            </NFormItem>
+          </NGi>
+          <NGi span="2">
+            <NFormItem label="AI 描述翻译">
+              <NInput v-model:value="translationAi" type="textarea" :rows="3" @update:value="syncLang('ai')" />
+            </NFormItem>
+          </NGi>
+        </NGrid>
+      </NCard>
+
       <!-- Pricing -->
       <NCard :title="$t('page.pricing.title')" size="small">
         <NFormItem :label="$t('page.products.price')"><NInputNumber v-model:value="form.price" :min="0" :step="0.01" style="width:100%" /></NFormItem>
@@ -131,7 +160,46 @@ const form = ref({
   sku: '', name: '', slug: '', category: 'FOOD', description: '',
   price: 0, cost: 0, inventory: 0, is_ai_generated: false,
   tags: [] as string[], region_availability: [] as string[],
+  name_translations: {} as Record<string, string>,
+  description_translations: {} as Record<string, string>,
+  ai_description_translations: {} as Record<string, string>,
 });
+
+const langOptions = [
+  { label: 'English (en)', value: 'en' },
+  { label: 'العربية (ar)', value: 'ar' },
+  { label: '简体中文 (zh-cn)', value: 'zh-cn' },
+  { label: 'Français (fr)', value: 'fr' },
+  { label: 'Español (es)', value: 'es' },
+  { label: 'Deutsch (de)', value: 'de' },
+];
+
+const currentLang = ref('en');
+const translationName = ref('');
+const translationDesc = ref('');
+const translationAi = ref('');
+
+function loadLang(lang: string) {
+  translationName.value = form.value.name_translations?.[lang] || '';
+  translationDesc.value = form.value.description_translations?.[lang] || '';
+  translationAi.value = form.value.ai_description_translations?.[lang] || '';
+}
+
+function switchLang(lang: string) {
+  syncLang('name'); syncLang('desc'); syncLang('ai');
+  currentLang.value = lang;
+  loadLang(lang);
+}
+
+function syncLang(kind: 'name' | 'desc' | 'ai') {
+  const key = kind === 'name' ? 'name_translations'
+    : kind === 'desc' ? 'description_translations'
+    : 'ai_description_translations';
+  form.value[key][currentLang.value] =
+    kind === 'name' ? translationName.value
+    : kind === 'desc' ? translationDesc.value
+    : translationAi.value;
+}
 
 const categoryOptions = [
   { label: 'Food', value: 'FOOD' }, { label: 'Toy', value: 'TOY' },
@@ -157,11 +225,15 @@ onMounted(async () => {
       price: p.price || 0, cost: p.cost || 0, inventory: p.inventory || 0,
       is_ai_generated: p.is_ai_generated || false,
       tags: p.tags || [], region_availability: p.region_availability || [],
+      name_translations: p.name_translations || {},
+      description_translations: p.description_translations || {},
+      ai_description_translations: p.ai_description_translations || {},
     };
+    loadLang('en');
     tagsString.value = (p.tags || []).join(', ');
     regionsString.value = (p.region_availability || []).join(', ');
     images.value = (p.images || []).map((i: any) => ({ key: i.key || '', url: i.url || '', alt: i.alt || '' }));
-  } catch (e) { error.value = t('common.loadFailed'); }
+  } catch { error.value = t('common.loadFailed'); }
 });
 
 async function handleUpload({ file: fileItem }: any) {
@@ -206,6 +278,7 @@ async function removeImage(idx: number) {
 async function save() {
   saving.value = true;
   error.value = '';
+  syncLang('name'); syncLang('desc'); syncLang('ai');
   try {
     if (isEdit.value) {
       await patch(`/api/admin/v1/products/${route.params.id}`, form.value);
