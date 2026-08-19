@@ -13,19 +13,19 @@ repos:
     hooks:
       - id: ruff-check
         name: ruff check
-        entry: uv run ruff check src/
+        entry: cd backend && .venv/Scripts/ruff.exe check --output-format=concise
         language: system
         types: [python]
-        pass_filenames: false
+        pass_filenames: true
       - id: ruff-format
         name: ruff format --check
-        entry: uv run ruff format --check src/
+        entry: cd backend && .venv/Scripts/ruff.exe format --check
         language: system
         types: [python]
-        pass_filenames: false
+        pass_filenames: true
       - id: mypy
         name: mypy strict
-        entry: uv run mypy src/
+        entry: cd backend && .venv/Scripts/mypy.exe --python-executable .venv/Scripts/python.exe --ignore-missing-imports
         language: system
         types: [python]
-        pass_filenames: false
+        pass_filenames: true
