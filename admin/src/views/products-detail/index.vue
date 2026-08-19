@@ -60,8 +60,8 @@
       <!-- Images -->
       <NCard :title="$t('common.productImages')" size="small" class="md:col-span-2">
         <div v-if="images.length" class="flex flex-wrap gap-3 mb-4">
-          <div v-for="(img, idx) in images" :key="idx" class="relative w-[100px] h-[100px] rounded-md overflow-hidden border border-[var(--n-border-color)]">
-            <NImage :src="img" width="100" height="100" style="object-fit:cover" />
+          <div v-for="(img, idx) in images" :key="img.key || idx" class="relative w-[100px] h-[100px] rounded-md overflow-hidden border border-[var(--n-border-color)]">
+            <NImage :src="img.url" width="100" height="100" style="object-fit:cover" />
             <NButton
               class="absolute top-0.5 right-0.5"
               size="tiny" circle type="error"
@@ -124,7 +124,7 @@ const tagsString = ref('');
 const regionsString = ref('');
 const statusChange = ref<string | null>(null);
 
-const images = ref<string[]>([]);
+const images = ref<{ key: string; url: string; alt?: string }[]>([]);
 const pendingFiles = ref<File[]>([]);
 
 const form = ref({
@@ -150,7 +150,7 @@ onMounted(async () => {
   if (!isEdit.value) return;
   try {
     const res = await get(`/api/admin/v1/products/${route.params.id}`);
-    const p = res.data;
+    const p = res.data?.data ?? res.data;
     form.value = {
       sku: p.sku || '', name: p.name || '', slug: p.slug || '',
       category: p.category || 'FOOD', description: p.description || '',
@@ -160,7 +160,7 @@ onMounted(async () => {
     };
     tagsString.value = (p.tags || []).join(', ');
     regionsString.value = (p.region_availability || []).join(', ');
-    images.value = p.images || [];
+    images.value = (p.images || []).map((i: any) => ({ key: i.key || '', url: i.url || '', alt: i.alt || '' }));
   } catch (e) { error.value = t('common.loadFailed'); }
 });
 
@@ -178,21 +178,22 @@ async function handleUpload({ file: fileItem }: any) {
         formData,
         { 'Content-Type': 'multipart/form-data' },
       );
-      images.value.push(res.data.url);
+      const uploaded = (res.data?.data?.images || res.data?.images || []).slice(-1)[0];
+      if (uploaded) images.value.push({ key: uploaded.key || '', url: uploaded.url || '', alt: uploaded.alt || '' });
     } catch (e: any) { error.value = e.response?.data?.detail || t('common.uploadFailed') + ': ' + file.name; }
   } else {
     pendingFiles.value.push(file);
-    images.value.push(URL.createObjectURL(file));
+    images.value.push({ key: '', url: URL.createObjectURL(file), alt: '' });
   }
   uploading.value = false;
 }
 
 async function removeImage(idx: number) {
   if (isEdit.value) {
-    const url = images.value[idx];
-    const objectKey = url.split('/').pop();
+    const img = images.value[idx];
+    if (!img.key) { images.value.splice(idx, 1); return; }
     try {
-      await del(`/api/admin/v1/products/${route.params.id}/images/${objectKey}`);
+      await del(`/api/admin/v1/products/${route.params.id}/images/${encodeURIComponent(img.key)}`);
     } catch (e: any) {
       if (e.response?.status !== 404) { error.value = e.response?.data?.detail || t('common.deleteFailed'); return; }
     }
@@ -210,7 +211,7 @@ async function save() {
       await patch(`/api/admin/v1/products/${route.params.id}`, form.value);
     } else {
       const res = await post('/api/admin/v1/products/', form.value);
-      const newId = res.data.id;
+      const newId = res.data?.data?.id ?? res.data?.id;
       for (const file of pendingFiles.value) {
         const formData = new FormData();
         formData.append('file', file);
