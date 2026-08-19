@@ -25,7 +25,7 @@ repos:
         pass_filenames: true
       - id: mypy
         name: mypy strict
-        entry: '"G:/Program Files/Marvis/MarvisAgent/1.0.1100.487/runtime/python311/Scripts/mypy.exe" --python-executable backend/.venv/Scripts/python.exe --ignore-missing-imports'
+        entry: '"C:/Users/tank/AppData/Roaming/uv/python/cpython-3.14-windows-x86_64-none/python.exe" -m mypy --python-executable backend/.venv/Scripts/python.exe --ignore-missing-imports'
         language: system
         types: [python]
         pass_filenames: true
