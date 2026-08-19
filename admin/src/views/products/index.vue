@@ -45,8 +45,8 @@ const categoryOptions = [
 const columns: DataTableColumns<any> = [
   {
     title: t('common.image'), key: 'image', width: 60,
-    render: row => row.images?.[0]
-      ? h(NImage, { src: row.images[0], width: 40, height: 40, style: { objectFit: 'cover', borderRadius: '4px' } })
+    render: row => row.images?.[0]?.url
+      ? h(NImage, { src: row.images[0].url, width: 40, height: 40, style: { objectFit: 'cover', borderRadius: '4px' } })
       : h('span', { style: { color: 'var(--n-text-color-3)' } }, '--'),
   },
   { title: t('common.sku'), key: 'sku', render: row => row.sku || '-' },

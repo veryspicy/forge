@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from datetime import UTC, datetime
+from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from forge.infrastructure.persistence.models import ORMProduct
+
+
+def _now() -> datetime:
+    return datetime.now(UTC)
 
 
 class SQLAlchemyProductRepository:
@@ -18,11 +23,23 @@ class SQLAlchemyProductRepository:
         db: AsyncSession,
         page: int = 1,
         page_size: int = 20,
-        category: Optional[str] = None,
-    ) -> dict:
+        category: str | None = None,
+        search: str | None = None,
+        status: str | None = None,
+    ) -> dict[str, Any]:
         filters = []
         if category:
             filters.append(ORMProduct.category == category)
+        if status:
+            filters.append(ORMProduct.status == status)
+        if search:
+            pattern = f"%{search}%"
+            filters.append(
+                or_(
+                    ORMProduct.name.ilike(pattern),
+                    ORMProduct.sku.ilike(pattern),
+                )
+            )
 
         total_query = select(func.count(ORMProduct.id)).where(*filters)
         total = (await db.execute(total_query)).scalar_one()
@@ -43,6 +60,55 @@ class SQLAlchemyProductRepository:
             "page": page,
             "page_size": page_size,
         }
+
+    @staticmethod
+    async def get_by_id(db: AsyncSession, product_id: str) -> ORMProduct | None:
+        result = await db.execute(select(ORMProduct).where(ORMProduct.id == product_id))
+        return result.scalar_one_or_none()
+
+    @staticmethod
+    async def get_by_sku(db: AsyncSession, sku: str) -> ORMProduct | None:
+        result = await db.execute(select(ORMProduct).where(ORMProduct.sku == sku))
+        return result.scalar_one_or_none()
+
+    @staticmethod
+    async def get_by_slug(db: AsyncSession, slug: str) -> ORMProduct | None:
+        result = await db.execute(select(ORMProduct).where(ORMProduct.slug == slug))
+        return result.scalar_one_or_none()
+
+    @staticmethod
+    async def create(db: AsyncSession, data: dict[str, Any]) -> ORMProduct:
+        product = ORMProduct(**data)
+        db.add(product)
+        await db.flush()
+        await db.refresh(product)
+        return product
+
+    @staticmethod
+    async def update(db: AsyncSession, product: ORMProduct, data: dict[str, Any]) -> ORMProduct:
+        for key, value in data.items():
+            if hasattr(product, key):
+                setattr(product, key, value)
+        product.updated_at = _now()
+        await db.flush()
+        await db.refresh(product)
+        return product
+
+    @staticmethod
+    async def set_status(db: AsyncSession, product: ORMProduct, status: str) -> ORMProduct:
+        product.status = status
+        product.updated_at = _now()
+        await db.flush()
+        await db.refresh(product)
+        return product
+
+    @staticmethod
+    async def update_images(db: AsyncSession, product: ORMProduct, images: list[dict[str, Any]]) -> ORMProduct:
+        product.images = images
+        product.updated_at = _now()
+        await db.flush()
+        await db.refresh(product)
+        return product
 
     @staticmethod
     async def count(db: AsyncSession) -> int:
