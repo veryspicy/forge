@@ -68,6 +68,9 @@ class ProductCreate(BaseModel):
     supplier_id: str | None = None
     supplier_sku: str | None = None
     images: list[dict[str, Any]] | None = None
+    seo_title: str | None = None
+    seo_description: str | None = None
+    seo_keywords: list[str] | None = None
 
 
 class ProductUpdate(BaseModel):
@@ -90,6 +93,9 @@ class ProductUpdate(BaseModel):
     supplier_id: str | None = None
     supplier_sku: str | None = None
     images: list[dict[str, Any]] | None = None
+    seo_title: str | None = None
+    seo_description: str | None = None
+    seo_keywords: list[str] | None = None
 
 
 class StatusPayload(BaseModel):
@@ -639,7 +645,238 @@ async def delete_product_image(
 
 
 # ---------------------------------------------------------------------------
-# 8. 变体管理（P2-1）
+# 8. SEO 评分（P2-3）
+# ---------------------------------------------------------------------------
+SEO_TITLE_IDEAL_MIN = 30
+SEO_TITLE_IDEAL_MAX = 60
+SEO_DESC_IDEAL_MIN = 70
+SEO_DESC_IDEAL_MAX = 160
+SEO_DESC_MIN_LEN = 100
+SEO_TRANSLATION_SCORE_PER_LANG = 5
+SEO_TRANSLATION_MAX = 10
+
+
+def _seo_dimension(
+    key: str,
+    label: str,
+    score: int,
+    max_score: int,
+    suggestion: str,
+) -> dict[str, Any]:
+    status = "pass" if score >= max_score else ("partial" if score > 0 else "fail")
+    return {
+        "key": key,
+        "label": label,
+        "score": score,
+        "max": max_score,
+        "status": status,
+        "suggestion": suggestion if score < max_score else "",
+    }
+
+
+def compute_seo_score(product: ORMProduct) -> dict[str, Any]:
+    """计算商品 SEO 字段完整性评分（0-100）与优化建议。"""
+    dimensions: list[dict[str, Any]] = []
+    suggestions: list[str] = []
+
+    # 1. SEO 标题
+    seo_title = (product.seo_title or "").strip()
+    title_len = len(seo_title)
+    if not seo_title:
+        dim = _seo_dimension(
+            "seo_title",
+            "SEO 标题",
+            0,
+            20,
+            f"未设置 SEO 标题，建议填写 {SEO_TITLE_IDEAL_MIN}-{SEO_TITLE_IDEAL_MAX} 字符的标题",
+        )
+    elif SEO_TITLE_IDEAL_MIN <= title_len <= SEO_TITLE_IDEAL_MAX:
+        dim = _seo_dimension("seo_title", "SEO 标题", 20, 20, "")
+    else:
+        dim = _seo_dimension(
+            "seo_title",
+            "SEO 标题",
+            12,
+            20,
+            f"SEO 标题当前 {title_len} 字符，建议调整到 {SEO_TITLE_IDEAL_MIN}-{SEO_TITLE_IDEAL_MAX} 字符",
+        )
+    dimensions.append(dim)
+    if dim["suggestion"]:
+        suggestions.append(dim["suggestion"])
+
+    # 2. SEO 描述
+    seo_desc = (product.seo_description or "").strip()
+    desc_len = len(seo_desc)
+    if not seo_desc:
+        dim = _seo_dimension(
+            "seo_description",
+            "SEO 描述",
+            0,
+            20,
+            f"未设置 SEO 描述，建议填写 {SEO_DESC_IDEAL_MIN}-{SEO_DESC_IDEAL_MAX} 字符的描述",
+        )
+    elif SEO_DESC_IDEAL_MIN <= desc_len <= SEO_DESC_IDEAL_MAX:
+        dim = _seo_dimension("seo_description", "SEO 描述", 20, 20, "")
+    else:
+        dim = _seo_dimension(
+            "seo_description",
+            "SEO 描述",
+            12,
+            20,
+            f"SEO 描述当前 {desc_len} 字符，建议调整到 {SEO_DESC_IDEAL_MIN}-{SEO_DESC_IDEAL_MAX} 字符",
+        )
+    dimensions.append(dim)
+    if dim["suggestion"]:
+        suggestions.append(dim["suggestion"])
+
+    # 3. SEO 关键词
+    keywords = [k.strip() for k in (product.seo_keywords or []) if k and k.strip()]
+    kw_count = len(keywords)
+    if kw_count >= 3:
+        dim = _seo_dimension("seo_keywords", "SEO 关键词", 15, 15, "")
+    elif kw_count >= 1:
+        dim = _seo_dimension(
+            "seo_keywords",
+            "SEO 关键词",
+            8,
+            15,
+            f"当前 {kw_count} 个关键词，建议补充到 3 个以上",
+        )
+    else:
+        dim = _seo_dimension("seo_keywords", "SEO 关键词", 0, 15, "未设置 SEO 关键词，建议至少填写 3 个")
+    dimensions.append(dim)
+    if dim["suggestion"]:
+        suggestions.append(dim["suggestion"])
+
+    # 4. 商品描述
+    description = (product.description or "").strip()
+    desc_main_len = len(description)
+    if desc_main_len >= SEO_DESC_MIN_LEN:
+        dim = _seo_dimension("description", "商品描述", 10, 10, "")
+    elif description:
+        dim = _seo_dimension(
+            "description",
+            "商品描述",
+            5,
+            10,
+            f"商品描述当前 {desc_main_len} 字符，建议补充到 {SEO_DESC_MIN_LEN} 字符以上",
+        )
+    else:
+        dim = _seo_dimension("description", "商品描述", 0, 10, "未填写商品描述，建议补充详细的商品介绍")
+    dimensions.append(dim)
+    if dim["suggestion"]:
+        suggestions.append(dim["suggestion"])
+
+    # 5. 图片（主图 + alt）
+    images = product.images or []
+    main_image = next((i for i in images if i.get("is_main")), None)
+    first_image = images[0] if images else None
+    has_alt = bool((main_image or first_image or {}).get("alt", "").strip())
+    if main_image and has_alt:
+        dim = _seo_dimension("images", "商品图片", 10, 10, "")
+    elif main_image or first_image:
+        dim = _seo_dimension(
+            "images",
+            "商品图片",
+            5,
+            10,
+            "已上传图片但缺少 alt 文本，建议为图片补充描述性 alt",
+        )
+    else:
+        dim = _seo_dimension("images", "商品图片", 0, 10, "未上传商品图片，建议至少上传 1 张主图并填写 alt")
+    dimensions.append(dim)
+    if dim["suggestion"]:
+        suggestions.append(dim["suggestion"])
+
+    # 6. 标签
+    tags = [t.strip() for t in (product.tags or []) if t and t.strip()]
+    tag_count = len(tags)
+    if tag_count >= 3:
+        dim = _seo_dimension("tags", "标签", 10, 10, "")
+    elif tag_count >= 1:
+        dim = _seo_dimension("tags", "标签", 5, 10, f"当前 {tag_count} 个标签，建议补充到 3 个以上")
+    else:
+        dim = _seo_dimension("tags", "标签", 0, 10, "未设置标签，建议添加至少 3 个商品标签")
+    dimensions.append(dim)
+    if dim["suggestion"]:
+        suggestions.append(dim["suggestion"])
+
+    # 7. slug
+    slug = (product.slug or "").strip()
+    if not slug:
+        dim = _seo_dimension("slug", "URL Slug", 0, 5, "未设置 slug，建议使用简短含关键词的英文 URL")
+    elif len(slug) > 100:
+        dim = _seo_dimension("slug", "URL Slug", 3, 5, f"slug 当前 {len(slug)} 字符，建议缩短到 100 字符以内")
+    else:
+        dim = _seo_dimension("slug", "URL Slug", 5, 5, "")
+    dimensions.append(dim)
+    if dim["suggestion"]:
+        suggestions.append(dim["suggestion"])
+
+    # 8. 多语言覆盖（name/description 翻译）
+    name_translations = product.name_translations or {}
+    desc_translations = product.description_translations or {}
+    covered_langs = {
+        lang
+        for lang in set(name_translations) | set(desc_translations)
+        if (name_translations.get(lang) or "").strip() or (desc_translations.get(lang) or "").strip()
+    }
+    translation_score = min(len(covered_langs) * SEO_TRANSLATION_SCORE_PER_LANG, SEO_TRANSLATION_MAX)
+    if translation_score >= SEO_TRANSLATION_MAX:
+        dim = _seo_dimension("translations", "多语言覆盖", SEO_TRANSLATION_MAX, SEO_TRANSLATION_MAX, "")
+    elif translation_score > 0:
+        target_langs = SEO_TRANSLATION_MAX // SEO_TRANSLATION_SCORE_PER_LANG
+        dim = _seo_dimension(
+            "translations",
+            "多语言覆盖",
+            translation_score,
+            SEO_TRANSLATION_MAX,
+            f"已覆盖 {len(covered_langs)} 门语言，建议补充到 {target_langs} 门语言以上",
+        )
+    else:
+        dim = _seo_dimension(
+            "translations",
+            "多语言覆盖",
+            0,
+            SEO_TRANSLATION_MAX,
+            "未填写任何语言翻译，建议至少补充英语外的 2 门语言翻译",
+        )
+    dimensions.append(dim)
+    if dim["suggestion"]:
+        suggestions.append(dim["suggestion"])
+
+    total_score = sum(d["score"] for d in dimensions)
+    if total_score >= 90:
+        grade = "A"
+    elif total_score >= 75:
+        grade = "B"
+    elif total_score >= 60:
+        grade = "C"
+    else:
+        grade = "D"
+
+    return {
+        "product_id": str(product.id),
+        "total_score": total_score,
+        "grade": grade,
+        "dimensions": dimensions,
+        "suggestions": suggestions,
+        "checked_at": datetime.now(UTC).isoformat(),
+    }
+
+
+@router.get("/{product_id}/seo-score")
+async def get_product_seo_score(
+    product_id: str,
+    admin: dict[str, Any] = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    product = await _get_product_or_404(db, product_id)
+    return {"data": compute_seo_score(product)}
+
+
+# ---------------------------------------------------------------------------
+# 9. 变体管理（P2-1）
 # ---------------------------------------------------------------------------
 async def _get_variant_or_404(db: AsyncSession, raw_id: str) -> ORMProductVariant:
     variant_id = _coerce_uuid(raw_id, "变体 ID")
