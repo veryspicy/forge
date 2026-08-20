@@ -185,6 +185,60 @@
         </template>
       </NModal>
 
+      <!-- SEO Score (edit only) -->
+      <NCard v-if="isEdit" title="SEO 评分" size="small" class="md:col-span-2">
+        <div class="grid grid-cols-1 gap-3 mb-4">
+          <div>
+            <div class="text-sm font-medium mb-1">SEO 标题</div>
+            <NInput v-model:value="seoForm.title" placeholder="建议 30-60 字符" maxlength="200" show-count clearable />
+          </div>
+          <div>
+            <div class="text-sm font-medium mb-1">SEO 描述</div>
+            <NInput v-model:value="seoForm.description" type="textarea" placeholder="建议 70-160 字符" maxlength="300" show-count clearable />
+          </div>
+          <div>
+            <div class="text-sm font-medium mb-1">SEO 关键词</div>
+            <NInput v-model:value="seoForm.keywords" placeholder="逗号分隔，例如：宠物,猫粮,狗玩具" clearable />
+          </div>
+          <div class="flex gap-2">
+            <NButton size="small" type="primary" :loading="seoSaving" @click="saveSeo">保存 SEO</NButton>
+            <NButton size="small" :loading="seoLoading" @click="loadSeoScore">重新评分</NButton>
+          </div>
+        </div>
+
+        <template v-if="seoScore">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-3">
+              <span class="text-4xl font-bold" :class="gradeColor">{{ seoScore.total_score }}</span>
+              <span class="text-sm opacity-60">/ 100</span>
+              <NTag v-if="seoScore.grade" size="small" :type="gradeTagType" :bordered="false">{{ seoScore.grade }}</NTag>
+            </div>
+          </div>
+
+          <div v-for="d in seoScore.dimensions" :key="d.key" class="flex items-center gap-3 mb-2">
+            <span class="w-24 text-sm shrink-0">{{ d.label }}</span>
+            <NProgress
+              class="flex-1"
+              type="line"
+              :percentage="maxScorePercent(d)"
+              :height="8"
+              :color="dimColor(d)"
+              :rail-color="'rgba(0,0,0,0.06)'"
+            />
+            <span class="w-14 text-right text-sm opacity-70 shrink-0">{{ d.score }}/{{ d.max }}</span>
+          </div>
+
+          <div v-if="seoScore.suggestions.length" class="mt-4">
+            <div class="text-sm font-medium mb-2">优化建议</div>
+            <ul class="pl-5 space-y-1">
+              <li v-for="(s, i) in seoScore.suggestions" :key="i" class="text-sm opacity-80 list-disc">{{ s }}</li>
+            </ul>
+          </div>
+          <NEmpty v-else description="SEO 状态优秀，无需优化" size="small" class="py-4" />
+        </template>
+        <NEmpty v-else description="点击「重新评分」获取数据" size="small" class="py-6" />
+      </NCard>
+
       <!-- Danger Zone (edit only) -->
       <NCard v-if="isEdit" :title="$t('common.dangerZone')" size="small" class="md:col-span-2">
         <NSpace>
@@ -211,7 +265,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   NButton, NCard, NEmpty, NForm, NFormItem, NGi, NGrid, NImage, NInput, NInputNumber,
-  NModal, NSelect, NSpace, NSwitch, NTable, NUpload,
+  NModal, NProgress, NSelect, NSpace, NSwitch, NTable, NTag, NUpload,
 } from 'naive-ui';
 import { useI18n } from 'vue-i18n';
 import { get, post, patch, del } from '@/service/api/helper';
@@ -239,6 +293,70 @@ const variantForm = ref({
   sku: '', name: '', attributesText: '',
   price: 0, cost: 0, inventory: 0, status: 'active', is_default: false,
 });
+
+const seoScore = ref<any>(null);
+const seoLoading = ref(false);
+const seoSaving = ref(false);
+const seoForm = ref({ title: '', description: '', keywords: '' });
+
+const gradeColor = computed(() => {
+  const g = seoScore.value?.grade;
+  if (g === 'A') return 'text-green-600';
+  if (g === 'B') return 'text-blue-600';
+  if (g === 'C') return 'text-orange-500';
+  if (g === 'D') return 'text-red-600';
+  return '';
+});
+
+const gradeTagType = computed(() => {
+  const g = seoScore.value?.grade;
+  if (g === 'A') return 'success';
+  if (g === 'B') return 'info';
+  if (g === 'C') return 'warning';
+  if (g === 'D') return 'error';
+  return 'default';
+});
+
+function maxScorePercent(d: any) {
+  return Math.round((d.score / d.max) * 100);
+}
+
+function dimColor(d: any) {
+  if (d.status === 'pass') return '#18a058';
+  if (d.status === 'partial') return '#f0a020';
+  return '#d03050';
+}
+
+async function loadSeoScore() {
+  if (!isEdit.value) return;
+  seoLoading.value = true;
+  try {
+    const res = await get(`/api/admin/v1/products/${route.params.id}/seo-score`);
+    seoScore.value = res.data?.data ?? res.data ?? null;
+  } catch {
+    seoScore.value = null;
+  } finally {
+    seoLoading.value = false;
+  }
+}
+
+async function saveSeo() {
+  seoSaving.value = true;
+  try {
+    const keywords = seoForm.value.keywords.split(',').map((k: string) => k.trim()).filter(Boolean);
+    await patch(`/api/admin/v1/products/${route.params.id}`, {
+      seo_title: seoForm.value.title,
+      seo_description: seoForm.value.description,
+      seo_keywords: keywords,
+    });
+    error.value = '';
+    loadSeoScore();
+  } catch (e: any) {
+    error.value = e.response?.data?.detail || 'SEO 保存失败';
+  } finally {
+    seoSaving.value = false;
+  }
+}
 
 const form = ref({
   sku: '', name: '', slug: '', category: 'FOOD', description: '',
@@ -318,6 +436,12 @@ onMounted(async () => {
     regionsString.value = (p.region_availability || []).join(', ');
     images.value = (p.images || []).map((i: any) => ({ key: i.key || '', url: i.url || '', alt: i.alt || '' }));
     variants.value = p.variants || [];
+    seoForm.value = {
+      title: p.seo_title || '',
+      description: p.seo_description || '',
+      keywords: (p.seo_keywords || []).join(', '),
+    };
+    loadSeoScore();
   } catch { error.value = t('common.loadFailed'); }
 });
 

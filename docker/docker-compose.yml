@@ -141,6 +141,7 @@ services:
     environment:
       <<: *common-vars
       TZ: Asia/Shanghai
+      AI_SERVICE_URL: http://ai-service:8001
     volumes:
       - ../backend/src:/app/src  # 热重载
       - ../backend/uploads:/app/uploads  # 本地降级图片持久化，容器重建不丢

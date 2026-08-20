@@ -441,9 +441,19 @@ const local: App.I18n.Schema = {
     aiProbe: {
       noMessages: '暂无消息',
       aiProbeTitle: 'AI 探测',
-      send: '发送',
-      typeMessage: '输入消息...',
-      conversationId: '对话 ID'
+      reprobe: '重新探测',
+      lastChecked: '上次探测时间',
+      overall: '总体状态',
+      item: '探测项',
+      status: '状态',
+      latency: '耗时',
+      detail: '详情',
+      statusOk: '正常',
+      statusWarn: '警告',
+      statusFail: '异常',
+      aiService: 'AI 服务',
+      llmKey: 'LLM API Key',
+      database: '数据库'
     },
     users: {
       changeRole: '更改角色',

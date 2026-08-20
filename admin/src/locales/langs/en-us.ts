@@ -446,9 +446,19 @@ const local: App.I18n.Schema = {
     aiProbe: {
       noMessages: 'No messages',
       aiProbeTitle: 'AI Probe',
-      send: 'Send',
-      typeMessage: 'Type a message...',
-      conversationId: 'Conversation ID'
+      reprobe: 'Re-probe',
+      lastChecked: 'Last checked',
+      overall: 'Overall',
+      item: 'Item',
+      status: 'Status',
+      latency: 'Latency',
+      detail: 'Detail',
+      statusOk: 'OK',
+      statusWarn: 'Warning',
+      statusFail: 'Failed',
+      aiService: 'AI Service',
+      llmKey: 'LLM API Key',
+      database: 'Database'
     },
     users: {
       changeRole: 'Change Role',
