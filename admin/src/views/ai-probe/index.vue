@@ -1,100 +1,108 @@
 <template>
   <div class="flex flex-col gap-4">
-    <div class="flex items-center gap-3">
-      <NSelect
-        v-model:value="adoptedFilter"
-        :options="filterOptions"
-        :placeholder="$t('common.adopted')"
-        clearable
-        style="width:150px"
-        @update:value="fetch"
-      />
-    </div>
-
-    <NDataTable :columns="columns" :data="conversations" :loading="loading" :bordered="false" size="small" />
-
-    <div v-if="total > pageSize" class="flex justify-center">
-      <NPagination :page="page" :page-size="pageSize" :item-count="total" @update:page="goPage" />
-    </div>
-
-    <NModal :show="!!detailConv" preset="card" :title="$t('common.conversation')" style="width:640px" @update:show="(v) => { if (!v) detailConv = null; }">
-      <div class="flex flex-col gap-3">
-        <div><span class="text-[var(--n-text-color-3)]">User ID: </span>{{ detailConv?.user_id }}</div>
-        <div><span class="text-[var(--n-text-color-3)]">Product: </span>{{ detailConv?.product_name || '-' }}</div>
-        <div><span class="text-[var(--n-text-color-3)]">Adopted: </span>{{ detailConv?.is_adopted ? t('common.yes') : t('common.no') }}</div>
-        <div><span class="text-[var(--n-text-color-3)]">Started: </span>{{ detailConv?.created_at }}</div>
-        <NDivider />
-        <h4 class="text-sm font-semibold">{{ $t('common.messages') }}</h4>
-        <div v-if="detailConv?.messages?.length" class="max-h-[300px] overflow-y-auto bg-[var(--n-color-embedded)] rounded-md p-3 text-sm">
-          <div v-for="(m, i) in detailConv.messages" :key="i" class="py-1.5 border-b border-[var(--n-divider-color)] last:border-b-0">
-            <span class="font-semibold" :style="{ color: m.role === 'user' ? 'var(--n-color-target)' : '#27ae60' }">{{ m.role }}</span>: {{ m.content?.slice(0, 300) }}
-          </div>
-        </div>
-        <div v-else class="text-[var(--n-text-color-3)] py-3">{{ $t('page.aiProbe.noMessages') }}</div>
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <h2 class="text-lg font-semibold">{{ $t('page.aiProbe.aiProbeTitle') }}</h2>
+        <NTag v-if="result" :type="overallTagType" size="small">
+          {{ $t(`page.aiProbe.${overallTagLabel}`) }}
+        </NTag>
       </div>
-      <template #footer>
-        <NButton @click="detailConv = null">{{ $t('common.close') }}</NButton>
-      </template>
-    </NModal>
+      <div class="flex items-center gap-3">
+        <span v-if="result" class="text-xs text-[var(--n-text-color-3)]">
+          {{ $t('page.aiProbe.lastChecked') }}: {{ result.checked_at }}
+        </span>
+        <NButton type="primary" size="small" :loading="loading" @click="fetchProbe">
+          {{ $t('page.aiProbe.reprobe') }}
+        </NButton>
+      </div>
+    </div>
+
+    <div v-if="result" class="grid gap-4 md:grid-cols-3">
+      <NCard
+        v-for="item in result.items"
+        :key="item.key"
+        size="small"
+        :title="itemName(item)"
+        segmented
+      >
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center gap-2">
+            <NTag :type="statusTagType(item.status)" size="small">
+              {{ $t(`page.aiProbe.${statusLabel(item.status)}`) }}
+            </NTag>
+            <span v-if="item.latency_ms > 0" class="text-xs text-[var(--n-text-color-3)]">
+              {{ item.latency_ms }} ms
+            </span>
+          </div>
+          <p class="text-sm break-all text-[var(--n-text-color-3)]">{{ item.detail }}</p>
+        </div>
+      </NCard>
+    </div>
+
+    <NEmpty v-else-if="!loading" :description="$t('common.noData')" />
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { ref, computed, onMounted, h } from 'vue';
-import { NButton, NDataTable, NDivider, NModal, NPagination, NSelect, NTag } from 'naive-ui';
+import { NButton, NCard, NEmpty, NTag } from 'naive-ui';
 import { get } from '@/service/api/helper';
-import type { DataTableColumns } from 'naive-ui';
 
-const loading = ref(false);
-const conversations = ref<any[]>([]);
-const adoptedFilter = ref<string | null>(null);
-const page = ref(1);
-const total = ref(0);
+interface ProbeItem {
+  key: string;
+  name: string;
+  status: 'ok' | 'warn' | 'fail';
+  latency_ms: number;
+  detail: string;
+}
+
+interface ProbeResult {
+  overall: 'ok' | 'warn' | 'fail';
+  checked_at: string;
+  items: ProbeItem[];
+}
+
 const { t } = useI18n();
-const pageSize = 20;
-const detailConv = ref<any>(null);
+const loading = ref(false);
+const result = ref<ProbeResult | null>(null);
 
-const filterOptions = [
-  { label: t('common.adopted'), value: 'true' },
-  { label: t('common.notAdopted'), value: 'false' },
-];
+const overallTagType = computed(() => statusTagType(result.value?.overall ?? 'fail'));
+const overallTagLabel = computed(() => statusLabel(result.value?.overall ?? 'fail'));
 
-const columns: DataTableColumns<any> = [
-  { title: t('common.conversation') + ' ID', key: 'conversation_id', render: row => (row.conversation_id || row.id || '').slice(0, 12) + '...' },
-  { title: t('common.userId'), key: 'user_id', render: row => (row.user_id || '').slice(0, 8) + '...' },
-  { title: t('common.product'), key: 'product_name', render: row => row.product_name || '-' },
-  { title: t('common.messages'), key: 'message_count', render: row => row.message_count ?? 0 },
-  {
-    title: t('common.adopted'), key: 'is_adopted',
-    render: row => h(NTag, { type: row.is_adopted ? 'success' : 'default', size: 'small' }, { default: () => row.is_adopted ? t('common.yes') : t('common.no') }),
-  },
-  { title: t('common.started'), key: 'created_at', render: row => row.created_at ? new Date(row.created_at).toLocaleString() : '-' },
-  {
-    title: t('page.suppliers.actions'), key: 'actions',
-    render: row => h(NButton, { size: 'small', onClick: () => openDetail(row) }, { default: () => t('common.view') }),
-  },
-];
+function statusTagType(status: string) {
+  if (status === 'ok') return 'success';
+  if (status === 'warn') return 'warning';
+  return 'error';
+}
 
-async function fetch() {
+function statusLabel(status: string) {
+  if (status === 'ok') return 'statusOk';
+  if (status === 'warn') return 'statusWarn';
+  return 'statusFail';
+}
+
+function itemName(item: ProbeItem) {
+  const map: Record<string, string> = {
+    ai_service: t('page.aiProbe.aiService'),
+    llm_key: t('page.aiProbe.llmKey'),
+    database: t('page.aiProbe.database'),
+  };
+  return map[item.key] ?? item.name;
+}
+
+async function fetchProbe() {
   loading.value = true;
   try {
-    const params: Record<string, any> = { page: page.value, page_size: pageSize };
-    if (adoptedFilter.value !== null) params.adopted = adoptedFilter.value === 'true';
-    const res = await get('/api/admin/v1/chat-requests/', { params });
-    conversations.value = res.data?.items || [];
-    total.value = res.data?.total || 0;
-  } finally { loading.value = false; }
+    const res = await get('/api/admin/v1/ai/probe');
+    result.value = res.data;
+  } catch (e) {
+    console.error(e);
+    result.value = null;
+  } finally {
+    loading.value = false;
+  }
 }
 
-function goPage(p: number) { page.value = p; fetch(); }
-
-async function openDetail(c: any) {
-  try {
-    const res = await get(`/api/admin/v1/chat-requests/${c.conversation_id || c.id}`);
-    detailConv.value = res.data;
-  } catch (e) { console.error(e); }
-}
-
-onMounted(fetch);
+onMounted(fetchProbe);
 </script>

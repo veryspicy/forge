@@ -1,5 +1,6 @@
-﻿from pydantic_settings import BaseSettings
 from functools import lru_cache
+
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -18,6 +19,9 @@ class Settings(BaseSettings):
     # OpenAI
     openai_api_key: str = "sk-placeholder"
 
+    # AI Service
+    ai_service_url: str = "http://localhost:8001"
+
     # MinIO
     minio_endpoint: str = "localhost:9002"
     minio_access_key: str = "minioadmin"
@@ -33,7 +37,7 @@ class Settings(BaseSettings):
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "case_sensitive": False}
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     return Settings()
 

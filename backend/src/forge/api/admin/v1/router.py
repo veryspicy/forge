@@ -6,22 +6,27 @@
 各子模块导入采用 try/except 容错，任一模块缺失不影响其余路由注册。
 """
 
+from __future__ import annotations
+
 import logging
+from typing import Any
+
 from fastapi import APIRouter
 
 logger = logging.getLogger(__name__)
 
 admin_router = APIRouter(prefix="/api/admin/v1")
 
+
 # --- Helper to safely include a submodule ---
-def _safe_include(module_name: str, prefix: str = "", tags: list = None):
+def _safe_include(module_name: str, prefix: str = "", tags: list[str] | None = None) -> None:
     try:
         mod = __import__(f"forge.api.admin.v1.{module_name}", fromlist=[module_name])
         router = getattr(mod, "router", None)
         if router is None:
             logger.warning(f"Module '{module_name}' has no 'router' attribute, skipping")
             return
-        kwargs = {}
+        kwargs: dict[str, Any] = {}
         if prefix:
             kwargs["prefix"] = prefix
         if tags:
@@ -29,6 +34,7 @@ def _safe_include(module_name: str, prefix: str = "", tags: list = None):
         admin_router.include_router(router, **kwargs)
     except ImportError as e:
         logger.warning(f"Module '{module_name}' not available, skipping: {e}")
+
 
 # --- Auth (independent from C-end) ---
 _safe_include("auth", prefix="/auth", tags=["Admin - Auth"])
@@ -57,6 +63,9 @@ _safe_include("shipments", prefix="/shipments", tags=["Admin - Shipments"])
 # Chat Requests
 _safe_include("chat_requests", prefix="/chat-requests", tags=["Admin - Probe"])
 
+# AI Probe
+_safe_include("ai_probe", prefix="/ai", tags=["Admin - Probe"])
+
 # Users
 _safe_include("users", prefix="/users", tags=["Admin - Users"])
 
@@ -73,6 +82,7 @@ _safe_include("site_profile", prefix="/site-profiles", tags=["Admin - Site Profi
 # Convenience site endpoint (site_router on site_profile module)
 try:
     import forge.api.admin.v1.site_profile as _sp
+
     if hasattr(_sp, "site_router"):
         admin_router.include_router(_sp.site_router, tags=["Admin - Site Profiles"])
 except ImportError:
