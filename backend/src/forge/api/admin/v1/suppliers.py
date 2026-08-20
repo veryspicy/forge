@@ -31,6 +31,8 @@ class SupplierCreate(BaseModel):
     contact_email: str | None = None
     contact_phone: str | None = None
     integration_type: str = "manual"
+    provider_code: str | None = None
+    config: dict[str, Any] | None = None
     shipping_regions: list[str] | None = None
     default_currency: str = "USD"
 
@@ -40,6 +42,8 @@ class SupplierUpdate(BaseModel):
     contact_email: str | None = None
     contact_phone: str | None = None
     integration_type: str | None = None
+    provider_code: str | None = None
+    config: dict[str, Any] | None = None
     shipping_regions: list[str] | None = None
     default_currency: str | None = None
     is_active: bool | None = None

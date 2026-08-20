@@ -27,6 +27,8 @@ __all__ = [
     "ORMProduct",
     "ORMProductVariant",
     "ORMSupplier",
+    "ORMSupplierCredential",
+    "ORMSupplierSyncLog",
     "ORMUser",
     "ORMAdminUser",
     "ORMRole",
@@ -73,6 +75,7 @@ class ORMProduct(Base):
     images = Column(JSONB, nullable=False, default=list)
     supplier_id = Column(UUID(as_uuid=True), nullable=True, index=True)
     supplier_sku = Column(String(100), nullable=True)
+    supplier_product_id = Column(String(128), nullable=True, index=True)
     rating = Column(Float, nullable=False, default=0.0)
     review_count = Column(Integer, nullable=False, default=0)
     is_ai_generated = Column(Boolean, nullable=False, default=False)
@@ -105,6 +108,7 @@ class ORMProduct(Base):
             "images": self.images or [],
             "supplier_id": str(self.supplier_id) if self.supplier_id else None,
             "supplier_sku": self.supplier_sku,
+            "supplier_product_id": self.supplier_product_id,
             "rating": self.rating or 0.0,
             "review_count": self.review_count or 0,
             "is_ai_generated": bool(self.is_ai_generated),
@@ -167,6 +171,8 @@ class ORMSupplier(Base):
     contact_email = Column(String(320), nullable=True)
     contact_phone = Column(String(50), nullable=True)
     integration_type = Column(String(32), nullable=False, default="manual")
+    provider_code = Column(String(64), nullable=True, index=True)
+    config = Column(JSONB, nullable=False, default=dict)
     shipping_regions: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
     default_currency = Column(String(10), nullable=False, default="USD")
     is_active = Column(Boolean, nullable=False, default=True)
@@ -180,11 +186,89 @@ class ORMSupplier(Base):
             "contact_email": self.contact_email,
             "contact_phone": self.contact_phone,
             "integration_type": self.integration_type or "manual",
+            "provider_code": self.provider_code,
+            "config": self.config or {},
             "shipping_regions": self.shipping_regions or [],
             "default_currency": self.default_currency or "USD",
             "is_active": bool(self.is_active),
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class ORMSupplierCredential(Base):
+    """供应商凭据表（P2-5：Access Token / OAuth2.0 PKCE）。"""
+
+    __tablename__ = "supplier_credentials"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
+    supplier_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("suppliers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    provider_code = Column(String(64), nullable=False)
+    auth_type = Column(String(16), nullable=False, default="token")
+    access_token = Column(Text, nullable=True)
+    refresh_token = Column(Text, nullable=True)
+    token_type = Column(String(32), nullable=True)
+    expires_at = Column(DateTime(timezone=False), nullable=True)
+    oauth_state = Column(String(128), nullable=True)
+    created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+    updated_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "supplier_id": str(self.supplier_id) if self.supplier_id else None,
+            "provider_code": self.provider_code,
+            "auth_type": self.auth_type or "token",
+            "has_access_token": bool(self.access_token),
+            "has_refresh_token": bool(self.refresh_token),
+            "token_type": self.token_type,
+            "expires_at": self.expires_at.isoformat() if self.expires_at else None,
+            "oauth_state": self.oauth_state,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class ORMSupplierSyncLog(Base):
+    """供应商同步日志表（P2-5：手动/定时同步记录）。"""
+
+    __tablename__ = "supplier_sync_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
+    supplier_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("suppliers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    provider_code = Column(String(64), nullable=False)
+    trigger_type = Column(String(16), nullable=False, default="manual")
+    status = Column(String(16), nullable=False, default="running")
+    items_total = Column(Integer, nullable=False, default=0)
+    items_imported = Column(Integer, nullable=False, default=0)
+    items_updated = Column(Integer, nullable=False, default=0)
+    error = Column(Text, nullable=True)
+    started_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+    finished_at = Column(DateTime(timezone=False), nullable=True)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "supplier_id": str(self.supplier_id) if self.supplier_id else None,
+            "provider_code": self.provider_code,
+            "trigger_type": self.trigger_type or "manual",
+            "status": self.status or "running",
+            "items_total": self.items_total or 0,
+            "items_imported": self.items_imported or 0,
+            "items_updated": self.items_updated or 0,
+            "error": self.error,
+            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "finished_at": self.finished_at.isoformat() if self.finished_at else None,
         }
 
 

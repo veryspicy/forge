@@ -54,6 +54,9 @@ _safe_include("orders", prefix="/orders", tags=["Admin - Orders"])
 # Suppliers
 _safe_include("suppliers", prefix="/suppliers", tags=["Admin - Suppliers"])
 
+# Supplier Sources (P2-5 多供应商 MCP 货源管理)
+_safe_include("supplier_sources", prefix="/supplier-sources", tags=["Admin - Supplier Sources"])
+
 # Pricing
 _safe_include("pricing", prefix="/pricing", tags=["Admin - Pricing"])
 

@@ -38,6 +38,7 @@ dependencies = [
     "casbin>=1.40.0",
     "casbin-fastapi-decorator>=1.1.0",
     "casbin-sqlalchemy-adapter>=0.6.0",
+    "apscheduler>=3.10.4",
 ]
 
 [project.optional-dependencies]

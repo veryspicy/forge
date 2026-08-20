@@ -14,8 +14,13 @@ from forge.infrastructure.persistence.models import ORMSupplier
 from forge.infrastructure.persistence.repositories.supplier_repo import (
     SQLAlchemySupplierRepository,
 )
+from forge.suppliers.registry import list_providers
 
 VALID_INTEGRATION_TYPES = {"manual", "api", "dropship"}
+
+
+def _provider_codes() -> set[str]:
+    return {item["provider_code"] for item in list_providers()}
 
 
 class SupplierValidationError(ValueError):
@@ -93,5 +98,14 @@ class SupplierService:
 
         if "integration_type" in data and data["integration_type"] not in VALID_INTEGRATION_TYPES:
             errors["integration_type"] = f"integration_type 必须为 {sorted(VALID_INTEGRATION_TYPES)} 之一"
+
+        if "provider_code" in data and data["provider_code"]:
+            if data["provider_code"] not in _provider_codes():
+                errors["provider_code"] = f"未注册的供应商类型: {data['provider_code']}"
+            elif data.get("integration_type", "manual") == "manual":
+                errors["provider_code"] = "integration_type=manual 时不可设置 provider_code"
+
+        if "config" in data and data["config"] is not None and not isinstance(data["config"], dict):
+            errors["config"] = "config 必须是 JSON 对象"
 
         return errors
