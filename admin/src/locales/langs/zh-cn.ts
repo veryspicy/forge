@@ -365,7 +365,15 @@ const local: App.I18n.Schema = {
       productList: '商品列表',
       noProducts: '暂无商品',
       category: '分类',
-      price: '价格'
+      price: '价格',
+      export: '导出',
+      import: '导入',
+      importResult: '导入结果',
+      importCreated: '新增',
+      importUpdated: '更新',
+      importFailed: '失败',
+      importRow: '行号',
+      importError: '错误信息'
     },
     productsDetail: {
       aiGenerated: 'AI 生成',

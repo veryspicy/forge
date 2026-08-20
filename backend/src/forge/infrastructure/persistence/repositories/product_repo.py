@@ -62,6 +62,12 @@ class SQLAlchemyProductRepository:
         }
 
     @staticmethod
+    async def list_all(db: AsyncSession) -> list[ORMProduct]:
+        """导出用：按创建时间升序返回全量商品。"""
+        result = await db.execute(select(ORMProduct).order_by(ORMProduct.created_at.asc()))
+        return list(result.scalars().all())
+
+    @staticmethod
     async def get_by_id(db: AsyncSession, product_id: str) -> ORMProduct | None:
         result = await db.execute(select(ORMProduct).where(ORMProduct.id == product_id))
         return result.scalar_one_or_none()

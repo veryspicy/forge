@@ -2,10 +2,16 @@
   <div class="flex flex-col gap-4">
     <div class="flex justify-between items-center">
       <NSpace>
-        <NInput v-model:value="search" :placeholder="$t('common.search')" style="width:200px" @keyup.enter="fetch" />
-        <NSelect v-model:value="category" :options="categoryOptions" :placeholder="$t('page.products.allCategories')" clearable @update:value="fetch" />
+        <NInput v-model:value="search" :placeholder="$t('common.search')" style="width:200px" @keyup.enter="loadProducts" />
+        <NButton @click="loadProducts">{{ $t('common.search') }}</NButton>
+        <NSelect v-model:value="category" :options="categoryOptions" :placeholder="$t('page.products.allCategories')" clearable @update:value="loadProducts" />
       </NSpace>
-      <NButton type="primary" @click="$router.push('/products/new')">{{ $t('common.add') }}</NButton>
+      <NSpace>
+        <NButton @click="onExport">{{ $t('page.products.export') }}</NButton>
+        <NButton @click="triggerImport">{{ $t('page.products.import') }}</NButton>
+        <input ref="fileInput" type="file" accept=".csv" class="hidden" @change="onImportFile" />
+        <NButton type="primary" @click="$router.push('/products/new')">{{ $t('common.add') }}</NButton>
+      </NSpace>
     </div>
 
     <NDataTable :columns="columns" :data="products" :loading="loading" :bordered="false" size="small" />
@@ -13,6 +19,17 @@
     <div v-if="total > pageSize" class="flex justify-center">
       <NPagination :page="page" :page-size="pageSize" :item-count="total" @update:page="goPage" />
     </div>
+
+    <NModal v-model:show="showImportModal" preset="card" :title="$t('page.products.importResult')" style="width: 720px">
+      <NSpace vertical>
+        <NSpace>
+          <NTag type="success" :bordered="false">{{ $t('page.products.importCreated') }}: {{ importResult?.created ?? 0 }}</NTag>
+          <NTag type="info" :bordered="false">{{ $t('page.products.importUpdated') }}: {{ importResult?.updated ?? 0 }}</NTag>
+          <NTag :type="(importResult?.failed ?? 0) > 0 ? 'error' : 'default'" :bordered="false">{{ $t('page.products.importFailed') }}: {{ importResult?.failed ?? 0 }}</NTag>
+        </NSpace>
+        <NDataTable v-if="importResult?.errors?.length" :columns="errorColumns" :data="importResult.errors" size="small" :bordered="false" />
+      </NSpace>
+    </NModal>
   </div>
 </template>
 
@@ -20,8 +37,9 @@
 import { ref, onMounted, h } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
-import { NButton, NDataTable, NImage, NInput, NPagination, NSelect, NSpace, NTag } from 'naive-ui';
-import { get } from '@/service/api/helper';
+import { NButton, NDataTable, NImage, NInput, NModal, NPagination, NSelect, NSpace, NTag } from 'naive-ui';
+import { get, post } from '@/service/api/helper';
+import { localStg } from '@/utils/storage';
 import type { DataTableColumns } from 'naive-ui';
 
 const router = useRouter();
@@ -33,6 +51,15 @@ const products = ref<any[]>([]);
 const page = ref(1);
 const total = ref(0);
 const pageSize = 20;
+const fileInput = ref<HTMLInputElement | null>(null);
+const showImportModal = ref(false);
+const importResult = ref<{ created: number; updated: number; failed: number; errors: Array<{ row: number; sku: string; error: string }> } | null>(null);
+
+const errorColumns: DataTableColumns<any> = [
+  { title: t('page.products.importRow'), key: 'row', width: 70 },
+  { title: t('common.sku'), key: 'sku', width: 140 },
+  { title: t('page.products.importError'), key: 'error' },
+];
 
 const categoryOptions = [
   { label: 'Food', value: 'FOOD' },
@@ -64,19 +91,60 @@ const columns: DataTableColumns<any> = [
   },
 ];
 
-async function fetch() {
+async function loadProducts() {
   loading.value = true;
   try {
     const params: Record<string, any> = { page: page.value, page_size: pageSize };
     if (search.value) params.search = search.value;
     if (category.value) params.category = category.value;
-    const res = await get('/api/admin/v1/products/', { params });
-    products.value = res.data?.items || res.data || [];
-    total.value = res.data?.total || 0;
+    const res = await get('/api/admin/v1/products/', params);
+    const body = (res as any)?.data ?? res;
+    products.value = body?.items ?? [];
+    total.value = body?.total ?? 0;
   } finally { loading.value = false; }
 }
 
-function goPage(p: number) { page.value = p; fetch(); }
+function goPage(p: number) { page.value = p; loadProducts(); }
 
-onMounted(fetch);
+async function onExport() {
+  const token = localStg.get('token');
+  try {
+    const res = await fetch('/api/admin/v1/products/export', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error('export failed');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `products_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    window.$message?.error(String(err));
+  }
+}
+
+function triggerImport() {
+  fileInput.value?.click();
+}
+
+async function onImportFile(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+  try {
+    const res = await post('/api/admin/v1/products/import', formData, { 'Content-Type': 'multipart/form-data' });
+    importResult.value = res.data;
+    showImportModal.value = true;
+    loadProducts();
+  } catch (err) {
+    window.$message?.error(String(err));
+  }
+}
+
+onMounted(loadProducts);
 </script>
