@@ -8,7 +8,7 @@ from typing import Any
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from forge.infrastructure.persistence.models import ORMProduct
+from forge.infrastructure.persistence.models import ORMProduct, ORMProductVariant
 
 
 def _now() -> datetime:
@@ -60,6 +60,12 @@ class SQLAlchemyProductRepository:
             "page": page,
             "page_size": page_size,
         }
+
+    @staticmethod
+    async def list_all(db: AsyncSession) -> list[ORMProduct]:
+        """导出用：按创建时间升序返回全量商品。"""
+        result = await db.execute(select(ORMProduct).order_by(ORMProduct.created_at.asc()))
+        return list(result.scalars().all())
 
     @staticmethod
     async def get_by_id(db: AsyncSession, product_id: str) -> ORMProduct | None:
@@ -114,3 +120,52 @@ class SQLAlchemyProductRepository:
     async def count(db: AsyncSession) -> int:
         result = await db.execute(select(func.count(ORMProduct.id)))
         return result.scalar_one()
+
+    # ------------------------------------------------------------------
+    # 变体（P2-1）
+    # ------------------------------------------------------------------
+    @staticmethod
+    async def list_variants(db: AsyncSession, product_id: str) -> list[ORMProductVariant]:
+        result = await db.execute(
+            select(ORMProductVariant)
+            .where(ORMProductVariant.product_id == product_id)
+            .order_by(ORMProductVariant.created_at.asc())
+        )
+        return list(result.scalars().all())
+
+    @staticmethod
+    async def get_variant_by_id(db: AsyncSession, variant_id: str) -> ORMProductVariant | None:
+        result = await db.execute(select(ORMProductVariant).where(ORMProductVariant.id == variant_id))
+        return result.scalar_one_or_none()
+
+    @staticmethod
+    async def get_variant_by_sku(db: AsyncSession, sku: str) -> ORMProductVariant | None:
+        result = await db.execute(select(ORMProductVariant).where(ORMProductVariant.sku == sku))
+        return result.scalar_one_or_none()
+
+    @staticmethod
+    async def create_variant(db: AsyncSession, data: dict[str, Any]) -> ORMProductVariant:
+        variant = ORMProductVariant(**data)
+        db.add(variant)
+        await db.flush()
+        await db.refresh(variant)
+        return variant
+
+    @staticmethod
+    async def update_variant(
+        db: AsyncSession,
+        variant: ORMProductVariant,
+        data: dict[str, Any],
+    ) -> ORMProductVariant:
+        for key, value in data.items():
+            if hasattr(variant, key):
+                setattr(variant, key, value)
+        variant.updated_at = _now()
+        await db.flush()
+        await db.refresh(variant)
+        return variant
+
+    @staticmethod
+    async def delete_variant(db: AsyncSession, variant: ORMProductVariant) -> None:
+        await db.delete(variant)
+        await db.flush()

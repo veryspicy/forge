@@ -369,7 +369,15 @@ const local: App.I18n.Schema = {
       productList: 'Product List',
       noProducts: 'No products yet',
       category: 'Category',
-      price: 'Price'
+      price: 'Price',
+      export: 'Export',
+      import: 'Import',
+      importResult: 'Import Result',
+      importCreated: 'Created',
+      importUpdated: 'Updated',
+      importFailed: 'Failed',
+      importRow: 'Row',
+      importError: 'Error'
     },
     productsDetail: {
       aiGenerated: 'AI Generated',

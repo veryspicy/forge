@@ -25,6 +25,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 __all__ = [
     "Base",
     "ORMProduct",
+    "ORMProductVariant",
     "ORMSupplier",
     "ORMUser",
     "ORMAdminUser",
@@ -111,6 +112,46 @@ class ORMProduct(Base):
             "seo_title": self.seo_title,
             "seo_description": self.seo_description,
             "seo_keywords": self.seo_keywords or [],
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class ORMProductVariant(Base):
+    """商品变体表（P2-1 变体管理）。"""
+
+    __tablename__ = "product_variants"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
+    product_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("products.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    sku = Column(String(100), nullable=False, unique=True)
+    name = Column(String(255), nullable=False)
+    attributes = Column(JSONB, nullable=False, default=dict)
+    price = Column(Numeric(12, 2), nullable=True)
+    cost = Column(Numeric(12, 2), nullable=True)
+    inventory = Column(Integer, nullable=False, default=0)
+    status = Column(String(20), nullable=False, default="active", index=True)
+    is_default = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default="now()")
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default="now()")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "product_id": str(self.product_id) if self.product_id else None,
+            "sku": self.sku,
+            "name": self.name,
+            "attributes": self.attributes or {},
+            "price": float(self.price) if self.price else None,
+            "cost": float(self.cost) if self.cost else None,
+            "inventory": self.inventory or 0,
+            "status": self.status or "active",
+            "is_default": bool(self.is_default),
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

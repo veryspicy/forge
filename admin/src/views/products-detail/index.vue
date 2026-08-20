@@ -109,6 +109,82 @@
         </NUpload>
       </NCard>
 
+      <!-- Variants (edit only) -->
+      <NCard v-if="isEdit" title="变体管理" size="small" class="md:col-span-2">
+        <div class="mb-3">
+          <NButton size="small" type="primary" @click="openVariantModal()">新增变体</NButton>
+        </div>
+        <NTable v-if="variants.length" size="small" :bordered="true" :single-line="false">
+          <thead>
+            <tr>
+              <th>名称</th><th>SKU</th><th>属性</th><th>价格</th><th>成本</th><th>库存</th><th>状态</th><th>默认</th><th style="width:170px">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="v in variants" :key="v.id">
+              <td>{{ v.name }}</td>
+              <td>{{ v.sku }}</td>
+              <td class="text-xs opacity-70">{{ JSON.stringify(v.attributes || {}) }}</td>
+              <td>{{ v.price }}</td>
+              <td>{{ v.cost }}</td>
+              <td>{{ v.inventory }}</td>
+              <td>{{ v.status }}</td>
+              <td>{{ v.is_default ? '✓' : '' }}</td>
+              <td>
+                <NSpace size="small">
+                  <NButton size="tiny" @click="openVariantModal(v)">编辑</NButton>
+                  <NButton size="tiny" type="error" @click="deleteVariant(v.id)">删除</NButton>
+                </NSpace>
+              </td>
+            </tr>
+          </tbody>
+        </NTable>
+        <NEmpty v-else description="暂无变体" size="small" class="py-6" />
+      </NCard>
+
+      <!-- Variant Modal -->
+      <NModal
+        v-model:show="variantModal.show"
+        :title="variantModal.id ? '编辑变体' : '新增变体'"
+        preset="card"
+        style="width: 560px"
+      >
+        <NForm label-placement="top">
+          <NFormItem label="SKU" required><NInput v-model:value="variantForm.sku" /></NFormItem>
+          <NFormItem label="名称" required><NInput v-model:value="variantForm.name" /></NFormItem>
+          <NFormItem label="属性 (JSON)">
+            <NInput v-model:value="variantForm.attributesText" placeholder='{"color":"blue","size":"M"}' />
+          </NFormItem>
+          <NGrid :cols="3" :x-gap="12" responsive="screen">
+            <NGi>
+              <NFormItem label="价格"><NInputNumber v-model:value="variantForm.price" :min="0" :step="0.01" style="width:100%" /></NFormItem>
+            </NGi>
+            <NGi>
+              <NFormItem label="成本"><NInputNumber v-model:value="variantForm.cost" :min="0" :step="0.01" style="width:100%" /></NFormItem>
+            </NGi>
+            <NGi>
+              <NFormItem label="库存"><NInputNumber v-model:value="variantForm.inventory" :min="0" style="width:100%" /></NFormItem>
+            </NGi>
+          </NGrid>
+          <NGrid :cols="2" :x-gap="12" responsive="screen">
+            <NGi>
+              <NFormItem label="状态">
+                <NSelect v-model:value="variantForm.status" :options="statusOptions" />
+              </NFormItem>
+            </NGi>
+            <NGi>
+              <NFormItem label="设为默认变体"><NSwitch v-model:value="variantForm.is_default" /></NFormItem>
+            </NGi>
+          </NGrid>
+        </NForm>
+        <template #footer>
+          <NSpace justify="end">
+            <NButton @click="variantModal.show = false">取消</NButton>
+            <NButton type="primary" :loading="variantSaving" @click="saveVariant">保存</NButton>
+          </NSpace>
+        </template>
+      </NModal>
+
       <!-- Danger Zone (edit only) -->
       <NCard v-if="isEdit" :title="$t('common.dangerZone')" size="small" class="md:col-span-2">
         <NSpace>
@@ -134,8 +210,8 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
-  NButton, NCard, NFormItem, NGi, NGrid, NImage, NInput, NInputNumber,
-  NSelect, NSpace, NSwitch, NUpload,
+  NButton, NCard, NEmpty, NForm, NFormItem, NGi, NGrid, NImage, NInput, NInputNumber,
+  NModal, NSelect, NSpace, NSwitch, NTable, NUpload,
 } from 'naive-ui';
 import { useI18n } from 'vue-i18n';
 import { get, post, patch, del } from '@/service/api/helper';
@@ -155,6 +231,14 @@ const statusChange = ref<string | null>(null);
 
 const images = ref<{ key: string; url: string; alt?: string }[]>([]);
 const pendingFiles = ref<File[]>([]);
+
+const variants = ref<any[]>([]);
+const variantModal = ref({ show: false, id: '' });
+const variantSaving = ref(false);
+const variantForm = ref({
+  sku: '', name: '', attributesText: '',
+  price: 0, cost: 0, inventory: 0, status: 'active', is_default: false,
+});
 
 const form = ref({
   sku: '', name: '', slug: '', category: 'FOOD', description: '',
@@ -233,6 +317,7 @@ onMounted(async () => {
     tagsString.value = (p.tags || []).join(', ');
     regionsString.value = (p.region_availability || []).join(', ');
     images.value = (p.images || []).map((i: any) => ({ key: i.key || '', url: i.url || '', alt: i.alt || '' }));
+    variants.value = p.variants || [];
   } catch { error.value = t('common.loadFailed'); }
 });
 
@@ -307,5 +392,75 @@ async function changeStatus() {
     statusChange.value = null;
     router.push('/products');
   } catch (e: any) { error.value = e.response?.data?.detail || t('page.productsDetail.statusUpdateFailed'); }
+}
+
+function openVariantModal(v?: any) {
+  if (v) {
+    variantModal.value.id = v.id;
+    variantForm.value = {
+      sku: v.sku || '', name: v.name || '',
+      attributesText: v.attributes && Object.keys(v.attributes).length ? JSON.stringify(v.attributes) : '',
+      price: v.price ?? 0, cost: v.cost ?? 0, inventory: v.inventory ?? 0,
+      status: v.status || 'active', is_default: !!v.is_default,
+    };
+  } else {
+    variantModal.value.id = '';
+    variantForm.value = {
+      sku: '', name: '', attributesText: '',
+      price: 0, cost: 0, inventory: 0, status: 'active', is_default: false,
+    };
+  }
+  variantModal.value.show = true;
+}
+
+async function saveVariant() {
+  variantSaving.value = true;
+  error.value = '';
+  let attributes: Record<string, any> | undefined;
+  const attrText = variantForm.value.attributesText.trim();
+  if (attrText) {
+    try {
+      attributes = JSON.parse(attrText);
+      if (typeof attributes !== 'object' || attributes === null || Array.isArray(attributes)) throw new Error('bad');
+    } catch {
+      error.value = '属性必须是合法 JSON 对象';
+      variantSaving.value = false;
+      return;
+    }
+  } else {
+    attributes = {};
+  }
+  const payload: any = {
+    sku: variantForm.value.sku.trim(),
+    name: variantForm.value.name.trim(),
+    attributes,
+    price: variantForm.value.price,
+    cost: variantForm.value.cost,
+    inventory: variantForm.value.inventory,
+    status: variantForm.value.status,
+    is_default: variantForm.value.is_default,
+  };
+  try {
+    if (variantModal.value.id) {
+      await patch(`/api/admin/v1/products/${route.params.id}/variants/${variantModal.value.id}`, payload);
+    } else {
+      await post(`/api/admin/v1/products/${route.params.id}/variants`, payload);
+    }
+    await reloadVariants();
+    variantModal.value.show = false;
+  } catch (e: any) { error.value = e.response?.data?.detail || '变体保存失败'; }
+  finally { variantSaving.value = false; }
+}
+
+async function deleteVariant(id: string) {
+  try {
+    await del(`/api/admin/v1/products/${route.params.id}/variants/${id}`);
+    await reloadVariants();
+  } catch (e: any) { error.value = e.response?.data?.detail || '变体删除失败'; }
+}
+
+async function reloadVariants() {
+  const res = await get(`/api/admin/v1/products/${route.params.id}/variants`);
+  variants.value = res.data?.data ?? res.data ?? [];
 }
 </script>
