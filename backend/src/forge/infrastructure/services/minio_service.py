@@ -7,6 +7,7 @@
 
 注：若 MinIO 不可达，降级为本地 uploads 目录存储，避免阻塞开发。
 """
+
 from __future__ import annotations
 
 import logging
@@ -14,15 +15,14 @@ import mimetypes
 import os
 from io import BytesIO
 from pathlib import Path
-from typing import Optional
 from uuid import uuid4
 
 try:
     from minio import Minio
     from minio.error import S3Error
 except ImportError:  # pragma: no cover
-    Minio = None  # type: ignore[assignment]
-    S3Error = Exception  # type: ignore[assignment]
+    Minio = None  # type: ignore[misc, assignment]
+    S3Error = Exception  # type: ignore[misc, assignment]
 
 from forge.main.config import settings
 
@@ -34,10 +34,10 @@ _LOCAL_FALLBACK_DIR = Path(__file__).resolve().parent.parent.parent.parent.paren
 class MinioService:
     """封装 MinIO 上传 / URL 生成。"""
 
-    _instance: Optional["MinioService"] = None
+    _instance: MinioService | None = None
 
     def __init__(self) -> None:
-        self._client: Optional[Minio] = None
+        self._client: Minio | None = None
         self._available = False
         self._endpoint = settings.minio_endpoint
         self._access_key = settings.minio_access_key
@@ -46,7 +46,7 @@ class MinioService:
         self._init_client()
 
     @classmethod
-    def get(cls) -> "MinioService":
+    def get(cls) -> MinioService:
         if cls._instance is None:
             cls._instance = MinioService()
         return cls._instance
@@ -87,7 +87,7 @@ class MinioService:
         filename: str,
         *,
         prefix: str = "site/",
-        content_type: Optional[str] = None,
+        content_type: str | None = None,
     ) -> str:
         """上传二进制内容，返回可访问 URL（MinIO 公开 URL 或本地 /uploads/...）。"""
         ext = os.path.splitext(filename or "image.png")[1] or ".png"
@@ -139,7 +139,7 @@ class MinioService:
         self,
         data: bytes,
         object_key: str,
-        content_type: Optional[str] = None,
+        content_type: str | None = None,
     ) -> str:
         """上传到指定 object_key（不自动生成键名），返回公开 URL。
 

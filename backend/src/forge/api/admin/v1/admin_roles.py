@@ -138,9 +138,9 @@ async def update_role(
         )
 
     if body.display_name is not None:
-        role.display_name = body.display_name
+        role.display_name = body.display_name  # type: ignore[assignment]
     if body.description is not None:
-        role.description = body.description
+        role.description = body.description  # type: ignore[assignment]
     if body.permission_ids is not None:
         role.permissions = await _load_permissions(db, body.permission_ids)
     await db.flush()

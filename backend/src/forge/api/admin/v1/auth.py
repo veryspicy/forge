@@ -27,7 +27,7 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
-    user: dict
+    user: dict[str, object]
 
 
 class UserInfo(BaseModel):
@@ -39,7 +39,7 @@ class UserInfo(BaseModel):
 
 
 @router.post("/login", response_model=LoginResponse)
-async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
+async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)) -> dict[str, object]:
     repo = SQLAlchemyAdminUserRepository()
     admin: ORMAdminUser | None = await repo.get_by_email(db, body.email)
     if admin is None or not pwd_context.verify(body.password, admin.password_hash):
@@ -54,7 +54,7 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
         )
 
     # Update last_login_at
-    admin.last_login_at = datetime.now()
+    admin.last_login_at = datetime.now()  # type: ignore[assignment]
     await db.flush()
 
     payload = {
@@ -76,13 +76,16 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/me", response_model=UserInfo)
-async def me(admin_claims: dict = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
+async def me(
+    admin_claims: dict[str, object] = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, object]:
     if not admin_claims:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="UNAUTHORIZED")
 
     email = admin_claims.get("sub", "")
     repo = SQLAlchemyAdminUserRepository()
-    admin: ORMAdminUser | None = await repo.get_by_email(db, email)
+    admin: ORMAdminUser | None = await repo.get_by_email(db, email)  # type: ignore[arg-type]
     if admin is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="USER_NOT_FOUND")
 
@@ -92,5 +95,5 @@ async def me(admin_claims: dict = Depends(get_current_admin), db: AsyncSession =
         "email": admin.email,
         "name": admin.display_name,
         "roles": roles,
-        "permissions": await permissions_for(db, roles),
+        "permissions": await permissions_for(db, roles),  # type: ignore[arg-type]
     }

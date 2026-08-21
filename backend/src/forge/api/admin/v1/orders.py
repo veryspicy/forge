@@ -14,8 +14,8 @@ router = APIRouter()
 async def list_orders(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    admin: dict = Depends(require_permission("orders", "view")),
+    admin: dict[str, object] = Depends(require_permission("orders", "view")),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, object]:
     repo = SQLAlchemyOrderRepository()
     return await repo.list_orders(db, page=page, page_size=page_size)

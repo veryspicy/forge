@@ -31,7 +31,7 @@ class SQLAlchemySupplierRepository:
             pattern = f"%{search}%"
             filters.append(ORMSupplier.name.ilike(pattern))
         if is_active is not None:
-            filters.append(ORMSupplier.is_active == is_active)
+            filters.append(ORMSupplier.is_active == is_active)  # type: ignore[arg-type]
 
         total_query = select(func.count(ORMSupplier.id)).where(*filters)
         total = (await db.execute(total_query)).scalar_one()
@@ -76,7 +76,7 @@ class SQLAlchemySupplierRepository:
         for key, value in data.items():
             if hasattr(supplier, key):
                 setattr(supplier, key, value)
-        supplier.updated_at = _now()
+        supplier.updated_at = _now()  # type: ignore[assignment]
         await db.flush()
         await db.refresh(supplier)
         return supplier

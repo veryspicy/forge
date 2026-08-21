@@ -14,8 +14,8 @@ router = APIRouter()
 async def list_users(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    admin: dict = Depends(require_permission("users", "manage")),
+    admin: dict[str, object] = Depends(require_permission("users", "manage")),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, object]:
     repo = SQLAlchemyUserRepository()
     return await repo.list_users(db, page=page, page_size=page_size)

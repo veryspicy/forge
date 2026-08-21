@@ -144,7 +144,7 @@ def _coerce_uuid(value: str, field: str = "商品 ID") -> uuid.UUID:
 
 async def _get_product_or_404(db: AsyncSession, raw_id: str) -> ORMProduct:
     product_id = _coerce_uuid(raw_id)
-    product = await SQLAlchemyProductRepository.get_by_id(db, product_id)
+    product = await SQLAlchemyProductRepository.get_by_id(db, product_id)  # type: ignore[arg-type]
     if product is None:
         raise HTTPException(status_code=404, detail="商品不存在")
     return product
@@ -170,7 +170,7 @@ def _serialize_image(image: dict[str, Any]) -> dict[str, Any]:
 
 def _serialize_product(product: ORMProduct) -> dict[str, Any]:
     data: dict[str, Any] = product.to_dict()
-    data["images"] = [_serialize_image(i) for i in (product.images or [])]
+    data["images"] = [_serialize_image(i) for i in (product.images or [])]  # type: ignore[union-attr]
     return data
 
 
@@ -778,8 +778,8 @@ def compute_seo_score(product: ORMProduct) -> dict[str, Any]:
         suggestions.append(dim["suggestion"])
 
     # 5. 图片（主图 + alt）
-    images = product.images or []
-    main_image = next((i for i in images if i.get("is_main")), None)
+    images = product.images or []  # type: ignore[var-annotated]
+    main_image = next((i for i in images if i.get("is_main")), None)  # type: ignore[union-attr]
     first_image = images[0] if images else None
     has_alt = bool((main_image or first_image or {}).get("alt", "").strip())
     if main_image and has_alt:
@@ -824,8 +824,8 @@ def compute_seo_score(product: ORMProduct) -> dict[str, Any]:
         suggestions.append(dim["suggestion"])
 
     # 8. 多语言覆盖（name/description 翻译）
-    name_translations = product.name_translations or {}
-    desc_translations = product.description_translations or {}
+    name_translations = product.name_translations or {}  # type: ignore[var-annotated]
+    desc_translations = product.description_translations or {}  # type: ignore[var-annotated]
     covered_langs = {
         lang
         for lang in set(name_translations) | set(desc_translations)
@@ -890,7 +890,7 @@ async def get_product_seo_score(
 # ---------------------------------------------------------------------------
 async def _get_variant_or_404(db: AsyncSession, raw_id: str) -> ORMProductVariant:
     variant_id = _coerce_uuid(raw_id, "变体 ID")
-    variant = await SQLAlchemyProductRepository.get_variant_by_id(db, variant_id)
+    variant = await SQLAlchemyProductRepository.get_variant_by_id(db, variant_id)  # type: ignore[arg-type]
     if variant is None:
         raise HTTPException(status_code=404, detail="变体不存在")
     return variant

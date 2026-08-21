@@ -14,9 +14,9 @@ router = APIRouter()
 
 @router.get("/")
 async def get_dashboard(
-    admin: dict = Depends(require_permission("dashboard", "view")),
+    admin: dict[str, object] = Depends(require_permission("dashboard", "view")),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, object]:
     user_repo = SQLAlchemyUserRepository()
     product_repo = SQLAlchemyProductRepository()
     order_repo = SQLAlchemyOrderRepository()

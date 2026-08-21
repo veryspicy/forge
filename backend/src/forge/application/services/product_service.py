@@ -154,7 +154,7 @@ class ProductService:
 
     @staticmethod
     async def remove_image(db: AsyncSession, product: ORMProduct, key: str) -> ORMProduct:
-        images = [img for img in (product.images or []) if img.get("key") != key]
+        images = [img for img in (product.images or []) if img.get("key") != key]  # type: ignore[union-attr]
         if len(images) == len(product.images or []):
             raise ProductValidationError("图片不存在", {"key": key})
         if images and not any(img.get("is_main") for img in images):

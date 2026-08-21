@@ -195,7 +195,7 @@ class PricingEngine:
             return PricingEngine._result(
                 cost_price=cost_price,
                 final_price=float(cost_price) * float(region_rule.markup_multiplier),
-                applied_rule=region_rule.name,
+                applied_rule=region_rule.name,  # type: ignore[arg-type]
                 reason=f"区域定价 {region}（x{float(region_rule.markup_multiplier)}）",
                 shipping_fee=float(region_rule.fixed_shipping_fee),
             )
@@ -212,7 +212,7 @@ class PricingEngine:
         return PricingEngine._result(
             cost_price=cost_price,
             final_price=float(cost_price) * float(default_rule.markup_multiplier),
-            applied_rule=default_rule.name,
+            applied_rule=default_rule.name,  # type: ignore[arg-type]
             reason=f"全局默认（x{float(default_rule.markup_multiplier)}）",
             shipping_fee=float(default_rule.fixed_shipping_fee),
         )
@@ -220,7 +220,7 @@ class PricingEngine:
     @staticmethod
     def _apply_promo_price(cost_price: float, promo: ORMPromotion) -> float | None:
         """按促销类型计算折扣价；返回 None 表示不适用。"""
-        config = promo.config or {}
+        config = promo.config or {}  # type: ignore[var-annotated]
         ptype = (promo.type or "").upper()
         if ptype == "COUPON":
             amount = float(config.get("amount") or 0)
