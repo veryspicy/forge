@@ -5,8 +5,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from forge.main.config import settings
-
 _UPLOADS_DIR = Path(__file__).resolve().parents[3] / "uploads"
 _UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -77,5 +75,13 @@ try:
     from forge.api.admin.v1.routes import router as routes_router
 
     app.include_router(routes_router)
+except ImportError:
+    pass
+
+# 对外 MCP Server（P3）：/mcp/sse + /mcp/messages/
+try:
+    from forge.mcp import build_mcp_app
+
+    app.mount("/mcp", build_mcp_app(), name="mcp")
 except ImportError:
     pass
