@@ -24,6 +24,25 @@ from forge.main.dependencies import get_current_admin, get_db
 # 仅用于 migration 0023 生成 permissions / role_permissions 种子数据。
 ROLE_PERMISSIONS: dict[str, dict[str, list[str]]] = {
     "super_admin": {"*": ["*"]},
+    "admin": {
+        "dashboard": ["view"],
+        "products": ["view", "create", "edit", "delete", "status"],
+        "orders": ["view", "detail", "review", "procure", "logistics", "refund"],
+        "pricing": ["view", "manage"],
+        "ai_probe": ["view"],
+        "chat_requests": ["view", "manage"],
+        "resources": ["view", "upload"],
+        "shipments": ["view", "manage"],
+        "suppliers": ["view", "manage"],
+        "supplier_sources": ["view", "manage"],
+        "settings": ["view", "manage"],
+        "site_config": ["view", "manage"],
+        "site_profile": ["view", "manage"],
+        "admin_roles": ["view", "manage"],
+        "admin_users": ["view", "manage"],
+        "users": ["view", "manage"],
+        "mcp_keys": ["view", "manage"],
+    },
     "operator": {
         "dashboard": ["view"],
         "products": ["view", "create", "edit", "delete", "status"],
@@ -50,6 +69,15 @@ MODULE_NAMES: dict[str, str] = {
     "chat_requests": "咨询请求",
     "resources": "资源管理",
     "shipments": "发货管理",
+    "suppliers": "供应商管理",
+    "supplier_sources": "货源管理",
+    "settings": "系统设置",
+    "site_config": "站点配置",
+    "site_profile": "站点资料",
+    "admin_roles": "角色管理",
+    "admin_users": "管理员",
+    "users": "用户管理",
+    "mcp_keys": "MCP 密钥",
 }
 
 ACTION_NAMES: dict[str, str] = {

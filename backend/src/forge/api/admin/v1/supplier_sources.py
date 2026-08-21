@@ -16,7 +16,8 @@ from forge.application.services.supplier_source_service import (
     get_supplier_with_provider,
 )
 from forge.infrastructure.persistence.models import ORMSupplier
-from forge.main.dependencies import get_current_admin, get_db
+from forge.main.dependencies import get_db
+from forge.main.rbac import require_permission
 from forge.suppliers.base import ProviderAuthError, ProviderConnectionError, ProviderNotFoundError
 from forge.suppliers.registry import list_providers
 
@@ -80,9 +81,8 @@ def _auth_guard(admin: dict[str, Any]) -> None:
 # ---------------------------------------------------------------------------
 @router.get("/providers")
 async def providers(
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("supplier_sources", "view")),  # noqa: B008
 ) -> dict[str, Any]:
-    _auth_guard(admin)
     return {"data": list_providers()}
 
 
@@ -92,10 +92,9 @@ async def providers(
 @router.get("/{supplier_id}/credentials")
 async def get_credentials(
     supplier_id: str,
-    admin: dict[str, Any] = Depends(get_current_admin),
-    db: AsyncSession = Depends(get_db),
+    admin: dict[str, Any] = Depends(require_permission("supplier_sources", "view")),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
 ) -> dict[str, Any]:
-    _auth_guard(admin)
     supplier = await _get_supplier(db, supplier_id)
     credential = await SupplierSourceService.get_credential(db, supplier.id)
     if credential is None:
@@ -107,8 +106,8 @@ async def get_credentials(
 async def save_credentials(
     supplier_id: str,
     payload: CredentialSave,
-    admin: dict[str, Any] = Depends(get_current_admin),
-    db: AsyncSession = Depends(get_db),
+    admin: dict[str, Any] = Depends(require_permission("supplier_sources", "manage")),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
 ) -> dict[str, Any]:
     _auth_guard(admin)
     supplier = await _get_supplier(db, supplier_id)
@@ -133,8 +132,8 @@ async def save_credentials(
 @router.get("/{supplier_id}/auth-url")
 async def oauth_auth_url(
     supplier_id: str,
-    admin: dict[str, Any] = Depends(get_current_admin),
-    db: AsyncSession = Depends(get_db),
+    admin: dict[str, Any] = Depends(require_permission("supplier_sources", "manage")),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
 ) -> dict[str, Any]:
     _auth_guard(admin)
     supplier = await _get_supplier(db, supplier_id)
@@ -150,8 +149,8 @@ async def oauth_auth_url(
 async def oauth_callback(
     supplier_id: str,
     payload: OAuthCallback,
-    admin: dict[str, Any] = Depends(get_current_admin),
-    db: AsyncSession = Depends(get_db),
+    admin: dict[str, Any] = Depends(require_permission("supplier_sources", "manage")),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
 ) -> dict[str, Any]:
     _auth_guard(admin)
     supplier = await _get_supplier(db, supplier_id)
@@ -179,8 +178,8 @@ async def search_products(
     keyword: str = Query(default=""),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
-    admin: dict[str, Any] = Depends(get_current_admin),
-    db: AsyncSession = Depends(get_db),
+    admin: dict[str, Any] = Depends(require_permission("supplier_sources", "view")),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
 ) -> dict[str, Any]:
     _auth_guard(admin)
     supplier = await _get_supplier(db, supplier_id)
@@ -208,8 +207,8 @@ async def search_products(
 async def import_products(
     supplier_id: str,
     payload: ImportRequest,
-    admin: dict[str, Any] = Depends(get_current_admin),
-    db: AsyncSession = Depends(get_db),
+    admin: dict[str, Any] = Depends(require_permission("supplier_sources", "manage")),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
 ) -> dict[str, Any]:
     _auth_guard(admin)
     supplier = await _get_supplier(db, supplier_id)
@@ -237,8 +236,8 @@ async def import_products(
 async def sync_supplier(
     supplier_id: str,
     payload: SyncRequest,
-    admin: dict[str, Any] = Depends(get_current_admin),
-    db: AsyncSession = Depends(get_db),
+    admin: dict[str, Any] = Depends(require_permission("supplier_sources", "manage")),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
 ) -> dict[str, Any]:
     _auth_guard(admin)
     supplier = await _get_supplier(db, supplier_id)
@@ -259,8 +258,8 @@ async def sync_supplier(
 async def sync_logs(
     supplier_id: str,
     limit: int = Query(default=20, ge=1, le=100),
-    admin: dict[str, Any] = Depends(get_current_admin),
-    db: AsyncSession = Depends(get_db),
+    admin: dict[str, Any] = Depends(require_permission("supplier_sources", "view")),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
 ) -> dict[str, Any]:
     _auth_guard(admin)
     supplier = await _get_supplier(db, supplier_id)

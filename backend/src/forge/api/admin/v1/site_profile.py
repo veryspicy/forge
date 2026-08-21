@@ -15,9 +15,9 @@ site_router = APIRouter()
 
 @router.get("/")
 async def list_site_profiles(
-    admin: dict = Depends(require_permission("site_profile", "manage")),
-    db: AsyncSession = Depends(get_db),
-):
+    admin: dict[str, object] = Depends(require_permission("site_profile", "manage")),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> dict[str, object]:
     total_query = select(func.count(ORMSiteProfile.id))
     total = (await db.execute(total_query)).scalar_one()
 
@@ -42,9 +42,12 @@ async def list_site_profiles(
 
 
 @site_router.get("/site")
-async def get_site(db: AsyncSession = Depends(get_db)):
+async def get_site(
+    admin: dict[str, object] = Depends(require_permission("site_profile", "view")),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> dict[str, object]:
     repo = SQLAlchemySiteProfileRepository()
-    profile = await repo.get_active_as_dict(db)
+    profile: dict[str, object] | None = await repo.get_active_as_dict(db)
     if profile is None:
         return {}
     return profile

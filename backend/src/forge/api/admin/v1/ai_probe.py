@@ -11,11 +11,13 @@ import time
 from typing import Any
 
 import httpx
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from forge.main.config import settings
 from forge.main.dependencies import get_db
+from forge.main.rbac import require_permission
 
 logger = logging.getLogger(__name__)
 
@@ -25,11 +27,14 @@ AI_SERVICE_TIMEOUT = 5.0
 
 
 @router.get("/probe")
-async def ai_probe() -> dict[str, Any]:
+async def ai_probe(
+    admin: dict[str, Any] = Depends(require_permission("ai_probe", "view")),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> dict[str, Any]:
     probes = [
         await _probe_ai_service(),
         _probe_llm_key(),
-        await _probe_database(),
+        await _probe_database(db),
     ]
     overall = "ok"
     for p in probes:
@@ -97,12 +102,10 @@ def _probe_llm_key() -> dict[str, Any]:
     }
 
 
-async def _probe_database() -> dict[str, Any]:
+async def _probe_database(db: AsyncSession) -> dict[str, Any]:
     start = time.perf_counter()
     try:
-        # 复用依赖中的 async engine，避免重复建连
-        async for session in get_db():
-            await session.execute(text("SELECT 1"))
+        await db.execute(text("SELECT 1"))
         latency_ms = int((time.perf_counter() - start) * 1000)
         return {
             "key": "database",
