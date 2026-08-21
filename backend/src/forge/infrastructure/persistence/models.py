@@ -482,3 +482,58 @@ class ORMPromotion(Base):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
+
+
+class ORMMcpApiKey(Base):
+    """对外 MCP Server 的 Agent API Key（P3）。"""
+
+    __tablename__ = "mcp_api_keys"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
+    name = Column(String(128), nullable=False)
+    key_prefix = Column(String(16), nullable=False)
+    key_hash = Column(String(128), nullable=False, unique=True)
+    scopes = Column(JSONB, nullable=False, default=list)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+    last_used_at = Column(DateTime(timezone=False), nullable=True)
+    revoked_at = Column(DateTime(timezone=False), nullable=True)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "name": self.name,
+            "key_prefix": self.key_prefix,
+            "scopes": self.scopes or [],
+            "is_active": bool(self.is_active),
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "last_used_at": self.last_used_at.isoformat() if self.last_used_at else None,
+            "revoked_at": self.revoked_at.isoformat() if self.revoked_at else None,
+        }
+
+
+class ORMMcpAuditLog(Base):
+    """MCP Tool 调用审计日志（P3）。"""
+
+    __tablename__ = "mcp_audit_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
+    api_key_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    agent_name = Column(String(128), nullable=True)
+    tool_name = Column(String(64), nullable=False)
+    arguments = Column(JSONB, nullable=False, default=dict)
+    result_status = Column(String(16), nullable=False, default="ok")
+    error = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "api_key_id": str(self.api_key_id) if self.api_key_id else None,
+            "agent_name": self.agent_name,
+            "tool_name": self.tool_name,
+            "arguments": self.arguments or {},
+            "result_status": self.result_status,
+            "error": self.error,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }

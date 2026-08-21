@@ -96,3 +96,6 @@ _safe_include("site_config", prefix="/site", tags=["Admin - Site Config"])
 
 # Resources (全站统一上传入口)
 _safe_include("resources", prefix="/resources", tags=["Admin - Resources"])
+
+# 对外 MCP Server API Key 管理（P3）
+_safe_include("mcp_keys", prefix="/mcp", tags=["Admin - MCP"])

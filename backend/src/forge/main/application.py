@@ -90,3 +90,11 @@ try:
     app.include_router(routes_router)
 except ImportError:
     pass
+
+# 对外 MCP Server（P3）：/mcp/sse + /mcp/messages/
+try:
+    from forge.mcp import build_mcp_app
+
+    app.mount("/mcp", build_mcp_app(), name="mcp")
+except ImportError:
+    pass
