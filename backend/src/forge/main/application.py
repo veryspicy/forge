@@ -1,3 +1,4 @@
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -5,17 +6,27 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from forge.main.config import settings
-
 _UPLOADS_DIR = Path(__file__).resolve().parents[3] / "uploads"
 _UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Startup
+    try:
+        from forge.main.scheduler import start_scheduler
+
+        start_scheduler()
+    except ImportError:
+        pass
     yield
     # Shutdown
+    try:
+        from forge.main.scheduler import stop_scheduler
+
+        stop_scheduler()
+    except ImportError:
+        pass
 
 
 app = FastAPI(
@@ -47,7 +58,7 @@ except ImportError:
 
 
 @app.get("/health")
-async def health_check():
+async def health_check() -> dict[str, str]:
     return {"status": "healthy", "version": "0.1.0"}
 
 

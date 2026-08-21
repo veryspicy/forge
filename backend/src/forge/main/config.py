@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     # AI Service
     ai_service_url: str = "http://localhost:8001"
 
+    # Supplier MCP (P2-5)
+    zendrop_mcp_url: str = "https://app.zendrop.com/mcp/v1"
+
     # MinIO
     minio_endpoint: str = "localhost:9002"
     minio_access_key: str = "minioadmin"
