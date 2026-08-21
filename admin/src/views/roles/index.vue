@@ -1,79 +1,3 @@
-<template>
-  <div class="flex flex-col gap-4">
-    <!-- Toolbar -->
-    <div class="flex items-center gap-3">
-      <NInput
-        v-model:value="searchText"
-        placeholder="搜索角色..."
-        clearable
-        style="width: 240px"
-        @keyup.enter="fetch"
-      />
-      <NButton @click="fetch" size="small">搜索</NButton>
-      <NButton type="primary" size="small" @click="openCreateModal">
-        + 新增角色
-      </NButton>
-    </div>
-
-    <!-- Table -->
-    <NDataTable
-      :columns="columns"
-      :data="roles"
-      :loading="loading"
-      :bordered="false"
-      size="small"
-    />
-
-    <!-- Create / Edit Modal -->
-    <NModal
-      :show="!!formRole"
-      preset="card"
-      :title="formRole?.id ? '编辑角色' : '新增角色'"
-      style="width:600px"
-      @update:show="(v: boolean) => { if (!v) closeForm(); }"
-    >
-      <div class="flex flex-col gap-4">
-        <NFormItem label="角色名称">
-          <NInput v-model:value="formName" placeholder="例如 warehouse_admin" :disabled="!!formRole?.id" />
-        </NFormItem>
-        <NFormItem label="显示名称">
-          <NInput v-model:value="formDisplayName" placeholder="例如 仓库管理员" />
-        </NFormItem>
-        <NFormItem label="描述">
-          <NInput v-model:value="formDescription" placeholder="该角色的职责说明..." />
-        </NFormItem>
-        <div>
-          <div class="text-sm mb-2 text-[var(--n-text-color-3)] font-medium">权限</div>
-          <div v-for="mod in permModules" :key="mod.module" class="mb-3">
-            <div class="text-xs font-semibold uppercase mb-1 text-[var(--n-text-color-3)]">
-              {{ mod.module }}
-            </div>
-            <div class="flex flex-wrap gap-1">
-              <NCheckbox
-                v-for="perm in mod.permissions"
-                :key="perm.id"
-                :checked="formPermIds.includes(perm.id)"
-                @update:checked="(v: boolean) => togglePerm(perm.id, v)"
-              >
-                {{ perm.display_name || perm.code }}
-              </NCheckbox>
-            </div>
-          </div>
-        </div>
-        <div v-if="formError" class="text-red-500 text-sm">{{ formError }}</div>
-      </div>
-      <template #footer>
-        <NSpace justify="end">
-          <NButton @click="closeForm">取消</NButton>
-          <NButton type="primary" :loading="formLoading" @click="submitForm">
-            {{ formRole?.id ? '保存' : '创建' }}
-          </NButton>
-        </NSpace>
-      </template>
-    </NModal>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { ref, computed, onMounted, h } from 'vue';
 import {
@@ -235,3 +159,79 @@ onMounted(() => {
   fetch();
 });
 </script>
+
+<template>
+  <div class="flex flex-col gap-4">
+    <!-- Toolbar -->
+    <div class="flex items-center gap-3">
+      <NInput
+        v-model:value="searchText"
+        placeholder="搜索角色..."
+        clearable
+        style="width: 240px"
+        @keyup.enter="fetch"
+      />
+      <NButton size="small" @click="fetch">搜索</NButton>
+      <NButton type="primary" size="small" @click="openCreateModal">
+        + 新增角色
+      </NButton>
+    </div>
+
+    <!-- Table -->
+    <NDataTable
+      :columns="columns"
+      :data="roles"
+      :loading="loading"
+      :bordered="false"
+      size="small"
+    />
+
+    <!-- Create / Edit Modal -->
+    <NModal
+      :show="!!formRole"
+      preset="card"
+      :title="formRole?.id ? '编辑角色' : '新增角色'"
+      style="width:600px"
+      @update:show="(v: boolean) => { if (!v) closeForm(); }"
+    >
+      <div class="flex flex-col gap-4">
+        <NFormItem label="角色名称">
+          <NInput v-model:value="formName" placeholder="例如 warehouse_admin" :disabled="!!formRole?.id" />
+        </NFormItem>
+        <NFormItem label="显示名称">
+          <NInput v-model:value="formDisplayName" placeholder="例如 仓库管理员" />
+        </NFormItem>
+        <NFormItem label="描述">
+          <NInput v-model:value="formDescription" placeholder="该角色的职责说明..." />
+        </NFormItem>
+        <div>
+          <div class="text-sm mb-2 text-[var(--n-text-color-3)] font-medium">权限</div>
+          <div v-for="mod in permModules" :key="mod.module" class="mb-3">
+            <div class="text-xs font-semibold uppercase mb-1 text-[var(--n-text-color-3)]">
+              {{ mod.module }}
+            </div>
+            <div class="flex flex-wrap gap-1">
+              <NCheckbox
+                v-for="perm in mod.permissions"
+                :key="perm.id"
+                :checked="formPermIds.includes(perm.id)"
+                @update:checked="(v: boolean) => togglePerm(perm.id, v)"
+              >
+                {{ perm.display_name || perm.code }}
+              </NCheckbox>
+            </div>
+          </div>
+        </div>
+        <div v-if="formError" class="text-red-500 text-sm">{{ formError }}</div>
+      </div>
+      <template #footer>
+        <NSpace justify="end">
+          <NButton @click="closeForm">取消</NButton>
+          <NButton type="primary" :loading="formLoading" @click="submitForm">
+            {{ formRole?.id ? '保存' : '创建' }}
+          </NButton>
+        </NSpace>
+      </template>
+    </NModal>
+  </div>
+</template>

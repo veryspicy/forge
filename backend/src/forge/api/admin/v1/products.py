@@ -155,13 +155,16 @@ def _clean_payload(data: dict[str, Any]) -> dict[str, Any]:
 
 
 def _serialize_image(image: dict[str, Any]) -> dict[str, Any]:
-    return {
+    data = {
         "key": image.get("key", ""),
         "url": image.get("url", ""),
         "sort": image.get("sort", 0),
         "is_main": bool(image.get("is_main", False)),
         "alt": image.get("alt", ""),
     }
+    if image.get("resource_id"):
+        data["resource_id"] = image["resource_id"]
+    return data
 
 
 def _serialize_product(product: ORMProduct) -> dict[str, Any]:
@@ -589,22 +592,28 @@ async def upload_product_image(
 
     # 登记资源表，供资源管理页可见与统一管理
     bucket = getattr(minio, "_bucket", "") or ""
-    db.add(
-        ORMResource(
-            site_id=uuid.UUID(site_id),
-            bucket=bucket,
-            object_key=image_key,
-            url=url,
-            file_type="image",
-            mime=mime,
-            file_size=len(content),
-            name=(file.filename or f"{uuid.uuid4().hex}{ext}").strip(),
-            directory=f"products/{product.id}",
-        )
+    resource = ORMResource(
+        site_id=uuid.UUID(site_id),
+        bucket=bucket,
+        object_key=image_key,
+        url=url,
+        file_type="image",
+        mime=mime,
+        file_size=len(content),
+        name=(file.filename or f"{uuid.uuid4().hex}{ext}").strip(),
+        directory=f"products/{product.id}",
     )
+    db.add(resource)
     await db.flush()
 
-    image = {"key": image_key, "url": url, "sort": 0, "is_main": False, "alt": alt}
+    image = {
+        "key": image_key,
+        "url": url,
+        "sort": 0,
+        "is_main": False,
+        "alt": alt,
+        "resource_id": str(resource.id),
+    }
     try:
         product = await ProductService.add_image(db, product, image, is_main=is_main, alt=alt)
     except ProductValidationError as exc:

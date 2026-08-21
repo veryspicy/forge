@@ -1,38 +1,3 @@
-<template>
-  <div class="flex flex-col gap-4">
-    <div class="flex justify-between items-center">
-      <NSpace>
-        <NInput v-model:value="search" :placeholder="$t('common.search')" style="width:200px" @keyup.enter="loadProducts" />
-        <NButton @click="loadProducts">{{ $t('common.search') }}</NButton>
-        <NSelect v-model:value="category" :options="categoryOptions" :placeholder="$t('page.products.allCategories')" clearable @update:value="loadProducts" />
-      </NSpace>
-      <NSpace>
-        <NButton @click="onExport">{{ $t('page.products.export') }}</NButton>
-        <NButton @click="triggerImport">{{ $t('page.products.import') }}</NButton>
-        <input ref="fileInput" type="file" accept=".csv" class="hidden" @change="onImportFile" />
-        <NButton type="primary" @click="$router.push('/products/new')">{{ $t('common.add') }}</NButton>
-      </NSpace>
-    </div>
-
-    <NDataTable :columns="columns" :data="products" :loading="loading" :bordered="false" size="small" />
-
-    <div v-if="total > pageSize" class="flex justify-center">
-      <NPagination :page="page" :page-size="pageSize" :item-count="total" @update:page="goPage" />
-    </div>
-
-    <NModal v-model:show="showImportModal" preset="card" :title="$t('page.products.importResult')" style="width: 720px">
-      <NSpace vertical>
-        <NSpace>
-          <NTag type="success" :bordered="false">{{ $t('page.products.importCreated') }}: {{ importResult?.created ?? 0 }}</NTag>
-          <NTag type="info" :bordered="false">{{ $t('page.products.importUpdated') }}: {{ importResult?.updated ?? 0 }}</NTag>
-          <NTag :type="(importResult?.failed ?? 0) > 0 ? 'error' : 'default'" :bordered="false">{{ $t('page.products.importFailed') }}: {{ importResult?.failed ?? 0 }}</NTag>
-        </NSpace>
-        <NDataTable v-if="importResult?.errors?.length" :columns="errorColumns" :data="importResult.errors" size="small" :bordered="false" />
-      </NSpace>
-    </NModal>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { ref, onMounted, h } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -148,3 +113,38 @@ async function onImportFile(event: Event) {
 
 onMounted(loadProducts);
 </script>
+
+<template>
+  <div class="flex flex-col gap-4">
+    <div class="flex justify-between items-center">
+      <NSpace>
+        <NInput v-model:value="search" :placeholder="$t('common.search')" style="width:200px" @keyup.enter="loadProducts" />
+        <NButton @click="loadProducts">{{ $t('common.search') }}</NButton>
+        <NSelect v-model:value="category" :options="categoryOptions" :placeholder="$t('page.products.allCategories')" clearable @update:value="loadProducts" />
+      </NSpace>
+      <NSpace>
+        <NButton @click="onExport">{{ $t('page.products.export') }}</NButton>
+        <NButton @click="triggerImport">{{ $t('page.products.import') }}</NButton>
+        <input ref="fileInput" type="file" accept=".csv" class="hidden" @change="onImportFile" />
+        <NButton type="primary" @click="$router.push('/products/new')">{{ $t('common.add') }}</NButton>
+      </NSpace>
+    </div>
+
+    <NDataTable :columns="columns" :data="products" :loading="loading" :bordered="false" size="small" />
+
+    <div v-if="total > pageSize" class="flex justify-center">
+      <NPagination :page="page" :page-size="pageSize" :item-count="total" @update:page="goPage" />
+    </div>
+
+    <NModal v-model:show="showImportModal" preset="card" :title="$t('page.products.importResult')" style="width: 720px">
+      <NSpace vertical>
+        <NSpace>
+          <NTag type="success" :bordered="false">{{ $t('page.products.importCreated') }}: {{ importResult?.created ?? 0 }}</NTag>
+          <NTag type="info" :bordered="false">{{ $t('page.products.importUpdated') }}: {{ importResult?.updated ?? 0 }}</NTag>
+          <NTag :type="(importResult?.failed ?? 0) > 0 ? 'error' : 'default'" :bordered="false">{{ $t('page.products.importFailed') }}: {{ importResult?.failed ?? 0 }}</NTag>
+        </NSpace>
+        <NDataTable v-if="importResult?.errors?.length" :columns="errorColumns" :data="importResult.errors" size="small" :bordered="false" />
+      </NSpace>
+    </NModal>
+  </div>
+</template>

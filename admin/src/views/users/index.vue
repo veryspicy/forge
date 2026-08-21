@@ -1,29 +1,3 @@
-<template>
-  <div class="flex flex-col gap-4">
-    <NDataTable :columns="columns" :data="users" :loading="loading" :bordered="false" size="small" />
-
-    <NModal :show="!!roleUser" preset="card" :title="$t('page.users.changeRole')" style="width:420px" @update:show="(v) => { if (!v) roleUser = null; }">
-      <div class="flex flex-col gap-3">
-        <div><span class="text-[var(--n-text-color-3)]">User: </span>{{ roleUser?.email }}</div>
-        <div>
-          <span class="text-[var(--n-text-color-3)]">Current Role: </span>
-          <NTag :type="roleTagType(roleUser?.role)" size="small">{{ roleUser?.role }}</NTag>
-        </div>
-        <div>
-          <NSelect v-model:value="newRole" :options="roleOptions" :placeholder="$t('page.users.selectRole')" style="width:160px" />
-        </div>
-        <div v-if="modalError" class="text-red-500 text-sm">{{ modalError }}</div>
-      </div>
-      <template #footer>
-        <NSpace justify="end">
-          <NButton @click="roleUser = null">{{ $t('common.cancel') }}</NButton>
-          <NButton type="primary" :loading="modalLoading" @click="updateRole">{{ $t('common.save') }}</NButton>
-        </NSpace>
-      </template>
-    </NModal>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { ref, computed, onMounted, h } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -101,3 +75,29 @@ async function fetch() {
 
 onMounted(fetch);
 </script>
+
+<template>
+  <div class="flex flex-col gap-4">
+    <NDataTable :columns="columns" :data="users" :loading="loading" :bordered="false" size="small" />
+
+    <NModal :show="!!roleUser" preset="card" :title="$t('page.users.changeRole')" style="width:420px" @update:show="(v) => { if (!v) roleUser = null; }">
+      <div class="flex flex-col gap-3">
+        <div><span class="text-[var(--n-text-color-3)]">User: </span>{{ roleUser?.email }}</div>
+        <div>
+          <span class="text-[var(--n-text-color-3)]">Current Role: </span>
+          <NTag :type="roleTagType(roleUser?.role)" size="small">{{ roleUser?.role }}</NTag>
+        </div>
+        <div>
+          <NSelect v-model:value="newRole" :options="roleOptions" :placeholder="$t('page.users.selectRole')" style="width:160px" />
+        </div>
+        <div v-if="modalError" class="text-red-500 text-sm">{{ modalError }}</div>
+      </div>
+      <template #footer>
+        <NSpace justify="end">
+          <NButton @click="roleUser = null">{{ $t('common.cancel') }}</NButton>
+          <NButton type="primary" :loading="modalLoading" @click="updateRole">{{ $t('common.save') }}</NButton>
+        </NSpace>
+      </template>
+    </NModal>
+  </div>
+</template>

@@ -1,265 +1,3 @@
-<template>
-  <div class="flex flex-col gap-4">
-    <div class="flex items-center justify-between">
-      <h2 class="text-lg font-semibold m-0">{{ isEdit ? t('common.edit') + ' ' + t('common.product') : t('common.new') + ' ' + t('common.product') }}</h2>
-      <NButton @click="$router.push('/products')">{{ $t('common.backToList') }}</NButton>
-    </div>
-
-    <div v-if="error" class="bg-red-50 text-red-600 p-3 rounded text-sm">{{ error }}</div>
-
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <!-- Basic Info -->
-      <NCard :title="$t('common.basicInfo')" size="small" class="md:col-span-2">
-        <NGrid :cols="2" :x-gap="16" :y-gap="12" responsive="screen">
-          <NGi span="1 m:2">
-            <NFormItem :label="$t('common.sku')" required><NInput v-model:value="form.sku" /></NFormItem>
-          </NGi>
-          <NGi span="1 m:2">
-            <NFormItem :label="$t('common.name')" required><NInput v-model:value="form.name" /></NFormItem>
-          </NGi>
-          <NGi span="1">
-            <NFormItem :label="$t('page.productsDetail.slug')"><NInput v-model:value="form.slug" /></NFormItem>
-          </NGi>
-          <NGi span="1">
-            <NFormItem :label="$t('page.products.category')">
-              <NSelect v-model:value="form.category" :options="categoryOptions" />
-            </NFormItem>
-          </NGi>
-          <NGi span="1 m:2">
-            <NFormItem :label="$t('common.description')"><NInput v-model:value="form.description" type="textarea" :rows="3" /></NFormItem>
-          </NGi>
-        </NGrid>
-      </NCard>
-
-      <!-- Translations -->
-      <NCard title="多语言内容" size="small" class="md:col-span-2">
-        <NFormItem label="语言">
-          <NSelect
-            :value="currentLang"
-            :options="langOptions"
-            style="width:200px"
-            @update:value="switchLang"
-          />
-        </NFormItem>
-        <NGrid :cols="2" :x-gap="16" responsive="screen">
-          <NGi span="2">
-            <NFormItem label="名称翻译">
-              <NInput v-model:value="translationName" @update:value="syncLang('name')" />
-            </NFormItem>
-          </NGi>
-          <NGi span="2">
-            <NFormItem label="描述翻译">
-              <NInput v-model:value="translationDesc" type="textarea" :rows="3" @update:value="syncLang('desc')" />
-            </NFormItem>
-          </NGi>
-          <NGi span="2">
-            <NFormItem label="AI 描述翻译">
-              <NInput v-model:value="translationAi" type="textarea" :rows="3" @update:value="syncLang('ai')" />
-            </NFormItem>
-          </NGi>
-        </NGrid>
-      </NCard>
-
-      <!-- Pricing -->
-      <NCard :title="$t('page.pricing.title')" size="small">
-        <NFormItem :label="$t('page.products.price')"><NInputNumber v-model:value="form.price" :min="0" :step="0.01" style="width:100%" /></NFormItem>
-        <NFormItem :label="$t('common.cost')"><NInputNumber v-model:value="form.cost" :min="0" :step="0.01" style="width:100%" /></NFormItem>
-      </NCard>
-
-      <!-- Inventory -->
-      <NCard :title="$t('common.inventory')" size="small">
-        <NFormItem :label="$t('page.productsDetail.inventory')"><NInputNumber v-model:value="form.inventory" :min="0" style="width:100%" /></NFormItem>
-        <NFormItem :label="$t('page.productsDetail.aiGenerated')">
-          <NSwitch v-model:value="form.is_ai_generated" />
-        </NFormItem>
-      </NCard>
-
-      <!-- Tags & Regions -->
-      <NCard :title="$t('common.tagsRegions')" size="small" class="md:col-span-2">
-        <NGrid :cols="2" :x-gap="16" responsive="screen">
-          <NGi span="1 m:2">
-            <NFormItem :label="$t('page.productsDetail.tagsComma')"><NInput v-model:value="tagsString" @update:value="updateTags" /></NFormItem>
-          </NGi>
-          <NGi span="1 m:2">
-            <NFormItem :label="$t('page.productsDetail.regionsComma')"><NInput v-model:value="regionsString" @update:value="updateRegions" /></NFormItem>
-          </NGi>
-        </NGrid>
-      </NCard>
-
-      <!-- Images -->
-      <NCard :title="$t('common.productImages')" size="small" class="md:col-span-2">
-        <div v-if="images.length" class="flex flex-wrap gap-3 mb-4">
-          <div v-for="(img, idx) in images" :key="img.key || idx" class="relative w-[100px] h-[100px] rounded-md overflow-hidden border border-[var(--n-border-color)]">
-            <NImage :src="img.url" width="100" height="100" style="object-fit:cover" />
-            <NButton
-              class="absolute top-0.5 right-0.5"
-              size="tiny" circle type="error"
-              @click="removeImage(idx)"
-            >&times;</NButton>
-          </div>
-        </div>
-        <NUpload
-          :multiple="true"
-          accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml,image/bmp"
-          :show-file-list="false"
-          :custom-request="handleUpload"
-          :disabled="uploading"
-        >
-          <NButton :loading="uploading">{{ $t('common.uploadImages') }}</NButton>
-        </NUpload>
-      </NCard>
-
-      <!-- Variants (edit only) -->
-      <NCard v-if="isEdit" title="变体管理" size="small" class="md:col-span-2">
-        <div class="mb-3">
-          <NButton size="small" type="primary" @click="openVariantModal()">新增变体</NButton>
-        </div>
-        <NTable v-if="variants.length" size="small" :bordered="true" :single-line="false">
-          <thead>
-            <tr>
-              <th>名称</th><th>SKU</th><th>属性</th><th>价格</th><th>成本</th><th>库存</th><th>状态</th><th>默认</th><th style="width:170px">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="v in variants" :key="v.id">
-              <td>{{ v.name }}</td>
-              <td>{{ v.sku }}</td>
-              <td class="text-xs opacity-70">{{ JSON.stringify(v.attributes || {}) }}</td>
-              <td>{{ v.price }}</td>
-              <td>{{ v.cost }}</td>
-              <td>{{ v.inventory }}</td>
-              <td>{{ v.status }}</td>
-              <td>{{ v.is_default ? '✓' : '' }}</td>
-              <td>
-                <NSpace size="small">
-                  <NButton size="tiny" @click="openVariantModal(v)">编辑</NButton>
-                  <NButton size="tiny" type="error" @click="deleteVariant(v.id)">删除</NButton>
-                </NSpace>
-              </td>
-            </tr>
-          </tbody>
-        </NTable>
-        <NEmpty v-else description="暂无变体" size="small" class="py-6" />
-      </NCard>
-
-      <!-- Variant Modal -->
-      <NModal
-        v-model:show="variantModal.show"
-        :title="variantModal.id ? '编辑变体' : '新增变体'"
-        preset="card"
-        style="width: 560px"
-      >
-        <NForm label-placement="top">
-          <NFormItem label="SKU" required><NInput v-model:value="variantForm.sku" /></NFormItem>
-          <NFormItem label="名称" required><NInput v-model:value="variantForm.name" /></NFormItem>
-          <NFormItem label="属性 (JSON)">
-            <NInput v-model:value="variantForm.attributesText" placeholder='{"color":"blue","size":"M"}' />
-          </NFormItem>
-          <NGrid :cols="3" :x-gap="12" responsive="screen">
-            <NGi>
-              <NFormItem label="价格"><NInputNumber v-model:value="variantForm.price" :min="0" :step="0.01" style="width:100%" /></NFormItem>
-            </NGi>
-            <NGi>
-              <NFormItem label="成本"><NInputNumber v-model:value="variantForm.cost" :min="0" :step="0.01" style="width:100%" /></NFormItem>
-            </NGi>
-            <NGi>
-              <NFormItem label="库存"><NInputNumber v-model:value="variantForm.inventory" :min="0" style="width:100%" /></NFormItem>
-            </NGi>
-          </NGrid>
-          <NGrid :cols="2" :x-gap="12" responsive="screen">
-            <NGi>
-              <NFormItem label="状态">
-                <NSelect v-model:value="variantForm.status" :options="statusOptions" />
-              </NFormItem>
-            </NGi>
-            <NGi>
-              <NFormItem label="设为默认变体"><NSwitch v-model:value="variantForm.is_default" /></NFormItem>
-            </NGi>
-          </NGrid>
-        </NForm>
-        <template #footer>
-          <NSpace justify="end">
-            <NButton @click="variantModal.show = false">取消</NButton>
-            <NButton type="primary" :loading="variantSaving" @click="saveVariant">保存</NButton>
-          </NSpace>
-        </template>
-      </NModal>
-
-      <!-- SEO Score (edit only) -->
-      <NCard v-if="isEdit" title="SEO 评分" size="small" class="md:col-span-2">
-        <div class="grid grid-cols-1 gap-3 mb-4">
-          <div>
-            <div class="text-sm font-medium mb-1">SEO 标题</div>
-            <NInput v-model:value="seoForm.title" placeholder="建议 30-60 字符" maxlength="200" show-count clearable />
-          </div>
-          <div>
-            <div class="text-sm font-medium mb-1">SEO 描述</div>
-            <NInput v-model:value="seoForm.description" type="textarea" placeholder="建议 70-160 字符" maxlength="300" show-count clearable />
-          </div>
-          <div>
-            <div class="text-sm font-medium mb-1">SEO 关键词</div>
-            <NInput v-model:value="seoForm.keywords" placeholder="逗号分隔，例如：宠物,猫粮,狗玩具" clearable />
-          </div>
-          <div class="flex gap-2">
-            <NButton size="small" type="primary" :loading="seoSaving" @click="saveSeo">保存 SEO</NButton>
-            <NButton size="small" :loading="seoLoading" @click="loadSeoScore">重新评分</NButton>
-          </div>
-        </div>
-
-        <template v-if="seoScore">
-          <div class="flex items-center justify-between mb-4">
-            <div class="flex items-center gap-3">
-              <span class="text-4xl font-bold" :class="gradeColor">{{ seoScore.total_score }}</span>
-              <span class="text-sm opacity-60">/ 100</span>
-              <NTag v-if="seoScore.grade" size="small" :type="gradeTagType" :bordered="false">{{ seoScore.grade }}</NTag>
-            </div>
-          </div>
-
-          <div v-for="d in seoScore.dimensions" :key="d.key" class="flex items-center gap-3 mb-2">
-            <span class="w-24 text-sm shrink-0">{{ d.label }}</span>
-            <NProgress
-              class="flex-1"
-              type="line"
-              :percentage="maxScorePercent(d)"
-              :height="8"
-              :color="dimColor(d)"
-              :rail-color="'rgba(0,0,0,0.06)'"
-            />
-            <span class="w-14 text-right text-sm opacity-70 shrink-0">{{ d.score }}/{{ d.max }}</span>
-          </div>
-
-          <div v-if="seoScore.suggestions.length" class="mt-4">
-            <div class="text-sm font-medium mb-2">优化建议</div>
-            <ul class="pl-5 space-y-1">
-              <li v-for="(s, i) in seoScore.suggestions" :key="i" class="text-sm opacity-80 list-disc">{{ s }}</li>
-            </ul>
-          </div>
-          <NEmpty v-else description="SEO 状态优秀，无需优化" size="small" class="py-4" />
-        </template>
-        <NEmpty v-else description="点击「重新评分」获取数据" size="small" class="py-6" />
-      </NCard>
-
-      <!-- Danger Zone (edit only) -->
-      <NCard v-if="isEdit" :title="$t('common.dangerZone')" size="small" class="md:col-span-2">
-        <NSpace>
-          <NSelect
-            v-model:value="statusChange"
-            :options="statusOptions"
-            :placeholder="$t('page.productsDetail.changeStatus')"
-            style="width:140px"
-            clearable
-          />
-          <NButton v-if="statusChange" @click="changeStatus" type="warning">{{ $t('page.productsDetail.updateStatus') }}</NButton>
-        </NSpace>
-      </NCard>
-    </div>
-
-    <div class="flex justify-end">
-      <NButton type="primary" :loading="saving" @click="save">{{ $t('common.save') }}</NButton>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -269,6 +7,7 @@ import {
 } from 'naive-ui';
 import { useI18n } from 'vue-i18n';
 import { get, post, patch, del } from '@/service/api/helper';
+import { resourceApi } from '@/service/api/resources';
 
 const route = useRoute();
 const { t } = useI18n();
@@ -283,7 +22,7 @@ const tagsString = ref('');
 const regionsString = ref('');
 const statusChange = ref<string | null>(null);
 
-const images = ref<{ key: string; url: string; alt?: string }[]>([]);
+const images = ref<{ key: string; url: string; alt?: string; resourceId?: string }[]>([]);
 const pendingFiles = ref<File[]>([]);
 
 const variants = ref<any[]>([]);
@@ -434,7 +173,7 @@ onMounted(async () => {
     loadLang('en');
     tagsString.value = (p.tags || []).join(', ');
     regionsString.value = (p.region_availability || []).join(', ');
-    images.value = (p.images || []).map((i: any) => ({ key: i.key || '', url: i.url || '', alt: i.alt || '' }));
+    images.value = (p.images || []).map((i: any) => ({ key: i.key || '', url: i.url || '', alt: i.alt || '', resourceId: i.resource_id || '' }));
     variants.value = p.variants || [];
     seoForm.value = {
       title: p.seo_title || '',
@@ -460,7 +199,7 @@ async function handleUpload({ file: fileItem }: any) {
         { 'Content-Type': 'multipart/form-data' },
       );
       const uploaded = (res.data?.data?.images || res.data?.images || []).slice(-1)[0];
-      if (uploaded) images.value.push({ key: uploaded.key || '', url: uploaded.url || '', alt: uploaded.alt || '' });
+      if (uploaded) images.value.push({ key: uploaded.key || '', url: uploaded.url || '', alt: uploaded.alt || '', resourceId: uploaded.resource_id || '' });
     } catch (e: any) { error.value = e.response?.data?.detail || t('common.uploadFailed') + ': ' + file.name; }
   } else {
     pendingFiles.value.push(file);
@@ -491,22 +230,42 @@ async function save() {
   try {
     if (isEdit.value) {
       await patch(`/api/admin/v1/products/${route.params.id}`, form.value);
+      await syncProductRefs(String(route.params.id));
     } else {
       const res = await post('/api/admin/v1/products/', form.value);
       const newId = res.data?.data?.id ?? res.data?.id;
       for (const file of pendingFiles.value) {
         const formData = new FormData();
         formData.append('file', file);
-        await post(
+        const up = await post(
           `/api/admin/v1/products/${newId}/upload-image`,
           formData,
           { 'Content-Type': 'multipart/form-data' },
         );
+        const uploaded = (up.data?.data?.images || up.data?.images || []).slice(-1)[0];
+        if (uploaded) images.value.push({ key: uploaded.key || '', url: uploaded.url || '', alt: uploaded.alt || '', resourceId: uploaded.resource_id || '' });
       }
+      await syncProductRefs(String(newId));
     }
     router.push('/products');
   } catch (e: any) { error.value = e.response?.data?.detail || t('common.saveFailed'); }
   finally { saving.value = false; }
+}
+
+/** 保存后同步产品图片资源引用（失败不阻塞保存主流程） */
+async function syncProductRefs(productId: string) {
+  const resourceIds = images.value.map(i => i.resourceId).filter(Boolean) as string[];
+  if (!resourceIds.length) return;
+  try {
+    await resourceApi.syncRefs({
+      refType: 'product',
+      refId: productId,
+      refLabel: String(form.value.name || `product-${productId}`),
+      resourceIds,
+    });
+  } catch {
+    /* 引用同步失败仅提示 */
+  }
 }
 
 async function changeStatus() {
@@ -588,3 +347,267 @@ async function reloadVariants() {
   variants.value = res.data?.data ?? res.data ?? [];
 }
 </script>
+
+<template>
+  <div class="flex flex-col gap-4">
+    <div class="flex items-center justify-between">
+      <h2 class="text-lg font-semibold m-0">{{ isEdit ? t('common.edit') + ' ' + t('common.product') : t('common.new') + ' ' + t('common.product') }}</h2>
+      <NButton @click="$router.push('/products')">{{ $t('common.backToList') }}</NButton>
+    </div>
+
+    <div v-if="error" class="bg-red-50 text-red-600 p-3 rounded text-sm">{{ error }}</div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- Basic Info -->
+      <NCard :title="$t('common.basicInfo')" size="small" class="md:col-span-2">
+        <NGrid :cols="2" :x-gap="16" :y-gap="12" responsive="screen">
+          <NGi span="1 m:2">
+            <NFormItem :label="$t('common.sku')" required><NInput v-model:value="form.sku" /></NFormItem>
+          </NGi>
+          <NGi span="1 m:2">
+            <NFormItem :label="$t('common.name')" required><NInput v-model:value="form.name" /></NFormItem>
+          </NGi>
+          <NGi span="1">
+            <NFormItem :label="$t('page.productsDetail.slug')"><NInput v-model:value="form.slug" /></NFormItem>
+          </NGi>
+          <NGi span="1">
+            <NFormItem :label="$t('page.products.category')">
+              <NSelect v-model:value="form.category" :options="categoryOptions" />
+            </NFormItem>
+          </NGi>
+          <NGi span="1 m:2">
+            <NFormItem :label="$t('common.description')"><NInput v-model:value="form.description" type="textarea" :rows="3" /></NFormItem>
+          </NGi>
+        </NGrid>
+      </NCard>
+
+      <!-- Translations -->
+      <NCard title="多语言内容" size="small" class="md:col-span-2">
+        <NFormItem label="语言">
+          <NSelect
+            :value="currentLang"
+            :options="langOptions"
+            style="width:200px"
+            @update:value="switchLang"
+          />
+        </NFormItem>
+        <NGrid :cols="2" :x-gap="16" responsive="screen">
+          <NGi span="2">
+            <NFormItem label="名称翻译">
+              <NInput v-model:value="translationName" @update:value="syncLang('name')" />
+            </NFormItem>
+          </NGi>
+          <NGi span="2">
+            <NFormItem label="描述翻译">
+              <NInput v-model:value="translationDesc" type="textarea" :rows="3" @update:value="syncLang('desc')" />
+            </NFormItem>
+          </NGi>
+          <NGi span="2">
+            <NFormItem label="AI 描述翻译">
+              <NInput v-model:value="translationAi" type="textarea" :rows="3" @update:value="syncLang('ai')" />
+            </NFormItem>
+          </NGi>
+        </NGrid>
+      </NCard>
+
+      <!-- Pricing -->
+      <NCard :title="$t('page.pricing.title')" size="small">
+        <NFormItem :label="$t('page.products.price')"><NInputNumber v-model:value="form.price" :min="0" :step="0.01" style="width:100%" /></NFormItem>
+        <NFormItem :label="$t('common.cost')"><NInputNumber v-model:value="form.cost" :min="0" :step="0.01" style="width:100%" /></NFormItem>
+      </NCard>
+
+      <!-- Inventory -->
+      <NCard :title="$t('common.inventory')" size="small">
+        <NFormItem :label="$t('page.productsDetail.inventory')"><NInputNumber v-model:value="form.inventory" :min="0" style="width:100%" /></NFormItem>
+        <NFormItem :label="$t('page.productsDetail.aiGenerated')">
+          <NSwitch v-model:value="form.is_ai_generated" />
+        </NFormItem>
+      </NCard>
+
+      <!-- Tags & Regions -->
+      <NCard :title="$t('common.tagsRegions')" size="small" class="md:col-span-2">
+        <NGrid :cols="2" :x-gap="16" responsive="screen">
+          <NGi span="1 m:2">
+            <NFormItem :label="$t('page.productsDetail.tagsComma')"><NInput v-model:value="tagsString" @update:value="updateTags" /></NFormItem>
+          </NGi>
+          <NGi span="1 m:2">
+            <NFormItem :label="$t('page.productsDetail.regionsComma')"><NInput v-model:value="regionsString" @update:value="updateRegions" /></NFormItem>
+          </NGi>
+        </NGrid>
+      </NCard>
+
+      <!-- Images -->
+      <NCard :title="$t('common.productImages')" size="small" class="md:col-span-2">
+        <div v-if="images.length" class="flex flex-wrap gap-3 mb-4">
+          <div v-for="(img, idx) in images" :key="img.key || idx" class="relative w-[100px] h-[100px] rounded-md overflow-hidden border border-[var(--n-border-color)]">
+            <NImage :src="img.url" width="100" height="100" style="object-fit:cover" />
+            <NButton
+              class="absolute top-0.5 right-0.5"
+              size="tiny" circle type="error"
+              @click="removeImage(idx)"
+            >
+              &times;
+            </NButton>
+          </div>
+        </div>
+        <NUpload
+          :multiple="true"
+          accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml,image/bmp"
+          :show-file-list="false"
+          :custom-request="handleUpload"
+          :disabled="uploading"
+        >
+          <NButton :loading="uploading">{{ $t('common.uploadImages') }}</NButton>
+        </NUpload>
+      </NCard>
+
+      <!-- Variants (edit only) -->
+      <NCard v-if="isEdit" title="变体管理" size="small" class="md:col-span-2">
+        <div class="mb-3">
+          <NButton size="small" type="primary" @click="openVariantModal()">新增变体</NButton>
+        </div>
+        <NTable v-if="variants.length" size="small" :bordered="true" :single-line="false">
+          <thead>
+            <tr>
+              <th>名称</th><th>SKU</th><th>属性</th><th>价格</th><th>成本</th><th>库存</th><th>状态</th><th>默认</th><th style="width:170px">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="v in variants" :key="v.id">
+              <td>{{ v.name }}</td>
+              <td>{{ v.sku }}</td>
+              <td class="text-xs opacity-70">{{ JSON.stringify(v.attributes || {}) }}</td>
+              <td>{{ v.price }}</td>
+              <td>{{ v.cost }}</td>
+              <td>{{ v.inventory }}</td>
+              <td>{{ v.status }}</td>
+              <td>{{ v.is_default ? '✓' : '' }}</td>
+              <td>
+                <NSpace size="small">
+                  <NButton size="tiny" @click="openVariantModal(v)">编辑</NButton>
+                  <NButton size="tiny" type="error" @click="deleteVariant(v.id)">删除</NButton>
+                </NSpace>
+              </td>
+            </tr>
+          </tbody>
+        </NTable>
+        <NEmpty v-else description="暂无变体" size="small" class="py-6" />
+      </NCard>
+
+      <!-- Variant Modal -->
+      <NModal
+        v-model:show="variantModal.show"
+        :title="variantModal.id ? '编辑变体' : '新增变体'"
+        preset="card"
+        style="width: 560px"
+      >
+        <NForm label-placement="top">
+          <NFormItem label="SKU" required><NInput v-model:value="variantForm.sku" /></NFormItem>
+          <NFormItem label="名称" required><NInput v-model:value="variantForm.name" /></NFormItem>
+          <NFormItem label="属性 (JSON)">
+            <NInput v-model:value="variantForm.attributesText" placeholder="{&quot;color&quot;:&quot;blue&quot;,&quot;size&quot;:&quot;M&quot;}" />
+          </NFormItem>
+          <NGrid :cols="3" :x-gap="12" responsive="screen">
+            <NGi>
+              <NFormItem label="价格"><NInputNumber v-model:value="variantForm.price" :min="0" :step="0.01" style="width:100%" /></NFormItem>
+            </NGi>
+            <NGi>
+              <NFormItem label="成本"><NInputNumber v-model:value="variantForm.cost" :min="0" :step="0.01" style="width:100%" /></NFormItem>
+            </NGi>
+            <NGi>
+              <NFormItem label="库存"><NInputNumber v-model:value="variantForm.inventory" :min="0" style="width:100%" /></NFormItem>
+            </NGi>
+          </NGrid>
+          <NGrid :cols="2" :x-gap="12" responsive="screen">
+            <NGi>
+              <NFormItem label="状态">
+                <NSelect v-model:value="variantForm.status" :options="statusOptions" />
+              </NFormItem>
+            </NGi>
+            <NGi>
+              <NFormItem label="设为默认变体"><NSwitch v-model:value="variantForm.is_default" /></NFormItem>
+            </NGi>
+          </NGrid>
+        </NForm>
+        <template #footer>
+          <NSpace justify="end">
+            <NButton @click="variantModal.show = false">取消</NButton>
+            <NButton type="primary" :loading="variantSaving" @click="saveVariant">保存</NButton>
+          </NSpace>
+        </template>
+      </NModal>
+
+      <!-- SEO Score (edit only) -->
+      <NCard v-if="isEdit" title="SEO 评分" size="small" class="md:col-span-2">
+        <div class="grid grid-cols-1 gap-3 mb-4">
+          <div>
+            <div class="text-sm font-medium mb-1">SEO 标题</div>
+            <NInput v-model:value="seoForm.title" placeholder="建议 30-60 字符" maxlength="200" show-count clearable />
+          </div>
+          <div>
+            <div class="text-sm font-medium mb-1">SEO 描述</div>
+            <NInput v-model:value="seoForm.description" type="textarea" placeholder="建议 70-160 字符" maxlength="300" show-count clearable />
+          </div>
+          <div>
+            <div class="text-sm font-medium mb-1">SEO 关键词</div>
+            <NInput v-model:value="seoForm.keywords" placeholder="逗号分隔，例如：宠物,猫粮,狗玩具" clearable />
+          </div>
+          <div class="flex gap-2">
+            <NButton size="small" type="primary" :loading="seoSaving" @click="saveSeo">保存 SEO</NButton>
+            <NButton size="small" :loading="seoLoading" @click="loadSeoScore">重新评分</NButton>
+          </div>
+        </div>
+
+        <template v-if="seoScore">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-3">
+              <span class="text-4xl font-bold" :class="gradeColor">{{ seoScore.total_score }}</span>
+              <span class="text-sm opacity-60">/ 100</span>
+              <NTag v-if="seoScore.grade" size="small" :type="gradeTagType" :bordered="false">{{ seoScore.grade }}</NTag>
+            </div>
+          </div>
+
+          <div v-for="d in seoScore.dimensions" :key="d.key" class="flex items-center gap-3 mb-2">
+            <span class="w-24 text-sm shrink-0">{{ d.label }}</span>
+            <NProgress
+              class="flex-1"
+              type="line"
+              :percentage="maxScorePercent(d)"
+              :height="8"
+              :color="dimColor(d)"
+              rail-color="rgba(0,0,0,0.06)"
+            />
+            <span class="w-14 text-right text-sm opacity-70 shrink-0">{{ d.score }}/{{ d.max }}</span>
+          </div>
+
+          <div v-if="seoScore.suggestions.length" class="mt-4">
+            <div class="text-sm font-medium mb-2">优化建议</div>
+            <ul class="pl-5 space-y-1">
+              <li v-for="(s, i) in seoScore.suggestions" :key="i" class="text-sm opacity-80 list-disc">{{ s }}</li>
+            </ul>
+          </div>
+          <NEmpty v-else description="SEO 状态优秀，无需优化" size="small" class="py-4" />
+        </template>
+        <NEmpty v-else description="点击「重新评分」获取数据" size="small" class="py-6" />
+      </NCard>
+
+      <!-- Danger Zone (edit only) -->
+      <NCard v-if="isEdit" :title="$t('common.dangerZone')" size="small" class="md:col-span-2">
+        <NSpace>
+          <NSelect
+            v-model:value="statusChange"
+            :options="statusOptions"
+            :placeholder="$t('page.productsDetail.changeStatus')"
+            style="width:140px"
+            clearable
+          />
+          <NButton v-if="statusChange" type="warning" @click="changeStatus">{{ $t('page.productsDetail.updateStatus') }}</NButton>
+        </NSpace>
+      </NCard>
+    </div>
+
+    <div class="flex justify-end">
+      <NButton type="primary" :loading="saving" @click="save">{{ $t('common.save') }}</NButton>
+    </div>
+  </div>
+</template>

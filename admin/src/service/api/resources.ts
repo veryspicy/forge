@@ -15,7 +15,7 @@ export const resourceApi = {
     });
   },
   /** 列表 */
-  list: (params: { type?: string; siteId?: string; keyword?: string; directory?: string; tag?: string; page?: number; pageSize?: number }) =>
+  list: (params: { type?: string; siteId?: string; keyword?: string; directory?: string; tag?: string; page?: number; page_size?: number }) =>
     get('/api/admin/v1/resources', params),
   /** 详情（含引用位置与标签） */
   detail: (id: string) => get(`/api/admin/v1/resources/${id}`),
@@ -32,7 +32,7 @@ export const resourceApi = {
   checkNames: (names: string[]) =>
     post('/api/admin/v1/resources/check-names', { names }),
   /** 回收站列表 */
-  trashList: (params: { keyword?: string; fileType?: string; page?: number; pageSize?: number }) =>
+  trashList: (params: { keyword?: string; fileType?: string; page?: number; page_size?: number }) =>
     get('/api/admin/v1/resources/trash', params),
   /** 恢复（单/批量） */
   restoreTrash: (ids: string[]) => post('/api/admin/v1/resources/trash/restore', { ids }),
@@ -42,6 +42,14 @@ export const resourceApi = {
   emptyTrash: () => del('/api/admin/v1/resources/trash/empty'),
   /** 批量移动到目录 */
   move: (ids: string[], directory: string) => post('/api/admin/v1/resources/move', { ids, directory }),
+  /** 全量同步引用关系（商品 / 站点配置表单保存后调用） */
+  syncRefs: (params: { refType: string; refId: string; refLabel?: string; resourceIds: string[] }) =>
+    post('/api/admin/v1/resources/refs/sync', {
+      ref_type: params.refType,
+      ref_id: params.refId,
+      ref_label: params.refLabel || '',
+      resource_ids: params.resourceIds
+    }),
   /** 批量打标 */
   setTags: (ids: string[], tags: string[]) => post('/api/admin/v1/resources/tags', { ids, tags }),
   /** 单个软删 */

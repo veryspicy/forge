@@ -1,91 +1,3 @@
-<template>
-  <div class="flex flex-col gap-4">
-    <NTabs v-model:value="tab" type="line">
-      <NTabPane name="rules" :tab="$t('page.pricing.pricingRule')">
-        <div class="flex flex-col gap-4 pt-2">
-          <div class="flex justify-between items-center">
-            <span class="text-sm text-[var(--n-text-color-3)]">{{ rules.length }} rule(s)</span>
-            <NButton type="primary" size="small" @click="openRuleModal()">{{ $t('page.pricing.addRule') }}</NButton>
-          </div>
-          <NDataTable :columns="ruleColumns" :data="rules" :bordered="false" size="small" />
-        </div>
-      </NTabPane>
-
-      <NTabPane name="promotions" :tab="$t('page.pricing.promotions')">
-        <div class="flex flex-col gap-4 pt-2">
-          <div class="flex justify-between items-center">
-            <span class="text-sm text-[var(--n-text-color-3)]">{{ $t('page.pricing.promoCount', { count: promotions.length }) }}</span>
-            <NButton type="primary" size="small" @click="openPromoModal()">{{ $t('common.add') }}</NButton>
-          </div>
-          <NDataTable :columns="promoColumns" :data="promotions" :bordered="false" size="small" />
-        </div>
-      </NTabPane>
-
-      <NTabPane name="calculator" :tab="$t('page.pricing.priceCalculator')">
-        <NCard :title="$t('page.pricing.priceCalculator')" size="small" style="max-width:480px" class="mt-2">
-          <div class="flex flex-col gap-3">
-            <NFormItem :label="$t('page.pricing.productId')"><NInput v-model:value="calc.product_id" /></NFormItem>
-            <NFormItem :label="$t('page.pricing.costPrice')"><NInputNumber v-model:value="calc.cost_price" :min="0" :step="0.01" style="width:100%" /></NFormItem>
-            <NFormItem :label="$t('common.region')">
-              <NSelect v-model:value="calc.region" :options="regionOpts" />
-            </NFormItem>
-            <NFormItem :label="$t('page.pricing.overridePrice')"><NInputNumber v-model:value="calc.override_price" :min="0" :step="0.01" style="width:100%" /></NFormItem>
-            <NButton type="primary" :loading="calcLoading" @click="calculate">Calculate</NButton>
-          </div>
-          <div v-if="calcResult" class="mt-4 p-3 bg-[var(--n-color-embedded)] rounded-md text-sm">
-            <div v-for="(v, k) in calcResult" :key="k" class="flex justify-between py-1">
-              <span class="text-[var(--n-text-color-3)]">{{ k }}</span>
-              <span class="font-semibold">{{ typeof v === 'number' ? `$${(v as number).toFixed(2)}` : v }}</span>
-            </div>
-          </div>
-        </NCard>
-      </NTabPane>
-    </NTabs>
-
-    <!-- Rule Modal -->
-    <NModal v-model:show="showRuleModal" preset="card" :title="$t('page.pricing.pricingRule')" style="width:480px">
-      <NForm :model="ruleForm" label-placement="left" label-width="140">
-        <NFormItem :label="$t('common.name')"><NInput v-model:value="ruleForm.name" /></NFormItem>
-        <NFormItem :label="$t('common.region')"><NInput v-model:value="ruleForm.region" /></NFormItem>
-        <NFormItem :label="$t('page.pricing.markupMultiplier')"><NInputNumber v-model:value="ruleForm.markup_multiplier" :min="0" :step="0.01" style="width:100%" /></NFormItem>
-        <NFormItem :label="$t('page.pricing.fixedShippingFee')"><NInputNumber v-model:value="ruleForm.fixed_shipping_fee" :min="0" :step="0.01" style="width:100%" /></NFormItem>
-        <NFormItem :label="$t('common.priority')"><NInputNumber v-model:value="ruleForm.priority" style="width:100%" /></NFormItem>
-        <NFormItem :label="$t('common.active')"><NSwitch v-model:value="ruleForm.is_active" /></NFormItem>
-        <NFormItem :label="$t('common.default')"><NSwitch v-model:value="ruleForm.is_default" /></NFormItem>
-      </NForm>
-      <div v-if="modalError" class="text-red-500 text-sm mt-2">{{ modalError }}</div>
-      <template #footer>
-        <NSpace justify="end">
-          <NButton @click="showRuleModal = false">{{ $t('common.cancel') }}</NButton>
-          <NButton type="primary" :loading="modalLoading" @click="saveRule">{{ $t('common.save') }}</NButton>
-        </NSpace>
-      </template>
-    </NModal>
-
-    <!-- Promo Modal -->
-    <NModal v-model:show="showPromoModal" preset="card" :title="$t('page.pricing.promotions')" style="width:480px">
-      <NForm :model="promoForm" label-placement="left" label-width="140">
-        <NFormItem :label="$t('common.name')"><NInput v-model:value="promoForm.name" /></NFormItem>
-        <NFormItem :label="$t('common.type')">
-          <NSelect v-model:value="promoForm.type" :options="promoTypeOptions" />
-        </NFormItem>
-        <NFormItem :label="$t('common.regionsComma')"><NInput v-model:value="promoRegions" @update:value="updatePromoRegions" /></NFormItem>
-        <NFormItem :label="$t('common.categoriesComma')"><NInput v-model:value="promoCategories" @update:value="updatePromoCats" /></NFormItem>
-        <NFormItem :label="$t('common.start')"><NInput v-model:value="promoForm.start_date" /></NFormItem>
-        <NFormItem :label="$t('common.end')"><NInput v-model:value="promoForm.end_date" /></NFormItem>
-        <NFormItem :label="$t('common.active')"><NSwitch v-model:value="promoForm.is_active" /></NFormItem>
-      </NForm>
-      <div v-if="modalError" class="text-red-500 text-sm mt-2">{{ modalError }}</div>
-      <template #footer>
-        <NSpace justify="end">
-          <NButton @click="showPromoModal = false">{{ $t('common.cancel') }}</NButton>
-          <NButton type="primary" :loading="modalLoading" @click="savePromo">{{ $t('common.save') }}</NButton>
-        </NSpace>
-      </template>
-    </NModal>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import { ref, onMounted, h } from 'vue';
@@ -219,3 +131,91 @@ async function calculate() {
 
 onMounted(() => { fetchRules(); fetchPromos(); });
 </script>
+
+<template>
+  <div class="flex flex-col gap-4">
+    <NTabs v-model:value="tab" type="line">
+      <NTabPane name="rules" :tab="$t('page.pricing.pricingRule')">
+        <div class="flex flex-col gap-4 pt-2">
+          <div class="flex justify-between items-center">
+            <span class="text-sm text-[var(--n-text-color-3)]">{{ rules.length }} rule(s)</span>
+            <NButton type="primary" size="small" @click="openRuleModal()">{{ $t('page.pricing.addRule') }}</NButton>
+          </div>
+          <NDataTable :columns="ruleColumns" :data="rules" :bordered="false" size="small" />
+        </div>
+      </NTabPane>
+
+      <NTabPane name="promotions" :tab="$t('page.pricing.promotions')">
+        <div class="flex flex-col gap-4 pt-2">
+          <div class="flex justify-between items-center">
+            <span class="text-sm text-[var(--n-text-color-3)]">{{ $t('page.pricing.promoCount', { count: promotions.length }) }}</span>
+            <NButton type="primary" size="small" @click="openPromoModal()">{{ $t('common.add') }}</NButton>
+          </div>
+          <NDataTable :columns="promoColumns" :data="promotions" :bordered="false" size="small" />
+        </div>
+      </NTabPane>
+
+      <NTabPane name="calculator" :tab="$t('page.pricing.priceCalculator')">
+        <NCard :title="$t('page.pricing.priceCalculator')" size="small" style="max-width:480px" class="mt-2">
+          <div class="flex flex-col gap-3">
+            <NFormItem :label="$t('page.pricing.productId')"><NInput v-model:value="calc.product_id" /></NFormItem>
+            <NFormItem :label="$t('page.pricing.costPrice')"><NInputNumber v-model:value="calc.cost_price" :min="0" :step="0.01" style="width:100%" /></NFormItem>
+            <NFormItem :label="$t('common.region')">
+              <NSelect v-model:value="calc.region" :options="regionOpts" />
+            </NFormItem>
+            <NFormItem :label="$t('page.pricing.overridePrice')"><NInputNumber v-model:value="calc.override_price" :min="0" :step="0.01" style="width:100%" /></NFormItem>
+            <NButton type="primary" :loading="calcLoading" @click="calculate">Calculate</NButton>
+          </div>
+          <div v-if="calcResult" class="mt-4 p-3 bg-[var(--n-color-embedded)] rounded-md text-sm">
+            <div v-for="(v, k) in calcResult" :key="k" class="flex justify-between py-1">
+              <span class="text-[var(--n-text-color-3)]">{{ k }}</span>
+              <span class="font-semibold">{{ typeof v === 'number' ? `$${(v as number).toFixed(2)}` : v }}</span>
+            </div>
+          </div>
+        </NCard>
+      </NTabPane>
+    </NTabs>
+
+    <!-- Rule Modal -->
+    <NModal v-model:show="showRuleModal" preset="card" :title="$t('page.pricing.pricingRule')" style="width:480px">
+      <NForm :model="ruleForm" label-placement="left" label-width="140">
+        <NFormItem :label="$t('common.name')"><NInput v-model:value="ruleForm.name" /></NFormItem>
+        <NFormItem :label="$t('common.region')"><NInput v-model:value="ruleForm.region" /></NFormItem>
+        <NFormItem :label="$t('page.pricing.markupMultiplier')"><NInputNumber v-model:value="ruleForm.markup_multiplier" :min="0" :step="0.01" style="width:100%" /></NFormItem>
+        <NFormItem :label="$t('page.pricing.fixedShippingFee')"><NInputNumber v-model:value="ruleForm.fixed_shipping_fee" :min="0" :step="0.01" style="width:100%" /></NFormItem>
+        <NFormItem :label="$t('common.priority')"><NInputNumber v-model:value="ruleForm.priority" style="width:100%" /></NFormItem>
+        <NFormItem :label="$t('common.active')"><NSwitch v-model:value="ruleForm.is_active" /></NFormItem>
+        <NFormItem :label="$t('common.default')"><NSwitch v-model:value="ruleForm.is_default" /></NFormItem>
+      </NForm>
+      <div v-if="modalError" class="text-red-500 text-sm mt-2">{{ modalError }}</div>
+      <template #footer>
+        <NSpace justify="end">
+          <NButton @click="showRuleModal = false">{{ $t('common.cancel') }}</NButton>
+          <NButton type="primary" :loading="modalLoading" @click="saveRule">{{ $t('common.save') }}</NButton>
+        </NSpace>
+      </template>
+    </NModal>
+
+    <!-- Promo Modal -->
+    <NModal v-model:show="showPromoModal" preset="card" :title="$t('page.pricing.promotions')" style="width:480px">
+      <NForm :model="promoForm" label-placement="left" label-width="140">
+        <NFormItem :label="$t('common.name')"><NInput v-model:value="promoForm.name" /></NFormItem>
+        <NFormItem :label="$t('common.type')">
+          <NSelect v-model:value="promoForm.type" :options="promoTypeOptions" />
+        </NFormItem>
+        <NFormItem :label="$t('common.regionsComma')"><NInput v-model:value="promoRegions" @update:value="updatePromoRegions" /></NFormItem>
+        <NFormItem :label="$t('common.categoriesComma')"><NInput v-model:value="promoCategories" @update:value="updatePromoCats" /></NFormItem>
+        <NFormItem :label="$t('common.start')"><NInput v-model:value="promoForm.start_date" /></NFormItem>
+        <NFormItem :label="$t('common.end')"><NInput v-model:value="promoForm.end_date" /></NFormItem>
+        <NFormItem :label="$t('common.active')"><NSwitch v-model:value="promoForm.is_active" /></NFormItem>
+      </NForm>
+      <div v-if="modalError" class="text-red-500 text-sm mt-2">{{ modalError }}</div>
+      <template #footer>
+        <NSpace justify="end">
+          <NButton @click="showPromoModal = false">{{ $t('common.cancel') }}</NButton>
+          <NButton type="primary" :loading="modalLoading" @click="savePromo">{{ $t('common.save') }}</NButton>
+        </NSpace>
+      </template>
+    </NModal>
+  </div>
+</template>

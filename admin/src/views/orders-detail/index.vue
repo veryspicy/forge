@@ -1,3 +1,101 @@
+<script setup lang="ts">
+import { ref, onMounted, h } from 'vue';
+import { useRoute } from 'vue-router';
+import {
+  NButton, NCard, NDataTable, NEmpty, NFormItem, NInput, NInputNumber,
+  NModal, NSelect, NSpace, NSpin, NTag,
+} from 'naive-ui';
+import { useI18n } from 'vue-i18n';
+import { get, post } from '@/service/api/helper';
+import type { DataTableColumns } from 'naive-ui';
+
+const route = useRoute();
+const { t } = useI18n();
+const order = ref<any>(null);
+const loading = ref(true);
+
+const showReview = ref(false);
+const reviewApprove = ref(true);
+const reviewReason = ref('');
+const reviewBy = ref('');
+const showProcure = ref(false);
+const procureSupplierId = ref('');
+const procureSku = ref('');
+const procureCost = ref(0);
+const showShip = ref(false);
+const shipTracking = ref('');
+const shipCarrier = ref('');
+const showRefund = ref(false);
+const refundReason = ref('');
+const actionError = ref('');
+const actionLoading = ref(false);
+
+function statusType(s: string): any {
+  const map: Record<string, any> = { PAID: 'info', PROCESSING: 'warning', PROCURING: 'warning', PROCURE_FAILED: 'error', SHIPPED: 'info', DELIVERED: 'success', CANCELLED: 'default', REFUNDED: 'error' };
+  return map[s] || 'default';
+}
+
+const itemColumns: DataTableColumns<any> = [
+  { title: t('page.ordersDetail.productId'), key: 'product_id', render: row => (row.product_id || '').slice(0, 8) + '...' },
+  { title: t('common.name'), key: 'name' },
+  { title: t('common.sku'), key: 'sku' },
+  { title: t('page.products.price'), key: 'price', render: row => `$${row.price}` },
+  { title: t('common.quantity'), key: 'quantity' },
+  { title: t('page.ordersDetail.subtotal'), key: 'subtotal', render: row => `$${row.subtotal}` },
+];
+
+function openReview(approve: boolean) { reviewApprove.value = approve; reviewReason.value = ''; reviewBy.value = ''; actionError.value = ''; showReview.value = true; }
+function openProcure() { procureSupplierId.value = order.value?.procurement_info?.supplier_id || ''; procureSku.value = order.value?.procurement_info?.supplier_sku || ''; procureCost.value = order.value?.procurement_info?.cost || 0; actionError.value = ''; showProcure.value = true; }
+function openShip() { shipTracking.value = ''; shipCarrier.value = ''; actionError.value = ''; showShip.value = true; }
+function openRefund() { refundReason.value = ''; actionError.value = ''; showRefund.value = true; }
+
+async function doReview() {
+  actionLoading.value = true; actionError.value = '';
+  try {
+    await post(`/api/admin/v1/orders/${route.params.id}/review`, { approved: reviewApprove.value, reason: reviewReason.value, reviewed_by: reviewBy.value });
+    showReview.value = false; await loadOrder();
+  } catch (e: any) { actionError.value = e.response?.data?.detail || t('page.ordersDetail.reviewFailed'); }
+  finally { actionLoading.value = false; }
+}
+
+async function doProcure() {
+  actionLoading.value = true; actionError.value = '';
+  try {
+    await post(`/api/admin/v1/orders/${route.params.id}/procure`, { supplier_id: procureSupplierId.value, supplier_sku: procureSku.value, cost: procureCost.value });
+    showProcure.value = false; await loadOrder();
+  } catch (e: any) { actionError.value = e.response?.data?.detail || t('page.ordersDetail.procurementFailed'); }
+  finally { actionLoading.value = false; }
+}
+
+async function doShip() {
+  actionLoading.value = true; actionError.value = '';
+  try {
+    await post(`/api/admin/v1/orders/${route.params.id}/ship`, { tracking_number: shipTracking.value, carrier: shipCarrier.value });
+    showShip.value = false; await loadOrder();
+  } catch (e: any) { actionError.value = e.response?.data?.detail || t('page.ordersDetail.shipFailed'); }
+  finally { actionLoading.value = false; }
+}
+
+async function doRefund() {
+  actionLoading.value = true; actionError.value = '';
+  try {
+    await post(`/api/admin/v1/orders/${route.params.id}/refund`, { reason: refundReason.value });
+    showRefund.value = false; await loadOrder();
+  } catch (e: any) { actionError.value = e.response?.data?.detail || t('page.ordersDetail.refundFailed'); }
+  finally { actionLoading.value = false; }
+}
+
+async function loadOrder() {
+  try {
+    const res = await get(`/api/admin/v1/orders/${route.params.id}`);
+    order.value = res.data;
+  } catch (e) { console.error(e); }
+  finally { loading.value = false; }
+}
+
+onMounted(loadOrder);
+</script>
+
 <template>
   <div class="flex flex-col gap-4">
     <NSpin :show="loading">
@@ -137,100 +235,3 @@
     </NModal>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, onMounted, h } from 'vue';
-import { useRoute } from 'vue-router';
-import {
-  NButton, NCard, NDataTable, NEmpty, NFormItem, NInput, NInputNumber,
-  NModal, NSelect, NSpace, NSpin, NTag,
-} from 'naive-ui';
-import { get, post } from '@/service/api/helper';
-import type { DataTableColumns } from 'naive-ui';
-
-const route = useRoute();
-const { t } = useI18n();
-const order = ref<any>(null);
-const loading = ref(true);
-
-const showReview = ref(false);
-const reviewApprove = ref(true);
-const reviewReason = ref('');
-const reviewBy = ref('');
-const showProcure = ref(false);
-const procureSupplierId = ref('');
-const procureSku = ref('');
-const procureCost = ref(0);
-const showShip = ref(false);
-const shipTracking = ref('');
-const shipCarrier = ref('');
-const showRefund = ref(false);
-const refundReason = ref('');
-const actionError = ref('');
-const actionLoading = ref(false);
-
-function statusType(s: string): any {
-  const map: Record<string, any> = { PAID: 'info', PROCESSING: 'warning', PROCURING: 'warning', PROCURE_FAILED: 'error', SHIPPED: 'info', DELIVERED: 'success', CANCELLED: 'default', REFUNDED: 'error' };
-  return map[s] || 'default';
-}
-
-const itemColumns: DataTableColumns<any> = [
-  { title: t('page.ordersDetail.productId'), key: 'product_id', render: row => (row.product_id || '').slice(0, 8) + '...' },
-  { title: t('common.name'), key: 'name' },
-  { title: t('common.sku'), key: 'sku' },
-  { title: t('page.products.price'), key: 'price', render: row => `$${row.price}` },
-  { title: t('common.quantity'), key: 'quantity' },
-  { title: t('page.ordersDetail.subtotal'), key: 'subtotal', render: row => `$${row.subtotal}` },
-];
-
-function openReview(approve: boolean) { reviewApprove.value = approve; reviewReason.value = ''; reviewBy.value = ''; actionError.value = ''; showReview.value = true; }
-function openProcure() { procureSupplierId.value = order.value?.procurement_info?.supplier_id || ''; procureSku.value = order.value?.procurement_info?.supplier_sku || ''; procureCost.value = order.value?.procurement_info?.cost || 0; actionError.value = ''; showProcure.value = true; }
-function openShip() { shipTracking.value = ''; shipCarrier.value = ''; actionError.value = ''; showShip.value = true; }
-function openRefund() { refundReason.value = ''; actionError.value = ''; showRefund.value = true; }
-
-async function doReview() {
-  actionLoading.value = true; actionError.value = '';
-  try {
-    await post(`/api/admin/v1/orders/${route.params.id}/review`, { approved: reviewApprove.value, reason: reviewReason.value, reviewed_by: reviewBy.value });
-    showReview.value = false; await loadOrder();
-  } catch (e: any) { actionError.value = e.response?.data?.detail || t('page.ordersDetail.reviewFailed'); }
-  finally { actionLoading.value = false; }
-}
-
-async function doProcure() {
-  actionLoading.value = true; actionError.value = '';
-  try {
-    await post(`/api/admin/v1/orders/${route.params.id}/procure`, { supplier_id: procureSupplierId.value, supplier_sku: procureSku.value, cost: procureCost.value });
-    showProcure.value = false; await loadOrder();
-  } catch (e: any) { actionError.value = e.response?.data?.detail || t('page.ordersDetail.procurementFailed'); }
-  finally { actionLoading.value = false; }
-}
-
-async function doShip() {
-  actionLoading.value = true; actionError.value = '';
-  try {
-    await post(`/api/admin/v1/orders/${route.params.id}/ship`, { tracking_number: shipTracking.value, carrier: shipCarrier.value });
-    showShip.value = false; await loadOrder();
-  } catch (e: any) { actionError.value = e.response?.data?.detail || t('page.ordersDetail.shipFailed'); }
-  finally { actionLoading.value = false; }
-}
-
-async function doRefund() {
-  actionLoading.value = true; actionError.value = '';
-  try {
-    await post(`/api/admin/v1/orders/${route.params.id}/refund`, { reason: refundReason.value });
-    showRefund.value = false; await loadOrder();
-  } catch (e: any) { actionError.value = e.response?.data?.detail || t('page.ordersDetail.refundFailed'); }
-  finally { actionLoading.value = false; }
-}
-
-async function loadOrder() {
-  try {
-    const res = await get(`/api/admin/v1/orders/${route.params.id}`);
-    order.value = res.data;
-  } catch (e) { console.error(e); }
-  finally { loading.value = false; }
-}
-
-onMounted(loadOrder);
-</script>

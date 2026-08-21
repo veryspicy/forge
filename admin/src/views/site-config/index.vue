@@ -1,114 +1,3 @@
-<template>
-  <div class="site-config-page flex h-full gap-0" style="min-height: calc(100vh - 180px)">
-    <!-- 左侧面板：站点配置列表 -->
-    <div v-if="leftPanelVisible" class="flex w-[260px] shrink-0 flex-col overflow-hidden rounded bg-white shadow-sm dark:bg-dark">
-      <div class="flex items-center gap-2 border-b border-gray-100 border-solid px-4 py-3 dark:border-gray-700">
-        <SvgIcon icon="mdi:cog-outline" class="text-18px text-green-600" />
-        <span class="text-sm font-semibold">站点配置</span>
-      </div>
-      <div class="flex flex-1 flex-col gap-1 overflow-y-auto p-2">
-        <div
-          v-for="item in siteConfigItems"
-          :key="item.key"
-          class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm transition-colors"
-          :class="store.activeSiteConfigItem === item.key
-            ? 'bg-green-50 text-green-700 font-medium dark:bg-green-900/20 dark:text-green-400'
-            : 'hover:bg-gray-50 dark:hover:bg-gray-800'"
-          @click="store.selectSiteConfigItem(item.key)"
-        >
-          <SvgIcon :icon="item.icon" class="text-14px shrink-0" />
-          <span>{{ item.label }}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- 中间区域：预览 iframe -->
-    <div class="flex flex-1 flex-col overflow-hidden rounded bg-white dark:bg-dark">
-      <!-- 顶栏：面板切换 + URL + 设备切换 + 元素选择 -->
-      <div class="flex items-center justify-between border-b border-gray-100 border-solid px-4 py-2 dark:border-gray-700">
-        <div class="flex items-center gap-2">
-          <NButton size="small" quaternary @click="leftPanelVisible = !leftPanelVisible">
-            <template #icon>
-              <SvgIcon :icon="leftPanelVisible ? 'mdi:chevron-double-left' : 'mdi:chevron-double-right'" class="text-16px" />
-            </template>
-          </NButton>
-          <NTooltip trigger="hover">
-            <template #trigger>
-              <NButton size="small" quaternary @click="openInBrowser">
-                <template #icon><SvgIcon icon="mdi:open-in-new" class="text-16px" /></template>
-              </NButton>
-            </template>
-            在浏览器中打开
-          </NTooltip>
-          <NTooltip trigger="hover">
-            <template #trigger>
-              <NButton size="small" quaternary :type="elementSelectMode ? 'primary' : 'default'" @click="toggleElementSelect">
-                <template #icon><SvgIcon icon="mdi:cursor-default-click" class="text-16px" /></template>
-              </NButton>
-            </template>
-            开启选择元素模式
-          </NTooltip>
-          <NTooltip trigger="hover">
-            <template #trigger>
-              <NButton size="small" quaternary @click="refreshIframe">
-                <template #icon><SvgIcon icon="mdi:refresh" class="text-16px" /></template>
-              </NButton>
-            </template>
-            刷新预览 iframe
-          </NTooltip>
-        </div>
-        <div class="flex items-center gap-1">
-          <NButton size="small" :type="device === 'desktop' ? 'primary' : 'default'" quaternary @click="device = 'desktop'">
-            <template #icon><SvgIcon icon="mdi:monitor" /></template>
-          </NButton>
-          <NButton size="small" :type="device === 'tablet' ? 'primary' : 'default'" quaternary @click="device = 'tablet'">
-            <template #icon><SvgIcon icon="mdi:tablet" /></template>
-          </NButton>
-          <NButton size="small" :type="device === 'mobile' ? 'primary' : 'default'" quaternary @click="device = 'mobile'">
-            <template #icon><SvgIcon icon="mdi:cellphone" /></template>
-          </NButton>
-        </div>
-        <NButton size="small" quaternary @click="panelVisible = !panelVisible">
-          <template #icon>
-            <SvgIcon :icon="panelVisible ? 'mdi:chevron-double-right' : 'mdi:chevron-double-left'" class="text-16px" />
-          </template>
-        </NButton>
-      </div>
-
-      <!-- iframe 预览 -->
-      <div class="flex-1 overflow-hidden">
-        <div class="h-full flex justify-center overflow-auto bg-gray-100 p-0 dark:bg-true-gray-900">
-          <div class="overflow-hidden bg-white shadow-lg transition-all duration-300" :class="deviceFrameClass">
-            <iframe
-              :key="iframeKey"
-              ref="iframeRef"
-              :src="iframeSrc"
-              class="h-full w-full border-none"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox"
-              @load="onIframeLoad"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 右侧拖拽分隔条 -->
-    <div
-      v-if="panelVisible"
-      class="group flex w-1 shrink-0 cursor-col-resize items-center justify-center bg-transparent"
-      title="拖拽调整面板宽度 (260~520px)"
-      @mousedown="startPanelResize"
-    >
-      <div class="h-10 w-0.5 rounded bg-gray-200 transition-colors group-hover:bg-green-400 dark:bg-gray-700" />
-    </div>
-
-    <!-- 右侧面板：站点配置编辑表单 / 选中元素信息 -->
-    <div v-if="panelVisible" class="shrink-0 overflow-hidden" :style="{ width: panelWidth + 'px' }">
-      <PropertyPanel />
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { NButton, NTooltip } from 'naive-ui';
@@ -394,3 +283,114 @@ onBeforeUnmount(() => {
   }
 });
 </script>
+
+<template>
+  <div class="site-config-page flex h-full gap-0" style="min-height: calc(100vh - 180px)">
+    <!-- 左侧面板：站点配置列表 -->
+    <div v-if="leftPanelVisible" class="flex w-[260px] shrink-0 flex-col overflow-hidden rounded bg-white shadow-sm dark:bg-dark">
+      <div class="flex items-center gap-2 border-b border-gray-100 border-solid px-4 py-3 dark:border-gray-700">
+        <SvgIcon icon="mdi:cog-outline" class="text-18px text-green-600" />
+        <span class="text-sm font-semibold">站点配置</span>
+      </div>
+      <div class="flex flex-1 flex-col gap-1 overflow-y-auto p-2">
+        <div
+          v-for="item in siteConfigItems"
+          :key="item.key"
+          class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm transition-colors"
+          :class="store.activeSiteConfigItem === item.key
+            ? 'bg-green-50 text-green-700 font-medium dark:bg-green-900/20 dark:text-green-400'
+            : 'hover:bg-gray-50 dark:hover:bg-gray-800'"
+          @click="store.selectSiteConfigItem(item.key)"
+        >
+          <SvgIcon :icon="item.icon" class="text-14px shrink-0" />
+          <span>{{ item.label }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 中间区域：预览 iframe -->
+    <div class="flex flex-1 flex-col overflow-hidden rounded bg-white dark:bg-dark">
+      <!-- 顶栏：面板切换 + URL + 设备切换 + 元素选择 -->
+      <div class="flex items-center justify-between border-b border-gray-100 border-solid px-4 py-2 dark:border-gray-700">
+        <div class="flex items-center gap-2">
+          <NButton size="small" quaternary @click="leftPanelVisible = !leftPanelVisible">
+            <template #icon>
+              <SvgIcon :icon="leftPanelVisible ? 'mdi:chevron-double-left' : 'mdi:chevron-double-right'" class="text-16px" />
+            </template>
+          </NButton>
+          <NTooltip trigger="hover">
+            <template #trigger>
+              <NButton size="small" quaternary @click="openInBrowser">
+                <template #icon><SvgIcon icon="mdi:open-in-new" class="text-16px" /></template>
+              </NButton>
+            </template>
+            在浏览器中打开
+          </NTooltip>
+          <NTooltip trigger="hover">
+            <template #trigger>
+              <NButton size="small" quaternary :type="elementSelectMode ? 'primary' : 'default'" @click="toggleElementSelect">
+                <template #icon><SvgIcon icon="mdi:cursor-default-click" class="text-16px" /></template>
+              </NButton>
+            </template>
+            开启选择元素模式
+          </NTooltip>
+          <NTooltip trigger="hover">
+            <template #trigger>
+              <NButton size="small" quaternary @click="refreshIframe">
+                <template #icon><SvgIcon icon="mdi:refresh" class="text-16px" /></template>
+              </NButton>
+            </template>
+            刷新预览 iframe
+          </NTooltip>
+        </div>
+        <div class="flex items-center gap-1">
+          <NButton size="small" :type="device === 'desktop' ? 'primary' : 'default'" quaternary @click="device = 'desktop'">
+            <template #icon><SvgIcon icon="mdi:monitor" /></template>
+          </NButton>
+          <NButton size="small" :type="device === 'tablet' ? 'primary' : 'default'" quaternary @click="device = 'tablet'">
+            <template #icon><SvgIcon icon="mdi:tablet" /></template>
+          </NButton>
+          <NButton size="small" :type="device === 'mobile' ? 'primary' : 'default'" quaternary @click="device = 'mobile'">
+            <template #icon><SvgIcon icon="mdi:cellphone" /></template>
+          </NButton>
+        </div>
+        <NButton size="small" quaternary @click="panelVisible = !panelVisible">
+          <template #icon>
+            <SvgIcon :icon="panelVisible ? 'mdi:chevron-double-right' : 'mdi:chevron-double-left'" class="text-16px" />
+          </template>
+        </NButton>
+      </div>
+
+      <!-- iframe 预览 -->
+      <div class="flex-1 overflow-hidden">
+        <div class="h-full flex justify-center overflow-auto bg-gray-100 p-0 dark:bg-true-gray-900">
+          <div class="overflow-hidden bg-white shadow-lg transition-all duration-300" :class="deviceFrameClass">
+            <iframe
+              :key="iframeKey"
+              ref="iframeRef"
+              :src="iframeSrc"
+              class="h-full w-full border-none"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox"
+              @load="onIframeLoad"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右侧拖拽分隔条 -->
+    <div
+      v-if="panelVisible"
+      class="group flex w-1 shrink-0 cursor-col-resize items-center justify-center bg-transparent"
+      title="拖拽调整面板宽度 (260~520px)"
+      @mousedown="startPanelResize"
+    >
+      <div class="h-10 w-0.5 rounded bg-gray-200 transition-colors group-hover:bg-green-400 dark:bg-gray-700" />
+    </div>
+
+    <!-- 右侧面板：站点配置编辑表单 / 选中元素信息 -->
+    <div v-if="panelVisible" class="shrink-0 overflow-hidden" :style="{ width: panelWidth + 'px' }">
+      <PropertyPanel />
+    </div>
+  </div>
+</template>

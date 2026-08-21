@@ -147,6 +147,8 @@ class ProductService:
             "is_main": is_main or len(images) == 0,
             "alt": alt,
         }
+        if image.get("resource_id"):
+            entry["resource_id"] = image["resource_id"]
         images.append(entry)
         return await SQLAlchemyProductRepository.update_images(db, product, images)
 

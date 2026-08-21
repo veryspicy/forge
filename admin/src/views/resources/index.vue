@@ -92,35 +92,36 @@ let smoothScrollCleanup: (() => void) | null = null;
 function bindSmoothScroll(el: HTMLElement | null) {
   smoothScrollCleanup?.();
   if (!el) return;
-  let current = el.scrollTop;
-  let target = el.scrollTop;
+  const scrollEl = el;
+  let current = scrollEl.scrollTop;
+  let target = scrollEl.scrollTop;
   let rafId: number | null = null;
 
   function onWheel(e: WheelEvent) {
     e.preventDefault();
     const maxStep = 80; // 单次滚轮最大滚动距离（px），控制滑动速度
     const delta = Math.max(-maxStep, Math.min(maxStep, e.deltaY));
-    const maxScroll = el.scrollHeight - el.clientHeight;
+    const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
     target = Math.max(0, Math.min(target + delta, maxScroll));
     if (rafId !== null) return;
-    current = el.scrollTop;
+    current = scrollEl.scrollTop;
     const tick = () => {
       const diff = target - current;
       if (Math.abs(diff) < 0.5) {
-        el.scrollTop = target;
+        scrollEl.scrollTop = target;
         rafId = null;
         return;
       }
       current += diff * 0.18; // 缓动系数：越小越平滑
-      el.scrollTop = current;
+      scrollEl.scrollTop = current;
       rafId = requestAnimationFrame(tick);
     };
     rafId = requestAnimationFrame(tick);
   }
 
-  el.addEventListener('wheel', onWheel, { passive: false });
+  scrollEl.addEventListener('wheel', onWheel, { passive: false });
   smoothScrollCleanup = () => {
-    el.removeEventListener('wheel', onWheel);
+    scrollEl.removeEventListener('wheel', onWheel);
     if (rafId !== null) cancelAnimationFrame(rafId);
   };
 }
@@ -1007,19 +1008,19 @@ onBeforeUnmount(() => {
       <!-- 工具栏 -->
       <div class="flex items-center justify-between gap-2 border-b border-gray-100 border-solid px-4 py-3 dark:border-gray-700">
         <div class="flex items-center gap-2">
-            <div class="flex items-center">
-              <NDropdown trigger="click" :options="folderOption" @select="onFolderSelect" placement="bottom-start" :dropdown-props="{ class: 'upload-folder-menu' }">
-                <div class="flex items-center">
-                  <NButton type="primary" size="small" :loading="uploading" class="!rounded-r-none" @click.stop="triggerUpload">
-                    <template #icon><SvgIcon icon="mdi:upload" class="text-16px" /></template>
-                    上传
-                  </NButton>
-                  <NButton type="primary" size="small" :loading="uploading" class="!rounded-l-none">
-                    <template #icon><SvgIcon icon="mdi:chevron-down" class="text-16px" /></template>
-                  </NButton>
-                </div>
-              </NDropdown>
-            </div>
+          <div class="flex items-center">
+            <NDropdown trigger="click" :options="folderOption" placement="bottom-start" :dropdown-props="{ class: 'upload-folder-menu' }" @select="onFolderSelect">
+              <div class="flex items-center">
+                <NButton type="primary" size="small" :loading="uploading" class="!rounded-r-none" @click.stop="triggerUpload">
+                  <template #icon><SvgIcon icon="mdi:upload" class="text-16px" /></template>
+                  上传
+                </NButton>
+                <NButton type="primary" size="small" :loading="uploading" class="!rounded-l-none">
+                  <template #icon><SvgIcon icon="mdi:chevron-down" class="text-16px" /></template>
+                </NButton>
+              </div>
+            </NDropdown>
+          </div>
           <NButton size="small" type="error" secondary :disabled="!selectedIds.size" @click="handleDeleteBySelection">
             <template #icon><SvgIcon :icon="selectedIds.size > 1 ? 'mdi:delete-sweep-outline' : 'mdi:delete-outline'" class="text-16px" /></template>
             {{ selectedIds.size > 1 ? '批量删除' : '删除' }}
@@ -1094,70 +1095,72 @@ onBeforeUnmount(() => {
           <span>暂无资源，点击右上角上传</span>
         </div>
         <div v-else class="grid h-full grid-cols-4 grid-rows-6 gap-3 xl:grid-cols-5">
+          <div
+            v-for="r in items"
+            :key="r.id"
+            draggable="true"
+            class="group relative flex min-h-0 cursor-pointer flex-col overflow-hidden rounded-lg border border-gray-100 border-solid dark:border-gray-700"
+            :class="currentDetail?.id === r.id ? 'ring-2 ring-green-500' : selectedIds.has(r.id) ? 'ring-2 ring-green-400' : ''"
+            @click="selectedIds.size > 1 ? toggleSelect(r.id) : selectDetail(r)"
+            @dragstart="onCardDragStart($event, r)"
+          >
+            <div class="flex min-h-0 flex-1 items-center justify-center bg-gray-50 dark:bg-gray-800">
+              <img v-if="isPreviewableImage(r)" :src="r.thumb_url || r.url" :data-origin="r.url" class="h-full w-full object-cover" loading="lazy" decoding="async" @error="(e) => { const el = e.target as HTMLImageElement; if (el.src !== el.dataset.origin) el.src = el.dataset.origin || ''; }" />
+              <div v-else-if="isPreviewableVideo(r)" class="relative h-full w-full">
+                <video :src="r.url" preload="metadata" muted playsinline class="h-full w-full object-cover" />
+                <span class="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <SvgIcon icon="mdi:play-circle-outline" class="text-24px text-white/85 drop-shadow" />
+                </span>
+              </div>
+              <div v-else-if="isPreviewableAudio(r)" class="flex flex-col items-center text-gray-400">
+                <SvgIcon icon="mdi:music-note" class="text-30px" />
+                <span class="mt-1 text-xs">音频</span>
+              </div>
+              <div v-else class="flex flex-col items-center text-gray-400">
+                <SvgIcon icon="mdi:file-document-outline" class="text-30px" />
+                <span class="mt-1 text-xs">文档</span>
+              </div>
+            </div>
             <div
-              v-for="r in items"
-              :key="r.id"
-              draggable="true"
-              class="group relative flex min-h-0 cursor-pointer flex-col overflow-hidden rounded-lg border border-gray-100 border-solid dark:border-gray-700"
-              :class="currentDetail?.id === r.id ? 'ring-2 ring-green-500' : selectedIds.has(r.id) ? 'ring-2 ring-green-400' : ''"
-              @click="selectedIds.size > 1 ? toggleSelect(r.id) : selectDetail(r)"
-              @dragstart="onCardDragStart($event, r)"
+              v-if="isPreviewableImage(r) || isPreviewableVideo(r) || isPreviewableAudio(r)"
+              class="absolute top-9 right-1.5 z-10 hidden h-6 w-6 cursor-zoom-in items-center justify-center rounded-full bg-black/50 text-white group-hover:flex hover:bg-black/70"
+              @click.stop="openPreview(r)"
             >
-              <div class="flex min-h-0 flex-1 items-center justify-center bg-gray-50 dark:bg-gray-800">
-                <img v-if="isPreviewableImage(r)" :src="r.thumb_url || r.url" :data-origin="r.url" class="h-full w-full object-cover" loading="lazy" decoding="async" @error="(e) => { const el = e.target as HTMLImageElement; if (el.src !== el.dataset.origin) el.src = el.dataset.origin || ''; }" />
-                <div v-else-if="isPreviewableVideo(r)" class="relative h-full w-full">
-                  <video :src="r.url" preload="metadata" muted playsinline class="h-full w-full object-cover" />
-                  <span class="pointer-events-none absolute inset-0 flex items-center justify-center">
-                    <SvgIcon icon="mdi:play-circle-outline" class="text-24px text-white/85 drop-shadow" />
-                  </span>
-                </div>
-                <div v-else-if="isPreviewableAudio(r)" class="flex flex-col items-center text-gray-400">
-                  <SvgIcon icon="mdi:music-note" class="text-30px" />
-                  <span class="mt-1 text-xs">音频</span>
-                </div>
-                <div v-else class="flex flex-col items-center text-gray-400">
-                  <SvgIcon icon="mdi:file-document-outline" class="text-30px" />
-                  <span class="mt-1 text-xs">文档</span>
-                </div>
-              </div>
-              <div
-                v-if="isPreviewableImage(r) || isPreviewableVideo(r) || isPreviewableAudio(r)"
-                class="absolute top-9 right-1.5 z-10 hidden h-6 w-6 cursor-zoom-in items-center justify-center rounded-full bg-black/50 text-white group-hover:flex hover:bg-black/70"
-                @click.stop="openPreview(r)"
-              >
-                <SvgIcon icon="mdi:magnify-plus-outline" class="text-14px" />
-              </div>
-              <div class="truncate px-2 py-1.5 text-xs" :title="r.name">{{ r.name }}</div>
-              <div
-                v-if="r.tags?.length"
-                class="flex flex-wrap gap-1 px-2 pb-1.5"
-              >
-                <span
-                  v-for="t in r.tags.slice(0, 3)"
-                  :key="t"
-                  class="max-w-[80px] truncate rounded bg-blue-50 px-1 text-[10px] leading-4 text-blue-500 dark:bg-blue-900/30 dark:text-blue-300"
-                >#{{ t }}</span>
-                <span v-if="r.tags.length > 3" class="text-[10px] leading-4 text-gray-400">+{{ r.tags.length - 3 }}</span>
-              </div>
-              <div
-                class="absolute top-1.5 right-1.5 z-20 flex h-5 w-5 cursor-pointer items-center justify-center rounded border border-solid text-xs transition-colors"
-                :class="selectedIds.has(r.id)
-                  ? 'border-green-500 bg-green-500 text-white'
-                  : (r.ref_count ?? 0) > 0
-                    ? 'border-orange-400 bg-orange-50 text-orange-500 dark:bg-orange-900/30'
-                    : 'border-gray-300 bg-white text-gray-400 dark:border-gray-500 dark:bg-gray-700'"
-                :title="(r.ref_count ?? 0) > 0 ? `被引用 ${r.ref_count} 处，不可删除` : '选择'"
-                @click.stop="toggleSelect(r.id)"
-              >
-                <SvgIcon v-if="selectedIds.has(r.id)" icon="mdi:check" class="text-12px" />
-              </div>
-              <div
-                v-if="(r.ref_count ?? 0) > 0"
-                class="absolute bottom-1.5 left-1.5 z-10 rounded bg-orange-500/90 px-1 text-[10px] leading-4 text-white"
-                title="被引用资源，不可删除"
-              >引用 {{ r.ref_count }}</div>
+              <SvgIcon icon="mdi:magnify-plus-outline" class="text-14px" />
+            </div>
+            <div class="truncate px-2 py-1.5 text-xs" :title="r.name">{{ r.name }}</div>
+            <div
+              v-if="r.tags?.length"
+              class="flex flex-wrap gap-1 px-2 pb-1.5"
+            >
+              <span
+                v-for="t in r.tags.slice(0, 3)"
+                :key="t"
+                class="max-w-[80px] truncate rounded bg-blue-50 px-1 text-[10px] leading-4 text-blue-500 dark:bg-blue-900/30 dark:text-blue-300"
+              >#{{ t }}</span>
+              <span v-if="r.tags.length > 3" class="text-[10px] leading-4 text-gray-400">+{{ r.tags.length - 3 }}</span>
+            </div>
+            <div
+              class="absolute top-1.5 right-1.5 z-20 flex h-5 w-5 cursor-pointer items-center justify-center rounded border border-solid text-xs transition-colors"
+              :class="selectedIds.has(r.id)
+                ? 'border-green-500 bg-green-500 text-white'
+                : (r.ref_count ?? 0) > 0
+                  ? 'border-orange-400 bg-orange-50 text-orange-500 dark:bg-orange-900/30'
+                  : 'border-gray-300 bg-white text-gray-400 dark:border-gray-500 dark:bg-gray-700'"
+              :title="(r.ref_count ?? 0) > 0 ? `被引用 ${r.ref_count} 处，不可删除` : '选择'"
+              @click.stop="toggleSelect(r.id)"
+            >
+              <SvgIcon v-if="selectedIds.has(r.id)" icon="mdi:check" class="text-12px" />
+            </div>
+            <div
+              v-if="(r.ref_count ?? 0) > 0"
+              class="absolute bottom-1.5 left-1.5 z-10 rounded bg-orange-500/90 px-1 text-[10px] leading-4 text-white"
+              title="被引用资源，不可删除"
+            >
+              引用 {{ r.ref_count }}
             </div>
           </div>
+        </div>
       </div>
 
       <!-- 分页 -->

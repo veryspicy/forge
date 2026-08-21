@@ -1,18 +1,3 @@
-<template>
-  <div class="flex flex-col gap-4">
-    <div class="flex items-center gap-3">
-      <NInput v-model:value="search" :placeholder="$t('common.search')" style="width:220px" @keyup.enter="fetch" />
-      <NSelect v-model:value="statusFilter" :options="statusOptions" :placeholder="$t('page.orders.allStatus')" clearable style="width:160px" @update:value="fetch" />
-    </div>
-
-    <NDataTable :columns="columns" :data="orders" :loading="loading" :bordered="false" size="small" />
-
-    <div v-if="total > pageSize" class="flex justify-center">
-      <NPagination :page="page" :page-size="pageSize" :item-count="total" @update:page="goPage" />
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { ref, onMounted, h } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -71,3 +56,18 @@ function goPage(p: number) { page.value = p; fetch(); }
 
 onMounted(fetch);
 </script>
+
+<template>
+  <div class="flex flex-col gap-4">
+    <div class="flex items-center gap-3">
+      <NInput v-model:value="search" :placeholder="$t('common.search')" style="width:220px" @keyup.enter="fetch" />
+      <NSelect v-model:value="statusFilter" :options="statusOptions" :placeholder="$t('page.orders.allStatus')" clearable style="width:160px" @update:value="fetch" />
+    </div>
+
+    <NDataTable :columns="columns" :data="orders" :loading="loading" :bordered="false" size="small" />
+
+    <div v-if="total > pageSize" class="flex justify-center">
+      <NPagination :page="page" :page-size="pageSize" :item-count="total" @update:page="goPage" />
+    </div>
+  </div>
+</template>
