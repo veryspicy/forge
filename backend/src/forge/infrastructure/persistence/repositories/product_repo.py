@@ -95,23 +95,23 @@ class SQLAlchemyProductRepository:
         for key, value in data.items():
             if hasattr(product, key):
                 setattr(product, key, value)
-        product.updated_at = _now()
+        product.updated_at = _now()  # type: ignore[assignment]
         await db.flush()
         await db.refresh(product)
         return product
 
     @staticmethod
     async def set_status(db: AsyncSession, product: ORMProduct, status: str) -> ORMProduct:
-        product.status = status
-        product.updated_at = _now()
+        product.status = status  # type: ignore[assignment]
+        product.updated_at = _now()  # type: ignore[assignment]
         await db.flush()
         await db.refresh(product)
         return product
 
     @staticmethod
     async def update_images(db: AsyncSession, product: ORMProduct, images: list[dict[str, Any]]) -> ORMProduct:
-        product.images = images
-        product.updated_at = _now()
+        product.images = images  # type: ignore[assignment]
+        product.updated_at = _now()  # type: ignore[assignment]
         await db.flush()
         await db.refresh(product)
         return product
@@ -160,7 +160,7 @@ class SQLAlchemyProductRepository:
         for key, value in data.items():
             if hasattr(variant, key):
                 setattr(variant, key, value)
-        variant.updated_at = _now()
+        variant.updated_at = _now()  # type: ignore[assignment]
         await db.flush()
         await db.refresh(variant)
         return variant

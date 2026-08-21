@@ -37,7 +37,7 @@ async def _get_active_profile(db: AsyncSession) -> ORMSiteProfile | None:
     return await SQLAlchemySiteProfileRepository.get_active(db)
 
 
-async def _upsert_active_config(db: AsyncSession, payload_config: dict) -> dict:
+async def _upsert_active_config(db: AsyncSession, payload_config: dict[str, object]) -> dict[str, object]:
     """写入 active profile：存在则合并更新，不存在则新建默认 profile 再合并。"""
     merged_for_save = merge_for_save(payload_config)
     profile = await _get_active_profile(db)
@@ -50,11 +50,11 @@ async def _upsert_active_config(db: AsyncSession, payload_config: dict) -> dict:
         )
         db.add(profile)
     else:
-        profile.config = merged_for_save
-    profile.updated_at = datetime.utcnow()
+        profile.config = merged_for_save  # type: ignore[assignment]
+    profile.updated_at = datetime.utcnow()  # type: ignore[assignment]
     await db.commit()
     await db.refresh(profile)
-    return profile.config or {}
+    return profile.config or {}  # type: ignore[return-value]
 
 
 # ----------------------------------------------------------------------
@@ -73,21 +73,21 @@ class SiteConfigPayload(BaseModel):
 
 @router.get("/config")
 async def get_site_config(
-    admin: dict = Depends(require_permission("site_config", "manage")),
+    admin: dict[str, object] = Depends(require_permission("site_config", "manage")),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, object]:
     """获取站点全量配置（若 DB 无 active profile 则返回默认结构）。"""
     profile = await _get_active_profile(db)
-    merged = merge_for_response(profile.config if profile else None)
+    merged = merge_for_response(profile.config if profile else None)  # type: ignore[arg-type]
     return {"data": merged}
 
 
 @router.put("/config")
 async def save_site_config(
     payload: SiteConfigPayload,
-    admin: dict = Depends(require_permission("site_config", "manage")),
+    admin: dict[str, object] = Depends(require_permission("site_config", "manage")),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, object]:
     """保存站点全量配置 —— 写入 active profile 的 config 字段。"""
     try:
         saved = await _upsert_active_config(db, payload.config or {})
@@ -105,9 +105,9 @@ async def save_site_config(
 @router.post("/upload-image")
 async def upload_image(
     file: UploadFile = File(...),
-    admin: dict = Depends(require_permission("site_config", "manage")),
+    admin: dict[str, object] = Depends(require_permission("site_config", "manage")),
     minio: MinioService = Depends(get_minio_service),
-):
+) -> dict[str, object]:
     """上传站点图片（Logo / 轮播 / 分类图等）。返回可直接在 C 端渲染的 URL。"""
     content = await file.read()
     filename = file.filename or "image.png"

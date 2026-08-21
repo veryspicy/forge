@@ -92,7 +92,7 @@ def _coerce_uuid(value: str, field: str = "ID") -> uuid.UUID:
 
 async def _get_rule_or_404(db: AsyncSession, raw_id: str) -> ORMPricingRule:
     rule_id = _coerce_uuid(raw_id, "规则 ID")
-    rule = await SQLAlchemyPricingRuleRepository.get_by_id(db, rule_id)
+    rule = await SQLAlchemyPricingRuleRepository.get_by_id(db, rule_id)  # type: ignore[arg-type]
     if rule is None:
         raise HTTPException(status_code=404, detail="定价规则不存在")
     return rule
@@ -100,7 +100,7 @@ async def _get_rule_or_404(db: AsyncSession, raw_id: str) -> ORMPricingRule:
 
 async def _get_promo_or_404(db: AsyncSession, raw_id: str) -> ORMPromotion:
     promo_id = _coerce_uuid(raw_id, "促销 ID")
-    promo = await SQLAlchemyPromotionRepository.get_by_id(db, promo_id)
+    promo = await SQLAlchemyPromotionRepository.get_by_id(db, promo_id)  # type: ignore[arg-type]
     if promo is None:
         raise HTTPException(status_code=404, detail="促销活动不存在")
     return promo

@@ -71,7 +71,7 @@ def _detect_file_type(ext: str, mime: str) -> str:
     raise HTTPException(status_code=400, detail=f"不支持的文件类型: {ext or mime}")
 
 
-async def _resolve_upload_site_id(db: AsyncSession, admin: dict, requested: str | None) -> str:
+async def _resolve_upload_site_id(db: AsyncSession, admin: dict[str, object], requested: str | None) -> str:
     """上传归属站点：优先用户显式指定；否则使用 active profile（super_admin 也写默认站点）。"""
     if requested:
         return requested
@@ -81,7 +81,7 @@ async def _resolve_upload_site_id(db: AsyncSession, admin: dict, requested: str 
     return str(profile.id)
 
 
-async def _resolve_site_id(db: AsyncSession, admin: dict, requested: str | None) -> str:
+async def _resolve_site_id(db: AsyncSession, admin: dict[str, object], requested: str | None) -> str:
     """解析资源列表/详情的站点作用域：显式指定优先；super_admin 可查看全部；否则 active profile。"""
     if requested:
         return requested
@@ -93,7 +93,7 @@ async def _resolve_site_id(db: AsyncSession, admin: dict, requested: str | None)
     return str(profile.id)
 
 
-def _serialize(res: ORMResource) -> dict:
+def _serialize(res: ORMResource) -> dict[str, object]:
     return {
         "id": str(res.id),
         "site_id": str(res.site_id) if res.site_id else None,
@@ -152,10 +152,10 @@ async def _get_tags_map(db: AsyncSession, resource_ids: list[uuid.UUID]) -> dict
     return result
 
 
-async def _attach_tags(db: AsyncSession, item: dict) -> dict:
+async def _attach_tags(db: AsyncSession, item: dict[str, object]) -> dict[str, object]:
     """为单个序列化结果附加 tags 列表。"""
-    tags_map = await _get_tags_map(db, [uuid.UUID(item["id"])])
-    item["tags"] = tags_map.get(item["id"], [])
+    tags_map = await _get_tags_map(db, [uuid.UUID(item["id"])])  # type: ignore[arg-type]
+    item["tags"] = tags_map.get(item["id"], [])  # type: ignore[call-overload]
     return item
 
 
@@ -194,10 +194,10 @@ async def upload_resource(
     file: UploadFile = File(...),
     directory: str = Form(default=""),
     tags: list[str] = Form(default=[]),
-    admin: dict = Depends(require_permission("resources", "upload")),
+    admin: dict[str, object] = Depends(require_permission("resources", "upload")),
     db: AsyncSession = Depends(get_db),
     minio: MinioService = Depends(get_minio_service),
-):
+) -> dict[str, object]:
     """上传资源：写入 MinIO + 登记 resource 表（可选目录与标签）。"""
     if not admin:
         raise HTTPException(status_code=401, detail="未登录")
@@ -275,7 +275,7 @@ async def upload_resource(
     await db.flush()
 
     if tags:
-        await _save_tags(db, res.id, tags)
+        await _save_tags(db, res.id, tags)  # type: ignore[arg-type]
 
     await db.commit()
     await db.refresh(res)
@@ -287,7 +287,7 @@ async def upload_resource(
 # 列表
 # ---------------------------------------------------------------------------
 class ResourceListResponse(BaseModel):
-    items: list[dict]
+    items: list[dict[str, object]]
     total: int
 
 
@@ -300,9 +300,9 @@ async def list_resources(
     tag: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=200),
-    admin: dict = Depends(require_permission("resources", "view")),
+    admin: dict[str, object] = Depends(require_permission("resources", "view")),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, object]:
     """资源列表：支持 type / site_id / keyword / directory / tag / page 过滤，默认上传时间倒序（不含软删）。"""
     query = select(ORMResource).where(ORMResource.deleted_at.is_(None))
 
@@ -352,7 +352,7 @@ async def list_resources(
             )
         ).all()
         ref_counts = {str(rid): cnt for rid, cnt in rows}
-    tags_map = await _get_tags_map(db, ids)
+    tags_map = await _get_tags_map(db, ids)  # type: ignore[arg-type]
 
     data = []
     for r in items:
@@ -369,9 +369,9 @@ async def list_resources(
 # ---------------------------------------------------------------------------
 @router.get("/meta/directories")
 async def list_directories(
-    admin: dict = Depends(require_permission("resources", "view")),
+    admin: dict[str, object] = Depends(require_permission("resources", "view")),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, object]:
     """目录树：按 directory 分组统计资源数（不含软删），未归档资源归入 ''。"""
     if not admin:
         raise HTTPException(status_code=401, detail="未登录")
@@ -389,9 +389,9 @@ async def list_directories(
 
 @router.get("/meta/tags")
 async def list_tags(
-    admin: dict = Depends(require_permission("resources", "view")),
+    admin: dict[str, object] = Depends(require_permission("resources", "view")),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, object]:
     """标签列表：按标签统计资源数（不含软删）。"""
     if not admin:
         raise HTTPException(status_code=401, detail="未登录")
@@ -413,9 +413,9 @@ async def list_tags(
 async def check_resource_name(
     name: str = Query(...),
     exclude_id: str | None = Query(default=None),
-    admin: dict = Depends(require_permission("resources", "view")),
+    admin: dict[str, object] = Depends(require_permission("resources", "view")),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, object]:
     """重名检测：同名资源（含软删）返回是否存在及数量。"""
     if not admin:
         raise HTTPException(status_code=401, detail="未登录")
@@ -442,9 +442,9 @@ class CheckNamesPayload(BaseModel):
 @router.post("/check-names")
 async def check_resource_names(
     payload: CheckNamesPayload,
-    admin: dict = Depends(require_permission("resources", "view")),
+    admin: dict[str, object] = Depends(require_permission("resources", "view")),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, object]:
     """批量重名检测：返回已存在的同名资源（仅 active，排除软删）。"""
     if not admin:
         raise HTTPException(status_code=401, detail="未登录")
@@ -467,8 +467,8 @@ async def check_resource_names(
     )
     existing: dict[str, int] = {}
     for r in rows:
-        existing.setdefault(r.name, 0)
-        existing[r.name] += 1
+        existing.setdefault(r.name, 0)  # type: ignore[arg-type]
+        existing[r.name] += 1  # type: ignore[index]
     return {"data": {"existing": existing}}
 
 
@@ -480,7 +480,7 @@ class TrashPayload(BaseModel):
 
 
 class TrashListResponse(BaseModel):
-    items: list[dict]
+    items: list[dict[str, object]]
     total: int
 
 
@@ -490,9 +490,9 @@ async def list_trash(
     page_size: int = Query(default=24, ge=1, le=200),
     keyword: str | None = Query(default=None),
     file_type: str | None = Query(default=None),
-    admin: dict = Depends(require_permission("resources", "view")),
+    admin: dict[str, object] = Depends(require_permission("resources", "view")),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, object]:
     """回收站列表：仅软删资源（deleted_at 非空）。"""
     if not admin:
         raise HTTPException(status_code=401, detail="未登录")
@@ -519,9 +519,9 @@ async def list_trash(
 @router.post("/trash/restore")
 async def restore_resources(
     payload: TrashPayload,
-    admin: dict = Depends(require_permission("resources", "manage")),
+    admin: dict[str, object] = Depends(require_permission("resources", "manage")),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, object]:
     """恢复回收站资源（单/批量）：清除 deleted_at。"""
     if not admin:
         raise HTTPException(status_code=401, detail="未登录")
@@ -547,7 +547,7 @@ async def restore_resources(
         if res is None:
             skipped.append(raw_id)
             continue
-        res.deleted_at = None
+        res.deleted_at = None  # type: ignore[assignment]
         restored += 1
     await db.commit()
     return {"data": {"restored": restored, "skipped": skipped}}
@@ -556,10 +556,10 @@ async def restore_resources(
 @router.delete("/trash")
 async def purge_resources(
     payload: TrashPayload,
-    admin: dict = Depends(require_permission("resources", "manage")),
+    admin: dict[str, object] = Depends(require_permission("resources", "manage")),
     db: AsyncSession = Depends(get_db),
     minio: MinioService = Depends(get_minio_service),
-):
+) -> dict[str, object]:
     """彻底删除回收站资源（单/批量）：物理删 MinIO 对象（含缩略图）+ 删 DB 行 + 清关联。
 
     高风险操作：前端必须二次确认后调用。
@@ -591,7 +591,7 @@ async def purge_resources(
 
         # 物理删除 MinIO 对象与缩略图
         if res.object_key:
-            minio.remove_object(res.object_key)
+            minio.remove_object(res.object_key)  # type: ignore[arg-type]
         thumb_key = _thumb_object_key(res)
         if thumb_key:
             minio.remove_object(thumb_key)
@@ -606,10 +606,10 @@ async def purge_resources(
 
 @router.delete("/trash/empty")
 async def empty_trash(
-    admin: dict = Depends(require_permission("resources", "manage")),
+    admin: dict[str, object] = Depends(require_permission("resources", "manage")),
     db: AsyncSession = Depends(get_db),
     minio: MinioService = Depends(get_minio_service),
-):
+) -> dict[str, object]:
     """清空回收站：彻底删除所有软删资源。高风险操作，前端必须二次确认。"""
     if not admin:
         raise HTTPException(status_code=401, detail="未登录")
@@ -620,7 +620,7 @@ async def empty_trash(
     purged = 0
     for res in rows:
         if res.object_key:
-            minio.remove_object(res.object_key)
+            minio.remove_object(res.object_key)  # type: ignore[arg-type]
         thumb_key = _thumb_object_key(res)
         if thumb_key:
             minio.remove_object(thumb_key)
@@ -653,9 +653,9 @@ def _thumb_object_key(res: ORMResource) -> str:
 @router.get("/{resource_id}")
 async def get_resource(
     resource_id: str,
-    admin: dict = Depends(require_permission("resources", "view")),
+    admin: dict[str, object] = Depends(require_permission("resources", "view")),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, object]:
     try:
         rid = uuid.UUID(resource_id)
     except ValueError:
@@ -692,9 +692,9 @@ class ResourceRefSyncPayload(BaseModel):
 @router.post("/refs/sync")
 async def sync_resource_refs(
     payload: ResourceRefSyncPayload,
-    admin: dict = Depends(require_permission("resources", "manage")),
+    admin: dict[str, object] = Depends(require_permission("resources", "manage")),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, object]:
     """全量同步引用关系：将 ref_type+ref_id 下登记的引用对齐到 resource_ids 列表。
 
     - 新增：resource_ids 中缺失的引用记录
@@ -761,7 +761,7 @@ async def sync_resource_refs(
                 )
             )
             added += 1
-    for rid, ref in existing_by_rid.items():
+    for rid, ref in existing_by_rid.items():  # type: ignore[assignment]
         if rid not in valid_ids:
             await db.delete(ref)
             removed += 1
@@ -781,9 +781,9 @@ class RenamePayload(BaseModel):
 async def rename_resource(
     resource_id: str,
     payload: RenamePayload,
-    admin: dict = Depends(require_permission("resources", "manage")),
+    admin: dict[str, object] = Depends(require_permission("resources", "manage")),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, object]:
     name = (payload.name or "").strip()
     if not name:
         raise HTTPException(status_code=400, detail="名称不能为空")
@@ -799,7 +799,7 @@ async def rename_resource(
     if res is None:
         raise HTTPException(status_code=404, detail="资源不存在")
 
-    res.name = name
+    res.name = name  # type: ignore[assignment]
     await db.commit()
     await db.refresh(res)
     return {"data": _serialize(res)}
@@ -816,9 +816,9 @@ class MovePayload(BaseModel):
 @router.post("/move")
 async def move_resources(
     payload: MovePayload,
-    admin: dict = Depends(require_permission("resources", "manage")),
+    admin: dict[str, object] = Depends(require_permission("resources", "manage")),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, object]:
     """批量移动资源到目录（拖拽移动）。directory 传 '' 表示移到根目录/未归档。"""
     if not admin:
         raise HTTPException(status_code=401, detail="未登录")
@@ -835,7 +835,7 @@ async def move_resources(
         ).scalar_one_or_none()
         if res is None:
             continue
-        res.directory = directory
+        res.directory = directory  # type: ignore[assignment]
         moved += 1
     await db.commit()
     return {"data": {"moved": moved}}
@@ -849,9 +849,9 @@ class TagsPayload(BaseModel):
 @router.post("/tags")
 async def set_resource_tags(
     payload: TagsPayload,
-    admin: dict = Depends(require_permission("resources", "manage")),
+    admin: dict[str, object] = Depends(require_permission("resources", "manage")),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, object]:
     """批量设置资源标签（追加语义，幂等去重）。"""
     if not admin:
         raise HTTPException(status_code=401, detail="未登录")
@@ -902,9 +902,9 @@ class BatchDeletePayload(BaseModel):
 @router.delete("/{resource_id}")
 async def delete_resource(
     resource_id: str,
-    admin: dict = Depends(require_permission("resources", "manage")),
+    admin: dict[str, object] = Depends(require_permission("resources", "manage")),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, object]:
     if not admin:
         raise HTTPException(status_code=401, detail="未登录")
     if admin.get("role") not in ("super_admin", "admin"):
@@ -925,9 +925,9 @@ async def delete_resource(
 @router.delete("")
 async def batch_delete_resources(
     payload: BatchDeletePayload,
-    admin: dict = Depends(require_permission("resources", "manage")),
+    admin: dict[str, object] = Depends(require_permission("resources", "manage")),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, object]:
     """批量软删。"""
     if not admin:
         raise HTTPException(status_code=401, detail="未登录")

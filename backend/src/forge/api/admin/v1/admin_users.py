@@ -136,9 +136,9 @@ async def update_admin_user(
         )
 
     if body.display_name is not None:
-        user.display_name = body.display_name
+        user.display_name = body.display_name  # type: ignore[assignment]
     if body.is_active is not None:
-        user.is_active = body.is_active
+        user.is_active = body.is_active  # type: ignore[assignment]
     if body.password:
         user.password_hash = pwd_context.hash(body.password)
     await db.flush()
@@ -162,7 +162,7 @@ async def assign_roles(
 
     roles = await _load_roles(db, body.role_ids)
     user.roles = roles
-    user.role = roles[0].name if roles else "user"
+    user.role = roles[0].name if roles else "user"  # type: ignore[assignment]
     await db.flush()
     return _admin_dict(user)
 

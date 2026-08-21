@@ -45,7 +45,7 @@ class SupplierSourceService:
         db: AsyncSession,
         supplier_id: Any,
     ) -> ORMSupplierCredential | None:
-        return await db.scalar(select(ORMSupplierCredential).where(ORMSupplierCredential.supplier_id == supplier_id))
+        return await db.scalar(select(ORMSupplierCredential).where(ORMSupplierCredential.supplier_id == supplier_id))  # type: ignore[no-any-return]
 
     @staticmethod
     async def save_token(
@@ -66,12 +66,12 @@ class SupplierSourceService:
                 auth_type=auth_type,
             )
             db.add(credential)
-        credential.access_token = access_token
-        credential.refresh_token = refresh_token
-        credential.token_type = token_type
-        credential.expires_at = expires_at
-        credential.auth_type = auth_type
-        credential.updated_at = datetime.now()
+        credential.access_token = access_token  # type: ignore[assignment]
+        credential.refresh_token = refresh_token  # type: ignore[assignment]
+        credential.token_type = token_type  # type: ignore[assignment]
+        credential.expires_at = expires_at  # type: ignore[assignment]
+        credential.auth_type = auth_type  # type: ignore[assignment]
+        credential.updated_at = datetime.now()  # type: ignore[assignment]
         await db.flush()
         return credential
 
@@ -82,7 +82,7 @@ class SupplierSourceService:
         supplier: ORMSupplier,
     ) -> tuple[str, str]:
         """生成 OAuth2.0 PKCE 授权链接。返回 (state, auth_url)。"""
-        provider = get_provider(supplier.provider_code or "")
+        provider = get_provider(supplier.provider_code or "")  # type: ignore[arg-type]
         if "oauth_pkce" not in provider.auth_types:
             raise SupplierSourceError(f"供应商 {supplier.provider_code} 不支持 OAuth 授权")
 
@@ -95,8 +95,8 @@ class SupplierSourceService:
                 auth_type="oauth_pkce",
             )
             db.add(credential)
-        credential.oauth_state = state
-        credential.updated_at = datetime.now()
+        credential.oauth_state = state  # type: ignore[assignment]
+        credential.updated_at = datetime.now()  # type: ignore[assignment]
         await db.flush()
 
         auth_url = await provider.build_auth_url(state)
@@ -111,23 +111,23 @@ class SupplierSourceService:
         state: str,
         verifier: str,
     ) -> ORMSupplierCredential:
-        provider = get_provider(supplier.provider_code or "")
+        provider = get_provider(supplier.provider_code or "")  # type: ignore[arg-type]
         credential = await SupplierSourceService.get_credential(db, supplier.id)
         if credential is None or not credential.oauth_state or credential.oauth_state != state:
             raise SupplierSourceError("OAuth state 不匹配或已过期")
 
         tokens = await provider.exchange_token(code, verifier)
-        credential.access_token = tokens.get("access_token") or ""
-        credential.refresh_token = tokens.get("refresh_token")
-        credential.token_type = tokens.get("token_type")
+        credential.access_token = tokens.get("access_token") or ""  # type: ignore[assignment]
+        credential.refresh_token = tokens.get("refresh_token")  # type: ignore[assignment]
+        credential.token_type = tokens.get("token_type")  # type: ignore[assignment]
         if tokens.get("expires_in"):
             with suppress(TypeError, ValueError, OSError):
-                credential.expires_at = datetime.fromtimestamp(
+                credential.expires_at = datetime.fromtimestamp(  # type: ignore[assignment]
                     int(datetime.now().timestamp()) + int(tokens["expires_in"])
                 )
-        credential.oauth_state = None
-        credential.auth_type = "oauth_pkce"
-        credential.updated_at = datetime.now()
+        credential.oauth_state = None  # type: ignore[assignment]
+        credential.auth_type = "oauth_pkce"  # type: ignore[assignment]
+        credential.updated_at = datetime.now()  # type: ignore[assignment]
         await db.flush()
         return credential
 
@@ -143,7 +143,7 @@ class SupplierSourceService:
         page: int = 1,
         page_size: int = 20,
     ) -> dict[str, Any]:
-        provider = get_provider(supplier.provider_code or "")
+        provider = get_provider(supplier.provider_code or "")  # type: ignore[arg-type]
         credential = await SupplierSourceService.get_credential(db, supplier.id)
         if credential is None or not credential.access_token:
             raise SupplierSourceError("供应商尚未配置 Access Token")
@@ -172,7 +172,7 @@ class SupplierSourceService:
         provider_product_ids: list[str],
     ) -> dict[str, Any]:
         """按厂商侧商品 ID 拉取最新详情并导入为商品草稿（幂等）。"""
-        provider = get_provider(supplier.provider_code or "")
+        provider = get_provider(supplier.provider_code or "")  # type: ignore[arg-type]
         credential = await SupplierSourceService.get_credential(db, supplier.id)
         if credential is None or not credential.access_token:
             raise SupplierSourceError("供应商尚未配置 Access Token")
@@ -206,7 +206,7 @@ class SupplierSourceService:
         trigger_type: str = "manual",
     ) -> ORMSupplierSyncLog:
         """手动/定时增量同步库存与价格，记录同步日志。"""
-        provider = get_provider(supplier.provider_code or "")
+        provider = get_provider(supplier.provider_code or "")  # type: ignore[arg-type]
         credential = await SupplierSourceService.get_credential(db, supplier.id)
         if credential is None or not credential.access_token:
             raise SupplierSourceError("供应商尚未配置 Access Token")
@@ -227,19 +227,19 @@ class SupplierSourceService:
                 supplier=supplier,
                 credential=credential,
             )
-            log.status = "success" if not summary.error else "partial"
-            log.error = summary.error or None
+            log.status = "success" if not summary.error else "partial"  # type: ignore[assignment]
+            log.error = summary.error or None  # type: ignore[assignment]
         except ProviderAuthError as exc:
-            log.status = "failed"
-            log.error = f"鉴权失败: {exc}"
+            log.status = "failed"  # type: ignore[assignment]
+            log.error = f"鉴权失败: {exc}"  # type: ignore[assignment]
         except (ProviderConnectionError, Exception) as exc:  # noqa: BLE001
-            log.status = "partial" if summary.items_updated else "failed"
-            log.error = str(exc)
+            log.status = "partial" if summary.items_updated else "failed"  # type: ignore[assignment]
+            log.error = str(exc)  # type: ignore[assignment]
 
-        log.items_total = summary.items_total
-        log.items_imported = summary.items_imported
-        log.items_updated = summary.items_updated
-        log.finished_at = datetime.now()
+        log.items_total = summary.items_total  # type: ignore[assignment]
+        log.items_imported = summary.items_imported  # type: ignore[assignment]
+        log.items_updated = summary.items_updated  # type: ignore[assignment]
+        log.finished_at = datetime.now()  # type: ignore[assignment]
         await db.commit()
         await db.refresh(log)
         return log

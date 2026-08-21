@@ -69,7 +69,7 @@ def _coerce_uuid(value: str, field: str = "供应商 ID") -> uuid.UUID:
 
 async def _get_supplier_or_404(db: AsyncSession, raw_id: str) -> ORMSupplier:
     supplier_id = _coerce_uuid(raw_id)
-    supplier = await SQLAlchemySupplierRepository.get_by_id(db, supplier_id)
+    supplier = await SQLAlchemySupplierRepository.get_by_id(db, supplier_id)  # type: ignore[arg-type]
     if supplier is None:
         raise HTTPException(status_code=404, detail="供应商不存在")
     return supplier

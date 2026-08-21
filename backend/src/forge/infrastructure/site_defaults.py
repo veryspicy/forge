@@ -17,16 +17,12 @@ from copy import deepcopy
 from typing import Any
 
 
-def deep_merge(base: dict, override: dict) -> dict:
+def deep_merge(base: dict[str, object], override: dict[str, object]) -> dict[str, object]:
     """Recursively merge ``override`` into ``base`` (mutation-free)."""
     result = deepcopy(base)
     for key, value in (override or {}).items():
-        if (
-            key in result
-            and isinstance(result[key], dict)
-            and isinstance(value, dict)
-        ):
-            result[key] = deep_merge(result[key], value)
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = deep_merge(result[key], value)  # type: ignore[arg-type]
         else:
             result[key] = deepcopy(value)
     return result
@@ -54,16 +50,55 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     "navigation": [
         {"key": "home", "to": "/", "labelKey": "nav.home", "label": "首页", "visible": True, "order": 0},
-        {"key": "products", "to": "/products", "labelKey": "nav.products", "label": "商品", "visible": True, "order": 1},
+        {
+            "key": "products",
+            "to": "/products",
+            "labelKey": "nav.products",
+            "label": "商品",
+            "visible": True,
+            "order": 1,
+        },
         {"key": "pets", "to": "/pets", "labelKey": "nav.pets", "label": "我的宠物", "visible": True, "order": 2},
         {"key": "orders", "to": "/orders", "labelKey": "nav.orders", "label": "订单", "visible": True, "order": 3},
         {"key": "chat", "to": "/chat", "labelKey": "nav.chat", "label": "AI客服", "visible": True, "order": 4},
     ],
     "categories": [
-        {"slug": "cat-food", "nameKey": "footer.petFood", "name": "宠物食品", "icon": "🍖", "image": "", "visible": True, "order": 0},
-        {"slug": "toys", "nameKey": "footer.toys", "name": "玩具", "icon": "🎾", "image": "", "visible": True, "order": 1},
-        {"slug": "health-wellness", "nameKey": "footer.healthWellness", "name": "健康护理", "icon": "💊", "image": "", "visible": True, "order": 2},
-        {"slug": "accessories", "nameKey": "footer.accessories", "name": "配件", "icon": "🎀", "image": "", "visible": True, "order": 3},
+        {
+            "slug": "cat-food",
+            "nameKey": "footer.petFood",
+            "name": "宠物食品",
+            "icon": "🍖",
+            "image": "",
+            "visible": True,
+            "order": 0,
+        },
+        {
+            "slug": "toys",
+            "nameKey": "footer.toys",
+            "name": "玩具",
+            "icon": "🎾",
+            "image": "",
+            "visible": True,
+            "order": 1,
+        },
+        {
+            "slug": "health-wellness",
+            "nameKey": "footer.healthWellness",
+            "name": "健康护理",
+            "icon": "💊",
+            "image": "",
+            "visible": True,
+            "order": 2,
+        },
+        {
+            "slug": "accessories",
+            "nameKey": "footer.accessories",
+            "name": "配件",
+            "icon": "🎀",
+            "image": "",
+            "visible": True,
+            "order": 3,
+        },
     ],
     "footer": {
         "copyright": "© 2026 Forge. 版权所有。",
@@ -85,10 +120,25 @@ DEFAULT_CONFIG: dict[str, Any] = {
                 "visible": True,
                 "order": 0,
                 "links": [
-                    {"labelKey": "footer.petFood", "label": "宠物食品", "to": "/products?category=pet-food", "visible": True},
+                    {
+                        "labelKey": "footer.petFood",
+                        "label": "宠物食品",
+                        "to": "/products?category=pet-food",
+                        "visible": True,
+                    },
                     {"labelKey": "footer.toys", "label": "玩具", "to": "/products?category=toys", "visible": True},
-                    {"labelKey": "footer.healthWellness", "label": "健康护理", "to": "/products?category=health-wellness", "visible": True},
-                    {"labelKey": "footer.accessories", "label": "配件", "to": "/products?category=accessories", "visible": True},
+                    {
+                        "labelKey": "footer.healthWellness",
+                        "label": "健康护理",
+                        "to": "/products?category=health-wellness",
+                        "visible": True,
+                    },
+                    {
+                        "labelKey": "footer.accessories",
+                        "label": "配件",
+                        "to": "/products?category=accessories",
+                        "visible": True,
+                    },
                 ],
             },
             {
@@ -112,7 +162,12 @@ DEFAULT_CONFIG: dict[str, Any] = {
                 "order": 2,
                 "links": [
                     {"labelKey": "footer.ourStory", "label": "我们的故事", "to": "/story", "visible": True},
-                    {"labelKey": "footer.sustainability", "label": "可持续发展", "to": "/sustainability", "visible": True},
+                    {
+                        "labelKey": "footer.sustainability",
+                        "label": "可持续发展",
+                        "to": "/sustainability",
+                        "visible": True,
+                    },
                     {"labelKey": "footer.blog", "label": "博客", "to": "/blog", "visible": True},
                     {"labelKey": "footer.careers", "label": "加入我们", "to": "/careers", "visible": True},
                 ],
@@ -194,7 +249,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
 }
 
 
-def _normalize_aliases(payload: dict) -> dict:
+def _normalize_aliases(payload: dict[str, object]) -> dict[str, object]:
     """Rewrite known legacy aliases into canonical camelCase keys (in-place).
 
     Only touches keys that exist; always returns the *same* dict reference
@@ -209,12 +264,12 @@ def _normalize_aliases(payload: dict) -> dict:
             payload["featureFlags"] = payload.pop("feature_flags")
         else:
             # Merge snake into camel (camel wins conflicts) then drop snake
-            payload["featureFlags"] = {**payload.pop("feature_flags"), **payload["featureFlags"]}
+            payload["featureFlags"] = {**payload.pop("feature_flags"), **payload["featureFlags"]}  # type: ignore[dict-item]
     # features (old alias from early forms) -> featureFlags
     if "features" in payload:
         flags = payload.pop("features") or {}
         existing = payload.setdefault("featureFlags", {}) or {}
-        payload["featureFlags"] = {**existing, **flags}
+        payload["featureFlags"] = {**existing, **flags}  # type: ignore[dict-item]
 
     # nav (short) -> navigation (canonical)
     if "nav" in payload and "navigation" not in payload:
@@ -231,7 +286,7 @@ def _normalize_aliases(payload: dict) -> dict:
             if isinstance(item, dict):
                 item.setdefault("order", i)
                 item.setdefault("visible", True)
-                item.setdefault("labelKey", f"nav.{item.get('key','')}")
+                item.setdefault("labelKey", f"nav.{item.get('key', '')}")
                 item.setdefault("to", "/")
 
     # footer linkGroups: ensure order/visible defaults on group + inner links
@@ -258,9 +313,9 @@ def _normalize_aliases(payload: dict) -> dict:
 
     # homeHero.hero legacy i18n keys: home.* -> hero.* (canonical)
     home_hero = payload.get("homeHero") or {}
-    hero_cfg = home_hero.get("hero")
+    hero_cfg = home_hero.get("hero")  # type: ignore[attr-defined]
     if isinstance(hero_cfg, dict):
-        HERO_LEGACY_KEY_MAP = {
+        hero_legacy_key_map = {
             "home.heroTitle": "hero.title",
             "home.heroDesc": "hero.subtitle",
             "home.shopNow": "hero.cta1Label",
@@ -270,15 +325,15 @@ def _normalize_aliases(payload: dict) -> dict:
             v = hero_cfg.get(f)
             if isinstance(v, str) and v:
                 v = v.strip()
-                if v in HERO_LEGACY_KEY_MAP:
-                    hero_cfg[f] = HERO_LEGACY_KEY_MAP[v]
+                if v in hero_legacy_key_map:
+                    hero_cfg[f] = hero_legacy_key_map[v]
                 elif v.startswith("home.") and not v.startswith("hero."):
-                    hero_cfg[f] = f"hero.{v[len('home.'):]}"
+                    hero_cfg[f] = f"hero.{v[len('home.') :]}"
 
     return payload
 
 
-def merge_for_save(user_payload_config: dict) -> dict:
+def merge_for_save(user_payload_config: dict[str, object]) -> dict[str, object]:
     """Given Admin PUT payload.config, produce final dict to persist in DB.
 
     1. Normalise legacy aliases (snake_case -> camelCase)
@@ -289,7 +344,7 @@ def merge_for_save(user_payload_config: dict) -> dict:
     return deep_merge(DEFAULT_CONFIG, normalized)
 
 
-def merge_for_response(stored_config: dict | None) -> dict:
+def merge_for_response(stored_config: dict[str, object] | None) -> dict[str, object]:
     """Given raw DB JSON (profile.config), produce frontend-safe response.
 
     Guarantees every canonical key exists with a sensible default.

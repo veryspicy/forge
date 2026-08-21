@@ -110,8 +110,8 @@ async def revoke_api_key(
     key = result.scalar_one_or_none()
     if key is None:
         raise HTTPException(status_code=404, detail="API Key 不存在")
-    key.is_active = False
-    key.revoked_at = datetime.now()
+    key.is_active = False  # type: ignore[assignment]
+    key.revoked_at = datetime.now()  # type: ignore[assignment]
     await db.commit()
 
 
@@ -141,7 +141,7 @@ async def list_audit_logs(
         .offset((page - 1) * page_size)
         .limit(page_size)
     )
-    items = [
+    items = [  # type: ignore[var-annotated]
         {
             "id": str(log.id),
             "api_key_id": str(log.api_key_id) if log.api_key_id else None,

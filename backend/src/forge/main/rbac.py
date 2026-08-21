@@ -130,7 +130,7 @@ async def role_permission_codes(db: AsyncSession, roles: list[str]) -> set[str]:
     role_rows = (await db.execute(select(ORMRole).where(ORMRole.name.in_(roles)))).scalars().all()
     codes: set[str] = set()
     for role in role_rows:
-        codes.update(p.code for p in role.permissions)
+        codes.update(p.code for p in role.permissions)  # type: ignore[misc]
     return codes
 
 

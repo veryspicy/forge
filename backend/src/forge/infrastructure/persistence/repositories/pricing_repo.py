@@ -43,7 +43,7 @@ class SQLAlchemyPricingRuleRepository:
         for key, value in data.items():
             if hasattr(rule, key):
                 setattr(rule, key, value)
-        rule.updated_at = _now()
+        rule.updated_at = _now()  # type: ignore[assignment]
         await db.flush()
         await db.refresh(rule)
         return rule
@@ -87,7 +87,7 @@ class SQLAlchemyPromotionRepository:
         for key, value in data.items():
             if hasattr(promo, key):
                 setattr(promo, key, value)
-        promo.updated_at = _now()
+        promo.updated_at = _now()  # type: ignore[assignment]
         await db.flush()
         await db.refresh(promo)
         return promo

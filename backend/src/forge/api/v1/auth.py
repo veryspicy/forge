@@ -1,6 +1,6 @@
 """C-end Auth API — login / register / me."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -24,6 +24,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # Schemas
 # ---------------------------------------------------------------------------
 
+
 class LoginRequest(BaseModel):
     email: str
     password: str
@@ -39,7 +40,7 @@ class AuthResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user_id: str
-    user: dict
+    user: dict[str, object]
 
 
 class MeResponse(BaseModel):
@@ -52,8 +53,9 @@ class MeResponse(BaseModel):
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _create_token(email: str, role: str) -> tuple[str, dict]:
-    now = datetime.now(timezone.utc)
+
+def _create_token(email: str, role: str) -> tuple[str, dict[str, object]]:
+    now = datetime.now(UTC)
     expire = now + timedelta(minutes=settings.access_token_expire_minutes)
     payload = {
         "sub": email,
@@ -67,7 +69,7 @@ def _create_token(email: str, role: str) -> tuple[str, dict]:
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security_scheme),
-) -> dict:
+) -> dict[str, object]:
     if credentials is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="UNAUTHORIZED")
     try:
@@ -78,20 +80,21 @@ async def get_current_user(
         )
         return {"sub": payload.get("sub", ""), "role": payload.get("role", "customer")}
     except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="TOKEN_EXPIRED")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="TOKEN_EXPIRED") from None
 
 
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
 
+
 @router.post("/auth/login", response_model=AuthResponse)
-async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
+async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)) -> dict[str, object]:
     repo = SQLAlchemyUserRepository()
     user: ORMUser | None = await repo.get_by_email(db, body.email)
     if user is None or not pwd_context.verify(body.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="INVALID_CREDENTIALS")
-    token, _ = _create_token(user.email, user.role)
+    token, _ = _create_token(str(user.email), str(user.role))
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -106,7 +109,7 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/auth/register", response_model=AuthResponse)
-async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
+async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)) -> dict[str, object]:
     repo = SQLAlchemyUserRepository()
     existing = await repo.get_by_email(db, body.email)
     if existing is not None:
@@ -118,7 +121,7 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
     await db.flush()
     await db.refresh(user)
 
-    token, _ = _create_token(user.email, user.role)
+    token, _ = _create_token(str(user.email), str(user.role))
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -134,12 +137,12 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
 
 @router.get("/auth/me", response_model=MeResponse)
 async def me(
-    user_claims: dict = Depends(get_current_user),
+    user_claims: dict[str, object] = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, object]:
     email = user_claims.get("sub", "")
     repo = SQLAlchemyUserRepository()
-    user: ORMUser | None = await repo.get_by_email(db, email)
+    user: ORMUser | None = await repo.get_by_email(db, email)  # type: ignore[arg-type]
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="USER_NOT_FOUND")
     return {"user_id": str(user.id), "email": user.email, "name": user.name}

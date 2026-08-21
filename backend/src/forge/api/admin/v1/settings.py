@@ -6,5 +6,7 @@ router = APIRouter()
 
 
 @router.get("/")
-async def get_settings(admin: dict = Depends(require_permission("settings", "manage"))):
+async def get_settings(
+    admin: dict[str, object] = Depends(require_permission("settings", "manage")),
+) -> dict[str, object]:
     return {}

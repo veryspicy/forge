@@ -6,5 +6,7 @@ router = APIRouter()
 
 
 @router.get("/")
-async def list_chat_requests(admin: dict = Depends(require_permission("chat_requests", "view"))):
+async def list_chat_requests(
+    admin: dict[str, object] = Depends(require_permission("chat_requests", "view")),
+) -> dict[str, object]:
     return {"items": [], "total": 0}
