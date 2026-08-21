@@ -160,7 +160,7 @@ class ZendropProvider(SupplierProvider):
         page: int = 1,
         page_size: int = 20,
     ) -> SupplierSearchResult:
-        tool_name = "get_catalog_product" if keyword else "get_catalog_trending_products"
+        tool_name = "get_catalog_products" if keyword else "get_catalog_trending_products"
         arguments = (
             {"keyword": keyword, "page": page, "limit": page_size} if keyword else {"page": page, "limit": page_size}
         )
@@ -259,7 +259,7 @@ class ZendropProvider(SupplierProvider):
         credential: ORMSupplierCredential,
     ) -> SyncSummary:
         summary = SyncSummary()
-        auto_update_price = bool(supplier.config.get("auto_update_price", True))
+        auto_update_price = bool((supplier.config or {}).get("auto_update_price", True))
         rows = (
             await db.scalars(
                 select(ORMProduct).where(
