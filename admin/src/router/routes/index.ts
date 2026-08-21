@@ -193,7 +193,7 @@ const customRoutes = [
     name: 'site',
     path: '/site',
     meta: {
-      title: '站点',
+      title: 'Site',
       i18nKey: 'route.site',
       icon: 'mdi:web',
       order: 7,
@@ -206,7 +206,7 @@ const customRoutes = [
         path: '/site/config',
         component: 'layout.base$view.site-config',
         meta: {
-          title: '站点配置',
+          title: 'Site Config',
           i18nKey: 'route.site-config',
           roles: ['super_admin', 'admin', 'operator']
         }
