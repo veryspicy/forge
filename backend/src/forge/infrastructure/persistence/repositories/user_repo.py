@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from forge.infrastructure.persistence.models import ORMAdminUser, ORMUser
 
@@ -34,7 +35,7 @@ class SQLAlchemyUserRepository:
         db: AsyncSession,
         page: int = 1,
         page_size: int = 20,
-    ) -> dict:
+    ) -> dict[str, object]:
         total_query = select(func.count(ORMUser.id))
         total = (await db.execute(total_query)).scalar_one()
 
@@ -79,12 +80,13 @@ class SQLAlchemyAdminUserRepository:
         db: AsyncSession,
         page: int = 1,
         page_size: int = 20,
-    ) -> dict:
+    ) -> dict[str, object]:
         total_query = select(func.count(ORMAdminUser.id))
         total = (await db.execute(total_query)).scalar_one()
 
         query = (
             select(ORMAdminUser)
+            .options(selectinload(ORMAdminUser.roles))
             .order_by(ORMAdminUser.created_at.desc())
             .offset((page - 1) * page_size)
             .limit(page_size)
@@ -99,6 +101,7 @@ class SQLAlchemyAdminUserRepository:
                     "email": u.email,
                     "display_name": u.display_name,
                     "role": u.role,
+                    "roles": [{"id": str(r.id), "name": r.name, "display_name": r.display_name} for r in u.roles],
                     "is_active": u.is_active,
                     "last_login_at": u.last_login_at.isoformat() if u.last_login_at else None,
                     "created_at": u.created_at.isoformat() if u.created_at else None,

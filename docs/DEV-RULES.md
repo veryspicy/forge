@@ -513,6 +513,67 @@ podman exec forge-postgres psql -U postgres -d forge -c "SELECT count(*) FROM di
 
 **反例**：2026-08-18 之前 admin 无 CI job、backend/portal-web 无本地 hooks、DEV-RULES 无质量章节，质量全靠人工自觉；本次已全部收敛为自动化门槛（见 fix/docs-cleanup 分支）。
 
+### 13.5 提交前本地验证与集成测试契约核查（强制）
+
+> **核心原则**：质量门槛必须在首次提交前一次性通过，禁止用"提交→被 hook 拦截→修复→再提交"的循环逼近；集成测试必须基于契约编写，禁止试错式探测。
+
+**13.5.1 提交前用 hook 同参三连验证**
+
+**触发条件**：任何 backend Python 改动准备提交。
+
+**执行步骤**：
+
+1. 取暂存文件：`git diff --cached --name-only -- "*.py"`
+2. 三连验证（参数必须与 `backend/.pre-commit-config.yaml` 完全一致）：
+   - `ruff check <files>`
+   - `ruff format --check <files>`
+   - `mypy --ignore-missing-imports <files>`（`--python-executable` 指向 `backend/.venv/Scripts/python.exe`，hook 使用 `C:\Users\tank\.local\precommit-env` 同参）
+3. 三连全过后再 `git commit`；提交前对所有改动文件统一执行一次 `ruff format`，避免 format hook 拦截
+
+**坑位**：
+- 裸跑 mypy 不带 `--ignore-missing-imports` 会报大量第一方 import-untyped 存量错误，**不代表本次改动不合格**；验证必须复刻 hook 参数，以 hook 判定为准
+- 漏 format 的文件（含批量脚本改动的文件）会在 commit 时被 ruff-format hook 拦截
+
+**反例（2026-08-21）**：RBAC 提交前手动验证仅跑了部分文件、未跑 format --check，commit 被 ruff-format 拦截 3 次，每次输出只显示 "ruff check Passed" 即中断，需手动跑 pre-commit 定位，浪费多轮。
+
+**13.5.2 commit 被 hook 拦截时的定位**
+
+**触发条件**：`git commit` 输出被截断/不完整，无法判断是哪个 hook 失败。
+
+**执行步骤**：
+
+1. 禁止盲目重复 `git commit`；先显式运行 pre-commit 定位：
+   `& "C:\Users\tank\.local\precommit-env\Scripts\python.exe" -m pre_commit run --config backend\.pre-commit-config.yaml`
+2. 按输出中最后一个非 Passed 的 hook 修复（ruff-format → 执行 `ruff format`；mypy → 修复类型错误；commit-msg → 修正提交信息格式）
+3. 修复后重新 `git add` 并提交，一次通过
+
+**13.5.3 集成测试前置契约核查（通用）**
+
+**触发条件**：编写 e2e / 集成测试脚本访问既有 API 或数据库。
+
+**执行步骤**：
+
+1. **先查契约再写断言**，禁止边跑边猜：
+   - 接口响应结构：有无 `data` 包装、分页字段名（`{items,total}` 或 `{data:{...}}`）
+   - 路由定义：路径是否带 trailing slash（FastAPI 路由定义 `"/"` 时，无斜杠请求返回 307 redirect，`allow_redirects=False` 下不是 200/403）
+   - 数据库表约束：NOT NULL 列清单、`server_default` 是否真正落库（ORM 定义与 DB 实际可能不一致）
+2. **插入测试数据时显式提供全部 NOT NULL 列**（id、时间戳、状态位等），不依赖 server_default 兜底
+3. **e2e 期望值与契约一致**：403/401/307 必须按实际路由与中间件行为断言，不臆测
+
+**反例（2026-08-21）**：RBAC e2e 因未先核查契约连续 5 轮失败——误判 /me 有 data 包装、路由名写错（/admin_roles vs /roles）、INSERT 缺 id/is_active/created_at 等 NOT NULL 列、3 个接口因 trailing slash 返回 307。若先查 OpenAPI + 表结构，一轮即可通过。
+
+**13.5.4 批量替换后的残留核查（通用）**
+
+**触发条件**：用脚本/正则批量替换依赖注入、import 或符号引用后。
+
+**执行步骤**：
+
+1. 替换后全局 grep 确认无残留旧符号：
+   - `Select-String -Path <目录> -Pattern "旧依赖名|旧路径" -Recurse`
+   - 确认无文件仍 import 已删除/改名路径，避免运行期 ImportError
+2. 对既有占位实现先确认其是否真实生效（是否只是 `return` 透传），再决定是否依赖它，禁止假设"已存在权限控制"
+3. FastAPI 依赖默认参数统一 `# noqa: B008`；`except` 内 `raise HTTPException` 统一 `from None`，否则 ruff 拦截
+
 ---
 
 ## 14. 数据与发布安全（强制）

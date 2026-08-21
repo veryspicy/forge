@@ -293,6 +293,12 @@ class ORMAdminUser(Base):
     password_hash = Column(String(128), nullable=False)
     display_name = Column(String(200), nullable=False)
     role = Column(String(20), nullable=False, default="super_admin", server_default="super_admin")
+    # 兼容旧代码：新逻辑以 admin_user_roles 多对多为准，role 字段保留首个角色名
+    roles: Mapped[list[ORMRole]] = relationship(
+        "ORMRole",
+        secondary="admin_user_roles",
+        lazy="selectin",
+    )
     is_active = Column(Boolean, nullable=False, default=True)
     last_login_at = Column(DateTime(timezone=False), nullable=True)
     created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
@@ -309,6 +315,58 @@ class ORMRole(Base):
     is_system = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
     updated_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+
+    permissions: Mapped[list[ORMPermission]] = relationship(
+        "ORMPermission",
+        secondary="role_permissions",
+        lazy="selectin",
+    )
+
+
+class ORMPermission(Base):
+    """权限点（code 形如 resource:action，如 products:view）。"""
+
+    __tablename__ = "permissions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
+    code = Column(String(100), nullable=False, unique=True)
+    display_name = Column(String(200), nullable=False)
+    module = Column(String(50), nullable=False)
+    created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+
+
+class ORMRolePermission(Base):
+    """角色-权限多对多关联。"""
+
+    __tablename__ = "role_permissions"
+
+    role_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("roles.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    permission_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("permissions.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+
+
+class ORMAdminUserRole(Base):
+    """管理员-角色多对多关联。"""
+
+    __tablename__ = "admin_user_roles"
+
+    admin_user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("admin_users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    role_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("roles.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
 
 
 class ORMOrderItem(Base):
