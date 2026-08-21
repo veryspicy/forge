@@ -6,6 +6,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import selectinload
 
 from forge.infrastructure.persistence.models import ORMAdminUser
 from forge.main.config import settings
@@ -50,12 +51,18 @@ async def get_current_admin(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from None
 
     email = payload.get("sub", "")
-    admin = (await db.execute(select(ORMAdminUser).where(ORMAdminUser.email == email))).scalar_one_or_none()
+    admin = (
+        await db.execute(
+            select(ORMAdminUser).where(ORMAdminUser.email == email).options(selectinload(ORMAdminUser.roles))
+        )
+    ).scalar_one_or_none()
     if admin is None or not admin.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="UNAUTHORIZED")
 
+    roles = [r.name for r in admin.roles] or ([admin.role] if admin.role else [])
     return {
         "sub": admin.email,
         "user_id": str(admin.id),
-        "role": admin.role,
+        "role": roles[0] if roles else "",
+        "roles": roles,
     }

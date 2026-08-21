@@ -86,10 +86,11 @@ async def me(admin_claims: dict = Depends(get_current_admin), db: AsyncSession =
     if admin is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="USER_NOT_FOUND")
 
+    roles = admin_claims.get("roles") or [admin_claims.get("role", "")]
     return {
         "id": str(admin.id),
         "email": admin.email,
         "name": admin.display_name,
-        "roles": [admin_claims.get("role", "user")],
-        "permissions": permissions_for(admin_claims.get("role", "")),
+        "roles": roles,
+        "permissions": await permissions_for(db, roles),
     }
