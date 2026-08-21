@@ -18,7 +18,8 @@ from forge.infrastructure.persistence.models import ORMSupplier
 from forge.infrastructure.persistence.repositories.supplier_repo import (
     SQLAlchemySupplierRepository,
 )
-from forge.main.dependencies import get_current_admin, get_db
+from forge.main.dependencies import get_db
+from forge.main.rbac import require_permission
 
 router = APIRouter()
 
@@ -85,7 +86,7 @@ def _clean_payload(data: dict[str, Any]) -> dict[str, Any]:
 @router.post("", status_code=201)
 async def create_supplier(
     payload: SupplierCreate,
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("suppliers", "manage")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     if not admin:
@@ -113,7 +114,7 @@ async def list_suppliers(
     page_size: int = Query(default=20, ge=1, le=200),
     search: str | None = Query(default=None),
     is_active: bool | None = Query(default=None),
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("suppliers", "manage")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     if not admin:
@@ -135,7 +136,7 @@ async def list_suppliers(
 @router.get("/{supplier_id}")
 async def get_supplier(
     supplier_id: str,
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("suppliers", "manage")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     if not admin:
@@ -152,7 +153,7 @@ async def get_supplier(
 async def update_supplier(
     supplier_id: str,
     payload: SupplierUpdate,
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("suppliers", "manage")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     if not admin:
@@ -181,7 +182,7 @@ async def update_supplier(
 @router.post("/{supplier_id}/deactivate")
 async def deactivate_supplier(
     supplier_id: str,
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("suppliers", "manage")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     if not admin:

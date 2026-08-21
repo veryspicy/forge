@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from forge.infrastructure.persistence.repositories.user_repo import SQLAlchemyAdminUserRepository
-from forge.main.dependencies import get_current_admin, get_db
+from forge.main.dependencies import get_db
+from forge.main.rbac import require_permission
 
 router = APIRouter()
 
@@ -13,7 +14,7 @@ router = APIRouter()
 async def list_admin_users(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_permission("admin_users", "manage")),
     db: AsyncSession = Depends(get_db),
 ):
     repo = SQLAlchemyAdminUserRepository()

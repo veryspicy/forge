@@ -6,11 +6,12 @@
 默认配置、别名规范化、深度合并逻辑统一放在
 :mod:`forge.infrastructure.site_defaults` 共享模块中维护，避免两端不一致。
 """
+
 from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
@@ -20,7 +21,8 @@ from forge.infrastructure.persistence.models import ORMSiteProfile
 from forge.infrastructure.persistence.repositories.site_profile_repo import SQLAlchemySiteProfileRepository
 from forge.infrastructure.services.minio_service import MinioService, get_minio_service
 from forge.infrastructure.site_defaults import merge_for_response, merge_for_save
-from forge.main.dependencies import get_current_admin, get_db
+from forge.main.dependencies import get_db
+from forge.main.rbac import require_permission
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -30,7 +32,8 @@ router = APIRouter()
 # Helpers
 # ----------------------------------------------------------------------
 
-async def _get_active_profile(db: AsyncSession) -> Optional[ORMSiteProfile]:
+
+async def _get_active_profile(db: AsyncSession) -> ORMSiteProfile | None:
     return await SQLAlchemySiteProfileRepository.get_active(db)
 
 
@@ -58,17 +61,19 @@ async def _upsert_active_config(db: AsyncSession, payload_config: dict) -> dict:
 # Pydantic payload
 # ----------------------------------------------------------------------
 
+
 class SiteConfigPayload(BaseModel):
-    config: Dict[str, Any]
+    config: dict[str, Any]
 
 
 # ----------------------------------------------------------------------
 # Routes
 # ----------------------------------------------------------------------
 
+
 @router.get("/config")
 async def get_site_config(
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_permission("site_config", "manage")),
     db: AsyncSession = Depends(get_db),
 ):
     """获取站点全量配置（若 DB 无 active profile 则返回默认结构）。"""
@@ -80,7 +85,7 @@ async def get_site_config(
 @router.put("/config")
 async def save_site_config(
     payload: SiteConfigPayload,
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_permission("site_config", "manage")),
     db: AsyncSession = Depends(get_db),
 ):
     """保存站点全量配置 —— 写入 active profile 的 config 字段。"""
@@ -89,17 +94,18 @@ async def save_site_config(
         return {"data": merge_for_response(saved)}
     except Exception as exc:  # noqa: BLE001
         logger.exception("保存站点配置失败")
-        raise HTTPException(status_code=500, detail=f"保存失败: {exc}")
+        raise HTTPException(status_code=500, detail=f"保存失败: {exc}") from None
 
 
 # ----------------------------------------------------------------------
 # 图片上传（MinIO 优先，本地降级）
 # ----------------------------------------------------------------------
 
+
 @router.post("/upload-image")
 async def upload_image(
     file: UploadFile = File(...),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_permission("site_config", "manage")),
     minio: MinioService = Depends(get_minio_service),
 ):
     """上传站点图片（Logo / 轮播 / 分类图等）。返回可直接在 C 端渲染的 URL。"""

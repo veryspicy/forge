@@ -6,7 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from forge.infrastructure.persistence.models import ORMSiteProfile
 from forge.infrastructure.persistence.repositories.site_profile_repo import SQLAlchemySiteProfileRepository
-from forge.main.dependencies import get_current_admin, get_db
+from forge.main.dependencies import get_db
+from forge.main.rbac import require_permission
 
 router = APIRouter()
 site_router = APIRouter()
@@ -14,7 +15,7 @@ site_router = APIRouter()
 
 @router.get("/")
 async def list_site_profiles(
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_permission("site_profile", "manage")),
     db: AsyncSession = Depends(get_db),
 ):
     total_query = select(func.count(ORMSiteProfile.id))

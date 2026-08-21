@@ -20,7 +20,8 @@ from forge.infrastructure.persistence.repositories.pricing_repo import (
     SQLAlchemyPricingRuleRepository,
     SQLAlchemyPromotionRepository,
 )
-from forge.main.dependencies import get_current_admin, get_db
+from forge.main.dependencies import get_db
+from forge.main.rbac import require_permission
 
 router = APIRouter()
 
@@ -128,7 +129,7 @@ def _coerce_dates(data: dict[str, Any]) -> dict[str, Any]:
 @router.post("/rules", status_code=201)
 async def create_rule(
     payload: PricingRuleCreate,
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("pricing", "manage")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     if not admin:
@@ -147,7 +148,7 @@ async def create_rule(
 
 @router.get("/rules", response_model=PricingListResponse)
 async def list_rules(
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("pricing", "view")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     if not admin:
@@ -161,7 +162,7 @@ async def list_rules(
 async def update_rule(
     rule_id: str,
     payload: PricingRuleUpdate,
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("pricing", "manage")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     if not admin:
@@ -185,7 +186,7 @@ async def update_rule(
 @router.delete("/rules/{rule_id}")
 async def delete_rule(
     rule_id: str,
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("pricing", "view")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     if not admin:
@@ -203,7 +204,7 @@ async def delete_rule(
 @router.post("/promotions", status_code=201)
 async def create_promotion(
     payload: PromotionCreate,
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("pricing", "manage")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     if not admin:
@@ -222,7 +223,7 @@ async def create_promotion(
 
 @router.get("/promotions", response_model=PricingListResponse)
 async def list_promotions(
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("pricing", "view")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     if not admin:
@@ -236,7 +237,7 @@ async def list_promotions(
 async def update_promotion(
     promo_id: str,
     payload: PromotionUpdate,
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("pricing", "manage")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     if not admin:
@@ -260,7 +261,7 @@ async def update_promotion(
 @router.delete("/promotions/{promo_id}")
 async def delete_promotion(
     promo_id: str,
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("pricing", "manage")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     if not admin:
@@ -281,7 +282,7 @@ async def calculate_price(
     cost_price: float = Query(..., ge=0),
     product_id: str | None = Query(default=None),
     override_price: float | None = Query(default=None, ge=0),
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("pricing", "view")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     if not admin:

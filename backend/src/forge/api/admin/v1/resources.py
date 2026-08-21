@@ -34,7 +34,8 @@ from forge.infrastructure.persistence.models import (
 )
 from forge.infrastructure.persistence.repositories.site_profile_repo import SQLAlchemySiteProfileRepository
 from forge.infrastructure.services.minio_service import MinioService, get_minio_service
-from forge.main.dependencies import get_current_admin, get_db
+from forge.main.dependencies import get_db
+from forge.main.rbac import require_permission
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -193,7 +194,7 @@ async def upload_resource(
     file: UploadFile = File(...),
     directory: str = Form(default=""),
     tags: list[str] = Form(default=[]),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_permission("resources", "upload")),
     db: AsyncSession = Depends(get_db),
     minio: MinioService = Depends(get_minio_service),
 ):
@@ -299,7 +300,7 @@ async def list_resources(
     tag: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=200),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_permission("resources", "view")),
     db: AsyncSession = Depends(get_db),
 ):
     """资源列表：支持 type / site_id / keyword / directory / tag / page 过滤，默认上传时间倒序（不含软删）。"""
@@ -368,7 +369,7 @@ async def list_resources(
 # ---------------------------------------------------------------------------
 @router.get("/meta/directories")
 async def list_directories(
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_permission("resources", "view")),
     db: AsyncSession = Depends(get_db),
 ):
     """目录树：按 directory 分组统计资源数（不含软删），未归档资源归入 ''。"""
@@ -388,7 +389,7 @@ async def list_directories(
 
 @router.get("/meta/tags")
 async def list_tags(
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_permission("resources", "view")),
     db: AsyncSession = Depends(get_db),
 ):
     """标签列表：按标签统计资源数（不含软删）。"""
@@ -412,7 +413,7 @@ async def list_tags(
 async def check_resource_name(
     name: str = Query(...),
     exclude_id: str | None = Query(default=None),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_permission("resources", "view")),
     db: AsyncSession = Depends(get_db),
 ):
     """重名检测：同名资源（含软删）返回是否存在及数量。"""
@@ -441,7 +442,7 @@ class CheckNamesPayload(BaseModel):
 @router.post("/check-names")
 async def check_resource_names(
     payload: CheckNamesPayload,
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_permission("resources", "view")),
     db: AsyncSession = Depends(get_db),
 ):
     """批量重名检测：返回已存在的同名资源（仅 active，排除软删）。"""
@@ -489,7 +490,7 @@ async def list_trash(
     page_size: int = Query(default=24, ge=1, le=200),
     keyword: str | None = Query(default=None),
     file_type: str | None = Query(default=None),
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_permission("resources", "view")),
     db: AsyncSession = Depends(get_db),
 ):
     """回收站列表：仅软删资源（deleted_at 非空）。"""
@@ -518,7 +519,7 @@ async def list_trash(
 @router.post("/trash/restore")
 async def restore_resources(
     payload: TrashPayload,
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_permission("resources", "manage")),
     db: AsyncSession = Depends(get_db),
 ):
     """恢复回收站资源（单/批量）：清除 deleted_at。"""
@@ -555,7 +556,7 @@ async def restore_resources(
 @router.delete("/trash")
 async def purge_resources(
     payload: TrashPayload,
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_permission("resources", "manage")),
     db: AsyncSession = Depends(get_db),
     minio: MinioService = Depends(get_minio_service),
 ):
@@ -605,7 +606,7 @@ async def purge_resources(
 
 @router.delete("/trash/empty")
 async def empty_trash(
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_permission("resources", "manage")),
     db: AsyncSession = Depends(get_db),
     minio: MinioService = Depends(get_minio_service),
 ):
@@ -652,7 +653,7 @@ def _thumb_object_key(res: ORMResource) -> str:
 @router.get("/{resource_id}")
 async def get_resource(
     resource_id: str,
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_permission("resources", "view")),
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -691,7 +692,7 @@ class ResourceRefSyncPayload(BaseModel):
 @router.post("/refs/sync")
 async def sync_resource_refs(
     payload: ResourceRefSyncPayload,
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_permission("resources", "manage")),
     db: AsyncSession = Depends(get_db),
 ):
     """全量同步引用关系：将 ref_type+ref_id 下登记的引用对齐到 resource_ids 列表。
@@ -780,7 +781,7 @@ class RenamePayload(BaseModel):
 async def rename_resource(
     resource_id: str,
     payload: RenamePayload,
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_permission("resources", "manage")),
     db: AsyncSession = Depends(get_db),
 ):
     name = (payload.name or "").strip()
@@ -815,7 +816,7 @@ class MovePayload(BaseModel):
 @router.post("/move")
 async def move_resources(
     payload: MovePayload,
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_permission("resources", "manage")),
     db: AsyncSession = Depends(get_db),
 ):
     """批量移动资源到目录（拖拽移动）。directory 传 '' 表示移到根目录/未归档。"""
@@ -848,7 +849,7 @@ class TagsPayload(BaseModel):
 @router.post("/tags")
 async def set_resource_tags(
     payload: TagsPayload,
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_permission("resources", "manage")),
     db: AsyncSession = Depends(get_db),
 ):
     """批量设置资源标签（追加语义，幂等去重）。"""
@@ -901,7 +902,7 @@ class BatchDeletePayload(BaseModel):
 @router.delete("/{resource_id}")
 async def delete_resource(
     resource_id: str,
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_permission("resources", "manage")),
     db: AsyncSession = Depends(get_db),
 ):
     if not admin:
@@ -924,7 +925,7 @@ async def delete_resource(
 @router.delete("")
 async def batch_delete_resources(
     payload: BatchDeletePayload,
-    admin: dict = Depends(get_current_admin),
+    admin: dict = Depends(require_permission("resources", "manage")),
     db: AsyncSession = Depends(get_db),
 ):
     """批量软删。"""

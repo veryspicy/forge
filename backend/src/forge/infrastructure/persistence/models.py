@@ -292,6 +292,7 @@ class ORMAdminUser(Base):
     email = Column(String(320), nullable=False, unique=True)
     password_hash = Column(String(128), nullable=False)
     display_name = Column(String(200), nullable=False)
+    role = Column(String(20), nullable=False, default="super_admin", server_default="super_admin")
     is_active = Column(Boolean, nullable=False, default=True)
     last_login_at = Column(DateTime(timezone=False), nullable=True)
     created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")

@@ -1,17 +1,18 @@
 """Admin Auth API — login / me / logout."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from jose import jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
-from jose import jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from forge.infrastructure.persistence.models import ORMAdminUser
 from forge.infrastructure.persistence.repositories.user_repo import SQLAlchemyAdminUserRepository
 from forge.main.config import settings
 from forge.main.dependencies import get_current_admin, get_db
+from forge.main.rbac import permissions_for
 
 router = APIRouter()
 
@@ -46,6 +47,11 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="INVALID_CREDENTIALS",
         )
+    if not admin.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="ACCOUNT_DISABLED",
+        )
 
     # Update last_login_at
     admin.last_login_at = datetime.now()
@@ -53,8 +59,8 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
 
     payload = {
         "sub": admin.email,
-        "role": "super_admin",
-        "exp": datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes),
+        "role": admin.role,
+        "exp": datetime.now(UTC) + timedelta(minutes=settings.access_token_expire_minutes),
     }
     token = jwt.encode(payload, settings.secret_key, algorithm="HS256")
     return {
@@ -64,7 +70,7 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
             "user_id": admin.email,
             "email": admin.email,
             "name": admin.display_name,
-            "role": "super_admin",
+            "role": admin.role,
         },
     }
 
@@ -85,5 +91,5 @@ async def me(admin_claims: dict = Depends(get_current_admin), db: AsyncSession =
         "email": admin.email,
         "name": admin.display_name,
         "roles": [admin_claims.get("role", "user")],
-        "permissions": ["*"],
+        "permissions": permissions_for(admin_claims.get("role", "")),
     }

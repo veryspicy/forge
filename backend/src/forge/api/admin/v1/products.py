@@ -36,7 +36,8 @@ from forge.infrastructure.persistence.repositories.site_profile_repo import (
     SQLAlchemySiteProfileRepository,
 )
 from forge.infrastructure.services.minio_service import MinioService, get_minio_service
-from forge.main.dependencies import get_current_admin, get_db
+from forge.main.dependencies import get_db
+from forge.main.rbac import require_permission
 
 router = APIRouter()
 
@@ -186,7 +187,7 @@ async def _active_site_id(db: AsyncSession) -> str:
 @router.post("", status_code=201)
 async def create_product(
     payload: ProductCreate,
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("products", "create")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     if not admin:
@@ -220,7 +221,7 @@ async def list_products(
     category: str | None = Query(default=None),
     search: str | None = Query(default=None),
     status: str | None = Query(default=None),
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("products", "view")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     if status and status not in VALID_STATUSES:
@@ -372,7 +373,7 @@ def _parse_product_row(raw: dict[str, str]) -> tuple[dict[str, Any], list[str]]:
 
 @router.get("/export")
 async def export_products(
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("products", "view")),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
     if not admin:
@@ -413,7 +414,7 @@ async def export_products(
 @router.post("/import")
 async def import_products(
     file: UploadFile = File(...),
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("products", "create")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     if not admin:
@@ -488,7 +489,7 @@ async def import_products(
 @router.get("/{product_id}")
 async def get_product(
     product_id: str,
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("products", "view")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     product = await _get_product_or_404(db, product_id)
@@ -505,7 +506,7 @@ async def get_product(
 async def update_product(
     product_id: str,
     payload: ProductUpdate,
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("products", "edit")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     if not admin:
@@ -540,7 +541,7 @@ async def update_product(
 async def set_product_status(
     product_id: str,
     payload: StatusPayload,
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("products", "status")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     if not admin:
@@ -566,7 +567,7 @@ async def upload_product_image(
     file: UploadFile = File(...),
     is_main: bool = Form(default=False),
     alt: str = Form(default=""),
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("products", "edit")),
     db: AsyncSession = Depends(get_db),
     minio: MinioService = Depends(get_minio_service),
 ) -> dict[str, Any]:
@@ -631,7 +632,7 @@ async def upload_product_image(
 async def delete_product_image(
     product_id: str,
     key: str,
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("products", "edit")),
     db: AsyncSession = Depends(get_db),
     minio: MinioService = Depends(get_minio_service),
 ) -> dict[str, Any]:
@@ -877,7 +878,7 @@ def compute_seo_score(product: ORMProduct) -> dict[str, Any]:
 @router.get("/{product_id}/seo-score")
 async def get_product_seo_score(
     product_id: str,
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("products", "view")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     product = await _get_product_or_404(db, product_id)
@@ -898,7 +899,7 @@ async def _get_variant_or_404(db: AsyncSession, raw_id: str) -> ORMProductVarian
 @router.get("/{product_id}/variants")
 async def list_product_variants(
     product_id: str,
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("products", "view")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     product = await _get_product_or_404(db, product_id)
@@ -910,7 +911,7 @@ async def list_product_variants(
 async def create_product_variant(
     product_id: str,
     payload: VariantCreate,
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("products", "edit")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     if not admin:
@@ -935,7 +936,7 @@ async def update_product_variant(
     product_id: str,
     variant_id: str,
     payload: VariantUpdate,
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("products", "edit")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     if not admin:
@@ -963,7 +964,7 @@ async def update_product_variant(
 async def delete_product_variant(
     product_id: str,
     variant_id: str,
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("products", "edit")),
     db: AsyncSession = Depends(get_db),
 ) -> None:
     if not admin:

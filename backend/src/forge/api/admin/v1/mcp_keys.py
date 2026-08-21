@@ -18,7 +18,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from forge.infrastructure.persistence.models import ORMMcpApiKey, ORMMcpAuditLog
-from forge.main.dependencies import get_current_admin, get_db
+from forge.main.dependencies import get_db
+from forge.main.rbac import require_permission
 from forge.mcp.auth import generate_api_key, hash_key
 
 router = APIRouter()
@@ -58,7 +59,7 @@ async def _require_admin(admin: dict[str, Any] | None) -> None:
 @router.post("/keys", status_code=201)
 async def create_api_key(
     payload: ApiKeyCreate,
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("mcp_keys", "manage")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     await _require_admin(admin)
@@ -88,7 +89,7 @@ async def create_api_key(
 
 @router.get("/keys", response_model=ApiKeyListResponse)
 async def list_api_keys(
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("mcp_keys", "manage")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     await _require_admin(admin)
@@ -100,7 +101,7 @@ async def list_api_keys(
 @router.delete("/keys/{key_id}", status_code=204)
 async def revoke_api_key(
     key_id: str,
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("mcp_keys", "manage")),
     db: AsyncSession = Depends(get_db),
 ) -> None:
     await _require_admin(admin)
@@ -120,7 +121,7 @@ async def list_audit_logs(
     page_size: int = Query(default=20, ge=1, le=200),
     tool_name: str | None = Query(default=None),
     result_status: str | None = Query(default=None),
-    admin: dict[str, Any] = Depends(get_current_admin),
+    admin: dict[str, Any] = Depends(require_permission("mcp_keys", "manage")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     await _require_admin(admin)
