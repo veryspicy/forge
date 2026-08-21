@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,13 +12,13 @@ class SQLAlchemySiteProfileRepository:
     """站点配置数据库访问封装。"""
 
     @staticmethod
-    async def get_active(db: AsyncSession) -> Optional[ORMSiteProfile]:
+    async def get_active(db: AsyncSession) -> ORMSiteProfile | None:
         stmt = select(ORMSiteProfile).where(ORMSiteProfile.is_active == True)  # noqa: E712
         result = await db.execute(stmt)
         return result.scalar_one_or_none()
 
     @staticmethod
-    async def get_active_as_dict(db: AsyncSession) -> Optional[dict]:
+    async def get_active_as_dict(db: AsyncSession) -> dict[str, object] | None:
         profile = await SQLAlchemySiteProfileRepository.get_active(db)
         if profile is None:
             return None

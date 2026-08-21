@@ -68,7 +68,7 @@ async def create_api_key(
     invalid = set(payload.scopes) - VALID_SCOPES
     if invalid:
         raise HTTPException(status_code=400, detail=f"无效的 scopes: {sorted(invalid)}")
-    if not payload.scopes or set(payload.scopes) == {"read"}:
+    if not payload.scopes:
         raise HTTPException(status_code=400, detail="至少需要 read 或 write 权限")
 
     plain_key = generate_api_key()

@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import func, or_, select
 
@@ -106,7 +106,7 @@ async def _create_product(
         session.add(product)
         await session.commit()
         await session.refresh(product)
-        return product.to_dict()
+        return cast(dict[str, Any], product.to_dict())
 
 
 async def _update_product(product_id: str, updates: dict[str, Any]) -> dict[str, Any] | None:
@@ -117,6 +117,7 @@ async def _update_product(product_id: str, updates: dict[str, Any]) -> dict[str,
         "price",
         "cost",
         "inventory",
+        "status",
         "images",
         "supplier_id",
         "supplier_sku",
@@ -139,7 +140,7 @@ async def _update_product(product_id: str, updates: dict[str, Any]) -> dict[str,
             setattr(product, k, v)
         await session.commit()
         await session.refresh(product)
-        return product.to_dict()
+        return cast(dict[str, Any], product.to_dict())
 
 
 async def _update_product_price(product_id: str, price: float, cost: float | None = None) -> dict[str, Any] | None:
