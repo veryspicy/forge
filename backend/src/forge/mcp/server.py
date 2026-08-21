@@ -85,10 +85,20 @@ async def _auth_middleware(scope: dict, receive: Callable, send: Callable) -> No
         await _inner_app(scope, receive, send)
         return
 
-    from starlette.datastructures import Headers
-
-    headers = Headers(scope=scope.get("headers", []))
-    key_info = await _verify_bearer(headers.get("authorization"))
+    # FastAPI mount 传入的 scope["headers"] 可能是 list[tuple] 或 dict，手动解析避免类型差异
+    raw_headers = scope.get("headers") or []
+    auth_value = ""
+    if isinstance(raw_headers, dict):
+        for hk, hv in raw_headers.items():
+            if hk.lower() in (b"authorization", "authorization"):
+                auth_value = hv.decode("latin-1") if isinstance(hv, bytes) else str(hv)
+                break
+    else:
+        for k, v in raw_headers:
+            if k.lower() in (b"authorization", "authorization"):
+                auth_value = v.decode("latin-1") if isinstance(v, bytes) else str(v)
+                break
+    key_info = await _verify_bearer(auth_value)
 
     # SSE 长连接握手后，/messages/ 的 POST 请求通常不带鉴权头（复用 SSE 会话），
     # 此处放行 POST 消息端点，鉴权在 SSE 建立时完成。
@@ -122,5 +132,8 @@ def build_mcp_app() -> Any:
     """构建挂载到 FastAPI /mcp 的 Starlette 子应用。"""
     global _inner_app
     mcp = build_mcp()
-    _inner_app = mcp.sse_app(mount_path="/mcp")
+    # mount_path 需为 "/"：外层 FastAPI 已挂 /mcp 并设置 root_path，
+    # SDK 生成客户端消息端点 = root_path + mount_path + message_path，
+    # 若 mount_path="/mcp" 会导致 /mcp/mcp/messages/ 前缀重复。
+    _inner_app = mcp.sse_app(mount_path="/")
     return _auth_middleware
