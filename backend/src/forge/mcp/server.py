@@ -79,7 +79,7 @@ async def _verify_bearer(authorization: str | None) -> dict[str, Any] | None:
     return {"id": str(key.id), "name": key.name, "scopes": list(key.scopes or [])}
 
 
-async def _auth_middleware(scope: dict, receive: Callable, send: Callable) -> None:
+async def _auth_middleware(scope: dict[str, Any], receive: Callable[..., Any], send: Callable[..., Any]) -> None:
     """ASGI 中间件：/mcp/* 请求必须携带有效 API Key。"""
     if scope["type"] != "http":
         await _inner_app(scope, receive, send)
