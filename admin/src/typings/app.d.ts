@@ -303,7 +303,9 @@ declare namespace App {
       key: LangType;
     };
 
-    type I18nRouteKey = Exclude<RouteKey, 'root' | 'not-found'>;
+    type CustomMenuRouteKey = 'merchandise' | 'sales' | 'customers' | 'site' | 'system';
+
+    type I18nRouteKey = Exclude<RouteKey, 'root' | 'not-found'> | CustomMenuRouteKey;
 
     type FormMsg = {
       required: string;
