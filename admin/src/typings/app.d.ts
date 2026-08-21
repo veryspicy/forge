@@ -319,6 +319,7 @@ declare namespace App {
         updateCancel: string;
       };
       common: {
+        [key: string]: string | { yes: string; no: string };
         action: string;
         add: string;
         addSuccess: string;
@@ -335,6 +336,9 @@ declare namespace App {
         delete: string;
         deleteSuccess: string;
         confirmDelete: string;
+        save: string;
+        name: string;
+        status: string;
         edit: string;
         warning: string;
         error: string;
@@ -527,6 +531,29 @@ declare namespace App {
             title: string;
           };
         };
+        dashboard: {
+          todayOrders: string;
+          pendingOrders: string;
+          todayGMV: string;
+          activeProducts: string;
+          probeAdoption: string;
+          procurementErrors: string;
+          activeSuppliers: string;
+          probeRequests: string;
+          ordersTrend: string;
+          productCategories: string;
+        };
+        suppliers: Record<string, string>;
+        pricing: Record<string, string>;
+        shipments: Record<string, string>;
+        products: Record<string, string>;
+        productsDetail: Record<string, string>;
+        orders: Record<string, string>;
+        ordersDetail: Record<string, string>;
+        aiProbe: Record<string, string>;
+        users: Record<string, string>;
+        site: Record<string, string>;
+        settings: Record<string, string>;
         home: {
           branchDesc: string;
           greeting: string;

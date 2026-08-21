@@ -1,22 +1,3 @@
-<template>
-  <NCard
-    class="config-card"
-    size="small"
-    :bordered="bordered"
-    :content-style="contentStyle"
-    :header-style="{ padding: '8px 12px' }"
-  >
-    <template v-if="$slots.header || title" #header>
-      <div class="flex w-full min-w-0 items-center gap-2">
-        <slot name="header">
-          <span class="flex-1 truncate text-[13px] font-medium text-gray-600 dark:text-gray-300">{{ title }}</span>
-        </slot>
-      </div>
-    </template>
-    <slot />
-  </NCard>
-</template>
-
 <script setup lang="ts">
 import { computed } from 'vue';
 import { NCard } from 'naive-ui';
@@ -37,6 +18,25 @@ const contentStyle = computed(() => ({
   padding: props.contentPadding
 }));
 </script>
+
+<template>
+  <NCard
+    class="config-card"
+    size="small"
+    :bordered="bordered"
+    :content-style="contentStyle"
+    :header-style="{ padding: '8px 12px' }"
+  >
+    <template v-if="$slots.header || title" #header>
+      <div class="flex w-full min-w-0 items-center gap-2">
+        <slot name="header">
+          <span class="flex-1 truncate text-[13px] font-medium text-gray-600 dark:text-gray-300">{{ title }}</span>
+        </slot>
+      </div>
+    </template>
+    <slot />
+  </NCard>
+</template>
 
 <style scoped>
 .config-card {

@@ -1,3 +1,22 @@
+<script setup lang="ts">
+import { NTooltip } from 'naive-ui';
+
+defineProps<{
+  /** 参数中文显示名（如 品牌名称 / 跳转路径）；未传时回退显示 name */
+  label?: string;
+  /** 参数 key（如 name / slug / hero.subtitleKey） */
+  name: string;
+  /** 作用说明 */
+  desc?: string;
+  /** 类型（string / number / boolean / string[]） */
+  type?: string;
+  /** 取值范围 */
+  range?: string;
+  /** 示例值 */
+  example?: string;
+}>();
+</script>
+
 <template>
   <div class="field-label flex items-center gap-1">
     <span class="text-xs font-medium text-gray-500">{{ label || name }}</span>
@@ -19,22 +38,3 @@
     </NTooltip>
   </div>
 </template>
-
-<script setup lang="ts">
-import { NTooltip } from 'naive-ui';
-
-defineProps<{
-  /** 参数中文显示名（如 品牌名称 / 跳转路径）；未传时回退显示 name */
-  label?: string;
-  /** 参数 key（如 name / slug / hero.subtitleKey） */
-  name: string;
-  /** 作用说明 */
-  desc?: string;
-  /** 类型（string / number / boolean / string[]） */
-  type?: string;
-  /** 取值范围 */
-  range?: string;
-  /** 示例值 */
-  example?: string;
-}>();
-</script>

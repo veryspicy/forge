@@ -27,7 +27,7 @@ export const request = createFlatRequest(
       }
       return config;
     },
-    isBackendSuccess(response) {
+    isBackendSuccess(_response) {
       // Standard HTTP: 2xx = success, our backend returns data directly without code wrapping
       return true;
     },
@@ -49,7 +49,7 @@ export const request = createFlatRequest(
         const authStore = useAuthStore();
         authStore.resetStore();
         const detail = error.response?.data?.detail;
-        message = detail ? $t(`errors.${detail}`) : $t('request.logoutMsg');
+        message = detail ? $t(`errors.${detail}` as App.I18n.I18nKey) : $t('request.logoutMsg');
         window.$message?.error(message);
         return;
       }

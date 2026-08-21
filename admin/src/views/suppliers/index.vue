@@ -59,7 +59,7 @@ const columns: DataTableColumns<any> = [
         h(NButton, { size: 'small', onClick: () => openEdit(row) }, { default: () => t('common.edit') }),
         h(NButton, { size: 'small', type: 'info', disabled: !row.provider_code, onClick: () => openCredentials(row) }, { default: () => t('page.suppliers.credentials') }),
         h(NButton, { size: 'small', type: 'primary', disabled: !row.provider_code, onClick: () => openSearch(row) }, { default: () => t('page.suppliers.searchProducts') }),
-        h(NButton, { size: 'small', type: 'warning', disabled: !row.provider_code, loading: row._syncing, onClick: () => runSync(row) }, { default: () => t('page.suppliers.syncNow') }),
+        h(NButton, { size: 'small', type: 'warning', disabled: !row.provider_code, loading: row.syncing, onClick: () => runSync(row) }, { default: () => t('page.suppliers.syncNow') }),
         h(NButton, { size: 'small', disabled: !row.provider_code, onClick: () => openLogs(row) }, { default: () => t('page.suppliers.syncLogs') }),
         row.is_active ? h(NButton, { size: 'small', type: 'warning', onClick: () => deactivate(row.id) }, { default: () => t('page.suppliers.inactive') }) : null,
       ],
@@ -228,7 +228,7 @@ async function doImport() {
 
 // ---- 同步 ----
 async function runSync(row: any) {
-  row._syncing = true;
+  row.syncing = true;
   try {
     const res = await post(`/api/admin/v1/supplier-sources/${row.id}/sync`, { trigger_type: 'manual' });
     const d = res.data?.data || {};
@@ -237,7 +237,7 @@ async function runSync(row: any) {
   } catch (e: any) {
     message.error(e.response?.data?.detail || 'Sync failed');
   } finally {
-    row._syncing = false;
+    row.syncing = false;
   }
 }
 
