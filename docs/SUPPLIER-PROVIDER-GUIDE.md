@@ -1,3 +1,14 @@
+---
+AIGC:
+    Label: "1"
+    ContentProducer: 001191440300708461136T1XGW3
+    ProduceID: 14f48488fead00d28e11c31f9845685c_b83187279d0c11f19155525400826444
+    ReservedCode1: 7wvY4pPH415symW1cdVKL2XnuqopREqtLtBxJ4D1CKS/EuY7mCp+FjhOopu7S5Ti915UGq02oZNML1fhZTABrugpktJDCsJ+eDsatzEs44b+ULZLNphZ4N/Ebk3c5RBgWjE0WXYBHxlvs4GnCdRRaD7IoQNza7xkG/DIIhFify9VK76G3hpIFNml1eM=
+    ContentPropagator: 001191440300708461136T1XGW3
+    PropagateID: 14f48488fead00d28e11c31f9845685c_b83187279d0c11f19155525400826444
+    ReservedCode2: 7wvY4pPH415symW1cdVKL2XnuqopREqtLtBxJ4D1CKS/EuY7mCp+FjhOopu7S5Ti915UGq02oZNML1fhZTABrugpktJDCsJ+eDsatzEs44b+ULZLNphZ4N/Ebk3c5RBgWjE0WXYBHxlvs4GnCdRRaD7IoQNza7xkG/DIIhFify9VK76G3hpIFNml1eM=
+---
+
 # 多供应商货源接入指南（Supplier Provider Guide）
 
 > P2-5 落地。本文说明如何为 Forge 新增一件代发/货源厂商（CJ、AliExpress、DSers 等），复用统一的货源搜索、导入、库存/价格同步、定时任务链路。
@@ -99,3 +110,4 @@ Admin UI（`admin/src/views/suppliers/index.vue`）已内置：凭据配置弹�
 4. `import` 后 `products` 出现 draft 商品，且 `supplier_id / supplier_product_id` 回填正确；重复导入不产生重复行。
 5. `sync` 返回日志（success/partial/failed），`sync-logs` 可查。
 6. Admin UI 供应商页：凭据保存、搜索弹窗勾选导入、同步日志抽屉均可用。
+*（内容由AI生成，仅供参考）*
