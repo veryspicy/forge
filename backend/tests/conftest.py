@@ -5,9 +5,8 @@ from __future__ import annotations
 import os
 import sys
 from datetime import datetime, timedelta
-from decimal import Decimal
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
@@ -37,6 +36,7 @@ os.environ.setdefault(
 # UUID / datetime / Decimal factories
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def sample_uuid() -> UUID:
     return uuid4()
@@ -60,6 +60,7 @@ def past_dt(now_dt: datetime) -> datetime:
 # ---------------------------------------------------------------------------
 # DB / repo mocks
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def mock_db_session() -> AsyncMock:
@@ -140,8 +141,10 @@ def mock_llm_client() -> AsyncMock:
 # FastAPI TestClient
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def test_client() -> TestClient:
     """TestClient for the FastAPI app."""
     from forge.main.application import app
+
     return TestClient(app)

@@ -1,67 +1,109 @@
-"""Unit tests for Admin Auth API (uses shared /api/v1/auth)."""
+"""Unit tests for Admin Auth API (new admin/v1 login endpoint)."""
 
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from fastapi import HTTPException, status
-from uuid import uuid4
+from forge.api.admin.v1 import auth as auth_module
 
-ADMIN_ID = str(uuid4())
+ADMIN_ID = "d290f1ee-6c54-4b01-90e6-d701748f0851"
+
+
+def _make_admin(email="admin@test.com", role="super_admin", is_active=True):
+    admin = MagicMock()
+    admin.id = ADMIN_ID
+    admin.email = email
+    admin.display_name = "Admin"
+    admin.role = role
+    admin.password_hash = "$2b$12$fakehash"
+    admin.is_active = is_active
+    return admin
 
 
 class TestAdminAuthAPI:
-    """Test /api/v1/auth endpoints (admin shares the same login endpoint)."""
+    """Test /api/admin/v1/auth endpoints."""
 
     def test_login_success(self, test_client):
-        mock_auth = MagicMock()
-        mock_auth.login = AsyncMock(
-            return_value={
-                "access_token": "fake-jwt",
-                "token_type": "bearer",
-                "user_id": ADMIN_ID,
-            }
+        from forge.infrastructure.persistence.repositories.user_repo import (
+            SQLAlchemyAdminUserRepository,
         )
-        with patch("forge.api.v1.auth.AuthService", return_value=mock_auth):
+
+        with (
+            patch.object(
+                SQLAlchemyAdminUserRepository,
+                "get_by_email",
+                new_callable=AsyncMock,
+                return_value=_make_admin(),
+            ),
+            patch.object(auth_module.pwd_context, "verify", return_value=True),
+        ):
             resp = test_client.post(
-                "/api/v1/auth/login",
+                "/api/admin/v1/auth/login",
                 json={"email": "admin@test.com", "password": "password123"},
             )
         assert resp.status_code == 200
         data = resp.json()
-        assert data["access_token"] == "fake-jwt"
-        assert data["user_id"] == ADMIN_ID
+        assert data["access_token"]
+        assert data["user"]["email"] == "admin@test.com"
+        assert data["user"]["role"] == "super_admin"
 
     def test_login_wrong_password(self, test_client):
-        mock_auth = MagicMock()
-        mock_auth.login = AsyncMock(
-            side_effect=HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password",
-            )
+        from forge.infrastructure.persistence.repositories.user_repo import (
+            SQLAlchemyAdminUserRepository,
         )
-        with patch("forge.api.v1.auth.AuthService", return_value=mock_auth):
+
+        with (
+            patch.object(
+                SQLAlchemyAdminUserRepository,
+                "get_by_email",
+                new_callable=AsyncMock,
+                return_value=_make_admin(),
+            ),
+            patch.object(auth_module.pwd_context, "verify", return_value=False),
+        ):
             resp = test_client.post(
-                "/api/v1/auth/login",
+                "/api/admin/v1/auth/login",
                 json={"email": "admin@test.com", "password": "wrongpass"},
             )
         assert resp.status_code == 401
 
     def test_login_user_not_found(self, test_client):
-        mock_auth = MagicMock()
-        mock_auth.login = AsyncMock(
-            side_effect=HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password",
-            )
+        from forge.infrastructure.persistence.repositories.user_repo import (
+            SQLAlchemyAdminUserRepository,
         )
-        with patch("forge.api.v1.auth.AuthService", return_value=mock_auth):
+
+        with patch.object(
+            SQLAlchemyAdminUserRepository,
+            "get_by_email",
+            new_callable=AsyncMock,
+            return_value=None,
+        ):
             resp = test_client.post(
-                "/api/v1/auth/login",
+                "/api/admin/v1/auth/login",
                 json={"email": "nonexistent@test.com", "password": "whatever"},
             )
         assert resp.status_code == 401
 
+    def test_login_disabled_account(self, test_client):
+        from forge.infrastructure.persistence.repositories.user_repo import (
+            SQLAlchemyAdminUserRepository,
+        )
+
+        with (
+            patch.object(
+                SQLAlchemyAdminUserRepository,
+                "get_by_email",
+                new_callable=AsyncMock,
+                return_value=_make_admin(is_active=False),
+            ),
+            patch.object(auth_module.pwd_context, "verify", return_value=True),
+        ):
+            resp = test_client.post(
+                "/api/admin/v1/auth/login",
+                json={"email": "admin@test.com", "password": "password123"},
+            )
+        assert resp.status_code == 403
+
     def test_login_missing_fields(self, test_client):
-        resp = test_client.post("/api/v1/auth/login", json={})
+        resp = test_client.post("/api/admin/v1/auth/login", json={})
         assert resp.status_code == 422
