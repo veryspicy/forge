@@ -259,7 +259,8 @@ class ZendropProvider(SupplierProvider):
         credential: ORMSupplierCredential,
     ) -> SyncSummary:
         summary = SyncSummary()
-        auto_update_price = bool((supplier.config or {}).get("auto_update_price", True))
+        config: dict[str, object] = supplier.config if isinstance(supplier.config, dict) else {}
+        auto_update_price = bool(config.get("auto_update_price", True))
         rows = (
             await db.scalars(
                 select(ORMProduct).where(
