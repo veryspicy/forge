@@ -103,6 +103,11 @@ class StatusPayload(BaseModel):
     status: str
 
 
+class BatchStatusPayload(BaseModel):
+    ids: list[str]
+    status: str
+
+
 class VariantCreate(BaseModel):
     sku: str
     name: str
@@ -535,6 +540,48 @@ async def update_product(
 
 
 # ---------------------------------------------------------------------------
+# 4.5 批量状态变更（含批量删除）
+# ---------------------------------------------------------------------------
+@router.post("/batch-status")
+async def batch_set_product_status(
+    payload: BatchStatusPayload,
+    admin: dict[str, Any] = Depends(require_permission("products", "status")),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    if not admin:
+        raise HTTPException(status_code=401, detail="未登录")
+
+    if not payload.ids:
+        raise HTTPException(status_code=400, detail="ids 不能为空")
+    if len(payload.ids) > 200:
+        raise HTTPException(status_code=400, detail="单次批量操作最多 200 个商品")
+    if payload.status not in VALID_STATUSES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"status 必须为 {sorted(VALID_STATUSES)} 之一",
+        )
+
+    ids: list[str] = []
+    for raw_id in dict.fromkeys(payload.ids):
+        ids.append(str(_coerce_uuid(raw_id)))
+
+    products = await SQLAlchemyProductRepository.list_by_ids(db, ids)
+    existing_ids = {str(p.id) for p in products}
+    missing = [pid for pid in ids if pid not in existing_ids]
+
+    for product in products:
+        await ProductService.set_status(db, product, payload.status)
+
+    await db.commit()
+    return {
+        "data": {
+            "updated": len(products),
+            "missing": missing,
+        }
+    }
+
+
+# ---------------------------------------------------------------------------
 # 5. 上下架
 # ---------------------------------------------------------------------------
 @router.post("/{product_id}/status")
@@ -556,6 +603,27 @@ async def set_product_status(
     await db.commit()
     await db.refresh(product)
     return {"data": _serialize_product(product)}
+
+
+# ---------------------------------------------------------------------------
+# 5.5 删除（软删除）
+# ---------------------------------------------------------------------------
+@router.delete("/{product_id}")
+async def delete_product(
+    product_id: str,
+    admin: dict[str, Any] = Depends(require_permission("products", "delete")),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    if not admin:
+        raise HTTPException(status_code=401, detail="未登录")
+
+    product = await _get_product_or_404(db, product_id)
+    if product.status == "deleted":
+        raise HTTPException(status_code=400, detail="商品已删除")
+
+    await ProductService.set_status(db, product, "deleted")
+    await db.commit()
+    return {"data": {"id": str(product.id), "status": "deleted"}}
 
 
 # ---------------------------------------------------------------------------

@@ -241,20 +241,6 @@ services:
       backend:
         condition: service_healthy
 
-  # ===== 初始化 Admin 用户（一次性） =====
-  init-admin:
-    image: forge-backend:latest
-    container_name: forge-init-admin
-    networks:
-      - forge
-    environment:
-      <<: *common-vars
-      PYTHONPATH: /app
-    command: python /app/seed_admin.py
-    depends_on:
-      backend:
-        condition: service_healthy
-
 volumes:
   postgres-data:
   redis-data:

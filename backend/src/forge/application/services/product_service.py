@@ -17,7 +17,7 @@ from forge.infrastructure.persistence.repositories.product_repo import (
     SQLAlchemyProductRepository,
 )
 
-VALID_STATUSES = {"draft", "active", "inactive"}
+VALID_STATUSES = {"draft", "active", "inactive", "deleted"}
 ALLOWED_IMAGE_MIME = {"image/jpeg", "image/png", "image/webp"}
 MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
 

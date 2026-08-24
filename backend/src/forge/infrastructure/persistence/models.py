@@ -50,7 +50,7 @@ class ORMProduct(Base):
         CheckConstraint("price > 0", name="ck_products_price_positive"),
         CheckConstraint("inventory >= 0", name="ck_products_inventory_nonneg"),
         CheckConstraint(
-            "status IN ('draft','active','inactive')",
+            "status IN ('draft','active','inactive','deleted')",
             name="ck_products_status",
         ),
     )
