@@ -32,6 +32,9 @@ class SQLAlchemyProductRepository:
             filters.append(ORMProduct.category == category)
         if status:
             filters.append(ORMProduct.status == status)
+        else:
+            # 软删除商品默认不展示，除非显式按 status=deleted 查询
+            filters.append(ORMProduct.status != "deleted")
         if search:
             pattern = f"%{search}%"
             filters.append(
@@ -65,6 +68,12 @@ class SQLAlchemyProductRepository:
     async def list_all(db: AsyncSession) -> list[ORMProduct]:
         """导出用：按创建时间升序返回全量商品。"""
         result = await db.execute(select(ORMProduct).order_by(ORMProduct.created_at.asc()))
+        return list(result.scalars().all())
+
+    @staticmethod
+    async def list_by_ids(db: AsyncSession, ids: list[str]) -> list[ORMProduct]:
+        """按 ID 批量查询，用于批量状态变更。"""
+        result = await db.execute(select(ORMProduct).where(ORMProduct.id.in_(ids)))
         return list(result.scalars().all())
 
     @staticmethod
