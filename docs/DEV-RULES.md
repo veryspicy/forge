@@ -2,6 +2,17 @@
 AIGC:
     Label: "1"
     ContentProducer: 001191440300708461136T1XGW3
+    ProduceID: 14f48488fead00d28e11c31f9845685c_506246f39fa011f1a238525400e6dd8f
+    ReservedCode1: yxvHqhc7x0iIv5sYo9lN21fzYT+hLcdzQZXXCQIC1gTe8EGI2BcK9ZAPjp58VQgTdof8RBEDY441+p7F+XvBUnQxCPX6Av24G1kOo3Zv5bFIvVpBIRRmVS5m4wZo87DWmBZmqefI3glOuAKLBH4P/0snOWquTbYoyYoU27gd2E3vPDbJKeMViDy3p3c=
+    ContentPropagator: 001191440300708461136T1XGW3
+    PropagateID: 14f48488fead00d28e11c31f9845685c_506246f39fa011f1a238525400e6dd8f
+    ReservedCode2: yxvHqhc7x0iIv5sYo9lN21fzYT+hLcdzQZXXCQIC1gTe8EGI2BcK9ZAPjp58VQgTdof8RBEDY441+p7F+XvBUnQxCPX6Av24G1kOo3Zv5bFIvVpBIRRmVS5m4wZo87DWmBZmqefI3glOuAKLBH4P/0snOWquTbYoyYoU27gd2E3vPDbJKeMViDy3p3c=
+---
+
+---
+AIGC:
+    Label: "1"
+    ContentProducer: 001191440300708461136T1XGW3
     ProduceID: 14f48488fead00d28e11c31f9845685c_ae9b99199afd11f1a98a525400f8a581
     ReservedCode1: BAJo5HLEN50HY5JRVCjWtk6+osHNTGyAsCeEU3SChzi1PuETbgJnYLKibERq1s1aHPYtsI+DAJQ4xIMOE8eMtbyY8zuPrGu2mo8xkCP53rr2jsib2ATDyHJ4gEWahH39xmNr7XKnoV3/1zBQyrlMy2P7+RgKT643a1+YyBb3rZIkMFUXyu3NZ6yuUvo=
     ContentPropagator: 001191440300708461136T1XGW3
@@ -202,7 +213,7 @@ powershell -ExecutionPolicy Bypass -File .\rebuild-service.ps1 -Service admin -S
 
 遇到不确定的事项，按以下顺序查找：
 
-1. **查阅 `docs/` 目录下的文档**
+1. **查阅 `docs/` 目录下的文档**（环境/容器/端口相关问题优先查 `docs/INFRA-BASELINE.md`，见 §16）
 2. 文档未覆盖 → **询问用户**
 
 禁止在无依据的情况下自行决策架构、配置或业务逻辑层面的问题。
@@ -685,8 +696,40 @@ podman exec forge-postgres psql -U postgres -d forge -c "SELECT count(*) FROM di
 - test-backend 的 pytest 带 `--cov-fail-under=50`（当前阈值），后续覆盖率稳定后逐步上调至 70
 - 覆盖率报告上传 Codecov 供趋势参考
 
+## 16. 基础设施环境基线（强制）
+
+**触发时机**：任何涉及本地容器环境启动/恢复、端口访问、容器生命周期管理的操作，必须先查阅 `docs/INFRA-BASELINE.md`（环境拓扑、恢复 SOP、已知坑位），禁止凭记忆或临时摸索。
+
+**强制要点（详见 INFRA-BASELINE.md）**：
+
+1. **访问入口**：本地统一走 `http://127.0.0.1:8080`，**禁止用 `localhost`**（镜像网络下 `localhost` 优先解析 IPv6 `::1`，回环转发不通，会误判为环境故障）
+2. **admin 后台入口**：`http://127.0.0.1:8080/admin/`（尾部斜杠必带）；8080 是 gateway 统一入口，admin 容器无对外端口
+3. **容器网络**：Forge 容器必须全部位于 `docker_forge` 网络；手动重建容器时必须 `--network docker_forge`，误用 `forge` 会导致网关 502
+4. **容器拉起**：podman-compose.exe 可能被本机 Application Control 策略拦截，此时用 `podman start <容器列表>` 逐一起动，无需逐容器 `podman run`（容器配置已持久化）
+5. **环境故障恢复顺序**：先查 INFRA-BASELINE.md 的恢复 SOP；禁止重复执行已知无效的 `wsl --shutdown` / 重启 wslservice 等操作
+6. **环境问题出现时**：优先检查访问地址是否误用 localhost（最常见误判），再按 SOP 定位转发链路
+
 ---
 
-*最后更新：2026-08-18*
+## 17. 踩坑反思与规则固化（强制）
+
+**触发时机**：任何执行过程中踩坑、失败、返工后，Agent 必须在本轮内主动完成反思并固化，禁止把教训只停留在会话记忆层。
+
+**执行步骤**：
+
+1. **根因分析**：区分直接原因与深层原因（流程缺失 / 未查已有规则 / 参数凭记忆 / 工具与环境限制）
+2. **判定固化目标**：项目开发规则问题 → 本文档；环境 / 基础设施问题 → `docs/INFRA-BASELINE.md`；领域知识 → 对应 `docs/` 文档
+3. **固化格式**：触发条件 + 正确做法 + 禁止事项（+ 反例，如适用），保证下次同类操作前可被检索到
+4. **优先级判断**：
+   - 已有规则但未执行 → 纠正执行纪律（问题在 Agent 不在文档）
+   - 已有规则存在缺口 → 补充细化（如补全缺失的 SOP 步骤）
+   - 完全无规则 → 新增规则条目
+5. **声明产出**：固化后必须在当轮回复中用 `yyb-product` 声明被修改的规则文件，并告知用户新增/修改的规则条目
+
+**反例（2026-08-24）**：admin 容器重建时未先查 INFRA-BASELINE.md，凭 compose 逻辑网络名 `forge` 误挂网络导致网关 502——基线已明确 `docker_forge` 与禁止事项，属执行纪律问题；同日补充 §4 完整重建 SOP（含网络名实测、gateway 502 处理），堵住"只禁止不给出路"的文档缺口。
+
+---
+
+*最后更新：2026-08-24*
 *（内容由AI生成，仅供参考）*
 *（内容由AI生成，仅供参考）*
