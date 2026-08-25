@@ -57,8 +57,27 @@ class SQLAlchemyProductRepository:
         result = await db.execute(query)
         products = result.scalars().all()
 
+        if products:
+            ids = [p.id for p in products]
+            count_stmt = (
+                select(ORMProductVariant.product_id, func.count(ORMProductVariant.id))
+                .where(ORMProductVariant.product_id.in_(ids))
+                .group_by(ORMProductVariant.product_id)
+            )
+            counts: dict[int, int] = {}
+            for row in (await db.execute(count_stmt)).all():
+                counts[int(row[0])] = int(row[1])
+        else:
+            counts = {}
+
+        items = []
+        for p in products:
+            d = p.to_dict()
+            d["variant_count"] = counts.get(int(p.id), 0)
+            items.append(d)
+
         return {
-            "items": [p.to_dict() for p in products],
+            "items": items,
             "total": total,
             "page": page,
             "page_size": page_size,
@@ -134,7 +153,7 @@ class SQLAlchemyProductRepository:
     # 变体（P2-1）
     # ------------------------------------------------------------------
     @staticmethod
-    async def list_variants(db: AsyncSession, product_id: str) -> list[ORMProductVariant]:
+    async def list_variants(db: AsyncSession, product_id: int) -> list[ORMProductVariant]:
         result = await db.execute(
             select(ORMProductVariant)
             .where(ORMProductVariant.product_id == product_id)

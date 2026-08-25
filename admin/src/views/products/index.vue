@@ -3,10 +3,10 @@ import { ref, onMounted, h } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import {
-  NButton, NCard, NDataTable, NImage, NInput, NModal, NPagination, NPopconfirm, NSelect,
-  NSpace, NSwitch, NTag, useMessage
+  NButton, NCard, NDataTable, NDrawer, NDrawerContent, NForm, NFormItem, NImage, NInput, NInputNumber, NModal,
+  NPagination, NPopconfirm, NSelect, NSpace, NSwitch, NTag, useMessage
 } from 'naive-ui';
-import { get, post, del } from '@/service/api/helper';
+import { get, post, patch, del } from '@/service/api/helper';
 import { localStg } from '@/utils/storage';
 import type { DataTableColumns } from 'naive-ui';
 
@@ -25,6 +25,183 @@ const checkedRowKeys = ref<Array<string | number>>([]);
 const fileInput = ref<HTMLInputElement | null>(null);
 const showImportModal = ref(false);
 const importResult = ref<{ created: number; updated: number; failed: number; errors: Array<{ row: number; sku: string; error: string }> } | null>(null);
+
+// SKU 抽屉状态
+const showSkuDrawer = ref(false);
+const skuProduct = ref<any>(null);
+const variants = ref<any[]>([]);
+const variantLoading = ref(false);
+const variantSaving = ref(false);
+const editingIndex = ref(-1); // -1 表示无编辑行；>=0 表示正在编辑的行
+const addingVariant = ref(false); // 是否处于"新增 SKU"模式
+const variantForm = ref({
+  id: '',
+  name: '',
+  sku: '',
+  price: null as number | null,
+  cost: null as number | null,
+  inventory: 0,
+  status: 'active',
+  is_default: false,
+  attributes: '{}',
+});
+
+const variantStatusOptions = [
+  { label: '启用', value: 'active' },
+  { label: '停用', value: 'inactive' },
+];
+
+async function openSkuDrawer(row: any) {
+  skuProduct.value = row;
+  showSkuDrawer.value = true;
+  resetVariantForm();
+  editingIndex.value = -1;
+  await loadVariants();
+}
+
+function resetVariantForm() {
+  variantForm.value = {
+    id: '',
+    name: '',
+    sku: '',
+    price: null,
+    cost: null,
+    inventory: 0,
+    status: 'active',
+    is_default: false,
+    attributes: '{}',
+  };
+}
+
+function startEditVariant(row: any, index: number) {
+  addingVariant.value = false;
+  editingIndex.value = index;
+  variantForm.value = {
+    id: row.id,
+    name: row.name ?? '',
+    sku: row.sku ?? '',
+    price: row.price ?? null,
+    cost: row.cost ?? null,
+    inventory: row.inventory ?? 0,
+    status: row.status ?? 'active',
+    is_default: Boolean(row.is_default),
+    attributes: row.attributes ? JSON.stringify(row.attributes, null, 0) : '{}',
+  };
+}
+
+function cancelEditVariant() {
+  editingIndex.value = -1;
+  addingVariant.value = false;
+  resetVariantForm();
+}
+
+function startAddVariant() {
+  editingIndex.value = -1;
+  addingVariant.value = true;
+  resetVariantForm();
+}
+
+async function loadVariants() {
+  if (!skuProduct.value) return;
+  variantLoading.value = true;
+  try {
+    const res = await get(`/api/admin/v1/products/${skuProduct.value.id}/variants`);
+    variants.value = res.data?.data ?? res.data ?? [];
+    skuProduct.value.variant_count = variants.value.length;
+  } finally {
+    variantLoading.value = false;
+  }
+}
+
+function parseAttributes(): Record<string, any> {
+  const raw = (variantForm.value.attributes ?? '').trim() || '{}';
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+    throw new Error('invalid');
+  } catch {
+    message.error('属性必须是 JSON 对象，如 {"颜色":"红色","尺码":"M"}');
+    return null as unknown as Record<string, any>;
+  }
+}
+
+async function saveVariant() {
+  if (!variantForm.value.sku.trim()) {
+    message.warning('SKU 不能为空');
+    return;
+  }
+  const attributes = parseAttributes();
+  if (!attributes) return;
+
+  const payload: Record<string, any> = {
+    name: variantForm.value.name,
+    sku: variantForm.value.sku.trim(),
+    attributes,
+    price: variantForm.value.price,
+    cost: variantForm.value.cost,
+    inventory: variantForm.value.inventory ?? 0,
+    status: variantForm.value.status,
+    is_default: variantForm.value.is_default,
+  };
+
+  variantSaving.value = true;
+  try {
+    if (variantForm.value.id) {
+      await patch(`/api/admin/v1/products/${skuProduct.value.id}/variants/${variantForm.value.id}`, payload);
+    } else {
+      await post(`/api/admin/v1/products/${skuProduct.value.id}/variants`, payload);
+    }
+    message.success('SKU 已保存');
+    cancelEditVariant();
+    await loadVariants();
+    loadProducts();
+  } catch (err) {
+    message.error(String(err));
+  } finally {
+    variantSaving.value = false;
+  }
+}
+
+async function deleteVariant(row: any) {
+  try {
+    await del(`/api/admin/v1/products/${skuProduct.value.id}/variants/${row.id}`);
+    message.success('SKU 已删除');
+    cancelEditVariant();
+    await loadVariants();
+    loadProducts();
+  } catch (err) {
+    message.error(String(err));
+  }
+}
+
+const variantColumns: DataTableColumns<any> = [
+  { title: '名称', key: 'name', render: row => row.name || '-' },
+  { title: 'SKU', key: 'sku', width: 140, render: row => row.sku || '-' },
+  { title: '价格', key: 'price', width: 80, render: row => (row.price != null ? `$${Number(row.price).toFixed(2)}` : '-') },
+  { title: '库存', key: 'inventory', width: 70, render: row => row.inventory ?? 0 },
+  {
+    title: '状态', key: 'status', width: 80,
+    render: row => h(NTag, { size: 'small', bordered: false, type: row.status === 'active' ? 'success' : 'default' }, { default: () => row.status === 'active' ? '启用' : '停用' }),
+  },
+  {
+    title: '默认', key: 'is_default', width: 60,
+    render: row => row.is_default ? h(NTag, { size: 'small', bordered: false, type: 'warning' }, { default: () => '默认' }) : '-',
+  },
+  {
+    title: '操作', key: 'actions', width: 130,
+    render: (row, index) => h(NSpace, { size: 4 }, {
+      default: () => [
+        h(NButton, { size: 'tiny', quaternary: true, type: 'primary', onClick: () => startEditVariant(row, index) }, { default: () => '编辑' }),
+        h(NPopconfirm, {
+          onPositiveClick: () => deleteVariant(row),
+        }, {
+          trigger: () => h(NButton, { size: 'tiny', quaternary: true, type: 'error' }, { default: () => '删除' }),
+          default: () => '确认删除该 SKU？',
+        }),
+      ],
+    }),
+  },
+];
 
 const errorColumns: DataTableColumns<any> = [
   { title: t('page.products.importRow'), key: 'row', width: 70 },
@@ -102,6 +279,16 @@ const columns: DataTableColumns<any> = [
   { title: t('page.products.category'), key: 'category', width: 120, render: row => row.category || '-' },
   { title: t('page.products.price'), key: 'price', width: 100, render: row => `$${Number(row.price ?? 0).toFixed(2)}` },
   { title: t('common.inventory'), key: 'inventory', width: 90, render: row => row.inventory ?? 0 },
+  {
+    title: 'SKU 库存', key: 'skuInventory', width: 150,
+    render: row => h(NSpace, { size: 6, align: 'center' }, {
+      default: () => [
+        h('span', `${row.inventory ?? 0}`),
+        h(NTag, { size: 'tiny', bordered: false, type: 'info' }, { default: () => `${row.variant_count ?? 0} SKU` }),
+        h(NButton, { size: 'tiny', quaternary: true, type: 'primary', onClick: () => openSkuDrawer(row) }, { default: () => '编辑' }),
+      ],
+    }),
+  },
   {
     title: t('page.products.status'), key: 'status', width: 110,
     render: row => h(NTag, { type: statusTagType(row.status), size: 'small', bordered: false }, { default: () => statusLabel(row) }),
@@ -304,5 +491,61 @@ onMounted(loadProducts);
         <NDataTable v-if="importResult?.errors?.length" :columns="errorColumns" :data="importResult.errors" size="small" :bordered="false" />
       </NSpace>
     </NModal>
+
+    <NDrawer v-model:show="showSkuDrawer" :width="760" placement="right">
+      <NDrawerContent :title="`SKU 库存编辑 — ${skuProduct?.name ?? ''}（${skuProduct?.sku ?? ''}）`" closable>
+        <div class="flex flex-col" style="height: 100%">
+          <NDataTable
+            :columns="variantColumns"
+            :data="variants"
+            :loading="variantLoading"
+            size="small"
+            :bordered="false"
+            :row-key="row => row.id"
+            style="flex: 1; min-height: 0"
+          />
+
+          <NCard v-if="editingIndex >= 0 || addingVariant" :bordered="true" size="small" :title="variantForm.id ? '编辑 SKU' : '新增 SKU'" class="mt-4">
+            <NForm label-placement="left" label-width="80" size="small">
+              <div class="flex flex-wrap" style="row-gap: 0">
+                <div style="width: 50%">
+                  <NFormItem label="名称"><NInput v-model:value="variantForm.name" placeholder="如：红色 / M 码" /></NFormItem>
+                </div>
+                <div style="width: 50%">
+                  <NFormItem label="SKU"><NInput v-model:value="variantForm.sku" placeholder="变体唯一编号" /></NFormItem>
+                </div>
+                <div style="width: 50%">
+                  <NFormItem label="价格"><NInputNumber v-model:value="variantForm.price" :min="0" :precision="2" style="width: 100%" /></NFormItem>
+                </div>
+                <div style="width: 50%">
+                  <NFormItem label="成本"><NInputNumber v-model:value="variantForm.cost" :min="0" :precision="2" style="width: 100%" /></NFormItem>
+                </div>
+                <div style="width: 50%">
+                  <NFormItem label="库存"><NInputNumber v-model:value="variantForm.inventory" :min="0" style="width: 100%" /></NFormItem>
+                </div>
+                <div style="width: 50%">
+                  <NFormItem label="状态"><NSelect v-model:value="variantForm.status" :options="variantStatusOptions" style="width: 100%" /></NFormItem>
+                </div>
+                <div style="width: 50%">
+                  <NFormItem label="默认"><NSwitch v-model:value="variantForm.is_default" /></NFormItem>
+                </div>
+                <div style="width: 50%">
+                  <NFormItem label="属性"><NInput v-model:value="variantForm.attributes" placeholder="{&quot;颜色&quot;:&quot;红色&quot;,&quot;尺码&quot;:&quot;M&quot;}" /></NFormItem>
+                </div>
+              </div>
+              <NSpace justify="end" class="mt-2">
+                <NButton size="small" @click="cancelEditVariant">取消</NButton>
+                <NButton size="small" type="primary" :loading="variantSaving" @click="saveVariant">保存</NButton>
+              </NSpace>
+            </NForm>
+          </NCard>
+
+          <div class="flex justify-between items-center mt-4">
+            <span class="text-sm text-gray-500">共 {{ variants.length }} 个 SKU</span>
+            <NButton size="small" type="primary" secondary @click="startAddVariant">新增 SKU</NButton>
+          </div>
+        </div>
+      </NDrawerContent>
+    </NDrawer>
   </div>
 </template>

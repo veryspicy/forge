@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import Any
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     Column,
@@ -55,7 +56,7 @@ class ORMProduct(Base):
         ),
     )
 
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     sku = Column(String(100), nullable=False, unique=True)
     slug = Column(String(500), nullable=False, unique=True)
     name = Column(String(500), nullable=False)
@@ -73,6 +74,12 @@ class ORMProduct(Base):
     inventory = Column(Integer, nullable=False, default=0)
     status = Column(String(20), nullable=False, default="draft", index=True)
     images = Column(JSONB, nullable=False, default=list)
+    brand = Column(String(255), nullable=True)
+    is_new = Column(Boolean, nullable=False, default=False, server_default="false")
+    is_recommend = Column(Boolean, nullable=False, default=False, server_default="false")
+    sort_order = Column(Integer, nullable=False, default=0, server_default="0")
+    sales = Column(Integer, nullable=False, default=0, server_default="0")
+    audit_status = Column(String(20), nullable=False, default="pending", server_default="pending")
     supplier_id = Column(UUID(as_uuid=True), nullable=True, index=True)
     supplier_sku = Column(String(100), nullable=True)
     supplier_product_id = Column(String(128), nullable=True, index=True)
@@ -106,6 +113,12 @@ class ORMProduct(Base):
             "inventory": self.inventory,
             "status": self.status or "draft",
             "images": self.images or [],
+            "brand": self.brand,
+            "is_new": bool(self.is_new),
+            "is_recommend": bool(self.is_recommend),
+            "sort_order": self.sort_order or 0,
+            "sales": self.sales or 0,
+            "audit_status": self.audit_status or "pending",
             "supplier_id": str(self.supplier_id) if self.supplier_id else None,
             "supplier_sku": self.supplier_sku,
             "supplier_product_id": self.supplier_product_id,
@@ -128,7 +141,7 @@ class ORMProductVariant(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
     product_id = Column(
-        UUID(as_uuid=True),
+        BigInteger,
         ForeignKey("products.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
