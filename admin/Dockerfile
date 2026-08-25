@@ -23,7 +23,10 @@ FROM nginx:alpine
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
+COPY docker/entrypoint.sh /usr/local/bin/admin-entrypoint.sh
+
+RUN chmod +x /usr/local/bin/admin-entrypoint.sh
 
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["/usr/local/bin/admin-entrypoint.sh"]

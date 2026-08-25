@@ -216,6 +216,9 @@ services:
       forge:
         aliases:
           - admin
+    volumes:
+      # 持久化历史 assets，重建容器后旧 chunk 仍可服务（ChunkLoadError 根治）
+      - admin-assets-history:/var/lib/admin-assets-history
     # ports:                        # 网关接管对外入口，admin 仅内部可达
     #   - "8080:80"
     depends_on:
@@ -245,3 +248,4 @@ volumes:
   postgres-data:
   redis-data:
   minio-data:
+  admin-assets-history:
