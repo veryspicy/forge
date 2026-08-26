@@ -730,6 +730,34 @@ podman exec forge-postgres psql -U postgres -d forge -c "SELECT count(*) FROM di
 
 ---
 
-*最后更新：2026-08-24*
+## 18. Admin 请求层超时兜底（失效连接场景）（强制）
+
+> **背景**：admin 后台服务重启后，旧标签页点击登录出现请求无限挂起（login 请求无响应），新标签页正常。根因是浏览器复用指向旧容器的失效 keep-alive 连接（half-open 连接），服务端静默不响应；仅依赖 axios `timeout` 的自愈逻辑在此场景下 XHR timeout 事件不触发，导致永久挂起。
+
+### 18.1 触发条件
+
+- admin 页面出现"请求挂起 / 点按钮无反应 / 页面卡死"，且新标签页正常
+- 修改 `admin/src/service/request/index.ts` 请求层逻辑
+- 新增/调整任何前端请求超时、自动刷新逻辑
+
+### 18.2 执行步骤（正确做法）
+
+1. **应用层强制超时兜底**：在 `request/index.ts` 的 `onRequest` 中为每个请求挂 `AbortController` + `setTimeout`（10s），到点主动 `controller.abort()`，并置 `staleTimeoutFired` 标记到 config
+2. **双识别超时**：`onError` 同时识别两种超时——`ECONNABORTED + /timeout/i`（axios 自带 timeout）与 `ERR_CANCELED + staleTimeoutFired`（应用层强制 abort），统一走自动刷新（`sessionStorage` 防循环计数 ≤3 次）
+3. **清理定时器**：`transform`（成功）与 `onError`（失败）均需 `clearTimeout`，避免误伤已完成请求
+4. **部署验证**：admin 无 HMR，必须 `build --no-cache` + `--force-recreate`（§3.2）；容器产物 grep `staleTimeoutFired` 特征确认修复已打包（§11.2）
+5. **端到端验证**：重启 admin 后，用**旧标签页**直接点击登录，观察 10s 内是否自动刷新，禁止只在新标签页验证
+
+### 18.3 禁止事项
+
+- **禁止**仅依赖 axios `timeout` 兜底——失效 keep-alive 连接场景下 XHR timeout 事件不触发，自愈逻辑永远进不去
+- **禁止**修改后不核对容器产物 hash 就宣布修复（§11.2 反例模式）
+- **禁止**只用新标签页验证——本问题仅在复用旧连接的标签页复现
+
+**反例（2026-08-26）**：admin 重启后旧标签页登录卡死，原代码已配置 XHR timeout(10s) + ECONNABORTED 自动刷新，但复用失效 keep-alive 连接时计时器不触发，请求永久挂起。修复：AbortController + setTimeout(10s) 主动 abort + `staleTimeoutFired` 标记识别，提交 73a2848（分支 fix/admin-stale-connection-reload）。
+
+---
+
+*最后更新：2026-08-26*
 *（内容由AI生成，仅供参考）*
 *（内容由AI生成，仅供参考）*
