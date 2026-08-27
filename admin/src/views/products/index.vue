@@ -266,43 +266,127 @@ async function deleteProduct(row: any) {
   }
 }
 
+function auditLabel(row: any): string {
+  const map: Record<string, string> = {
+    pending: '待审核',
+    approved: '已通过',
+    rejected: '未通过',
+  };
+  return map[row.audit_status] ?? row.audit_status ?? '--';
+}
+
+function auditTagType(value: string): 'default' | 'success' | 'warning' | 'error' {
+  const map: Record<string, 'default' | 'success' | 'warning' | 'error'> = {
+    pending: 'warning',
+    approved: 'success',
+    rejected: 'error',
+  };
+  return map[value] ?? 'default';
+}
+
+async function toggleFlag(row: any, field: 'is_new' | 'is_recommend') {
+  try {
+    await patch(`/api/admin/v1/products/${row.id}`, { [field]: !row[field] });
+    row[field] = !row[field];
+    message.success(t('page.products.statusUpdated'));
+  } catch (err) {
+    message.error(String(err));
+  }
+}
+
+async function updateSortOrder(row: any, value: number | null) {
+  const next = value ?? 0;
+  if (next === row.sort_order) return;
+  try {
+    await patch(`/api/admin/v1/products/${row.id}`, { sort_order: next });
+    row.sort_order = next;
+    message.success(t('page.products.statusUpdated'));
+  } catch (err) {
+    message.error(String(err));
+    loadProducts();
+  }
+}
+
 const columns: DataTableColumns<any> = [
   { type: 'selection', width: 40 },
+  { title: '编号', key: 'id', width: 80, render: row => h('span', { style: 'color: var(--n-text-color-3)' }, row.id) },
   {
     title: t('common.image'), key: 'image', width: 70,
     render: row => row.images?.[0]?.url
       ? h(NImage, { src: row.images[0].url, width: 44, height: 44, style: { objectFit: 'cover', borderRadius: '4px' } })
       : h('span', { style: { color: 'var(--n-text-color-3)' } }, '--'),
   },
-  { title: t('common.sku'), key: 'sku', render: row => row.sku || '-' },
-  { title: t('common.name'), key: 'name', ellipsis: { tooltip: true } },
-  { title: t('page.products.category'), key: 'category', width: 120, render: row => row.category || '-' },
-  { title: t('page.products.price'), key: 'price', width: 100, render: row => `$${Number(row.price ?? 0).toFixed(2)}` },
-  { title: t('common.inventory'), key: 'inventory', width: 90, render: row => row.inventory ?? 0 },
   {
-    title: 'SKU 库存', key: 'skuInventory', width: 150,
-    render: row => h(NSpace, { size: 6, align: 'center' }, {
+    title: t('common.name'), key: 'name', ellipsis: { tooltip: true },
+    render: row => h('div', { style: 'display:flex;flex-direction:column;gap:2px' }, [
+      h('span', { style: 'font-weight:500' }, row.name || '-'),
+      h('span', { style: 'color:var(--n-text-color-3);font-size:12px' }, `品牌: ${row.brand || '--'}`),
+    ]),
+  },
+  {
+    title: t('page.products.price'), key: 'price', width: 140,
+    render: row => h('div', { style: 'display:flex;flex-direction:column;gap:2px' }, [
+      h('span', { style: 'font-weight:500' }, `$${Number(row.price ?? 0).toFixed(2)}`),
+      h('span', { style: 'color:var(--n-text-color-3);font-size:12px' }, `货号: ${row.sku || '--'}`),
+    ]),
+  },
+  {
+    title: '标签', key: 'tags', width: 190,
+    render: row => h(NSpace, { size: 8, align: 'center' }, {
       default: () => [
-        h('span', `${row.inventory ?? 0}`),
-        h(NTag, { size: 'tiny', bordered: false, type: 'info' }, { default: () => `${row.variant_count ?? 0} SKU` }),
-        h(NButton, { size: 'tiny', quaternary: true, type: 'primary', onClick: () => openSkuDrawer(row) }, { default: () => '编辑' }),
+        h('div', { style: 'display:flex;flex-direction:column;align-items:center;gap:2px' }, [
+          h(NSwitch, {
+            size: 'small',
+            value: row.status === 'active',
+            disabled: row.status === 'deleted' || row.status === 'draft',
+            'on-update:value': () => toggleStatus(row),
+          }),
+          h('span', { style: 'color:var(--n-text-color-3);font-size:12px' }, '上架'),
+        ]),
+        h('div', { style: 'display:flex;flex-direction:column;align-items:center;gap:2px' }, [
+          h(NSwitch, { size: 'small', value: Boolean(row.is_new), 'on-update:value': () => toggleFlag(row, 'is_new') }),
+          h('span', { style: 'color:var(--n-text-color-3);font-size:12px' }, '新品'),
+        ]),
+        h('div', { style: 'display:flex;flex-direction:column;align-items:center;gap:2px' }, [
+          h(NSwitch, { size: 'small', value: Boolean(row.is_recommend), 'on-update:value': () => toggleFlag(row, 'is_recommend') }),
+          h('span', { style: 'color:var(--n-text-color-3);font-size:12px' }, '推荐'),
+        ]),
       ],
     }),
   },
   {
-    title: t('page.products.status'), key: 'status', width: 110,
-    render: row => h(NTag, { type: statusTagType(row.status), size: 'small', bordered: false }, { default: () => statusLabel(row) }),
+    title: '排序', key: 'sort_order', width: 120, align: 'center',
+    render: row => h(NInputNumber, {
+      size: 'small',
+      value: row.sort_order ?? 0,
+      min: 0,
+      style: 'width: 96px',
+      'on-update:value': (val: number | null) => updateSortOrder(row, val),
+    }),
   },
   {
-    title: t('page.suppliers.actions'), key: 'actions', width: 170,
+    title: 'SKU库存', key: 'skuInventory', width: 110,
+    render: row => h('div', {
+      style: 'display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;border-radius:50%;background:#1677ff;color:#fff;font-weight:600;font-size:13px;padding:0 8px;cursor:pointer;user-select:none',
+      title: `${row.variant_count ?? 0} 个 SKU，点击查看明细`,
+      onClick: () => openSkuDrawer(row),
+    }, `${row.total_inventory ?? 0}`),
+  },
+  { title: '销量', key: 'sales', width: 80, render: row => row.sales ?? 0 },
+  {
+    title: '审核状态', key: 'audit_status', width: 110,
+    render: row => h(NSpace, { size: 4, align: 'center' }, {
+      default: () => [
+        h(NTag, { size: 'small', bordered: false, type: auditTagType(row.audit_status) }, { default: () => auditLabel(row) }),
+        h('a', { style: 'color:#1677ff;font-size:12px;cursor:pointer', onClick: () => router.push(`/products/${row.id}`) }, '审核详情'),
+      ],
+    }),
+  },
+  {
+    title: t('page.suppliers.actions'), key: 'actions', width: 190,
     render: row => h(NSpace, { size: 8, align: 'center' }, {
       default: () => [
-        h(NSwitch, {
-          size: 'small',
-          value: row.status === 'active',
-          disabled: row.status === 'deleted' || row.status === 'draft',
-          'on-update:value': () => toggleStatus(row),
-        }),
+        h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: () => router.push(`/products/${row.id}`) }, { default: () => '查看' }),
         h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: () => router.push(`/products/${row.id}`) }, { default: () => t('common.edit') }),
         h(NPopconfirm, {
           onPositiveClick: () => deleteProduct(row),
