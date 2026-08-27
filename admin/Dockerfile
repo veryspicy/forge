@@ -3,7 +3,7 @@
 # Stage 1: Build from source
 FROM node:20-alpine AS builder
 
-RUN npm install -g pnpm --registry=https://registry.npmmirror.com
+RUN npm install -g pnpm@10.34.5 --registry=https://registry.npmmirror.com
 
 WORKDIR /app
 

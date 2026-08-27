@@ -161,6 +161,15 @@ const FLAG_OPTIONS = [
   }))
 ];
 
+/** 商品默认排序档位选项 */
+const PRODUCT_SORT_OPTIONS = [
+  { label: '综合排序（人工权重 → 销量 → 上架时间）', value: 'default' },
+  { label: '销量优先', value: 'sales' },
+  { label: '最新上架', value: 'newest' },
+  { label: '价格从低到高', value: 'price_asc' },
+  { label: '价格从高到低', value: 'price_desc' }
+];
+
 /**
  * ============ 自动 i18n 工具函数 ============
  *  - slugify：把中文/英文标签转成 camelCase key 片段
@@ -1511,7 +1520,18 @@ function removeTranslation(k: string) {
         </div>
       </div>
 
-      <!-- 10. 货币配置 -->
+      <!-- 10. 商品排序 -->
+      <div v-else-if="activeConfigKey === 'products'" class="flex flex-col gap-3">
+        <FieldLabel label="商品默认排序" name="products.default_sort" type="string" range="default | sales | newest | price_asc | price_desc" example="default" desc="C 端商品列表默认排序档；default 为综合排序（人工权重 sort_order 优先 → 销量 → 上架时间）。" />
+        <ConfigCard content-padding="8px 12px">
+          <div class="flex flex-col gap-2">
+            <span class="text-sm text-gray-700 dark:text-gray-200">前台商品列表默认排序</span>
+            <NSelect v-model:value="config.products.default_sort" size="small" :options="PRODUCT_SORT_OPTIONS" />
+          </div>
+        </ConfigCard>
+      </div>
+
+      <!-- 11. 货币配置 -->
       <div v-else-if="activeConfigKey === 'currencies'" class="flex flex-col gap-2">
         <FieldLabel label="结算货币" name="currencies[]" type="array<string (ISO 4217)>" range="3 位大写字母代码" example="['CNY','USD']" desc="启用的结算货币列表；第一个为默认展示货币。" />
         <div v-for="(cur, idx) in config.currencies" :key="idx" class="flex items-center gap-2">

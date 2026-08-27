@@ -97,6 +97,9 @@ class ProductUpdate(BaseModel):
     seo_title: str | None = None
     seo_description: str | None = None
     seo_keywords: list[str] | None = None
+    is_new: bool | None = None
+    is_recommend: bool | None = None
+    sort_order: int | None = None
 
 
 class StatusPayload(BaseModel):
@@ -233,6 +236,7 @@ async def list_products(
     category: str | None = Query(default=None),
     search: str | None = Query(default=None),
     status: str | None = Query(default=None),
+    sort_by: str = Query(default="default", description="排序档：default/sort_order/sales/newest/price_asc/price_desc"),
     admin: dict[str, Any] = Depends(require_permission("products", "view")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
@@ -248,6 +252,7 @@ async def list_products(
         category=category,
         search=search,
         status=status,
+        sort_by=sort_by,
     )
     result["items"] = [_normalize_images_in_dict(p) for p in result["items"]]
     return result
@@ -1001,6 +1006,7 @@ async def create_product_variant(
     except ProductValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
 
+    await SQLAlchemyProductRepository.sync_product_inventory(db, int(product.id))
     await db.commit()
     await db.refresh(variant)
     return {"data": variant.to_dict()}
@@ -1030,6 +1036,7 @@ async def update_product_variant(
     except ProductValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
 
+    await SQLAlchemyProductRepository.sync_product_inventory(db, int(variant.product_id))
     await db.commit()
     await db.refresh(variant)
     return {"data": variant.to_dict()}
@@ -1048,4 +1055,5 @@ async def delete_product_variant(
     await _get_product_or_404(db, product_id)
     variant = await _get_variant_or_404(db, variant_id)
     await SQLAlchemyProductRepository.delete_variant(db, variant)
+    await SQLAlchemyProductRepository.sync_product_inventory(db, int(variant.product_id))
     await db.commit()
