@@ -15,6 +15,28 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
+def _sort_expr(sort_by: str) -> list[Any]:
+    """商品列表排序表达式。
+
+    行业分层：人工干预（sort_order）优先，其次客观指标（销量/新品时间）兜底，
+    再提供纯销量/新品/价格档位供前台切换。sort_by 取值：
+    default(综合) / sort_order / sales / newest / price_asc / price_desc。
+    """
+    mapping: dict[str, list[Any]] = {
+        "default": [
+            ORMProduct.sort_order.asc(),
+            ORMProduct.sales.desc(),
+            ORMProduct.created_at.desc(),
+        ],
+        "sort_order": [ORMProduct.sort_order.asc(), ORMProduct.created_at.desc()],
+        "sales": [ORMProduct.sales.desc(), ORMProduct.created_at.desc()],
+        "newest": [ORMProduct.created_at.desc()],
+        "price_asc": [ORMProduct.price.asc(), ORMProduct.created_at.desc()],
+        "price_desc": [ORMProduct.price.desc(), ORMProduct.created_at.desc()],
+    }
+    return mapping.get(sort_by, mapping["default"])
+
+
 class SQLAlchemyProductRepository:
     """商品数据库访问封装。"""
 
@@ -26,6 +48,7 @@ class SQLAlchemyProductRepository:
         category: str | None = None,
         search: str | None = None,
         status: str | None = None,
+        sort_by: str = "default",
     ) -> dict[str, Any]:
         filters = []
         if category:
@@ -47,13 +70,8 @@ class SQLAlchemyProductRepository:
         total_query = select(func.count(ORMProduct.id)).where(*filters)
         total = (await db.execute(total_query)).scalar_one()
 
-        query = (
-            select(ORMProduct)
-            .where(*filters)
-            .order_by(ORMProduct.created_at.desc())
-            .offset((page - 1) * page_size)
-            .limit(page_size)
-        )
+        order_expr = _sort_expr(sort_by)
+        query = select(ORMProduct).where(*filters).order_by(*order_expr).offset((page - 1) * page_size).limit(page_size)
         result = await db.execute(query)
         products = result.scalars().all()
 

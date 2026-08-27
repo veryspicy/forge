@@ -220,6 +220,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "wishlist": False,
         "cookie_prefix": "forge",
     },
+    "products": {
+        "default_sort": "default",
+    },
     "currencies": ["USD"],
     "regions": [],
     "sections": [
