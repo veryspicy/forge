@@ -48,6 +48,9 @@ _safe_include("dashboard", prefix="/dashboard", tags=["Admin - Dashboard"])
 # Products
 _safe_include("products", prefix="/products", tags=["Admin - Products"])
 
+# Product Catalog（分类树 / 品牌 / 商品类型规格模板）
+_safe_include("catalog", prefix="/catalog", tags=["Admin - Product Catalog"])
+
 # Orders
 _safe_include("orders", prefix="/orders", tags=["Admin - Orders"])
 

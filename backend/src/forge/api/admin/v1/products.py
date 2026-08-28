@@ -29,6 +29,7 @@ from forge.application.services.product_service import (
     ProductValidationError,
 )
 from forge.infrastructure.persistence.models import ORMProduct, ORMProductVariant, ORMResource
+from forge.infrastructure.persistence.repositories.catalog_repo import SpecRepository
 from forge.infrastructure.persistence.repositories.product_repo import (
     SQLAlchemyProductRepository,
 )
@@ -72,6 +73,10 @@ class ProductCreate(BaseModel):
     seo_title: str | None = None
     seo_description: str | None = None
     seo_keywords: list[str] | None = None
+    # 商品体系改造（PRODUCT-CATALOG-REFACTOR）目录侧外键
+    category_id: int | None = None
+    brand_id: int | None = None
+    product_type_id: int | None = None
 
 
 class ProductUpdate(BaseModel):
@@ -100,6 +105,10 @@ class ProductUpdate(BaseModel):
     is_new: bool | None = None
     is_recommend: bool | None = None
     sort_order: int | None = None
+    # 商品体系改造（PRODUCT-CATALOG-REFACTOR）目录侧外键
+    category_id: int | None = None
+    brand_id: int | None = None
+    product_type_id: int | None = None
 
 
 class StatusPayload(BaseModel):
@@ -112,7 +121,7 @@ class BatchStatusPayload(BaseModel):
 
 
 class VariantCreate(BaseModel):
-    sku: str
+    sku: str | None = None  # 空值自动生成 {商品货号}-{规格短码}
     name: str
     attributes: dict[str, Any] | None = None
     price: float | None = None
@@ -984,7 +993,13 @@ async def list_product_variants(
 ) -> dict[str, Any]:
     product = await _get_product_or_404(db, product_id)
     variants = await SQLAlchemyProductRepository.list_variants(db, int(product.id))
-    return {"data": [v.to_dict() for v in variants]}
+    items: list[dict[str, Any]] = []
+    for variant in variants:
+        data = variant.to_dict()
+        # 规格关系表（权威）补充：key 名 + value，供行内编辑表格使用
+        data["specs"] = await SpecRepository.list_variant_spec_details(db, str(variant.id))
+        items.append(data)
+    return {"data": items}
 
 
 @router.post("/{product_id}/variants", status_code=201)
@@ -1056,4 +1071,8 @@ async def delete_product_variant(
     variant = await _get_variant_or_404(db, variant_id)
     await SQLAlchemyProductRepository.delete_variant(db, variant)
     await SQLAlchemyProductRepository.sync_product_inventory(db, int(variant.product_id))
+    # 删除后重算 products.attributes 读快照（variant_specs 由外键 CASCADE 清理）
+    product = await SQLAlchemyProductRepository.get_by_id(db, str(variant.product_id))
+    if product is not None:
+        await SpecRepository.sync_product_attributes(db, int(product.id))
     await db.commit()
