@@ -97,6 +97,9 @@ class ProductUpdate(BaseModel):
     seo_title: str | None = None
     seo_description: str | None = None
     seo_keywords: list[str] | None = None
+    is_new: bool | None = None
+    is_recommend: bool | None = None
+    sort_order: int | None = None
 
 
 class StatusPayload(BaseModel):
@@ -140,15 +143,22 @@ class ProductListResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # 工具函数
 # ---------------------------------------------------------------------------
-def _coerce_uuid(value: str, field: str = "商品 ID") -> uuid.UUID:
+def _coerce_uuid(value: str, field: str = "供应商 ID") -> uuid.UUID:
     try:
         return uuid.UUID(str(value))
     except ValueError:
         raise HTTPException(status_code=400, detail=f"无效的{field}") from None
 
 
+def _coerce_product_id(value: str, field: str = "商品 ID") -> int:
+    try:
+        return int(str(value))
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail=f"无效的{field}") from None
+
+
 async def _get_product_or_404(db: AsyncSession, raw_id: str) -> ORMProduct:
-    product_id = _coerce_uuid(raw_id)
+    product_id = _coerce_product_id(raw_id)
     product = await SQLAlchemyProductRepository.get_by_id(db, product_id)  # type: ignore[arg-type]
     if product is None:
         raise HTTPException(status_code=404, detail="商品不存在")
@@ -226,6 +236,7 @@ async def list_products(
     category: str | None = Query(default=None),
     search: str | None = Query(default=None),
     status: str | None = Query(default=None),
+    sort_by: str = Query(default="default", description="排序档：default/sort_order/sales/newest/price_asc/price_desc"),
     admin: dict[str, Any] = Depends(require_permission("products", "view")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
@@ -241,6 +252,7 @@ async def list_products(
         category=category,
         search=search,
         status=status,
+        sort_by=sort_by,
     )
     result["items"] = [_normalize_images_in_dict(p) for p in result["items"]]
     return result
@@ -499,7 +511,7 @@ async def get_product(
 ) -> dict[str, Any]:
     product = await _get_product_or_404(db, product_id)
     data = _serialize_product(product)
-    variants = await SQLAlchemyProductRepository.list_variants(db, str(product.id))
+    variants = await SQLAlchemyProductRepository.list_variants(db, int(product.id))
     data["variants"] = [v.to_dict() for v in variants]
     return {"data": data}
 
@@ -563,7 +575,7 @@ async def batch_set_product_status(
 
     ids: list[str] = []
     for raw_id in dict.fromkeys(payload.ids):
-        ids.append(str(_coerce_uuid(raw_id)))
+        ids.append(str(_coerce_product_id(raw_id)))
 
     products = await SQLAlchemyProductRepository.list_by_ids(db, ids)
     existing_ids = {str(p.id) for p in products}
@@ -971,7 +983,7 @@ async def list_product_variants(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     product = await _get_product_or_404(db, product_id)
-    variants = await SQLAlchemyProductRepository.list_variants(db, str(product.id))
+    variants = await SQLAlchemyProductRepository.list_variants(db, int(product.id))
     return {"data": [v.to_dict() for v in variants]}
 
 
@@ -994,6 +1006,7 @@ async def create_product_variant(
     except ProductValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
 
+    await SQLAlchemyProductRepository.sync_product_inventory(db, int(product.id))
     await db.commit()
     await db.refresh(variant)
     return {"data": variant.to_dict()}
@@ -1023,6 +1036,7 @@ async def update_product_variant(
     except ProductValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
 
+    await SQLAlchemyProductRepository.sync_product_inventory(db, int(variant.product_id))
     await db.commit()
     await db.refresh(variant)
     return {"data": variant.to_dict()}
@@ -1041,4 +1055,5 @@ async def delete_product_variant(
     await _get_product_or_404(db, product_id)
     variant = await _get_variant_or_404(db, variant_id)
     await SQLAlchemyProductRepository.delete_variant(db, variant)
+    await SQLAlchemyProductRepository.sync_product_inventory(db, int(variant.product_id))
     await db.commit()

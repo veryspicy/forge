@@ -3,7 +3,7 @@
 # Stage 1: Build from source
 FROM node:20-alpine AS builder
 
-RUN npm install -g pnpm --registry=https://registry.npmmirror.com
+RUN npm install -g pnpm@10.34.5 --registry=https://registry.npmmirror.com
 
 WORKDIR /app
 
@@ -23,7 +23,10 @@ FROM nginx:alpine
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
+COPY docker/entrypoint.sh /usr/local/bin/admin-entrypoint.sh
+
+RUN chmod +x /usr/local/bin/admin-entrypoint.sh
 
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["/usr/local/bin/admin-entrypoint.sh"]

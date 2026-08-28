@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import case, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from forge.infrastructure.persistence.models import ORMProduct, ORMProductVariant
@@ -13,6 +13,28 @@ from forge.infrastructure.persistence.models import ORMProduct, ORMProductVarian
 
 def _now() -> datetime:
     return datetime.now(UTC)
+
+
+def _sort_expr(sort_by: str) -> list[Any]:
+    """商品列表排序表达式。
+
+    行业分层：人工干预（sort_order）优先，其次客观指标（销量/新品时间）兜底，
+    再提供纯销量/新品/价格档位供前台切换。sort_by 取值：
+    default(综合) / sort_order / sales / newest / price_asc / price_desc。
+    """
+    mapping: dict[str, list[Any]] = {
+        "default": [
+            ORMProduct.sort_order.asc(),
+            ORMProduct.sales.desc(),
+            ORMProduct.created_at.desc(),
+        ],
+        "sort_order": [ORMProduct.sort_order.asc(), ORMProduct.created_at.desc()],
+        "sales": [ORMProduct.sales.desc(), ORMProduct.created_at.desc()],
+        "newest": [ORMProduct.created_at.desc()],
+        "price_asc": [ORMProduct.price.asc(), ORMProduct.created_at.desc()],
+        "price_desc": [ORMProduct.price.desc(), ORMProduct.created_at.desc()],
+    }
+    return mapping.get(sort_by, mapping["default"])
 
 
 class SQLAlchemyProductRepository:
@@ -26,6 +48,7 @@ class SQLAlchemyProductRepository:
         category: str | None = None,
         search: str | None = None,
         status: str | None = None,
+        sort_by: str = "default",
     ) -> dict[str, Any]:
         filters = []
         if category:
@@ -47,18 +70,50 @@ class SQLAlchemyProductRepository:
         total_query = select(func.count(ORMProduct.id)).where(*filters)
         total = (await db.execute(total_query)).scalar_one()
 
-        query = (
-            select(ORMProduct)
-            .where(*filters)
-            .order_by(ORMProduct.created_at.desc())
-            .offset((page - 1) * page_size)
-            .limit(page_size)
-        )
+        order_expr = _sort_expr(sort_by)
+        query = select(ORMProduct).where(*filters).order_by(*order_expr).offset((page - 1) * page_size).limit(page_size)
         result = await db.execute(query)
         products = result.scalars().all()
 
+        if products:
+            ids = [p.id for p in products]
+            agg_stmt = (
+                select(
+                    ORMProductVariant.product_id,
+                    func.count(ORMProductVariant.id),
+                    func.coalesce(
+                        func.sum(
+                            case(
+                                (ORMProductVariant.status == "active", ORMProductVariant.inventory),
+                                else_=0,
+                            )
+                        ),
+                        0,
+                    ),
+                )
+                .where(ORMProductVariant.product_id.in_(ids))
+                .group_by(ORMProductVariant.product_id)
+            )
+            counts: dict[int, int] = {}
+            stock_sums: dict[int, int] = {}
+            for row in (await db.execute(agg_stmt)).all():
+                pid = int(row[0])
+                counts[pid] = int(row[1])
+                stock_sums[pid] = int(row[2])
+        else:
+            counts = {}
+            stock_sums = {}
+
+        items = []
+        for p in products:
+            d = p.to_dict()
+            d["variant_count"] = counts.get(int(p.id), 0)
+            # 有变体时总库存以活跃变体库存和为基准，无变体时兜底商品自身库存
+            d["total_inventory"] = stock_sums.get(int(p.id), int(p.inventory))
+            items.append(d)
+
         return {
-            "items": [p.to_dict() for p in products],
+            "items": items,
             "total": total,
             "page": page,
             "page_size": page_size,
@@ -134,7 +189,7 @@ class SQLAlchemyProductRepository:
     # 变体（P2-1）
     # ------------------------------------------------------------------
     @staticmethod
-    async def list_variants(db: AsyncSession, product_id: str) -> list[ORMProductVariant]:
+    async def list_variants(db: AsyncSession, product_id: int) -> list[ORMProductVariant]:
         result = await db.execute(
             select(ORMProductVariant)
             .where(ORMProductVariant.product_id == product_id)
@@ -178,3 +233,25 @@ class SQLAlchemyProductRepository:
     async def delete_variant(db: AsyncSession, variant: ORMProductVariant) -> None:
         await db.delete(variant)
         await db.flush()
+
+    @staticmethod
+    async def sync_product_inventory(db: AsyncSession, product_id: int) -> None:
+        """按活跃变体库存重算商品总库存；无任何变体时保持商品自身库存。"""
+        count, total = (
+            await db.execute(
+                select(
+                    func.count(ORMProductVariant.id),
+                    func.coalesce(
+                        func.sum(
+                            case(
+                                (ORMProductVariant.status == "active", ORMProductVariant.inventory),
+                                else_=0,
+                            )
+                        ),
+                        0,
+                    ),
+                ).where(ORMProductVariant.product_id == product_id)
+            )
+        ).one()
+        if count > 0:
+            await db.execute(update(ORMProduct).where(ORMProduct.id == product_id).values(inventory=int(total)))

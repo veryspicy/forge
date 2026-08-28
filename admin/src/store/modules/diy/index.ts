@@ -13,6 +13,7 @@ export const SITE_CONFIG_ITEMS = [
   { key: 'seo', label: 'SEO', icon: 'mdi:magnify' },
   { key: 'i18n', label: 'i18n 多语言', icon: 'mdi:translate' },
   { key: 'featureFlags', label: '功能开关', icon: 'mdi:toggle-switch' },
+  { key: 'products', label: '商品排序', icon: 'mdi:sort' },
   { key: 'currencies', label: '货币', icon: 'mdi:cash' },
 ] as const;
 
@@ -135,6 +136,9 @@ const DEFAULT_SITE_CONFIG = {
     enable_wishlist: false,
     enable_live_chat: true,
   } as Record<string, boolean>,
+  products: {
+    default_sort: 'default',
+  } as { default_sort: string },
   currencies: ['USD'] as string[],
   homeHero: {
     useCarousel: false,
