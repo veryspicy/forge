@@ -1,47 +1,11 @@
-<template>
-  <header class="sticky top-0 z-50 bg-neutral-50/95 backdrop-blur shadow-sm">
+﻿<template>
+  <header data-region="header" class="sticky top-0 z-50 bg-neutral-50/95 backdrop-blur shadow-sm">
     <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
       <!-- Brand -->
-      <NuxtLink to="/" class="flex items-center gap-2 flex-shrink-0">
-        <!-- 动态 Logo（站点配置上传的图片） -->
-        <img
-          v-if="brandLogo"
-          :src="brandLogo"
-          :alt="brandName"
-          class="h-7 w-auto object-contain"
-        />
-        <!-- 默认 Logo（SVG 爪印） -->
-        <svg
-          v-else
-          width="28"
-          height="28"
-          viewBox="0 0 28 28"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
-        >
-          <path
-            d="M14 18c-2.5 0-4.5-1.5-5.5-3.5-0.5-1-0.3-2 0.5-2.5 1-0.5 2.5 0 3 1 0.3 0.5 1 1 2 1s1.7-0.5 2-1c0.5-1 2-1.5 3-1 0.8 0.5 1 1.5 0.5 2.5C18.5 16.5 16.5 18 14 18z"
-            fill="url(#pawGradient)"
-          />
-          <ellipse cx="10" cy="11" rx="2.5" ry="3" transform="rotate(-20 10 11)" fill="url(#pawGradient)" />
-          <ellipse cx="18" cy="11" rx="2.5" ry="3" transform="rotate(20 18 11)" fill="url(#pawGradient)" />
-          <ellipse cx="7" cy="14" rx="2" ry="2.5" transform="rotate(-35 7 14)" fill="url(#pawGradient)" />
-          <ellipse cx="21" cy="14" rx="2" ry="2.5" transform="rotate(35 21 14)" fill="url(#pawGradient)" />
-          <defs>
-            <linearGradient id="pawGradient" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
-              <stop stop-color="var(--color-primary-500)" />
-              <stop offset="1" stop-color="var(--color-secondary-400)" />
-            </linearGradient>
-          </defs>
-        </svg>
-        <span class="text-xl font-heading font-semibold gradient-brand bg-clip-text text-transparent">
-          {{ brandName }}
-        </span>
-      </NuxtLink>
+      <BrandBadge />
 
       <!-- Desktop Nav -->
-      <nav class="hidden md:flex items-center gap-1">
+      <nav data-nav class="hidden md:flex items-center gap-1">
         <NuxtLink
           v-for="link in navLinks"
           :key="link.to"
@@ -63,17 +27,13 @@
 
       <!-- Right Section -->
       <div class="flex items-center gap-3">
-        <!-- Language Select -->
+        <!-- Language Select：选项由站点 i18n 配置驱动，支持任意启用语言 -->
         <select
           v-model="currentLocale"
           class="hidden sm:block text-xs bg-transparent border border-neutral-200 rounded-md px-2 py-1.5 text-neutral-600 focus:outline-none focus:border-primary-400 cursor-pointer"
           @change="onLocaleChange"
         >
-          <option value="en">EN</option>
-          <option value="zh">ZH</option>
-          <option value="ar">AR</option>
-          <option value="de">DE</option>
-          <option value="fr">FR</option>
+          <option v-for="opt in enabledLocaleOptions" :key="opt.code" :value="opt.code">{{ opt.label }}</option>
         </select>
 
         <!-- Currency Select -->
@@ -202,7 +162,7 @@
         v-if="mobileMenuOpen"
         class="md:hidden fixed inset-0 top-16 bg-neutral-50 z-40 px-4 py-6 flex flex-col gap-6"
       >
-        <nav class="flex flex-col gap-2">
+        <nav data-nav-mobile class="flex flex-col gap-2">
           <NuxtLink
             v-for="link in navLinks"
             :key="link.to"
@@ -251,11 +211,7 @@
               class="text-sm bg-transparent border border-neutral-200 rounded-md px-3 py-2 text-neutral-600 focus:outline-none focus:border-primary-400"
               @change="onLocaleChange"
             >
-              <option value="en">EN</option>
-              <option value="zh">ZH</option>
-              <option value="ar">AR</option>
-              <option value="de">DE</option>
-              <option value="fr">FR</option>
+              <option v-for="opt in enabledLocaleOptions" :key="opt.code" :value="opt.code">{{ opt.label }}</option>
             </select>
           </div>
           <div class="flex items-center justify-between">
@@ -285,12 +241,12 @@ const localePath = useLocalePath()
 
 const cartStore = useCartStore()
 const route = useRoute()
-const { locale, setLocale, t } = useI18n()
+const { locale, setLocale, t, te } = useI18n()
 const authStore = useAuthStore()
 const { isAuthenticated, user } = storeToRefs(authStore)
 const { logout, fetchUser } = authStore
 const { currency: currentCurrency, setCurrency } = useCurrency()
-const { profile, visibleNav } = useSiteProfile()
+const { profile, visibleNav, resolveText } = useSiteProfile()
 
 const mobileMenuOpen = ref(false)
 const userDropdownOpen = ref(false)
@@ -298,27 +254,43 @@ const userMenuRef = ref<HTMLElement | null>(null)
 const currentLocale = ref(locale.value)
 watch(locale, (val) => { currentLocale.value = val })
 
-const navLinks = computed(() => {
-  // 首页永远放在第一个
-  const homeLink = { to: localePath('/'), label: t('nav.home') }
-  if (visibleNav.value.length > 0) {
-    return [
-      homeLink,
-      ...visibleNav.value.map((n) => ({
-        to: localePath(n.to),
-        label: t(n.labelKey),
-      })),
-    ]
-  }
-  // Template mode: no seed data → generic placeholder navigation
-  return [
-    homeLink,
-    { to: localePath('/products'), label: t('nav.products') },
-  ]
+// ---- 语言选项：由站点 i18n 配置驱动（profile.i18n.locales） ----
+const LOCALE_LABELS: Record<string, string> = {
+  en: 'EN', 'zh': 'ZH', 'zh-CN': '简体中文', 'zh-TW': '繁體中文',
+  ar: 'AR', de: 'DE', fr: 'FR', es: 'ES', ja: 'JA', ko: 'KO',
+  pt: 'PT', ru: 'RU', it: 'IT', nl: 'NL', pl: 'PL', tr: 'TR',
+}
+const enabledLocaleOptions = computed(() => {
+  const codes = profile.value.i18n.locales?.length ? profile.value.i18n.locales : ['en']
+  return codes.map((c: string) => ({ code: c, label: LOCALE_LABELS[c] || c.toUpperCase() }))
 })
 
-const brandLogo = computed(() => profile.value.brand.logo?.data || null)
-const brandName = computed(() => profile.value.brand.name || 'Forge')
+const navLinks = computed(() => {
+  // 统一走 useSiteProfile.resolveText：优先 t(key) → 站点 translations 字典 → fallback，
+  // 避免 SSR/水合时序下 te(key) 未就绪导致文案在语言之间跳动。
+  const raw = visibleNav.value
+  // 1) 站点配置里已经有导航项 → 直接按配置渲染（不再强制前置首页，避免重复）
+  if (raw.length > 0) {
+    const links = raw.map((n) => ({
+      to: localePath(n.to ?? '/'),
+      label: resolveText(n.labelKey, n.label ?? '', n.labelKey ?? ''),
+    }))
+    // 至少保证有 1 个首页入口：若配置里无 '/' 路径且无空路径，才兜底前置首页
+    const hasHome = raw.some((n) => {
+      const p = (n.to ?? '').toString()
+      return p === '/' || p === '' || p === localePath('/')
+    })
+    if (!hasHome) {
+      links.unshift({ to: localePath('/'), label: resolveText('nav.home', '首页') })
+    }
+    return links
+  }
+  // 2) 无配置（Template mode）→ 给出默认占位导航：首页 + 商品
+  return [
+    { to: localePath('/'), label: resolveText('nav.home', '首页') },
+    { to: localePath('/products'), label: resolveText('nav.products', '商品') },
+  ]
+})
 
 const availableCurrencies = computed(() =>
   profile.value.currencies.length > 0 ? profile.value.currencies : ['USD'],

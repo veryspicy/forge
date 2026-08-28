@@ -1,5 +1,6 @@
-﻿from pydantic_settings import BaseSettings
 from functools import lru_cache
+
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -18,11 +19,19 @@ class Settings(BaseSettings):
     # OpenAI
     openai_api_key: str = "sk-placeholder"
 
+    # AI Service
+    ai_service_url: str = "http://localhost:8001"
+
+    # Supplier MCP (P2-5)
+    zendrop_mcp_url: str = "https://app.zendrop.com/mcp/v1"
+
     # MinIO
     minio_endpoint: str = "localhost:9002"
     minio_access_key: str = "minioadmin"
     minio_secret_key: str = "minioadmin"
     minio_bucket: str = "product-images"
+    # 显式指定 MinIO 协议（true=HTTPS），不依赖主机名猜测；容器内服务名走 HTTP
+    minio_secure: bool = False
 
     # JWT
     access_token_expire_minutes: int = 30
@@ -31,7 +40,7 @@ class Settings(BaseSettings):
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "case_sensitive": False}
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     return Settings()
 

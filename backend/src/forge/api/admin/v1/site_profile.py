@@ -6,7 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from forge.infrastructure.persistence.models import ORMSiteProfile
 from forge.infrastructure.persistence.repositories.site_profile_repo import SQLAlchemySiteProfileRepository
-from forge.main.dependencies import get_current_admin, get_db
+from forge.main.dependencies import get_db
+from forge.main.rbac import require_permission
 
 router = APIRouter()
 site_router = APIRouter()
@@ -14,9 +15,9 @@ site_router = APIRouter()
 
 @router.get("/")
 async def list_site_profiles(
-    admin: dict = Depends(get_current_admin),
-    db: AsyncSession = Depends(get_db),
-):
+    admin: dict[str, object] = Depends(require_permission("site_profile", "manage")),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> dict[str, object]:
     total_query = select(func.count(ORMSiteProfile.id))
     total = (await db.execute(total_query)).scalar_one()
 
@@ -41,9 +42,12 @@ async def list_site_profiles(
 
 
 @site_router.get("/site")
-async def get_site(db: AsyncSession = Depends(get_db)):
+async def get_site(
+    admin: dict[str, object] = Depends(require_permission("site_profile", "view")),  # noqa: B008
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> dict[str, object]:
     repo = SQLAlchemySiteProfileRepository()
-    profile = await repo.get_active_as_dict(db)
+    profile: dict[str, object] | None = await repo.get_active_as_dict(db)
     if profile is None:
         return {}
     return profile

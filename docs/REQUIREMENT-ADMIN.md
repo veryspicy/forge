@@ -572,3 +572,84 @@ AIGC:
 - API Key 可随时吊销
 *（内容由AI生成，仅供参考）*
 *（内容由AI生成，仅供参考）*
+
+---
+
+## 11. 资源管理（Resource Management）
+
+> 2026-08-16 头脑风暴定稿。目标：资源管理成为**全站唯一上传入口**，所有业务表单只做引用。
+
+### 11.1 定位与原则
+
+- 全站所有文件上传（品牌 logo、轮播图、商品图、文章图等）统一经资源管理录入 MinIO 并登记到 `resource` 表
+- 业务表单不再直接持有 URL，改为引用 `resource.id`
+- 分两阶段落地（见 11.6）
+
+### 11.2 页面结构（一级菜单，三区域布局，对齐站点配置）
+
+| 区域 | 内容 |
+|------|------|
+| 左 | 资源类型列表：全部 / 图片 / 视频 / 音频 / 文档，带各类型数量角标 |
+| 中 | 资源列表（缩略图网格，默认上传时间倒序）+ 顶部工具栏：上传按钮、搜索框、批量删除 |
+| 右 | 选中资源详情：大图预览 / 播放器、名称（可重命名）、类型、大小、上传时间、MinIO 路径、URL 复制、下载、引用位置、删除 |
+
+### 11.3 数据模型
+
+```sql
+resource (
+  id            uuid PK
+  site_id       uuid            -- 站点隔离
+  bucket        varchar         -- minio 桶
+  object_key    varchar         -- minio 对象路径
+  url           varchar         -- 访问 URL
+  file_type     varchar         -- image/video/audio/document
+  mime          varchar
+  file_size     bigint
+  sha256        varchar         -- 去重
+  name          varchar         -- 可重命名
+  created_by    uuid
+  created_at    timestamptz
+  deleted_at    timestamptz NULL -- 软删，回收站式
+)
+
+resource_ref (  -- 引用关系表，用于"引用位置"追踪
+  resource_id   uuid
+  ref_type      varchar         -- brand_logo / product_image / ...
+  ref_id        varchar         -- 业务对象 id
+  ref_label     varchar         -- 展示文案（"品牌 logo"、"商品 A 主图"）
+)
+```
+
+### 11.4 接口设计
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | /api/admin/v1/resources/upload | 上传（multipart），写入 MinIO + 登记 resource |
+| GET | /api/admin/v1/resources | 列表，支持 type/site_id/keyword/page |
+| GET | /api/admin/v1/resources/{id} | 详情（含引用位置） |
+| PATCH | /api/admin/v1/resources/{id} | 重命名 |
+| DELETE | /api/admin/v1/resources/{id} | 软删（有引用时禁止） |
+| DELETE | /api/admin/v1/resources | 批量软删 |
+
+### 11.5 关键约束
+
+1. 删除走软删（deleted_at），不物理删 MinIO 对象，可恢复
+2. 有 resource_ref 引用的资源禁止删除，右侧提示引用位置
+3. 站点隔离：admin 只看本站资源，super_admin 可切"全部"
+4. 文件限制：图片 10MB / 其他 50MB；类型白名单，SVG 消毒复用现有逻辑
+5. 上传命名：object_key = `site/{site_id}/resources/{uuid}.{ext}`
+6. 权限：查看/上传 admin、operator 均可；删除仅 super_admin、admin
+
+### 11.6 分阶段落地
+
+| 阶段 | 内容 |
+|------|------|
+| 第一版 | 资源管理页面 + resource 表 + 上传/列表/详情/删除接口；**各表单上传链路不动**，只把新上传统一登记进 resource 表 |
+| 第二版 | 品牌配置、商品等表单的"上传"改为"上传新资源 或 从资源库选择"弹窗（复用资源管理组件）；弹窗内保留上传能力 |
+
+### 11.7 存量数据现状（2026-08-16 核查）
+
+- products 表当前**无图片字段**（ORMProduct 无 image 列）
+- 现有图片全部以 URL 字符串存于 `site_profiles.config`（JSONB）：brand.logo.data、carousel.images 等
+- 上传接口仅 `POST /api/admin/v1/site/upload-image`，直接返回 URL，无资源登记表
+- 结论：`resource_ref` 迁移工作量小，第一版只需扫描 site_profiles.config 中的 URL 字段

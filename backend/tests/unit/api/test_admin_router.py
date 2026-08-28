@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 
 class TestAdminRouter:
     def test_admin_health_no_auth_required(self, test_client):

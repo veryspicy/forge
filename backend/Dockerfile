@@ -16,7 +16,7 @@ COPY src/ src/
 
 # Install Python dependencies in editable mode (bind mount friendly)
 RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/ && \
-    pip install --no-cache-dir --default-timeout=600 --proxy http://127.0.0.1:10808 -e "."
+    pip install --no-cache-dir --default-timeout=600 -e "."
 
 EXPOSE 8000
 

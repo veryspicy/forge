@@ -1,37 +1,3 @@
-<template>
-  <div class="flex flex-col gap-4">
-    <div class="flex justify-between items-center">
-      <span class="text-sm text-[var(--n-text-color-3)]">{{ shipments.length }} shipment(s)</span>
-      <NButton type="primary" @click="openModal()">{{ $t('common.add') }}</NButton>
-    </div>
-
-    <NDataTable :columns="columns" :data="shipments" :loading="loading" :bordered="false" size="small" />
-
-    <NModal v-model:show="showModal" preset="card" :title="editing ? $t('common.edit') : $t('common.add')" style="width:520px">
-      <NForm :model="form" label-placement="left" label-width="140">
-        <NFormItem :label="$t('page.shipments.orderId')" :required="!editing">
-          <NInput v-model:value="form.order_id" :disabled="!!editing" />
-        </NFormItem>
-        <NFormItem :label="$t('page.shipments.carrier')"><NInput v-model:value="form.carrier" /></NFormItem>
-        <NFormItem :label="$t('page.shipments.trackingNumber')"><NInput v-model:value="form.tracking_number" /></NFormItem>
-        <NFormItem :label="$t('common.status')">
-          <NSelect v-model:value="form.status" :options="statusOptions" />
-        </NFormItem>
-        <NFormItem :label="$t('page.shipments.estimatedDelivery')"><NInput v-model:value="form.estimated_delivery" placeholder="2026-07-01T00:00:00" /></NFormItem>
-        <NFormItem :label="$t('common.origin')"><NInput v-model:value="form.origin" /></NFormItem>
-        <NFormItem :label="$t('common.destination')"><NInput v-model:value="form.destination" /></NFormItem>
-      </NForm>
-      <div v-if="modalError" class="text-red-500 text-sm mt-2">{{ modalError }}</div>
-      <template #footer>
-        <NSpace justify="end">
-          <NButton @click="showModal = false">{{ $t('common.cancel') }}</NButton>
-          <NButton type="primary" :loading="modalLoading" @click="save">{{ $t('common.save') }}</NButton>
-        </NSpace>
-      </template>
-    </NModal>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import { ref, onMounted, h } from 'vue';
@@ -115,3 +81,37 @@ async function save() {
 
 onMounted(fetch);
 </script>
+
+<template>
+  <div class="flex flex-col gap-4">
+    <div class="flex justify-between items-center">
+      <span class="text-sm text-[var(--n-text-color-3)]">{{ shipments.length }} shipment(s)</span>
+      <NButton type="primary" @click="openModal()">{{ $t('common.add') }}</NButton>
+    </div>
+
+    <NDataTable :columns="columns" :data="shipments" :loading="loading" :bordered="false" size="small" />
+
+    <NModal v-model:show="showModal" preset="card" :title="editing ? $t('common.edit') : $t('common.add')" style="width:520px">
+      <NForm :model="form" label-placement="left" label-width="140">
+        <NFormItem :label="$t('page.shipments.orderId')" :required="!editing">
+          <NInput v-model:value="form.order_id" :disabled="!!editing" />
+        </NFormItem>
+        <NFormItem :label="$t('page.shipments.carrier')"><NInput v-model:value="form.carrier" /></NFormItem>
+        <NFormItem :label="$t('page.shipments.trackingNumber')"><NInput v-model:value="form.tracking_number" /></NFormItem>
+        <NFormItem :label="$t('common.status')">
+          <NSelect v-model:value="form.status" :options="statusOptions" />
+        </NFormItem>
+        <NFormItem :label="$t('page.shipments.estimatedDelivery')"><NInput v-model:value="form.estimated_delivery" placeholder="2026-07-01T00:00:00" /></NFormItem>
+        <NFormItem :label="$t('common.origin')"><NInput v-model:value="form.origin" /></NFormItem>
+        <NFormItem :label="$t('common.destination')"><NInput v-model:value="form.destination" /></NFormItem>
+      </NForm>
+      <div v-if="modalError" class="text-red-500 text-sm mt-2">{{ modalError }}</div>
+      <template #footer>
+        <NSpace justify="end">
+          <NButton @click="showModal = false">{{ $t('common.cancel') }}</NButton>
+          <NButton type="primary" :loading="modalLoading" @click="save">{{ $t('common.save') }}</NButton>
+        </NSpace>
+      </template>
+    </NModal>
+  </div>
+</template>

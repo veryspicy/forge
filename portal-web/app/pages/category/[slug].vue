@@ -1,16 +1,7 @@
 <template>
   <div>
-    <!-- DIY 装修分类页 -->
-    <DiyPageRenderer
-      v-if="diyComponents.length > 0"
-      :components="diyComponents"
-      :pending="diyPending"
-      :error="!!diyError"
-      @retry="refreshDiy"
-    />
-
     <!-- 降级：硬编码分类页 -->
-    <div v-else class="max-w-6xl mx-auto px-4 py-8">
+    <div class="max-w-6xl mx-auto px-4 py-8">
       <div class="mb-8">
         <nav class="text-sm text-gray-500 mb-4">
           <NuxtLink :to="localePath('/')" class="hover:text-primary-600">{{ $t('common.home') }}</NuxtLink>
@@ -64,26 +55,14 @@ const categoryName = computed(() => {
   }
 })
 
-// --- DIY category page (fetch by page_type=category) ---
-const {
-  data: diyPage,
-  pending: diyPending,
-  error: diyError,
-  refresh: refreshDiy,
-} = await useFetch('/api/v1/diy/pages/category', {
-  baseURL: runtimeConfig.public.apiBase,
-  server: false,
-  default: () => null,
-})
-
-const diyComponents = computed<any[]>(() => (diyPage.value as any)?.components || [])
+// --- DIY category page removed; use hardcoded category page ---
 
 useHead({
-  title: computed(() => (diyPage.value as any)?.title || categoryName.value),
+  title: computed(() => categoryName.value),
   meta: [
     {
       name: 'description',
-      content: computed(() => (diyPage.value as any)?.description || `Browse ${categoryName.value} products`),
+      content: computed(() => `Browse ${categoryName.value} products`),
     },
   ],
 })

@@ -1,107 +1,3 @@
-<template>
-  <div class="flex flex-col gap-4">
-    <!-- Toolbar -->
-    <div class="flex items-center gap-3">
-      <NInput
-        v-model:value="searchText"
-        placeholder="搜索邮箱或名称..."
-        clearable
-        style="width: 280px"
-        @keyup.enter="fetch"
-      />
-      <NButton @click="fetch" size="small">搜索</NButton>
-      <NButton type="primary" size="small" @click="openCreateModal">
-        + 新增管理员
-      </NButton>
-    </div>
-
-    <!-- Table -->
-    <NDataTable
-      :columns="columns"
-      :data="users"
-      :loading="loading"
-      :bordered="false"
-      size="small"
-      :pagination="pagination"
-      @update:page="onPageChange"
-      @update:page-size="onPageSizeChange"
-    />
-
-    <!-- Create / Edit Modal -->
-    <NModal
-      :show="!!formUser"
-      preset="card"
-      :title="formUser?.id ? '编辑管理员' : '新增管理员'"
-      style="width:480px"
-      @update:show="(v: boolean) => { if (!v) closeForm(); }"
-    >
-      <div class="flex flex-col gap-4">
-        <div>
-          <div class="text-sm mb-1 text-[var(--n-text-color-3)]">邮箱</div>
-          <NInput v-model:value="formEmail" placeholder="admin@example.com" :disabled="!!formUser?.id" />
-        </div>
-        <div v-if="!formUser?.id">
-          <div class="text-sm mb-1 text-[var(--n-text-color-3)]">密码</div>
-          <NInput v-model:value="formPassword" type="password" placeholder="至少6位" />
-        </div>
-        <div>
-          <div class="text-sm mb-1 text-[var(--n-text-color-3)]">显示名称</div>
-          <NInput v-model:value="formDisplayName" placeholder="显示名称" />
-        </div>
-        <div v-if="formUser?.id">
-          <div class="text-sm mb-1 text-[var(--n-text-color-3)]">状态</div>
-          <NSwitch v-model:value="formIsActive" />
-          <span class="ml-2 text-sm">{{ formIsActive ? '启用' : '禁用' }}</span>
-        </div>
-        <div>
-          <div class="text-sm mb-1 text-[var(--n-text-color-3)]">角色</div>
-          <NSelect
-            v-model:value="formRoleIds"
-            :options="roleSelectOptions"
-            multiple
-            placeholder="选择角色..."
-          />
-        </div>
-        <div v-if="formError" class="text-red-500 text-sm">{{ formError }}</div>
-      </div>
-      <template #footer>
-        <NSpace justify="end">
-          <NButton @click="closeForm">取消</NButton>
-          <NButton type="primary" :loading="formLoading" @click="submitForm">
-            {{ formUser?.id ? '保存' : '创建' }}
-          </NButton>
-        </NSpace>
-      </template>
-    </NModal>
-
-    <!-- Role Assignment Modal -->
-    <NModal
-      :show="!!roleUser"
-      preset="card"
-      title="分配角色"
-      style="width:460px"
-      @update:show="(v: boolean) => { if (!v) roleUser = null; }"
-    >
-      <div class="flex flex-col gap-3">
-        <div><span class="text-[var(--n-text-color-3)]">用户：</span>{{ roleUser?.email }}</div>
-        <NSelect
-          v-model:value="assignRoleIds"
-          :options="roleSelectOptions"
-          multiple
-          placeholder="选择角色"
-        />
-        <div v-if="roleError" class="text-red-500 text-sm">{{ roleError }}</div>
-      </div>
-      <template #footer>
-        <NSpace justify="end">
-          <NButton @click="roleUser = null">取消</NButton>
-          <NButton type="primary" :loading="roleLoading" @click="assignRoles">保存</NButton>
-        </NSpace>
-      </template>
-    </NModal>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { ref, computed, onMounted, h } from 'vue';
 import { NButton, NDataTable, NInput, NModal, NSelect, NSpace, NSwitch, NTag } from 'naive-ui';
@@ -296,3 +192,107 @@ onMounted(() => {
   fetch();
 });
 </script>
+
+<template>
+  <div class="flex flex-col gap-4">
+    <!-- Toolbar -->
+    <div class="flex items-center gap-3">
+      <NInput
+        v-model:value="searchText"
+        placeholder="搜索邮箱或名称..."
+        clearable
+        style="width: 280px"
+        @keyup.enter="fetch"
+      />
+      <NButton size="small" @click="fetch">搜索</NButton>
+      <NButton type="primary" size="small" @click="openCreateModal">
+        + 新增管理员
+      </NButton>
+    </div>
+
+    <!-- Table -->
+    <NDataTable
+      :columns="columns"
+      :data="users"
+      :loading="loading"
+      :bordered="false"
+      size="small"
+      :pagination="pagination"
+      @update:page="onPageChange"
+      @update:page-size="onPageSizeChange"
+    />
+
+    <!-- Create / Edit Modal -->
+    <NModal
+      :show="!!formUser"
+      preset="card"
+      :title="formUser?.id ? '编辑管理员' : '新增管理员'"
+      style="width:480px"
+      @update:show="(v: boolean) => { if (!v) closeForm(); }"
+    >
+      <div class="flex flex-col gap-4">
+        <div>
+          <div class="text-sm mb-1 text-[var(--n-text-color-3)]">邮箱</div>
+          <NInput v-model:value="formEmail" placeholder="admin@example.com" :disabled="!!formUser?.id" />
+        </div>
+        <div v-if="!formUser?.id">
+          <div class="text-sm mb-1 text-[var(--n-text-color-3)]">密码</div>
+          <NInput v-model:value="formPassword" type="password" placeholder="至少6位" />
+        </div>
+        <div>
+          <div class="text-sm mb-1 text-[var(--n-text-color-3)]">显示名称</div>
+          <NInput v-model:value="formDisplayName" placeholder="显示名称" />
+        </div>
+        <div v-if="formUser?.id">
+          <div class="text-sm mb-1 text-[var(--n-text-color-3)]">状态</div>
+          <NSwitch v-model:value="formIsActive" />
+          <span class="ml-2 text-sm">{{ formIsActive ? '启用' : '禁用' }}</span>
+        </div>
+        <div>
+          <div class="text-sm mb-1 text-[var(--n-text-color-3)]">角色</div>
+          <NSelect
+            v-model:value="formRoleIds"
+            :options="roleSelectOptions"
+            multiple
+            placeholder="选择角色..."
+          />
+        </div>
+        <div v-if="formError" class="text-red-500 text-sm">{{ formError }}</div>
+      </div>
+      <template #footer>
+        <NSpace justify="end">
+          <NButton @click="closeForm">取消</NButton>
+          <NButton type="primary" :loading="formLoading" @click="submitForm">
+            {{ formUser?.id ? '保存' : '创建' }}
+          </NButton>
+        </NSpace>
+      </template>
+    </NModal>
+
+    <!-- Role Assignment Modal -->
+    <NModal
+      :show="!!roleUser"
+      preset="card"
+      title="分配角色"
+      style="width:460px"
+      @update:show="(v: boolean) => { if (!v) roleUser = null; }"
+    >
+      <div class="flex flex-col gap-3">
+        <div><span class="text-[var(--n-text-color-3)]">用户：</span>{{ roleUser?.email }}</div>
+        <NSelect
+          v-model:value="assignRoleIds"
+          :options="roleSelectOptions"
+          multiple
+          placeholder="选择角色"
+        />
+        <div v-if="roleError" class="text-red-500 text-sm">{{ roleError }}</div>
+      </div>
+      <template #footer>
+        <NSpace justify="end">
+          <NButton @click="roleUser = null">取消</NButton>
+          <NButton type="primary" :loading="roleLoading" @click="assignRoles">保存</NButton>
+        </NSpace>
+      </template>
+    </NModal>
+  </div>
+</template>

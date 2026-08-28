@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Optional
-from uuid import UUID
-
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from forge.infrastructure.persistence.models import ORMAdminUser, ORMUser
 
@@ -15,7 +13,7 @@ class SQLAlchemyUserRepository:
     """C-end 用户数据库访问封装。"""
 
     @staticmethod
-    async def get_by_email(db: AsyncSession, email: str) -> Optional[ORMUser]:
+    async def get_by_email(db: AsyncSession, email: str) -> ORMUser | None:
         stmt = select(ORMUser).where(ORMUser.email == email)
         result = await db.execute(stmt)
         return result.scalar_one_or_none()
@@ -37,16 +35,11 @@ class SQLAlchemyUserRepository:
         db: AsyncSession,
         page: int = 1,
         page_size: int = 20,
-    ) -> dict:
+    ) -> dict[str, object]:
         total_query = select(func.count(ORMUser.id))
         total = (await db.execute(total_query)).scalar_one()
 
-        query = (
-            select(ORMUser)
-            .order_by(ORMUser.created_at.desc())
-            .offset((page - 1) * page_size)
-            .limit(page_size)
-        )
+        query = select(ORMUser).order_by(ORMUser.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
         result = await db.execute(query)
         users = result.scalars().all()
 
@@ -77,7 +70,7 @@ class SQLAlchemyAdminUserRepository:
     """Admin 用户数据库访问封装。"""
 
     @staticmethod
-    async def get_by_email(db: AsyncSession, email: str) -> Optional[ORMAdminUser]:
+    async def get_by_email(db: AsyncSession, email: str) -> ORMAdminUser | None:
         stmt = select(ORMAdminUser).where(ORMAdminUser.email == email)
         result = await db.execute(stmt)
         return result.scalar_one_or_none()
@@ -87,12 +80,13 @@ class SQLAlchemyAdminUserRepository:
         db: AsyncSession,
         page: int = 1,
         page_size: int = 20,
-    ) -> dict:
+    ) -> dict[str, object]:
         total_query = select(func.count(ORMAdminUser.id))
         total = (await db.execute(total_query)).scalar_one()
 
         query = (
             select(ORMAdminUser)
+            .options(selectinload(ORMAdminUser.roles))
             .order_by(ORMAdminUser.created_at.desc())
             .offset((page - 1) * page_size)
             .limit(page_size)
@@ -106,6 +100,8 @@ class SQLAlchemyAdminUserRepository:
                     "id": str(u.id),
                     "email": u.email,
                     "display_name": u.display_name,
+                    "role": u.role,
+                    "roles": [{"id": str(r.id), "name": r.name, "display_name": r.display_name} for r in u.roles],
                     "is_active": u.is_active,
                     "last_login_at": u.last_login_at.isoformat() if u.last_login_at else None,
                     "created_at": u.created_at.isoformat() if u.created_at else None,

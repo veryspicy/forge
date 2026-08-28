@@ -1,4 +1,4 @@
-"""Seed Site Profiles for Forge — pet_supplies + industrial_supplies."""
+﻿"""Seed Site Profiles for Forge — pet_supplies + industrial_supplies."""
 
 import asyncio
 import os
@@ -15,6 +15,7 @@ PET_SUPPLIES_CONFIG = {
     "brand": {
         "name": "Forge",
         "tagline": "Smart Shopping for Your Pet",
+        "nameColor": "auto",
         "logo": {
             "type": "svg",
             "data": """<svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -47,10 +48,10 @@ PET_SUPPLIES_CONFIG = {
             "type": "hero",
             "visible": True,
             "config": {
-                "titleKey": "home.heroTitle",
-                "descKey": "home.heroDesc",
-                "primaryButton": {"labelKey": "home.shopNow", "to": "/products"},
-                "secondaryButton": {"labelKey": "home.addPet", "to": "/pets"},
+                "titleKey": "hero.title",
+                "descKey": "hero.subtitle",
+                "primaryButton": {"labelKey": "hero.cta1Label", "to": "/products"},
+                "secondaryButton": {"labelKey": "hero.cta2Label", "to": "/pets"},
             },
         },
         {"type": "tailored_pets", "visible": True, "config": {}},
@@ -102,6 +103,7 @@ INDUSTRIAL_SUPPLIES_CONFIG = {
     "brand": {
         "name": "Forge Industrial",
         "tagline": "Professional Equipment & Supplies",
+        "nameColor": "auto",
         "logo": {
             "type": "svg",
             "data": """<svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -131,8 +133,8 @@ INDUSTRIAL_SUPPLIES_CONFIG = {
             "type": "hero",
             "visible": True,
             "config": {
-                "titleKey": "home.heroTitle",
-                "descKey": "home.heroDesc",
+                "titleKey": "hero.title",
+                "descKey": "hero.subtitle",
                 "primaryButton": {"labelKey": "home.browseCatalog", "to": "/products"},
                 "secondaryButton": {"labelKey": "home.requestQuote", "to": "/quote"},
             },

@@ -16,6 +16,6 @@ export function put<T = any>(url: string, data?: any) {
   return request<T>({ url, method: 'put', data });
 }
 
-export function del<T = any>(url: string) {
-  return request<T>({ url, method: 'delete' });
+export function del<T = any>(url: string, data?: any) {
+  return request<T>({ url, method: 'delete', data });
 }

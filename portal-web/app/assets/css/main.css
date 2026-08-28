@@ -72,6 +72,17 @@
   --shadow-xl: 0 20px 50px oklch(0.20 0.004 145 / 0.12);
 }
 
+/* DIY 装修预览桥接：无色阶别名变量，对齐设计文档中的站点配置注入逻辑
+ * preview-bridge 通过 root.style.setProperty('--color-primary', ...) 注入主题色，
+ * 这些别名指向带色阶的实际变量，保证注入后不影响 Tailwind 的色阶工具类。 */
+:root {
+  --color-primary: var(--color-primary-500);
+  --color-primary-light: var(--color-primary-400);
+  --color-primary-dark: var(--color-primary-700);
+  --color-secondary: var(--color-secondary-500);
+  --color-accent: var(--color-accent-500);
+}
+
 /* Base layer */
 @layer base {
   html {

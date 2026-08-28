@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from forge.infrastructure.persistence.models import ORMOrder, ORMOrderItem
+from forge.infrastructure.persistence.models import ORMOrder
 
 
 class SQLAlchemyOrderRepository:
@@ -17,7 +17,7 @@ class SQLAlchemyOrderRepository:
         db: AsyncSession,
         page: int = 1,
         page_size: int = 20,
-    ) -> dict:
+    ) -> dict[str, object]:
         total_query = select(func.count(ORMOrder.id))
         total = (await db.execute(total_query)).scalar_one()
 
@@ -58,7 +58,9 @@ class SQLAlchemyOrderRepository:
                             "image": i.image,
                         }
                         for i in o.items
-                    ] if o.items else [],
+                    ]
+                    if o.items
+                    else [],
                 }
                 for o in orders
             ],
@@ -73,11 +75,8 @@ class SQLAlchemyOrderRepository:
         return result.scalar_one()
 
     @staticmethod
-    async def count_by_status(db: AsyncSession) -> dict:
-        stmt = (
-            select(ORMOrder.status, func.count(ORMOrder.id))
-            .group_by(ORMOrder.status)
-        )
+    async def count_by_status(db: AsyncSession) -> dict[str, object]:
+        stmt = select(ORMOrder.status, func.count(ORMOrder.id)).group_by(ORMOrder.status)
         result = await db.execute(stmt)
         rows = result.all()
         return {row[0]: row[1] for row in rows}

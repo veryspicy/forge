@@ -14,8 +14,9 @@ Admin 后台一体化功能测试 — pytest + httpx.AsyncClient
 from __future__ import annotations
 
 import os
+import socket
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -34,12 +35,29 @@ os.environ.setdefault(
 )
 
 
+def _postgres_available() -> bool:
+    """探测本地 PostgreSQL 是否可用；不可用时跳过功能测试（CI 无 DB 场景）。"""
+    try:
+        with socket.create_connection(("localhost", 5432), timeout=2):
+            return True
+    except OSError:
+        return False
+
+
+if not _postgres_available():
+    pytest.skip(
+        "PostgreSQL not available; skipping functional tests",
+        allow_module_level=True,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _now_suffix() -> str:
-    return datetime.now(timezone.utc).strftime("%H%M%S")
+    return datetime.now(UTC).strftime("%H%M%S")
 
 
 def _unique_email() -> str:
@@ -50,10 +68,12 @@ def _unique_email() -> str:
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(scope="session")
 async def admin_client():
     """Async HTTP client bound to the FastAPI app via ASGI transport."""
     from forge.main.application import app
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
@@ -66,18 +86,24 @@ async def admin_token(admin_client: AsyncClient):
     password = "testpass123"
 
     # Register
-    r = await admin_client.post("/api/v1/auth/register", json={
-        "email": email,
-        "password": password,
-        "name": "Func Test Admin",
-    })
+    r = await admin_client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": email,
+            "password": password,
+            "name": "Func Test Admin",
+        },
+    )
     assert r.status_code == 201, f"Register failed: {r.text}"
 
     # Login
-    r = await admin_client.post("/api/v1/auth/login", json={
-        "email": email,
-        "password": password,
-    })
+    r = await admin_client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": email,
+            "password": password,
+        },
+    )
     assert r.status_code == 200, f"Login failed: {r.text}"
     token = r.json()["access_token"]
     return token
@@ -90,6 +116,7 @@ def _auth_headers(token: str) -> dict:
 # ---------------------------------------------------------------------------
 # Step-by-step functional tests
 # ---------------------------------------------------------------------------
+
 
 class TestHealthCheck:
     """1. Health check."""
@@ -111,8 +138,14 @@ class TestDashboard:
         )
         assert r.status_code == 200
         data = r.json()
-        for key in ("today_orders", "pending_orders", "today_gmv",
-                     "active_products", "total_suppliers", "today_probe_requests"):
+        for key in (
+            "today_orders",
+            "pending_orders",
+            "today_gmv",
+            "active_products",
+            "total_suppliers",
+            "today_probe_requests",
+        ):
             assert key in data, f"Missing dashboard key: {key}"
 
 
@@ -464,6 +497,7 @@ class TestUnauthorized:
 # Full chain: one-test, end-to-end flow
 # ---------------------------------------------------------------------------
 
+
 class TestFullChain:
     """Single test that chains the entire user flow end-to-end."""
 
@@ -477,30 +511,42 @@ class TestFullChain:
         assert r.status_code == 200
 
         # --- Product CRUD ---
-        r = await admin_client.post("/api/admin/v1/products/", headers=h, json={
-            "sku": f"CHAIN-SKU-{_now_suffix()}",
-            "name": "Chain Test Toy",
-            "description": "Full chain test",
-            "price": 19.99,
-            "cost": 8.00,
-            "category": "toys",
-            "inventory": 50,
-            "region_availability": ["AE"],
-        })
+        r = await admin_client.post(
+            "/api/admin/v1/products/",
+            headers=h,
+            json={
+                "sku": f"CHAIN-SKU-{_now_suffix()}",
+                "name": "Chain Test Toy",
+                "description": "Full chain test",
+                "price": 19.99,
+                "cost": 8.00,
+                "category": "toys",
+                "inventory": 50,
+                "region_availability": ["AE"],
+            },
+        )
         assert r.status_code == 201
         pid = r.json()["id"]
 
         r = await admin_client.get(f"/api/admin/v1/products/{pid}", headers=h)
         assert r.status_code == 200
 
-        r = await admin_client.patch(f"/api/admin/v1/products/{pid}", headers=h, json={
-            "name": "Chain Test Toy Updated",
-        })
+        r = await admin_client.patch(
+            f"/api/admin/v1/products/{pid}",
+            headers=h,
+            json={
+                "name": "Chain Test Toy Updated",
+            },
+        )
         assert r.status_code == 200
 
-        r = await admin_client.post(f"/api/admin/v1/products/{pid}/status", headers=h, json={
-            "status": "active",
-        })
+        r = await admin_client.post(
+            f"/api/admin/v1/products/{pid}/status",
+            headers=h,
+            json={
+                "status": "active",
+            },
+        )
         assert r.status_code == 200
 
         r = await admin_client.get("/api/admin/v1/products/?page_size=3", headers=h)
@@ -516,14 +562,18 @@ class TestFullChain:
             assert r.status_code == 200
 
         # --- Suppliers ---
-        r = await admin_client.post("/api/admin/v1/suppliers/", headers=h, json={
-            "name": f"Chain Supplier {_now_suffix()}",
-            "contact_email": "chain@test.com",
-            "contact_phone": "+971-50-1111111",
-            "shipping_regions": ["AE"],
-            "integration_type": "manual",
-            "default_currency": "AED",
-        })
+        r = await admin_client.post(
+            "/api/admin/v1/suppliers/",
+            headers=h,
+            json={
+                "name": f"Chain Supplier {_now_suffix()}",
+                "contact_email": "chain@test.com",
+                "contact_phone": "+971-50-1111111",
+                "shipping_regions": ["AE"],
+                "integration_type": "manual",
+                "default_currency": "AED",
+            },
+        )
         assert r.status_code == 201
         sid = r.json()["id"]
 
@@ -531,15 +581,19 @@ class TestFullChain:
         assert r.status_code == 200
 
         # --- Pricing ---
-        r = await admin_client.post("/api/admin/v1/pricing/rules", headers=h, json={
-            "name": f"Chain Rule {_now_suffix()}",
-            "region": "AE",
-            "markup_multiplier": 1.3,
-            "fixed_shipping_fee": 5.0,
-            "is_default": False,
-            "priority": 2,
-            "is_active": True,
-        })
+        r = await admin_client.post(
+            "/api/admin/v1/pricing/rules",
+            headers=h,
+            json={
+                "name": f"Chain Rule {_now_suffix()}",
+                "region": "AE",
+                "markup_multiplier": 1.3,
+                "fixed_shipping_fee": 5.0,
+                "is_default": False,
+                "priority": 2,
+                "is_active": True,
+            },
+        )
         assert r.status_code == 201
         rule_id = r.json()["id"]
 
@@ -554,21 +608,31 @@ class TestFullChain:
         assert r.status_code == 204
 
         # --- Shipments ---
-        r = await admin_client.post("/api/admin/v1/shipments/", headers=h, json={
-            "order_id": "00000000-0000-0000-0000-000000000001",
-            "supplier_id": "00000000-0000-0000-0000-000000000001",
-            "tracking_number": f"CHAIN-TRACK-{_now_suffix()}",
-            "carrier": "FedEx",
-            "tracking_url": "https://fedex.com/track/CHAIN",
-            "origin": "Abu Dhabi",
-            "destination": "Jeddah",
-        })
+        r = await admin_client.post(
+            "/api/admin/v1/shipments/",
+            headers=h,
+            json={
+                "order_id": "00000000-0000-0000-0000-000000000001",
+                "supplier_id": "00000000-0000-0000-0000-000000000001",
+                "tracking_number": f"CHAIN-TRACK-{_now_suffix()}",
+                "carrier": "FedEx",
+                "tracking_url": "https://fedex.com/track/CHAIN",
+                "origin": "Abu Dhabi",
+                "destination": "Jeddah",
+            },
+        )
         if r.status_code == 201:
             shid = r.json()["id"]
-            r = await admin_client.patch(f"/api/admin/v1/shipments/{shid}/tracking", headers=h, json={
-                "events": [{"timestamp": "2026-06-30T12:00:00Z", "location": "Abu Dhabi Hub", "description": "Picked up"}],
-                "status": "IN_TRANSIT",
-            })
+            r = await admin_client.patch(
+                f"/api/admin/v1/shipments/{shid}/tracking",
+                headers=h,
+                json={
+                    "events": [
+                        {"timestamp": "2026-06-30T12:00:00Z", "location": "Abu Dhabi Hub", "description": "Picked up"}
+                    ],
+                    "status": "IN_TRANSIT",
+                },
+            )
             assert r.status_code == 200
         else:
             assert r.status_code in (400, 404)
@@ -588,14 +652,18 @@ class TestFullChain:
         r = await admin_client.get("/api/admin/v1/settings/", headers=h)
         assert r.status_code == 200
 
-        r = await admin_client.put("/api/admin/v1/settings/", headers=h, json={
-            "store_name": "Chain Test Shop",
-            "default_currency": "USD",
-            "default_region": "AE",
-            "contact_email": "chain@test.com",
-            "order_settings": {"auto_approve": False, "max_pending_orders": 10, "require_payment_first": True},
-            "notifications": {"email": True, "sms": False, "webhook_url": ""},
-        })
+        r = await admin_client.put(
+            "/api/admin/v1/settings/",
+            headers=h,
+            json={
+                "store_name": "Chain Test Shop",
+                "default_currency": "USD",
+                "default_region": "AE",
+                "contact_email": "chain@test.com",
+                "order_settings": {"auto_approve": False, "max_pending_orders": 10, "require_payment_first": True},
+                "notifications": {"email": True, "sms": False, "webhook_url": ""},
+            },
+        )
         assert r.status_code == 200
 
         # --- Unauthorized check ---

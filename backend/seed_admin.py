@@ -6,7 +6,6 @@ Creates:
 - 15 permissions
 - Role-permission mappings
 - Admin-role mapping for super_admin
-- Casbin policies synced from role-permission mappings
 - 1 default Site Profile (activated)
 
 Usage: python seed_admin.py
@@ -20,22 +19,20 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 
 from forge.infrastructure.persistence.database import async_session_factory, init_db
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
 from forge.infrastructure.persistence.models import (
     ORMAdminUser,
     ORMAdminUserRole,
-    ORMRole,
     ORMPermission,
+    ORMRole,
     ORMRolePermission,
     ORMSiteProfile,
 )
-from forge.infrastructure.casbin_enforcer import create_enforcer, sync_role_permissions_to_casbin
-
-
-import json
 
 # ============================================================
 # Config
@@ -47,29 +44,29 @@ ADMIN_NAME = os.getenv("ADMIN_NAME", "Super Admin")
 
 PERMISSIONS: dict[str, tuple[str, str]] = {
     # products (细粒度: view / create / edit)
-    "products:view":     ("商品查看", "products"),
-    "products:create":   ("商品新增", "products"),
-    "products:edit":     ("商品编辑", "products"),
+    "products:view": ("商品查看", "products"),
+    "products:create": ("商品新增", "products"),
+    "products:edit": ("商品编辑", "products"),
     # orders (细粒度: view / review / procure / refund)
-    "orders:view":       ("订单查看", "orders"),
-    "orders:review":     ("订单审核", "orders"),
-    "orders:procure":    ("订单采购", "orders"),
-    "orders:refund":     ("订单退款", "orders"),
+    "orders:view": ("订单查看", "orders"),
+    "orders:review": ("订单审核", "orders"),
+    "orders:procure": ("订单采购", "orders"),
+    "orders:refund": ("订单退款", "orders"),
     # pricing
-    "pricing:manage":    ("定价管理", "pricing"),
+    "pricing:manage": ("定价管理", "pricing"),
     # shipments
-    "shipments:manage":  ("物流管理", "shipments"),
+    "shipments:manage": ("物流管理", "shipments"),
     # suppliers
-    "suppliers:manage":  ("供应商管理", "suppliers"),
+    "suppliers:manage": ("供应商管理", "suppliers"),
     # users (细粒度: view / manage)
-    "users:view":        ("用户查看", "users"),
-    "users:manage":      ("用户管理", "users"),
+    "users:view": ("用户查看", "users"),
+    "users:manage": ("用户管理", "users"),
     # settings
-    "settings:manage":   ("设置管理", "settings"),
+    "settings:manage": ("设置管理", "settings"),
     # dashboard
-    "dashboard:view":    ("仪表盘", "dashboard"),
+    "dashboard:view": ("仪表盘", "dashboard"),
     # chat / AI probe
-    "chat:manage":       ("AI 探针", "chat"),
+    "chat:manage": ("AI 探针", "chat"),
 }
 
 ROLES: list[tuple[str, str, str, bool]] = [
@@ -83,6 +80,7 @@ DEFAULT_SITE_CONFIG = {
     "brand": {
         "name": "Forge",
         "tagline": "Smart Shopping for Your Pet",
+        "nameColor": "auto",
         "logo": {"type": "svg", "data": ""},
     },
     "theme": {
@@ -105,10 +103,10 @@ DEFAULT_SITE_CONFIG = {
             "type": "hero",
             "visible": True,
             "config": {
-                "titleKey": "home.heroTitle",
-                "descKey": "home.heroDesc",
-                "primaryButton": {"labelKey": "home.shopNow", "to": "/products"},
-                "secondaryButton": {"labelKey": "home.addPet", "to": "/pets"},
+                "titleKey": "hero.title",
+                "descKey": "hero.subtitle",
+                "primaryButton": {"labelKey": "hero.cta1Label", "to": "/products"},
+                "secondaryButton": {"labelKey": "hero.cta2Label", "to": "/pets"},
             },
         },
         {"type": "tailored_pets", "visible": True, "config": {}},
@@ -158,27 +156,53 @@ DEFAULT_SITE_CONFIG = {
 
 ROLE_PERMISSIONS_MAP: dict[str, list[str]] = {
     "super_admin": [
-        "products:view", "products:create", "products:edit",
-        "orders:view", "orders:review", "orders:procure", "orders:refund",
-        "pricing:manage", "shipments:manage", "suppliers:manage",
-        "users:view", "users:manage",
-        "settings:manage", "dashboard:view", "chat:manage",
+        "products:view",
+        "products:create",
+        "products:edit",
+        "orders:view",
+        "orders:review",
+        "orders:procure",
+        "orders:refund",
+        "pricing:manage",
+        "shipments:manage",
+        "suppliers:manage",
+        "users:view",
+        "users:manage",
+        "settings:manage",
+        "dashboard:view",
+        "chat:manage",
     ],
     "admin": [
-        "products:view", "products:create", "products:edit",
-        "orders:view", "orders:review", "orders:procure", "orders:refund",
-        "pricing:manage", "shipments:manage", "suppliers:manage",
-        "users:view", "users:manage",
-        "settings:manage", "dashboard:view",
+        "products:view",
+        "products:create",
+        "products:edit",
+        "orders:view",
+        "orders:review",
+        "orders:procure",
+        "orders:refund",
+        "pricing:manage",
+        "shipments:manage",
+        "suppliers:manage",
+        "users:view",
+        "users:manage",
+        "settings:manage",
+        "dashboard:view",
     ],
     "operator": [
-        "products:view", "products:create", "products:edit",
-        "orders:view", "orders:review", "orders:procure",
-        "pricing:manage", "shipments:manage",
+        "products:view",
+        "products:create",
+        "products:edit",
+        "orders:view",
+        "orders:review",
+        "orders:procure",
+        "pricing:manage",
+        "shipments:manage",
         "dashboard:view",
     ],
     "support": [
-        "orders:view", "dashboard:view", "chat:manage",
+        "orders:view",
+        "dashboard:view",
+        "chat:manage",
     ],
 }
 
@@ -187,7 +211,8 @@ ROLE_PERMISSIONS_MAP: dict[str, list[str]] = {
 # Seed
 # ============================================================
 
-async def seed():
+
+async def seed() -> None:
     print("[seed] Ensuring tables exist ...")
     await init_db()
 
@@ -199,22 +224,13 @@ async def seed():
         await _upsert_site_profile(session)
         await session.commit()
 
-        print("[seed] Syncing Casbin policies ...")
-        enforcer = await asyncio.to_thread(create_enforcer)
-        for role_name, perm_codes in ROLE_PERMISSIONS_MAP.items():
-            perms = [(c.split(":", 1)[0], c.split(":", 1)[1]) for c in perm_codes]
-            sync_role_permissions_to_casbin(enforcer, role_name, perms)
-        enforcer.add_role_for_user(ADMIN_EMAIL, "super_admin")
-        enforcer.save_policy()
-        print("[seed] Casbin policies synced.")
-
-    print(f"\n[OK] Seed complete!")
+    print("\n[OK] Seed complete!")
     print(f"     Admin: {ADMIN_EMAIL} / {ADMIN_PASSWORD}")
     print(f"     Roles: {', '.join(r[0] for r in ROLES)}")
     print(f"     Permissions: {len(PERMISSIONS)}")
 
 
-async def _upsert_permissions(session):
+async def _upsert_permissions(session: AsyncSession) -> None:
     for code, (display_name, module) in PERMISSIONS.items():
         r = await session.execute(select(ORMPermission).where(ORMPermission.code == code))
         if r.scalar_one_or_none() is None:
@@ -223,7 +239,7 @@ async def _upsert_permissions(session):
     print(f"[seed] Permissions: {len(PERMISSIONS)} ready.")
 
 
-async def _upsert_roles(session):
+async def _upsert_roles(session: AsyncSession) -> None:
     for name, display_name, desc, is_sys in ROLES:
         r = await session.execute(select(ORMRole).where(ORMRole.name == name))
         if r.scalar_one_or_none() is None:
@@ -232,13 +248,13 @@ async def _upsert_roles(session):
     print(f"[seed] Roles: {len(ROLES)} ready.")
 
 
-async def _upsert_role_permissions(session):
-    r = await session.execute(select(ORMRole))
-    role_map = {x.name: x for x in r.scalars().all()}
-    r = await session.execute(select(ORMPermission))
-    perm_map = {x.code: x for x in r.scalars().all()}
-    r = await session.execute(select(ORMRolePermission))
-    existing = {(str(x.role_id), str(x.permission_id)) for x in r.scalars().all()}
+async def _upsert_role_permissions(session: AsyncSession) -> None:
+    roles_result = await session.execute(select(ORMRole))
+    role_map: dict[str, ORMRole] = {str(x.name): x for x in roles_result.scalars().all()}
+    perms_result = await session.execute(select(ORMPermission))
+    perm_map: dict[str, ORMPermission] = {str(x.code): x for x in perms_result.scalars().all()}
+    rp_result = await session.execute(select(ORMRolePermission))
+    existing = {(str(x.role_id), str(x.permission_id)) for x in rp_result.scalars().all()}
 
     added = 0
     for role_name, codes in ROLE_PERMISSIONS_MAP.items():
@@ -256,8 +272,9 @@ async def _upsert_role_permissions(session):
     print(f"[seed] Role-permission mappings: {added} new.")
 
 
-async def _upsert_super_admin(session):
+async def _upsert_super_admin(session: AsyncSession) -> ORMAdminUser:
     from passlib.context import CryptContext
+
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     ph = pwd_context.hash(ADMIN_PASSWORD)
 
@@ -272,8 +289,8 @@ async def _upsert_super_admin(session):
         print(f"[seed] Created admin user: {ADMIN_EMAIL}")
     else:
         user.password_hash = ph
-        user.display_name = ADMIN_NAME
-        user.is_active = True
+        user.display_name = ADMIN_NAME  # type: ignore[assignment]
+        user.is_active = True  # type: ignore[assignment]
         await session.flush()
         print(f"[seed] Updated admin user: {ADMIN_EMAIL}")
 
@@ -295,7 +312,7 @@ async def _upsert_super_admin(session):
     return user
 
 
-async def _upsert_site_profile(session):
+async def _upsert_site_profile(session: AsyncSession) -> None:
     """Create default SiteProfile if none exists."""
     r = await session.execute(select(ORMSiteProfile).limit(1))
     if r.scalar_one_or_none() is not None:

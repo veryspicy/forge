@@ -3,19 +3,20 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from forge.infrastructure.persistence.repositories.user_repo import SQLAlchemyUserRepository
-from forge.infrastructure.persistence.repositories.product_repo import SQLAlchemyProductRepository
 from forge.infrastructure.persistence.repositories.order_repo import SQLAlchemyOrderRepository
-from forge.main.dependencies import get_current_admin, get_db
+from forge.infrastructure.persistence.repositories.product_repo import SQLAlchemyProductRepository
+from forge.infrastructure.persistence.repositories.user_repo import SQLAlchemyUserRepository
+from forge.main.dependencies import get_db
+from forge.main.rbac import require_permission
 
 router = APIRouter()
 
 
 @router.get("/")
 async def get_dashboard(
-    admin: dict = Depends(get_current_admin),
+    admin: dict[str, object] = Depends(require_permission("dashboard", "view")),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, object]:
     user_repo = SQLAlchemyUserRepository()
     product_repo = SQLAlchemyProductRepository()
     order_repo = SQLAlchemyOrderRepository()

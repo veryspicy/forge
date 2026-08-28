@@ -206,6 +206,23 @@ portalWeb:
     maxReplicas: 10
     targetCPUUtilization: 70
 
+# Admin
+admin:
+  enabled: true
+  replicas: 1
+  image:
+    repository: harbor.example.com/forge/admin
+    tag: v0.1.0
+  service:
+    port: 80
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
 # Ingress
 ingress:
   enabled: true
@@ -213,15 +230,27 @@ ingress:
   hosts:
     - host: forge.local
       paths:
-        - path: /
+        - path: /admin
           pathType: Prefix
-          service: portal-web
+          service: admin
         - path: /api
+          pathType: Prefix
+          service: backend
+        - path: /images
+          pathType: Prefix
+          service: backend
+        - path: /uploads
+          pathType: Prefix
+          service: backend
+        - path: /minio
           pathType: Prefix
           service: backend
         - path: /ai
           pathType: Prefix
           service: ai-service
+        - path: /
+          pathType: Prefix
+          service: portal-web
   tls: []
 
 # Network Policy

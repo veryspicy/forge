@@ -38,6 +38,15 @@ export default defineConfig(configEnv => {
       proxy: {
         ...createViteProxy(viteEnv, enableProxy),
         // 注意：代理项按声明顺序匹配，越具体越前置。
+        // 0) 静态上传目录与 MinIO 代理（本地开发便捷访问）
+        '/uploads': {
+          target: viteEnv.VITE_SERVICE_BASE_URL || 'http://127.0.0.1:8000',
+          changeOrigin: true
+        },
+        '/minio': {
+          target: viteEnv.VITE_SERVICE_BASE_URL || 'http://127.0.0.1:8000',
+          changeOrigin: true
+        },
         // 1) C 端公共接口（Nuxt 加载 iframe 后，其 axios fetch baseURL=/api 会走 admin 域）：
         //    /api/v1/* 对应 backend 中 include_router(public_*_router, prefix="/api/v1")
         //    必须放在 '/api/admin/v1/*' （由 createViteProxy 注入）之后但通常 createViteProxy
@@ -53,13 +62,50 @@ export default defineConfig(configEnv => {
           changeOrigin: true,
           rewrite: path => path.replace(/^\/portal-preview/, '')
         },
-        // 3) Nuxt 内部绝对资源：/_nuxt/* 构建产物与 /favicon.ico
+        // 3) C 端 i18n 语言前缀路由（/zh/*、/en/*、/ar/* 及裸路径 /zh、/en、/ar）：
+        //    点 iframe 内导航链接后，Nuxt 会把 iframe URL 更新到 8383/zh/products 这类不带
+        //    /portal-preview 前缀的路径；此时若用户刷新或服务端渲染触发再次 GET，admin Vite
+        //    必须把这些 C 端语言路由转发到 3000，否则会落到 admin 的 404 页面。
+        '/zh': {
+          target: 'http://localhost:3000',
+          changeOrigin: true
+        },
+        '/en': {
+          target: 'http://localhost:3000',
+          changeOrigin: true
+        },
+        '/ar': {
+          target: 'http://localhost:3000',
+          changeOrigin: true
+        },
+        // 4) Nuxt 内部绝对资源：/_nuxt/* 构建产物与 /favicon.ico
         '/_nuxt': {
+          target: 'http://localhost:3000',
+          changeOrigin: true
+        },
+        // 5) NuxtImage /_ipx/* 图片处理路由（C 端 Nuxt 会用绝对路径请求）
+        '/_ipx': {
           target: 'http://localhost:3000',
           changeOrigin: true
         },
         '/favicon.ico': {
           target: 'http://localhost:3000',
+          changeOrigin: true
+        },
+        // ========== 兜底代理规则（防止 VITE_HTTP_PROXY 环境变量漏配导致 404） ==========
+        // 核心 service：/proxy-default/* 去掉前缀后重写到 backend（与 createViteProxy 等效）
+        '/proxy-default': {
+          target: viteEnv.VITE_SERVICE_BASE_URL || 'http://127.0.0.1:8000',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/proxy-default/, '')
+        },
+        // Admin 端专属接口长前缀优先匹配（避免被 /api/v1 规则误吃）
+        '/api/admin/v1': {
+          target: viteEnv.VITE_SERVICE_BASE_URL || 'http://127.0.0.1:8000',
+          changeOrigin: true
+        },
+        '/api/admin': {
+          target: viteEnv.VITE_SERVICE_BASE_URL || 'http://127.0.0.1:8000',
           changeOrigin: true
         }
       }

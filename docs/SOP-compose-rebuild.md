@@ -2,11 +2,11 @@
 
 ## 核心原则
 
-**不要每次改代码都重建 Docker 镜像。** 项目使用 bind-mount volume，源码文件（`./frontend/app` → `/app/app`）在容器内实时同步，Nuxt HMR 自动热更新。
+**不要每次改代码都重建 Docker 镜像。** 项目使用 bind-mount volume，源码文件（`../portal-web/app` → `/app/app`）在容器内实时同步，Nuxt HMR 自动热更新。
 
 ## 判断矩阵：什么情况下需要重建镜像？
 
-### 前端 (frontend)
+### 前端 (portal-web)
 
 | 改动范围 | 是否需要 rebuild 镜像 | 操作 |
 |---------|---------------------|------|
@@ -64,9 +64,9 @@ podman exec forge-portal-web touch /app/app/app.vue
 
 ### 4. nuxt.config.ts 变更的正确做法
 ```powershell
-# 只重建 frontend，不重建整个 compose
+# 只重建 portal-web，不重建整个 compose
 podman-compose --project-name docker -f D:\codeRepo\forge\docker\docker-compose.yml build portal-web
-podman-compose --project-name docker -f D:\codeRepo\forge\docker\docker-compose.yml up -d --force-recreate frontend
+podman-compose --project-name docker -f D:\codeRepo\forge\docker\docker-compose.yml up -d --force-recreate portal-web
 ```
 
 ### 5. 需要重建时的最快路径
@@ -106,7 +106,7 @@ podman-compose --project-name docker -f D:\codeRepo\forge\docker\docker-compose.
 |------|------|
 | 改 .vue 源码 | 无操作，等 HMR |
 | 改 locale 翻译 | 无操作，等 HMR；刷新浏览器 |
-| 改 nuxt.config.ts | `build portal-web` → `up -d --force-recreate frontend` |
+| 改 nuxt.config.ts | `build portal-web` → `up -d --force-recreate portal-web` |
 | 改 Dockerfile | `build <service>` → `up -d --force-recreate <service>` |
 | 改 docker-compose.yml | `up -d`（compose 自动检测变更） |
 | 改 .py 后端代码 | 无操作，uvicorn --reload 自动重启 |

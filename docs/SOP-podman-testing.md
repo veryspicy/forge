@@ -35,7 +35,7 @@ AIGC:
 │  │   :5432  │ │  :6379   │ │:9000/9001│ │:9876/10911│  │
 │  └──────────┘ └──────────┘ └──────────┘ └──────────┘   │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐   │
-│  │ backend  │ │ai-service│ │ frontend │ │  admin   │   │
+│  │ backend  │ │ai-service│ │portal-web│ │  admin   │   │
 │  │  :8000   │ │  :8001   │ │  :3000   │ │ 8080:80  │   │
 │  └──────────┘ └──────────┘ └──────────┘ └──────────┘   │
 └─────────────────────────────────────────────────────────┘
@@ -170,7 +170,7 @@ $PC up -d init-admin
 | **Backend** | Dockerfile | 重建镜像 + 重建容器 | 同上 |
 | **Frontend** | `.vue` / `.ts` / `.js` / CSS | **无操作**（HMR 自动生效） | — |
 | **Frontend** | `locales/*.json` | **无操作**（HMR 自动生效） | — |
-| **Frontend** | `nuxt.config.ts` | 重建镜像 + 重建容器 | `$PC build portal-web` → `$PC up -d --force-recreate frontend` |
+| **Frontend** | `nuxt.config.ts` | 重建镜像 + 重建容器 | `$PC build portal-web` → `$PC up -d --force-recreate portal-web` |
 | **Frontend** | `package.json` / `pnpm-lock.yaml` | 重建镜像 + 重建容器 | 同上 |
 | **Frontend** | `.nuxt` 缓存异常 500 | 清缓存并重启 | `podman exec forge-portal-web rm -rf /app/.nuxt /app/node_modules/.cache` → `$PC restart portal-web` |
 | **Admin** | **任何源码**（`.vue` / `.ts` / `.css` / `.json`） | **重建镜像 --no-cache** + 重建容器 | `$PC build --no-cache admin` → `$PC up -d --force-recreate admin` |
@@ -201,7 +201,7 @@ $PC up -d init-admin
 | 使用 `podman run` 管理 compose 内服务 | 配置漂移，compose 无法追溯 | compose 命令 |
 | 修改 compose 内 `container_name` | nginx.conf / 服务间 DNS 解析依赖容器名 | 保持不变 |
 | 在容器内直接改配置文件不加卷挂载/不回写源码 | 容器重建后丢失 | 修改源码 → 重建镜像 |
-| 跨服务并行启动（backend 未 healthy 时启动 frontend） | 前端启动后 API 调用失败 | 逐层等待依赖就绪 |
+| 跨服务并行启动（backend 未 healthy 时启动 portal-web） | 前端启动后 API 调用失败 | 逐层等待依赖就绪 |
 | 本地直连数据库执行 migration | 网络/凭据差异导致状态不一致 | 在 backend 容器内执行 |
 | `podman compose up`（不带 `-d`） | PowerShell 下易挂起/截断 | 始终带 `-d` |
 

@@ -127,7 +127,7 @@ async function handleRegister() {
   loading.value = true
   try {
     await register({ email: email.value, password: password.value, name: name.value })
-    await navigateTo('/')
+    await navigateTo(localePath('/'))
   } catch (err: any) {
     errorMsg.value = err.message || 'Registration failed. Please try again.'
   } finally {
@@ -137,6 +137,6 @@ async function handleRegister() {
 
 // Redirect if already logged in
 if (isAuthenticated.value) {
-  navigateTo('/')
+  navigateTo(localePath('/'))
 }
 </script>

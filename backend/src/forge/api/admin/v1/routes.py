@@ -3,6 +3,8 @@
 根据当前登录 admin 用户的角色，返回对应的菜单路由配置和首页路由名称。
 """
 
+from typing import cast
+
 from fastapi import APIRouter, Depends
 
 from forge.main.dependencies import get_current_admin
@@ -36,6 +38,19 @@ AUTH_ROUTE_TREE = [
         },
     },
     {
+        "id": "resources",
+        "name": "resources",
+        "path": "/resources",
+        "component": "layout.base$view.resources",
+        "meta": {
+            "title": "Resources",
+            "i18nKey": "route.resources",
+            "icon": "mdi:folder-multiple-image",
+            "order": 2,
+            "roles": ["super_admin", "admin", "operator"],
+        },
+    },
+    {
         "id": "merchandise",
         "name": "merchandise",
         "path": "/merchandise",
@@ -44,7 +59,7 @@ AUTH_ROUTE_TREE = [
             "title": "Merchandise",
             "i18nKey": "route.merchandise",
             "icon": "mdi:store",
-            "order": 2,
+            "order": 3,
             "roles": ["super_admin", "admin", "operator"],
         },
         "children": [
@@ -124,7 +139,7 @@ AUTH_ROUTE_TREE = [
             "title": "Sales",
             "i18nKey": "route.sales",
             "icon": "mdi:shopping",
-            "order": 3,
+            "order": 4,
             "roles": ["super_admin", "admin", "operator", "support"],
         },
         "children": [
@@ -178,7 +193,7 @@ AUTH_ROUTE_TREE = [
             "title": "Customers",
             "i18nKey": "route.customers",
             "icon": "mdi:account-group",
-            "order": 4,
+            "order": 5,
             "roles": ["super_admin", "admin", "operator"],
         },
     },
@@ -191,7 +206,7 @@ AUTH_ROUTE_TREE = [
             "title": "AI Probe",
             "i18nKey": "route.ai-probe",
             "icon": "mdi:robot",
-            "order": 5,
+            "order": 6,
             "roles": ["super_admin", "admin", "support"],
         },
     },
@@ -204,7 +219,7 @@ AUTH_ROUTE_TREE = [
             "title": "站点",
             "i18nKey": "route.site",
             "icon": "mdi:web",
-            "order": 6,
+            "order": 7,
             "roles": ["super_admin", "admin", "operator"],
         },
         "children": [
@@ -291,42 +306,40 @@ AUTH_ROUTE_TREE = [
 ]
 
 
-def _filter_routes_by_roles(routes: list[dict], user_roles: list[str]) -> list[dict]:
+def _filter_routes_by_roles(routes: list[dict[str, object]], user_roles: list[str]) -> list[dict[str, object]]:
     """按用户角色过滤路由树，递归移除无权限的节点。"""
     filtered = []
     for node in routes:
-        node_roles = node.get("meta", {}).get("roles", [])
+        node_roles = node.get("meta", {}).get("roles", [])  # type: ignore[attr-defined]
         if node_roles and not any(r in node_roles for r in user_roles):
             continue  # 该节点用户角色无权限，跳过
 
         # 深拷贝节点避免污染原始数据
         node_copy = dict(node)
         if "children" in node_copy:
-            node_copy["children"] = _filter_routes_by_roles(
-                node_copy["children"], user_roles
-            )
+            node_copy["children"] = _filter_routes_by_roles(node_copy["children"], user_roles)  # type: ignore[arg-type]
             # 过滤后无子节点且自身无 component → 空的父菜单，移除
             if not node_copy["children"] and "component" not in node_copy:
                 continue
 
         # 移除 meta.roles（仅后端使用，前端不需要）
-        if "meta" in node_copy and "roles" in node_copy["meta"]:
-            del node_copy["meta"]["roles"]
+        if "meta" in node_copy and "roles" in node_copy["meta"]:  # type: ignore[operator]
+            del node_copy["meta"]["roles"]  # type: ignore[attr-defined]
 
         filtered.append(node_copy)
     return filtered
 
 
 @router.get("/getUserRoutes", include_in_schema=False)
-async def get_user_routes(admin: dict = Depends(get_current_admin)):
+async def get_user_routes(admin: dict[str, object] = Depends(get_current_admin)) -> dict[str, object]:
     """返回当前 admin 用户有权访问的动态路由和首页路由名。
 
     - routes: 按用户 roles 过滤后的路由树
     - home: 固定返回 "dashboard"
     """
     role = admin.get("role", "")
-    user_roles: list[str] = [role] if role else admin.get("roles", [])
-    filtered = _filter_routes_by_roles(AUTH_ROUTE_TREE, user_roles)
+    user_roles: list[str] = [cast(str, role)] if role else cast(list[str], admin.get("roles", []))
+    filtered = _filter_routes_by_roles(AUTH_ROUTE_TREE, user_roles)  # type: ignore[arg-type]
     return {
         "routes": filtered,
         "home": "dashboard",

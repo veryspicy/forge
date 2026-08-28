@@ -27,7 +27,7 @@ export const request = createFlatRequest(
       }
       return config;
     },
-    isBackendSuccess(response) {
+    isBackendSuccess(_response) {
       // Standard HTTP: 2xx = success, our backend returns data directly without code wrapping
       return true;
     },
@@ -39,6 +39,9 @@ export const request = createFlatRequest(
 
       if (error.code === BACKEND_ERROR_CODE) {
         message = error.response?.data?.detail || error.response?.data?.msg || message;
+      } else if (error.response?.data?.detail) {
+        // HTTP 状态码错误（如 409 引用冲突）优先展示后端具体原因
+        message = error.response.data.detail;
       }
 
       // Handle 401: extract backend error code and map to i18n
@@ -46,7 +49,7 @@ export const request = createFlatRequest(
         const authStore = useAuthStore();
         authStore.resetStore();
         const detail = error.response?.data?.detail;
-        message = detail ? $t(`errors.${detail}`) : $t('request.logoutMsg');
+        message = detail ? $t(`errors.${detail}` as App.I18n.I18nKey) : $t('request.logoutMsg');
         window.$message?.error(message);
         return;
       }

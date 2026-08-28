@@ -1,0 +1,309 @@
+{
+  "brand": {
+    "name": "Forge",
+    "tagline": "专业宠物电商平台 · 同源修复验证 02:51:27",
+    "logo": {
+      "type": "text",
+      "data": ""
+    }
+  },
+  "theme": {
+    "primaryColor": "#0071e3",
+    "primaryLight": "#147ce5",
+    "primaryDark": "#0057b7",
+    "secondaryColor": "#ff9f0a",
+    "accentColor": "#30d158",
+    "fontHeading": "Inter",
+    "fontBody": "Inter",
+    "preset": "apple"
+  },
+  "nav": [
+    {
+      "label": "首页",
+      "url": "/"
+    },
+    {
+      "label": "商品",
+      "url": "/products"
+    },
+    {
+      "label": "我的宠物",
+      "url": "/pets"
+    },
+    {
+      "label": "订单",
+      "url": "/orders"
+    },
+    {
+      "label": "职业",
+      "url": "/careers"
+    }
+  ],
+  "categories": [
+    {
+      "slug": "cat-food",
+      "nameKey": "footer.petFood",
+      "icon": "mdi:food",
+      "order": 0
+    },
+    {
+      "slug": "toys",
+      "nameKey": "footer.toys",
+      "icon": "mdi:teddy-bear",
+      "order": 1
+    },
+    {
+      "slug": "health-wellness",
+      "nameKey": "footer.healthWellness",
+      "icon": "mdi:heart-pulse",
+      "order": 2
+    }
+  ],
+  "footer": {
+    "copyright": "© 2026 Forge. 版权所有。",
+    "newsletter": true,
+    "linkGroups": [
+      {
+        "key": "shop",
+        "titleKey": "footer.shop",
+        "title": "购物",
+        "visible": true,
+        "order": 0,
+        "links": [
+          {
+            "labelKey": "footer.petFood",
+            "label": "宠物食品",
+            "to": "/products?category=pet-food",
+            "visible": true
+          },
+          {
+            "labelKey": "footer.toys",
+            "label": "玩具",
+            "to": "/products?category=toys",
+            "visible": true
+          },
+          {
+            "labelKey": "footer.healthWellness",
+            "label": "健康护理",
+            "to": "/products?category=health-wellness",
+            "visible": true
+          }
+        ]
+      },
+      {
+        "key": "support",
+        "titleKey": "footer.support",
+        "title": "帮助",
+        "visible": true,
+        "order": 1,
+        "links": [
+          {
+            "labelKey": "footer.faqs",
+            "label": "常见问题",
+            "to": "/faqs",
+            "visible": true
+          },
+          {
+            "labelKey": "footer.shippingInfo",
+            "label": "配送说明",
+            "to": "/shipping",
+            "visible": true
+          }
+        ]
+      },
+      {
+        "key": "about",
+        "titleKey": "footer.about",
+        "title": "从",
+        "visible": true,
+        "order": 2,
+        "links": [
+          {
+            "labelKey": "footer.ourStory",
+            "label": "我们的故事",
+            "to": "/story",
+            "visible": true
+          },
+          {
+            "labelKey": "footer.blog",
+            "label": "博客",
+            "to": "/blog",
+            "visible": true
+          }
+        ]
+      },
+      {
+        "key": "legal",
+        "titleKey": "footer.legal",
+        "title": "法律",
+        "visible": true,
+        "order": 3,
+        "links": [
+          {
+            "labelKey": "footer.privacyPolicy",
+            "label": "隐私政策",
+            "to": "/privacy",
+            "visible": true
+          },
+          {
+            "labelKey": "footer.termsOfService",
+            "label": "服务条款",
+            "to": "/terms",
+            "visible": true
+          }
+        ]
+      }
+    ]
+  },
+  "seo": {
+    "homeTitle": "Forge — 专业宠物用品",
+    "metaDescription": "",
+    "metaKeywords": "",
+    "titleTemplate": "%s | Forge",
+    "description": ""
+  },
+  "i18n": {
+    "defaultLocale": "en",
+    "locales": [
+      "en"
+    ],
+    "translations": {
+      "en": {},
+      "zh": {},
+      "ar": {},
+      "de": {},
+      "fr": {}
+    }
+  },
+  "featureFlags": {
+    "liveChat": true,
+    "reviews": true,
+    "wishlist": false,
+    "show_pets_page": false,
+    "show_ai_chat": true,
+    "show_categories_section": true,
+    "show_featured_products": true,
+    "show_tailored_pets": false,
+    "show_ai_teaser": true,
+    "show_newsletter": true,
+    "enable_reviews": true,
+    "enable_wishlist": false,
+    "enable_live_chat": true
+  },
+  "currencies": [
+    "USD"
+  ],
+  "regions": [],
+  "navigation": [
+    {
+      "key": "home",
+      "to": "/",
+      "labelKey": "nav.home",
+      "label": "首页",
+      "order": 0,
+      "visible": true
+    },
+    {
+      "key": "orders",
+      "to": "/orders",
+      "labelKey": "nav.orders",
+      "label": "订单",
+      "order": 1,
+      "visible": true
+    },
+    {
+      "key": "products",
+      "to": "/products",
+      "labelKey": "nav.products",
+      "label": "商品",
+      "order": 2,
+      "visible": true
+    },
+    {
+      "key": "pets",
+      "to": "/pets",
+      "labelKey": "nav.pets",
+      "label": "我的宠物",
+      "order": 3,
+      "visible": false
+    },
+    {
+      "key": "chat",
+      "to": "/chat",
+      "labelKey": "nav.chat",
+      "label": "AI客服",
+      "order": 4,
+      "visible": true
+    }
+  ],
+  "homeHero": {
+    "useCarousel": true,
+    "hero": {
+      "titleKey": "home.heroTitle",
+      "title": "Smart Shopping for Your Pet",
+      "subtitleKey": "home.heroDesc",
+      "subtitle": "AI-powered product recommendations tailored to your pet.",
+      "cta1LabelKey": "home.shopNow",
+      "cta1Label": "Shop Now",
+      "cta1To": "/products",
+      "cta2LabelKey": "home.addPet",
+      "cta2Label": "Add Your Pet",
+      "cta2To": "/pets",
+      "backgroundImage": ""
+    },
+    "carousel": {
+      "images": [
+        {
+          "url": "/uploads/diy/c359c230cad642438dec843c7551cf34.jpg",
+          "alt": "",
+          "link": "",
+          "title": ""
+        },
+        {
+          "url": "/uploads/diy/057eed23c7db4a81837b5c7032c9a676.png",
+          "alt": "",
+          "link": "",
+          "title": ""
+        },
+        {
+          "url": "/uploads/diy/8b31bcf89bba45b6a3bee8f4a8578fe1.png",
+          "alt": "",
+          "link": "",
+          "title": ""
+        }
+      ],
+      "autoplay": true,
+      "interval": 4000
+    }
+  },
+  "sections": [
+    {
+      "type": "hero",
+      "visible": true,
+      "order": 0,
+      "config": {}
+    },
+    {
+      "type": "categories",
+      "visible": true,
+      "order": 1,
+      "config": {}
+    },
+    {
+      "type": "featured_products",
+      "visible": true,
+      "order": 2,
+      "config": {}
+    },
+    {
+      "type": "ai_teaser",
+      "visible": true,
+      "order": 3,
+      "config": {}
+    }
+  ],
+  "diyPageSlug": "",
+  "features": {
+    "show_pets_page": false
+  }
+}

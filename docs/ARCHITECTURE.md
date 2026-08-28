@@ -201,7 +201,7 @@ Forge 是一个全球化宠物用品 AI 独立站，采用模块化单体 + DDD 
 
 | 命名空间 | 用途 | 服务 |
 |---------|------|------|
-| `forge-public` | 前端 + API (可对外) | frontend, backend, auth |
+| `forge-public` | 前端 + API (可对外) | portal-web, backend, auth |
 | `forge-ai` | AI 推理服务 | ai-chat, ai-recommender |
 | `forge-data` | 数据存储 (仅内部) | postgres, redis, minio |
 | `forge-mq` | 消息队列 | rocketmq-namesrv, broker, proxy |
@@ -228,7 +228,7 @@ Forge 是一个全球化宠物用品 AI 独立站，采用模块化单体 + DDD 
 
 ```
 User → Cloudflare CDN → OCI LB → Traefik Ingress
-                                    ├── / → frontend Pod (Nuxt SSR)
+                                    ├── / → portal-web Pod (Nuxt SSR)
                                     └── /api/* → backend Pod (FastAPI)
                                                         ├── 读 DB → PostgreSQL
                                                         ├── 读缓存 → Redis

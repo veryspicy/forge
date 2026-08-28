@@ -59,6 +59,14 @@ export const useChatStore = defineStore("chat", () => {
       messages.value.push(aiMsg);
 
       await loadConversations();
+    } catch {
+      // 预览模式或网络失败时静默，避免红屏
+      messages.value.push({
+        id: `a-${Date.now()}`,
+        role: "assistant",
+        content: "",
+        timestamp: new Date().toISOString(),
+      });
     } finally {
       loading.value = false;
       isStreaming.value = false;
