@@ -132,8 +132,8 @@ class SQLAlchemyProductRepository:
         return list(result.scalars().all())
 
     @staticmethod
-    async def get_by_id(db: AsyncSession, product_id: str) -> ORMProduct | None:
-        result = await db.execute(select(ORMProduct).where(ORMProduct.id == product_id))
+    async def get_by_id(db: AsyncSession, product_id: int | str) -> ORMProduct | None:
+        result = await db.execute(select(ORMProduct).where(ORMProduct.id == int(product_id)))
         return result.scalar_one_or_none()
 
     @staticmethod

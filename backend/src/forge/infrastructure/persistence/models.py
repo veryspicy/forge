@@ -86,6 +86,7 @@ class ORMProduct(Base):
     inventory = Column(Integer, nullable=False, default=0)
     status = Column(String(20), nullable=False, default="draft", index=True)
     images = Column(JSONB, nullable=False, default=list)
+    attributes = Column(JSONB, nullable=False, default=dict)
     is_new = Column(Boolean, nullable=False, default=False, server_default="false")
     is_recommend = Column(Boolean, nullable=False, default=False, server_default="false")
     sort_order = Column(Integer, nullable=False, default=0, server_default="0")
@@ -133,6 +134,7 @@ class ORMProduct(Base):
             "sort_order": self.sort_order or 0,
             "sales": self.sales or 0,
             "audit_status": self.audit_status or "pending",
+            "attributes": self.attributes or {},
             "supplier_id": str(self.supplier_id) if self.supplier_id else None,
             "supplier_sku": self.supplier_sku,
             "supplier_product_id": self.supplier_product_id,
@@ -288,9 +290,7 @@ class ORMProductTypeSpec(Base):
     )
     spec_key = Column(String(50), nullable=False)
     sort = Column(Integer, nullable=False, default=0)
-    __table_args__ = (
-        UniqueConstraint("product_type_id", "spec_key", name="uq_product_type_specs_type_key"),
-    )
+    __table_args__ = (UniqueConstraint("product_type_id", "spec_key", name="uq_product_type_specs_type_key"),)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -315,9 +315,7 @@ class ORMProductSpecKey(Base):
     )
     spec_key = Column(String(50), nullable=False)
     sort = Column(Integer, nullable=False, default=0)
-    __table_args__ = (
-        UniqueConstraint("product_id", "spec_key", name="uq_product_spec_keys_product_key"),
-    )
+    __table_args__ = (UniqueConstraint("product_id", "spec_key", name="uq_product_spec_keys_product_key"),)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -342,9 +340,7 @@ class ORMProductSpecValue(Base):
     )
     value = Column(String(100), nullable=False)
     sort = Column(Integer, nullable=False, default=0)
-    __table_args__ = (
-        UniqueConstraint("spec_key_id", "value", name="uq_product_spec_values_key_value"),
-    )
+    __table_args__ = (UniqueConstraint("spec_key_id", "value", name="uq_product_spec_values_key_value"),)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -379,9 +375,7 @@ class ORMVariantSpec(Base):
         nullable=False,
         index=True,
     )
-    __table_args__ = (
-        UniqueConstraint("variant_id", "spec_key_id", name="uq_variant_specs_variant_key"),
-    )
+    __table_args__ = (UniqueConstraint("variant_id", "spec_key_id", name="uq_variant_specs_variant_key"),)
 
     def to_dict(self) -> dict[str, Any]:
         return {

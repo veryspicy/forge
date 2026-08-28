@@ -168,7 +168,7 @@ def _coerce_product_id(value: str, field: str = "商品 ID") -> int:
 
 async def _get_product_or_404(db: AsyncSession, raw_id: str) -> ORMProduct:
     product_id = _coerce_product_id(raw_id)
-    product = await SQLAlchemyProductRepository.get_by_id(db, product_id)  # type: ignore[arg-type]
+    product = await SQLAlchemyProductRepository.get_by_id(db, product_id)
     if product is None:
         raise HTTPException(status_code=404, detail="商品不存在")
     return product
@@ -1072,7 +1072,7 @@ async def delete_product_variant(
     await SQLAlchemyProductRepository.delete_variant(db, variant)
     await SQLAlchemyProductRepository.sync_product_inventory(db, int(variant.product_id))
     # 删除后重算 products.attributes 读快照（variant_specs 由外键 CASCADE 清理）
-    product = await SQLAlchemyProductRepository.get_by_id(db, str(variant.product_id))
+    product = await SQLAlchemyProductRepository.get_by_id(db, int(variant.product_id))
     if product is not None:
         await SpecRepository.sync_product_attributes(db, int(product.id))
     await db.commit()
