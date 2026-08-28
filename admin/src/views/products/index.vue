@@ -43,7 +43,7 @@ const variantForm = ref({
   inventory: 0,
   status: 'active',
   is_default: false,
-  attributes: '{}',
+  specRows: [] as { key: string; value: string }[],
 });
 
 const variantStatusOptions = [
@@ -51,12 +51,12 @@ const variantStatusOptions = [
   { label: '停用', value: 'inactive' },
 ];
 
-async function openSkuDrawer(row: any) {
-  skuProduct.value = row;
-  showSkuDrawer.value = true;
-  resetVariantForm();
-  editingIndex.value = -1;
-  await loadVariants();
+function addSpecRow() {
+  variantForm.value.specRows.push({ key: '', value: '' });
+}
+
+function removeSpecRow(idx: number) {
+  variantForm.value.specRows.splice(idx, 1);
 }
 
 function resetVariantForm() {
@@ -69,8 +69,24 @@ function resetVariantForm() {
     inventory: 0,
     status: 'active',
     is_default: false,
-    attributes: '{}',
+    specRows: [],
   };
+}
+
+function attrsToSpecRows(attrs: Record<string, any> | null | undefined): { key: string; value: string }[] {
+  const rows: { key: string; value: string }[] = [];
+  for (const [k, v] of Object.entries(attrs ?? {})) {
+    rows.push({ key: String(k), value: v == null ? '' : String(v) });
+  }
+  return rows;
+}
+
+async function openSkuDrawer(row: any) {
+  skuProduct.value = row;
+  showSkuDrawer.value = true;
+  resetVariantForm();
+  editingIndex.value = -1;
+  await loadVariants();
 }
 
 function startEditVariant(row: any, index: number) {
@@ -85,7 +101,7 @@ function startEditVariant(row: any, index: number) {
     inventory: row.inventory ?? 0,
     status: row.status ?? 'active',
     is_default: Boolean(row.is_default),
-    attributes: row.attributes ? JSON.stringify(row.attributes, null, 0) : '{}',
+    specRows: attrsToSpecRows(row.attributes ?? (row.specs ? Object.fromEntries((row.specs as any[]).map((s: any) => [s.spec_key, s.value])) : null)),
   };
 }
 
@@ -113,24 +129,22 @@ async function loadVariants() {
   }
 }
 
-function parseAttributes(): Record<string, any> {
-  const raw = (variantForm.value.attributes ?? '').trim() || '{}';
-  try {
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
-    throw new Error('invalid');
-  } catch {
-    message.error('属性必须是 JSON 对象，如 {"颜色":"红色","尺码":"M"}');
-    return null as unknown as Record<string, any>;
+function buildAttributes(): Record<string, any> | null {
+  const attrs: Record<string, any> = {};
+  for (const row of variantForm.value.specRows) {
+    const key = (row.key ?? '').trim();
+    if (!key) continue;
+    if (key in attrs) {
+      message.error(`规格名重复: ${key}`);
+      return null;
+    }
+    attrs[key] = (row.value ?? '').trim();
   }
+  return attrs;
 }
 
 async function saveVariant() {
-  if (!variantForm.value.sku.trim()) {
-    message.warning('SKU 不能为空');
-    return;
-  }
-  const attributes = parseAttributes();
+  const attributes = buildAttributes();
   if (!attributes) return;
 
   const payload: Record<string, any> = {
@@ -596,7 +610,7 @@ onMounted(loadProducts);
                   <NFormItem label="名称"><NInput v-model:value="variantForm.name" placeholder="如：红色 / M 码" /></NFormItem>
                 </div>
                 <div style="width: 50%">
-                  <NFormItem label="SKU"><NInput v-model:value="variantForm.sku" placeholder="变体唯一编号" /></NFormItem>
+                  <NFormItem label="SKU"><NInput v-model:value="variantForm.sku" placeholder="留空自动生成，如 PET-1001-BLK-M" /></NFormItem>
                 </div>
                 <div style="width: 50%">
                   <NFormItem label="价格"><NInputNumber v-model:value="variantForm.price" :min="0" :precision="2" style="width: 100%" /></NFormItem>
@@ -613,9 +627,21 @@ onMounted(loadProducts);
                 <div style="width: 50%">
                   <NFormItem label="默认"><NSwitch v-model:value="variantForm.is_default" /></NFormItem>
                 </div>
-                <div style="width: 50%">
-                  <NFormItem label="属性"><NInput v-model:value="variantForm.attributes" placeholder="{&quot;颜色&quot;:&quot;红色&quot;,&quot;尺码&quot;:&quot;M&quot;}" /></NFormItem>
+              </div>
+
+              <div class="mb-1">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-sm font-medium">规格（用于自动生成 SKU 短码）</span>
+                  <NButton size="tiny" quaternary type="primary" @click="addSpecRow">+ 添加规格</NButton>
                 </div>
+                <div v-if="variantForm.specRows.length" class="flex flex-col gap-1">
+                  <div v-for="(row, idx) in variantForm.specRows" :key="idx" class="flex items-center gap-2">
+                    <NInput v-model:value="row.key" placeholder="规格名，如 color" style="width: 40%" />
+                    <NInput v-model:value="row.value" placeholder="规格值，如 black" style="width: 45%" />
+                    <NButton size="tiny" quaternary type="error" @click="removeSpecRow(idx)">删除</NButton>
+                  </div>
+                </div>
+                <div v-else class="text-xs text-gray-400">未填写规格时 SKU 仅基于货号生成</div>
               </div>
               <NSpace justify="end" class="mt-2">
                 <NButton size="small" @click="cancelEditVariant">取消</NButton>

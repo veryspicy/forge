@@ -29,9 +29,22 @@ const variants = ref<any[]>([]);
 const variantModal = ref({ show: false, id: '' });
 const variantSaving = ref(false);
 const variantForm = ref({
-  sku: '', name: '', attributesText: '',
+  sku: '', name: '',
+  specRows: [] as { key: string; value: string }[],
   price: 0, cost: 0, inventory: 0, status: 'active', is_default: false,
 });
+
+const catalogOptions = ref<{ productTypes: { label: string; value: number }[]; brands: { label: string; value: number }[]; categories: { label: string; value: number }[] }>({
+  productTypes: [], brands: [], categories: [],
+});
+
+function addSpecRow() { variantForm.value.specRows.push({ key: '', value: '' }); }
+function removeSpecRow(idx: number) { variantForm.value.specRows.splice(idx, 1); }
+function attrsToSpecRows(attrs: Record<string, any> | null | undefined): { key: string; value: string }[] {
+  const rows: { key: string; value: string }[] = [];
+  for (const [k, v] of Object.entries(attrs ?? {})) rows.push({ key: String(k), value: v == null ? '' : String(v) });
+  return rows;
+}
 
 const seoScore = ref<any>(null);
 const seoLoading = ref(false);
@@ -99,6 +112,7 @@ async function saveSeo() {
 
 const form = ref({
   sku: '', name: '', slug: '', category: 'FOOD', description: '',
+  category_id: null as number | null, brand_id: null as number | null, product_type_id: null as number | null,
   price: 0, cost: 0, inventory: 0, is_ai_generated: false,
   tags: [] as string[], region_availability: [] as string[],
   name_translations: {} as Record<string, string>,
@@ -148,6 +162,25 @@ const categoryOptions = [
   { label: 'Service', value: 'SERVICE' },
 ];
 
+async function loadCatalogOptions() {
+  try {
+    const [typesRes, brandsRes, catsRes] = await Promise.all([
+      get('/api/admin/v1/catalog/product-types'),
+      get('/api/admin/v1/catalog/brands'),
+      get('/api/admin/v1/catalog/categories'),
+    ]);
+    const types = (typesRes.data?.data ?? typesRes.data ?? []) as any[];
+    const brands = (brandsRes.data?.data ?? brandsRes.data ?? []) as any[];
+    const cats = (catsRes.data?.data ?? catsRes.data ?? []) as any[];
+    catalogOptions.value.productTypes = types.map((x: any) => ({ label: String(x.name || x.id), value: Number(x.id) }));
+    catalogOptions.value.brands = brands.map((x: any) => ({ label: String(x.name || x.id), value: Number(x.id) }));
+    catalogOptions.value.categories = cats.map((x: any) => ({
+      label: x.parent_id ? `${x.parent_name || ''} / ${x.name}` : String(x.name),
+      value: Number(x.id),
+    }));
+  } catch { /* 目录选项加载失败不阻塞表单 */ }
+}
+
 const statusOptions = [
   { label: 'Active', value: 'active' }, { label: 'Draft', value: 'draft' }, { label: 'Inactive', value: 'inactive' },
 ];
@@ -156,6 +189,7 @@ function updateTags() { form.value.tags = tagsString.value.split(',').map(s => s
 function updateRegions() { form.value.region_availability = regionsString.value.split(',').map(s => s.trim()).filter(Boolean); }
 
 onMounted(async () => {
+  loadCatalogOptions();
   if (!isEdit.value) return;
   try {
     const res = await get(`/api/admin/v1/products/${route.params.id}`);
@@ -163,6 +197,7 @@ onMounted(async () => {
     form.value = {
       sku: p.sku || '', name: p.name || '', slug: p.slug || '',
       category: p.category || 'FOOD', description: p.description || '',
+      category_id: p.category_id ?? null, brand_id: p.brand_id ?? null, product_type_id: p.product_type_id ?? null,
       price: p.price || 0, cost: p.cost || 0, inventory: p.inventory || 0,
       is_ai_generated: p.is_ai_generated || false,
       tags: p.tags || [], region_availability: p.region_availability || [],
@@ -282,14 +317,14 @@ function openVariantModal(v?: any) {
     variantModal.value.id = v.id;
     variantForm.value = {
       sku: v.sku || '', name: v.name || '',
-      attributesText: v.attributes && Object.keys(v.attributes).length ? JSON.stringify(v.attributes) : '',
+      specRows: attrsToSpecRows(v.attributes ?? (v.specs ? Object.fromEntries((v.specs as any[]).map((s: any) => [s.spec_key, s.value])) : null)),
       price: v.price ?? 0, cost: v.cost ?? 0, inventory: v.inventory ?? 0,
       status: v.status || 'active', is_default: !!v.is_default,
     };
   } else {
     variantModal.value.id = '';
     variantForm.value = {
-      sku: '', name: '', attributesText: '',
+      sku: '', name: '', specRows: [],
       price: 0, cost: 0, inventory: 0, status: 'active', is_default: false,
     };
   }
@@ -299,19 +334,16 @@ function openVariantModal(v?: any) {
 async function saveVariant() {
   variantSaving.value = true;
   error.value = '';
-  let attributes: Record<string, any> | undefined;
-  const attrText = variantForm.value.attributesText.trim();
-  if (attrText) {
-    try {
-      attributes = JSON.parse(attrText);
-      if (typeof attributes !== 'object' || attributes === null || Array.isArray(attributes)) throw new Error('bad');
-    } catch {
-      error.value = '属性必须是合法 JSON 对象';
+  const attributes: Record<string, any> = {};
+  for (const row of variantForm.value.specRows) {
+    const key = (row.key ?? '').trim();
+    if (!key) continue;
+    if (key in attributes) {
+      error.value = `规格名重复: ${key}`;
       variantSaving.value = false;
       return;
     }
-  } else {
-    attributes = {};
+    attributes[key] = (row.value ?? '').trim();
   }
   const payload: any = {
     sku: variantForm.value.sku.trim(),
@@ -373,6 +405,21 @@ async function reloadVariants() {
           <NGi span="1">
             <NFormItem :label="$t('page.products.category')">
               <NSelect v-model:value="form.category" :options="categoryOptions" />
+            </NFormItem>
+          </NGi>
+          <NGi span="1">
+            <NFormItem label="商品类型">
+              <NSelect v-model:value="form.product_type_id" :options="catalogOptions.productTypes" placeholder="选择规格模板" clearable filterable />
+            </NFormItem>
+          </NGi>
+          <NGi span="1">
+            <NFormItem label="品牌">
+              <NSelect v-model:value="form.brand_id" :options="catalogOptions.brands" placeholder="选择品牌" clearable filterable />
+            </NFormItem>
+          </NGi>
+          <NGi span="1">
+            <NFormItem label="分类">
+              <NSelect v-model:value="form.category_id" :options="catalogOptions.categories" placeholder="选择分类（二级树）" clearable filterable />
             </NFormItem>
           </NGi>
           <NGi span="1 m:2">
@@ -502,10 +549,20 @@ async function reloadVariants() {
         style="width: 560px"
       >
         <NForm label-placement="top">
-          <NFormItem label="SKU" required><NInput v-model:value="variantForm.sku" /></NFormItem>
+          <NFormItem label="SKU"><NInput v-model:value="variantForm.sku" placeholder="留空自动生成，如 PET-1001-BLK-M" /></NFormItem>
           <NFormItem label="名称" required><NInput v-model:value="variantForm.name" /></NFormItem>
-          <NFormItem label="属性 (JSON)">
-            <NInput v-model:value="variantForm.attributesText" placeholder="{&quot;color&quot;:&quot;blue&quot;,&quot;size&quot;:&quot;M&quot;}" />
+          <NFormItem label="规格（用于自动生成 SKU 短码）">
+            <div class="w-full flex flex-col gap-1">
+              <div v-if="variantForm.specRows.length" class="flex flex-col gap-1">
+                <div v-for="(row, idx) in variantForm.specRows" :key="idx" class="flex items-center gap-2">
+                  <NInput v-model:value="row.key" placeholder="规格名，如 color" />
+                  <NInput v-model:value="row.value" placeholder="规格值，如 black" />
+                  <NButton size="tiny" quaternary type="error" @click="removeSpecRow(idx)">删除</NButton>
+                </div>
+              </div>
+              <div v-else class="text-xs text-gray-400">未填写规格时 SKU 仅基于货号生成</div>
+              <NButton size="tiny" type="primary" quaternary style="align-self:flex-start" @click="addSpecRow">+ 添加规格</NButton>
+            </div>
           </NFormItem>
           <NGrid :cols="3" :x-gap="12" responsive="screen">
             <NGi>
