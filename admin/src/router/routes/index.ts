@@ -68,6 +68,42 @@ const customRoutes = [
         }
       },
       {
+        name: 'categories',
+        path: '/categories',
+        component: 'layout.base$view.categories',
+        meta: {
+          title: 'Categories',
+          i18nKey: 'route.categories',
+          icon: 'mdi:file-tree',
+          order: 2,
+          roles: ['super_admin', 'admin', 'operator']
+        }
+      },
+      {
+        name: 'brands',
+        path: '/brands',
+        component: 'layout.base$view.brands',
+        meta: {
+          title: 'Brands',
+          i18nKey: 'route.brands',
+          icon: 'mdi:label-multiple',
+          order: 3,
+          roles: ['super_admin', 'admin', 'operator']
+        }
+      },
+      {
+        name: 'product-types',
+        path: '/product-types',
+        component: 'layout.base$view.product-types',
+        meta: {
+          title: 'Product Types',
+          i18nKey: 'route.product-types',
+          icon: 'mdi:shape-outline',
+          order: 4,
+          roles: ['super_admin', 'admin', 'operator']
+        }
+      },
+      {
         name: 'suppliers',
         path: '/suppliers',
         component: 'layout.base$view.suppliers',
@@ -75,7 +111,7 @@ const customRoutes = [
           title: 'Suppliers',
           i18nKey: 'route.suppliers',
           icon: 'mdi:truck-delivery',
-          order: 2,
+          order: 5,
           roles: ['super_admin', 'admin']
         }
       },
@@ -87,7 +123,7 @@ const customRoutes = [
           title: 'Pricing',
           i18nKey: 'route.pricing',
           icon: 'mdi:cash-multiple',
-          order: 3,
+          order: 6,
           roles: ['super_admin', 'admin']
         }
       }
@@ -275,14 +311,18 @@ export function createStaticRoutes() {
   // to prevent flat auto-generated routes from overriding the nested menu structure
   // Auto-generated routes to ignore (custom routes already define them differently)
   const ignoreGeneratedRouteNames = new Set(['users', 'site-config']);
-  const customRouteNames = new Set(customRoutes.flatMap((r: any) => {
-    const names = [r.name];
-    if (r.children) {
-      r.children.forEach((c: any) => names.push(c.name));
-    }
-    return names;
-  }));
-  const filteredGeneratedRoutes = generatedRoutes.filter((r: any) => !customRouteNames.has(r.name) && !ignoreGeneratedRouteNames.has(r.name));
+  const customRouteNames = new Set(
+    customRoutes.flatMap((r: any) => {
+      const names = [r.name];
+      if (r.children) {
+        r.children.forEach((c: any) => names.push(c.name));
+      }
+      return names;
+    })
+  );
+  const filteredGeneratedRoutes = generatedRoutes.filter(
+    (r: any) => !customRouteNames.has(r.name) && !ignoreGeneratedRouteNames.has(r.name)
+  );
 
   [...customRoutes, ...filteredGeneratedRoutes].forEach((item: any) => {
     if (item.meta?.constant) {
