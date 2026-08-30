@@ -129,7 +129,12 @@
             @click="navigateTo(localePath(`/products/${product.product_id}`))"
           >
             <div class="p-4">
-              <div class="w-full h-24 bg-gradient-to-br from-primary-100 to-primary-200 rounded-lg mb-3 flex items-center justify-center">
+              <img
+                v-if="product.image || product.images?.[0]"
+                :src="product.image || product.images?.[0]"
+                class="w-full h-24 object-cover rounded-lg mb-3"
+              />
+              <div v-else class="w-full h-24 bg-gradient-to-br from-primary-100 to-primary-200 rounded-lg mb-3 flex items-center justify-center">
                 <span class="text-3xl">{{ productIcon(product.product_name) }}</span>
               </div>
               <h3 class="text-sm font-semibold text-gray-800 truncate">{{ product.product_name }}</h3>
@@ -186,7 +191,12 @@
             class="bg-white rounded-xl shadow-sm border hover:shadow-md transition"
           >
             <NuxtLink :to="localePath(`/products/${prod.id}`)" class="block p-4">
-              <div class="w-full h-32 bg-gradient-to-br from-primary-50 to-primary-100 rounded-lg mb-3 flex items-center justify-center">
+              <img
+                v-if="prod.images?.[0]"
+                :src="prod.images[0]"
+                class="w-full h-32 object-cover rounded-lg mb-3"
+              />
+              <div v-else class="w-full h-32 bg-gradient-to-br from-primary-50 to-primary-100 rounded-lg mb-3 flex items-center justify-center">
                 <span class="text-4xl">{{ productIcon(prod.name) }}</span>
               </div>
               <h3 class="text-sm font-semibold text-gray-800 truncate">{{ prod.name }}</h3>
