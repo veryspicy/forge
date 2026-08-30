@@ -135,10 +135,6 @@ const typeCounts = computed(() => {
   return map;
 });
 
-const currentDetailRefsLabel = computed(() =>
-  currentRefs.value.map(r => r.ref_label).join('、') || '无引用'
-);
-
 function formatSize(size: number) {
   if (!size) return '-';
   if (size < 1024) return `${size} B`;
@@ -163,7 +159,26 @@ function isPreviewableAudio(r: ResourceItem) {
   return r.file_type === 'audio';
 }
 
-const TEXT_EXTENSIONS = ['txt', 'json', 'csv', 'xml', 'yml', 'yaml', 'log', 'ini', 'conf', 'sql', 'sh', 'py', 'js', 'ts', 'html', 'css', 'env', 'gitignore'];
+const TEXT_EXTENSIONS = [
+  'txt',
+  'json',
+  'csv',
+  'xml',
+  'yml',
+  'yaml',
+  'log',
+  'ini',
+  'conf',
+  'sql',
+  'sh',
+  'py',
+  'js',
+  'ts',
+  'html',
+  'css',
+  'env',
+  'gitignore'
+];
 
 function resolvePreviewType(r: ResourceItem): PreviewType {
   if (isPreviewableImage(r)) return 'image';
@@ -219,7 +234,8 @@ async function loadPreviewContent() {
       }
     } catch {
       if (previewDocxRef.value) {
-        previewDocxRef.value.innerHTML = '<p class="p-4 text-center text-sm text-gray-400">docx 渲染失败，可通过下载查看</p>';
+        previewDocxRef.value.innerHTML =
+          '<p class="p-4 text-center text-sm text-gray-400">docx 渲染失败，可通过下载查看</p>';
       }
     }
     return;
@@ -273,10 +289,7 @@ async function loadList() {
 
 async function loadMeta() {
   try {
-    const [dirRes, tagRes] = await Promise.all([
-      resourceApi.directories(),
-      resourceApi.tags()
-    ]);
+    const [dirRes, tagRes] = await Promise.all([resourceApi.directories(), resourceApi.tags()]);
     const dirData = (dirRes as any).data?.data ?? (dirRes as any).data ?? [];
     const tagData = (tagRes as any).data?.data ?? (tagRes as any).data ?? [];
     directories.value = Array.isArray(dirData) ? dirData : [];
@@ -298,11 +311,11 @@ function selectType(key: string) {
 async function loadTrash() {
   trashLoading.value = true;
   try {
-    const res = await resourceApi.trashList({
+    const res = (await resourceApi.trashList({
       keyword: trashKeyword.value || undefined,
       page: trashPage.value,
       page_size: trashPageSize.value
-    }) as any;
+    })) as any;
     const data = res?.data?.data ?? res?.data ?? res;
     trashItems.value = data?.items ?? [];
     trashTotal.value = data?.total ?? 0;
@@ -350,7 +363,7 @@ async function restoreTrashSelection() {
     negativeText: '取消',
     onPositiveClick: async () => {
       try {
-        const res = await resourceApi.restoreTrash(ids) as any;
+        const res = (await resourceApi.restoreTrash(ids)) as any;
         const data = res?.data?.data ?? res?.data ?? res;
         message.success(`已恢复 ${data?.restored ?? ids.length} 个资源`);
         trashSelected.value = new Set();
@@ -376,7 +389,7 @@ async function purgeTrashSelection() {
     negativeText: '取消',
     onPositiveClick: async () => {
       try {
-        const res = await resourceApi.purgeTrash(ids) as any;
+        const res = (await resourceApi.purgeTrash(ids)) as any;
         const data = res?.data?.data ?? res?.data ?? res;
         message.success(`已彻底删除 ${data?.purged ?? ids.length} 个资源`);
         trashSelected.value = new Set();
@@ -398,7 +411,7 @@ async function emptyTrashAll() {
     negativeText: '取消',
     onPositiveClick: async () => {
       try {
-        const res = await resourceApi.emptyTrash() as any;
+        const res = (await resourceApi.emptyTrash()) as any;
         const data = res?.data?.data ?? res?.data ?? res;
         message.success(`已清空回收站（${data?.purged ?? trashTotal.value} 个）`);
         trashSelected.value = new Set();
@@ -410,7 +423,6 @@ async function emptyTrashAll() {
     }
   });
 }
-
 
 function selectDirectory(dir: string) {
   activeDirectory.value = activeDirectory.value === dir ? null : dir;
@@ -541,7 +553,7 @@ function collectDropFiles(dataTransfer: DataTransfer): Promise<{ file: File; dir
 /** 上传前批量重名检测：返回已占用名称集合（用于自动加后缀） */
 async function fetchExistingNames(names: string[]): Promise<Set<string>> {
   try {
-    const res = await resourceApi.checkNames(names) as any;
+    const res = (await resourceApi.checkNames(names)) as any;
     const info = res?.data?.data ?? res?.data ?? res;
     const existing = info?.existing ?? {};
     return new Set(Object.keys(existing));
@@ -554,7 +566,7 @@ async function fetchExistingNames(names: string[]): Promise<Set<string>> {
  * 迭代检查：每轮把当前候选名提交服务器核对，冲突项继续递增，直到全部无冲突。
  * 修复连续上传同名文件时重复生成相同 (n) 后缀的问题（如第二次仍生成 (1) 而非 (2)）。 */
 async function dedupeUploadList(list: { file: File; directory?: string }[]) {
-  const pending = list.map((item) => {
+  const pending = list.map(item => {
     const { file } = item;
     const dot = file.name.lastIndexOf('.');
     return {
@@ -584,7 +596,7 @@ async function dedupeUploadList(list: { file: File; directory?: string }[]) {
     if (!dirty) break;
   }
 
-  return pending.map((p) => {
+  return pending.map(p => {
     if (p.candidate === p.item.file.name) return p.item;
     return {
       directory: p.item.directory,
@@ -617,7 +629,7 @@ async function uploadFiles(list: { file: File; directory?: string }[]) {
       message.success(`「${item.file.name}」上传成功`);
       if (data?.id && finalList.length === 1) selectDetail(data);
       await new Promise(resolve => setTimeout(resolve, 300));
-    } catch (err: any) {
+    } catch {
       failCount += 1;
       // 请求层已弹出错误消息，这里仅计数，避免双弹窗
     } finally {
@@ -686,7 +698,7 @@ async function selectDetail(r: ResourceItem) {
     currentDetail.value = data;
     currentRefs.value = data?.refs ?? [];
     renameValue.value = data?.name ?? r.name;
-  } catch (e) {
+  } catch {
     currentRefs.value = [];
   }
 }
@@ -703,7 +715,9 @@ async function doRename() {
       const check = (await resourceApi.checkName(name, currentDetail.value.id)) as any;
       const info = check?.data?.data ?? check?.data ?? check;
       if (info?.exists) {
-        message.warning(`重名提示：已有 ${info.active_count} 个同名资源${info.trash_count ? `（回收站 ${info.trash_count} 个）` : ''}，请更换名称`);
+        message.warning(
+          `重名提示：已有 ${info.active_count} 个同名资源${info.trash_count ? `（回收站 ${info.trash_count} 个）` : ''}，请更换名称`
+        );
         return;
       }
     } catch {
@@ -722,9 +736,7 @@ async function doRename() {
 
 /** 卡片拖拽开始：记录拖拽的资源 id（多选时拖全部选中项） */
 function onCardDragStart(e: DragEvent, r: ResourceItem) {
-  dragResourceIds.value = selectedIds.value.has(r.id)
-    ? Array.from(selectedIds.value)
-    : [r.id];
+  dragResourceIds.value = selectedIds.value.has(r.id) ? Array.from(selectedIds.value) : [r.id];
   if (e.dataTransfer) {
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', dragResourceIds.value.join(','));
@@ -737,7 +749,7 @@ async function onDirDrop(dir: string) {
   dragResourceIds.value = [];
   if (!ids.length) return;
   try {
-    const res = await resourceApi.move(ids, dir) as any;
+    const res = (await resourceApi.move(ids, dir)) as any;
     const data = res?.data?.data ?? res?.data ?? res;
     const moved = data?.moved ?? ids.length;
     message.success(`已移动 ${moved} 个资源到「${dir || '未归档'}」`);
@@ -761,7 +773,7 @@ function showMoveDialog() {
 async function confirmMove() {
   const ids = Array.from(selectedIds.value);
   try {
-    const res = await resourceApi.move(ids, moveTargetDir.value) as any;
+    const res = (await resourceApi.move(ids, moveTargetDir.value)) as any;
     const data = res?.data?.data ?? res?.data ?? res;
     const moved = data?.moved ?? ids.length;
     message.success(`已移动 ${moved} 个资源到「${moveTargetDir.value || '未归档'}」`);
@@ -785,13 +797,16 @@ function showTagDialog() {
 
 async function confirmTags() {
   const ids = Array.from(selectedIds.value);
-  const tagList = tagInputValue.value.split(/[,，\s]+/).map(t => t.trim()).filter(Boolean);
+  const tagList = tagInputValue.value
+    .split(/[,，\s]+/)
+    .map(t => t.trim())
+    .filter(Boolean);
   if (!tagList.length) {
     message.warning('请输入标签');
     return;
   }
   try {
-    await resourceApi.setTags(ids, tagList) as any;
+    (await resourceApi.setTags(ids, tagList)) as any;
     message.success(`已为 ${ids.length} 个资源添加 ${tagList.length} 个标签`);
     tagDialogVisible.value = false;
     await Promise.all([loadList(), loadMeta()]);
@@ -823,11 +838,19 @@ function canJumpRef(refInfo: RefInfo) {
 
 function jumpToRef(refInfo: RefInfo) {
   const target = REF_ROUTE_MAP[refInfo.ref_type];
-  if (target) {
-    router.push(target);
+  if (!target) {
+    message.info(`引用位置「${refInfo.ref_label}」暂无跳转路由（ref_type=${refInfo.ref_type}）`);
     return;
   }
-  message.info(`引用位置「${refInfo.ref_label}」暂无跳转路由（ref_type=${refInfo.ref_type}）`);
+  // product 类引用直接跳到对应商品详情页，并携带当前资源 id 用于高亮定位引用图片
+  if (refInfo.ref_type === 'product' || refInfo.ref_type === 'products') {
+    router.push({
+      path: `/products/${refInfo.ref_id}`,
+      query: currentDetail.value?.id ? { highlight_resource: String(currentDetail.value.id) } : {}
+    });
+    return;
+  }
+  router.push(target);
 }
 
 async function doDelete(r: ResourceItem) {
@@ -838,7 +861,7 @@ async function doDelete(r: ResourceItem) {
     negativeText: '取消',
     onPositiveClick: async () => {
       // 请求层 onError 已全局弹出错误消息，这里只处理成功分支，避免双弹窗
-      const { data } = await resourceApi.remove(r.id) as any;
+      const { data } = (await resourceApi.remove(r.id)) as any;
       if (!data) return;
       message.success('已删除');
       selectedIds.value.delete(r.id);
@@ -867,7 +890,7 @@ async function doBatchDelete() {
     positiveText: '删除',
     negativeText: '取消',
     onPositiveClick: async () => {
-      const { data } = await resourceApi.batchRemove(ids) as any;
+      const { data } = (await resourceApi.batchRemove(ids)) as any;
       if (!data) return;
       const deletedCount = data?.data?.deleted ?? data?.deleted ?? ids.length;
       message.success(`已删除 ${deletedCount} 个`);
@@ -927,9 +950,11 @@ onBeforeUnmount(() => {
             v-for="t in typeTabs"
             :key="t.key"
             class="flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-sm transition-colors"
-            :class="activeType === t.key
-              ? 'bg-green-50 text-green-700 font-medium dark:bg-green-900/20 dark:text-green-400'
-              : 'hover:bg-gray-50 dark:hover:bg-gray-800'"
+            :class="
+              activeType === t.key
+                ? 'bg-green-50 text-green-700 font-medium dark:bg-green-900/20 dark:text-green-400'
+                : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+            "
             @click="selectType(t.key)"
           >
             <span class="flex items-center gap-2">
@@ -939,30 +964,44 @@ onBeforeUnmount(() => {
             <span
               v-if="t.key && typeCounts[t.key]"
               class="rounded-full bg-gray-100 px-1.5 text-xs text-gray-500 dark:bg-gray-800"
-            >{{ typeCounts[t.key] }}</span>
+            >
+              {{ typeCounts[t.key] }}
+            </span>
           </div>
         </div>
 
         <div class="mb-1 mt-3 flex items-center justify-between text-xs text-gray-400">
           <span class="flex items-center gap-1">
-            <SvgIcon icon="mdi:folder-outline" class="text-13px" />目录
+            <SvgIcon icon="mdi:folder-outline" class="text-13px" />
+            目录
           </span>
-          <span v-if="activeDirectory !== null" class="cursor-pointer text-green-500" @click="selectDirectory(activeDirectory as string)">清除</span>
+          <span
+            v-if="activeDirectory !== null"
+            class="cursor-pointer text-green-500"
+            @click="selectDirectory(activeDirectory as string)"
+          >
+            清除
+          </span>
         </div>
         <div class="mb-2 flex flex-col gap-0.5">
           <div
             v-for="d in directories"
             :key="d.directory"
             class="flex cursor-grab items-center justify-between rounded px-2 py-1.5 text-sm transition-colors"
-            :class="activeDirectory === d.directory
-              ? 'bg-green-50 text-green-700 font-medium dark:bg-green-900/20 dark:text-green-400'
-              : 'hover:bg-gray-50 dark:hover:bg-gray-800'"
+            :class="
+              activeDirectory === d.directory
+                ? 'bg-green-50 text-green-700 font-medium dark:bg-green-900/20 dark:text-green-400'
+                : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+            "
             @click="selectDirectory(d.directory)"
             @dragover.prevent
             @drop.prevent="onDirDrop(d.directory)"
           >
             <span class="flex items-center gap-1.5 truncate" :title="d.directory || '未归档'">
-              <SvgIcon :icon="d.directory ? 'mdi:folder-outline' : 'mdi:folder-open-outline'" class="text-15px shrink-0 text-gray-400" />
+              <SvgIcon
+                :icon="d.directory ? 'mdi:folder-outline' : 'mdi:folder-open-outline'"
+                class="text-15px shrink-0 text-gray-400"
+              />
               <span class="truncate">{{ d.directory || '未归档' }}</span>
             </span>
             <span class="rounded-full bg-gray-100 px-1.5 text-xs text-gray-500 dark:bg-gray-800">{{ d.count }}</span>
@@ -972,7 +1011,8 @@ onBeforeUnmount(() => {
 
         <div class="mb-1 mt-3 flex items-center justify-between text-xs text-gray-400">
           <span class="flex items-center gap-1">
-            <SvgIcon icon="mdi:tag-multiple-outline" class="text-13px" />标签
+            <SvgIcon icon="mdi:tag-multiple-outline" class="text-13px" />
+            标签
           </span>
           <span v-if="activeTag" class="cursor-pointer text-green-500" @click="selectTag(activeTag)">清除</span>
         </div>
@@ -981,9 +1021,11 @@ onBeforeUnmount(() => {
             v-for="t in tags"
             :key="t.name"
             class="flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-sm transition-colors"
-            :class="activeTag === t.name
-              ? 'bg-green-50 text-green-700 font-medium dark:bg-green-900/20 dark:text-green-400'
-              : 'hover:bg-gray-50 dark:hover:bg-gray-800'"
+            :class="
+              activeTag === t.name
+                ? 'bg-green-50 text-green-700 font-medium dark:bg-green-900/20 dark:text-green-400'
+                : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+            "
             @click="selectTag(t.name)"
           >
             <span class="flex items-center gap-1.5 truncate" :title="t.name">
@@ -1006,12 +1048,26 @@ onBeforeUnmount(() => {
     <!-- 中：资源列表 -->
     <div class="flex flex-1 flex-col overflow-hidden rounded bg-white shadow-sm dark:bg-dark">
       <!-- 工具栏 -->
-      <div class="flex items-center justify-between gap-2 border-b border-gray-100 border-solid px-4 py-3 dark:border-gray-700">
+      <div
+        class="flex items-center justify-between gap-2 border-b border-gray-100 border-solid px-4 py-3 dark:border-gray-700"
+      >
         <div class="flex items-center gap-2">
           <div class="flex items-center">
-            <NDropdown trigger="click" :options="folderOption" placement="bottom-start" :dropdown-props="{ class: 'upload-folder-menu' }" @select="onFolderSelect">
+            <NDropdown
+              trigger="click"
+              :options="folderOption"
+              placement="bottom-start"
+              :dropdown-props="{ class: 'upload-folder-menu' }"
+              @select="onFolderSelect"
+            >
               <div class="flex items-center">
-                <NButton type="primary" size="small" :loading="uploading" class="!rounded-r-none" @click.stop="triggerUpload">
+                <NButton
+                  type="primary"
+                  size="small"
+                  :loading="uploading"
+                  class="!rounded-r-none"
+                  @click.stop="triggerUpload"
+                >
                   <template #icon><SvgIcon icon="mdi:upload" class="text-16px" /></template>
                   上传
                 </NButton>
@@ -1022,14 +1078,31 @@ onBeforeUnmount(() => {
             </NDropdown>
           </div>
           <NButton size="small" type="error" secondary :disabled="!selectedIds.size" @click="handleDeleteBySelection">
-            <template #icon><SvgIcon :icon="selectedIds.size > 1 ? 'mdi:delete-sweep-outline' : 'mdi:delete-outline'" class="text-16px" /></template>
+            <template #icon>
+              <SvgIcon
+                :icon="selectedIds.size > 1 ? 'mdi:delete-sweep-outline' : 'mdi:delete-outline'"
+                class="text-16px"
+              />
+            </template>
             {{ selectedIds.size > 1 ? '批量删除' : '删除' }}
           </NButton>
-          <NButton v-if="selectedIds.size > 1" size="small" secondary :disabled="!selectedIds.size" @click="showMoveDialog">
+          <NButton
+            v-if="selectedIds.size > 1"
+            size="small"
+            secondary
+            :disabled="!selectedIds.size"
+            @click="showMoveDialog"
+          >
             <template #icon><SvgIcon icon="mdi:folder-move-outline" class="text-16px" /></template>
             移动到目录
           </NButton>
-          <NButton v-if="selectedIds.size > 1" size="small" secondary :disabled="!selectedIds.size" @click="showTagDialog">
+          <NButton
+            v-if="selectedIds.size > 1"
+            size="small"
+            secondary
+            :disabled="!selectedIds.size"
+            @click="showTagDialog"
+          >
             <template #icon><SvgIcon icon="mdi:tag-plus-outline" class="text-16px" /></template>
             批量打标
           </NButton>
@@ -1100,12 +1173,31 @@ onBeforeUnmount(() => {
             :key="r.id"
             draggable="true"
             class="group relative flex min-h-0 cursor-pointer flex-col overflow-hidden rounded-lg border border-gray-100 border-solid dark:border-gray-700"
-            :class="currentDetail?.id === r.id ? 'ring-2 ring-green-500' : selectedIds.has(r.id) ? 'ring-2 ring-green-400' : ''"
+            :class="
+              currentDetail?.id === r.id
+                ? 'ring-2 ring-green-500'
+                : selectedIds.has(r.id)
+                  ? 'ring-2 ring-green-400'
+                  : ''
+            "
             @click="selectedIds.size > 1 ? toggleSelect(r.id) : selectDetail(r)"
             @dragstart="onCardDragStart($event, r)"
           >
             <div class="flex min-h-0 flex-1 items-center justify-center bg-gray-50 dark:bg-gray-800">
-              <img v-if="isPreviewableImage(r)" :src="r.thumb_url || r.url" :data-origin="r.url" class="h-full w-full object-cover" loading="lazy" decoding="async" @error="(e) => { const el = e.target as HTMLImageElement; if (el.src !== el.dataset.origin) el.src = el.dataset.origin || ''; }" />
+              <img
+                v-if="isPreviewableImage(r)"
+                :src="r.thumb_url || r.url"
+                :data-origin="r.url"
+                class="h-full w-full object-cover"
+                loading="lazy"
+                decoding="async"
+                @error="
+                  e => {
+                    const el = e.target as HTMLImageElement;
+                    if (el.src !== el.dataset.origin) el.src = el.dataset.origin || '';
+                  }
+                "
+              />
               <div v-else-if="isPreviewableVideo(r)" class="relative h-full w-full">
                 <video :src="r.url" preload="metadata" muted playsinline class="h-full w-full object-cover" />
                 <span class="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -1129,24 +1221,25 @@ onBeforeUnmount(() => {
               <SvgIcon icon="mdi:magnify-plus-outline" class="text-14px" />
             </div>
             <div class="truncate px-2 py-1.5 text-xs" :title="r.name">{{ r.name }}</div>
-            <div
-              v-if="r.tags?.length"
-              class="flex flex-wrap gap-1 px-2 pb-1.5"
-            >
+            <div v-if="r.tags?.length" class="flex flex-wrap gap-1 px-2 pb-1.5">
               <span
                 v-for="t in r.tags.slice(0, 3)"
                 :key="t"
                 class="max-w-[80px] truncate rounded bg-blue-50 px-1 text-[10px] leading-4 text-blue-500 dark:bg-blue-900/30 dark:text-blue-300"
-              >#{{ t }}</span>
+              >
+                #{{ t }}
+              </span>
               <span v-if="r.tags.length > 3" class="text-[10px] leading-4 text-gray-400">+{{ r.tags.length - 3 }}</span>
             </div>
             <div
               class="absolute top-1.5 right-1.5 z-20 flex h-5 w-5 cursor-pointer items-center justify-center rounded border border-solid text-xs transition-colors"
-              :class="selectedIds.has(r.id)
-                ? 'border-green-500 bg-green-500 text-white'
-                : (r.ref_count ?? 0) > 0
-                  ? 'border-orange-400 bg-orange-50 text-orange-500 dark:bg-orange-900/30'
-                  : 'border-gray-300 bg-white text-gray-400 dark:border-gray-500 dark:bg-gray-700'"
+              :class="
+                selectedIds.has(r.id)
+                  ? 'border-green-500 bg-green-500 text-white'
+                  : (r.ref_count ?? 0) > 0
+                    ? 'border-orange-400 bg-orange-50 text-orange-500 dark:bg-orange-900/30'
+                    : 'border-gray-300 bg-white text-gray-400 dark:border-gray-500 dark:bg-gray-700'
+              "
               :title="(r.ref_count ?? 0) > 0 ? `被引用 ${r.ref_count} 处，不可删除` : '选择'"
               @click.stop="toggleSelect(r.id)"
             >
@@ -1164,15 +1257,11 @@ onBeforeUnmount(() => {
       </div>
 
       <!-- 分页 -->
-      <div class="flex items-center justify-between border-t border-gray-100 border-solid px-4 py-2 dark:border-gray-700">
+      <div
+        class="flex items-center justify-between border-t border-gray-100 border-solid px-4 py-2 dark:border-gray-700"
+      >
         <span class="text-xs text-gray-500">共 {{ total }} 个资源</span>
-        <NPagination
-          :page="page"
-          :page-size="pageSize"
-          :item-count="total"
-          size="small"
-          @update:page="onPageChange"
-        />
+        <NPagination :page="page" :page-size="pageSize" :item-count="total" size="small" @update:page="onPageChange" />
       </div>
     </div>
 
@@ -1210,7 +1299,12 @@ onBeforeUnmount(() => {
           @click="openPreview(currentDetail)"
         >
           <img v-if="isPreviewableImage(currentDetail)" :src="currentDetail.url" class="h-full w-full object-contain" />
-          <video v-else-if="isPreviewableVideo(currentDetail)" :src="currentDetail.url" controls class="h-full w-full" />
+          <video
+            v-else-if="isPreviewableVideo(currentDetail)"
+            :src="currentDetail.url"
+            controls
+            class="h-full w-full"
+          />
           <audio v-else-if="isPreviewableAudio(currentDetail)" :src="currentDetail.url" controls class="w-full px-3" />
           <SvgIcon v-else icon="mdi:file-document-outline" class="text-40px text-gray-400" />
         </div>
@@ -1226,12 +1320,23 @@ onBeforeUnmount(() => {
 
         <!-- 元信息 -->
         <div class="mb-3 space-y-2 text-xs">
-          <div class="flex justify-between"><span class="text-gray-500">类型</span><span>{{ currentDetail.file_type }} / {{ currentDetail.mime }}</span></div>
-          <div class="flex justify-between"><span class="text-gray-500">大小</span><span>{{ formatSize(currentDetail.file_size) }}</span></div>
-          <div class="flex justify-between"><span class="text-gray-500">上传时间</span><span>{{ formatTime(currentDetail.created_at) }}</span></div>
+          <div class="flex justify-between">
+            <span class="text-gray-500">类型</span>
+            <span>{{ currentDetail.file_type }} / {{ currentDetail.mime }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-500">大小</span>
+            <span>{{ formatSize(currentDetail.file_size) }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-500">上传时间</span>
+            <span>{{ formatTime(currentDetail.created_at) }}</span>
+          </div>
           <div class="flex justify-between gap-2">
             <span class="text-gray-500 shrink-0">目录</span>
-            <span class="truncate" :title="currentDetail.directory || '未归档'">{{ currentDetail.directory || '未归档' }}</span>
+            <span class="truncate" :title="currentDetail.directory || '未归档'">
+              {{ currentDetail.directory || '未归档' }}
+            </span>
           </div>
           <div v-if="currentDetail.tags?.length" class="flex justify-between gap-2">
             <span class="text-gray-500 shrink-0">标签</span>
@@ -1240,12 +1345,16 @@ onBeforeUnmount(() => {
                 v-for="t in currentDetail.tags"
                 :key="t"
                 class="rounded bg-blue-50 px-1 text-[10px] leading-4 text-blue-500 dark:bg-blue-900/30 dark:text-blue-300"
-              >#{{ t }}</span>
+              >
+                #{{ t }}
+              </span>
             </span>
           </div>
           <div class="flex justify-between gap-2">
             <span class="text-gray-500 shrink-0">MinIO 路径</span>
-            <span class="truncate" :title="currentDetail.object_key || currentDetail.url">{{ currentDetail.object_key || '-' }}</span>
+            <span class="truncate" :title="currentDetail.object_key || currentDetail.url">
+              {{ currentDetail.object_key || '-' }}
+            </span>
           </div>
           <div class="flex flex-col gap-1">
             <div class="flex justify-between gap-2">
@@ -1268,7 +1377,11 @@ onBeforeUnmount(() => {
                 :title="`ref_type=${ref.ref_type} 无对应路由`"
               >
                 <span class="truncate">{{ ref.ref_label || ref.ref_type }}</span>
-                <span class="rounded bg-gray-200 px-1 text-[10px] leading-4 text-gray-500 dark:bg-gray-700 dark:text-gray-400">无路由</span>
+                <span
+                  class="rounded bg-gray-200 px-1 text-[10px] leading-4 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+                >
+                  无路由
+                </span>
               </div>
             </div>
           </div>
@@ -1303,18 +1416,59 @@ onBeforeUnmount(() => {
     <NModal
       v-model:show="previewVisible"
       preset="card"
-      :title="previewType === 'image' ? '图片预览' : previewType === 'video' ? '视频预览' : previewType === 'audio' ? '音频预览' : previewType === 'pdf' ? 'PDF 预览' : previewType === 'docx' ? 'Word 预览' : previewType === 'md' ? 'Markdown 预览' : previewType === 'zip' ? '压缩包内容' : '资源预览'"
+      :title="
+        previewType === 'image'
+          ? '图片预览'
+          : previewType === 'video'
+            ? '视频预览'
+            : previewType === 'audio'
+              ? '音频预览'
+              : previewType === 'pdf'
+                ? 'PDF 预览'
+                : previewType === 'docx'
+                  ? 'Word 预览'
+                  : previewType === 'md'
+                    ? 'Markdown 预览'
+                    : previewType === 'zip'
+                      ? '压缩包内容'
+                      : '资源预览'
+      "
       style="width: 80%; max-width: 960px"
     >
       <div class="flex items-center justify-center">
-        <img v-if="previewType === 'image'" :src="previewUrl" class="max-h-[70vh] max-w-full object-contain" alt="预览" />
-        <video v-else-if="previewType === 'video'" :src="previewUrl" controls autoplay class="max-h-[70vh] max-w-full" />
+        <img
+          v-if="previewType === 'image'"
+          :src="previewUrl"
+          class="max-h-[70vh] max-w-full object-contain"
+          alt="预览"
+        />
+        <video
+          v-else-if="previewType === 'video'"
+          :src="previewUrl"
+          controls
+          autoplay
+          class="max-h-[70vh] max-w-full"
+        />
         <audio v-else-if="previewType === 'audio'" :src="previewUrl" controls autoplay class="w-full" />
         <iframe v-else-if="previewType === 'pdf'" :src="previewUrl" class="h-[70vh] w-full rounded-md border" />
-        <div v-else-if="previewType === 'docx'" ref="previewDocxRef" class="max-h-[70vh] w-full overflow-auto rounded-md border bg-white p-4 text-left" />
-        <div v-else-if="previewType === 'md'" class="max-h-[70vh] w-full overflow-auto rounded-md border bg-white p-4 text-left" v-html="previewHtml" />
-        <pre v-else-if="previewType === 'text'" class="max-h-[70vh] w-full overflow-auto rounded-md border bg-gray-50 p-4 text-left text-xs">{{ previewText }}</pre>
-        <div v-else-if="previewType === 'zip'" class="max-h-[70vh] w-full overflow-auto rounded-md border bg-gray-50 p-4 text-left text-sm">
+        <div
+          v-else-if="previewType === 'docx'"
+          ref="previewDocxRef"
+          class="max-h-[70vh] w-full overflow-auto rounded-md border bg-white p-4 text-left"
+        />
+        <div
+          v-else-if="previewType === 'md'"
+          class="max-h-[70vh] w-full overflow-auto rounded-md border bg-white p-4 text-left"
+          v-html="previewHtml"
+        />
+        <pre
+          v-else-if="previewType === 'text'"
+          class="max-h-[70vh] w-full overflow-auto rounded-md border bg-gray-50 p-4 text-left text-xs"
+        >{{ previewText }}</pre>
+        <div
+          v-else-if="previewType === 'zip'"
+          class="max-h-[70vh] w-full overflow-auto rounded-md border bg-gray-50 p-4 text-left text-sm"
+        >
           <div v-if="zipLoading" class="text-gray-400">正在解析压缩包...</div>
           <ul v-else class="list-disc pl-5">
             <li v-for="f in zipFiles" :key="f">{{ f }}</li>
@@ -1327,12 +1481,7 @@ onBeforeUnmount(() => {
       </div>
     </NModal>
 
-    <NModal
-      v-model:show="moveDialogVisible"
-      preset="card"
-      title="移动到目录"
-      style="width: 420px"
-    >
+    <NModal v-model:show="moveDialogVisible" preset="card" title="移动到目录" style="width: 420px">
       <NSelect
         v-model:value="moveTargetDir"
         clearable
@@ -1351,17 +1500,8 @@ onBeforeUnmount(() => {
       </template>
     </NModal>
 
-    <NModal
-      v-model:show="tagDialogVisible"
-      preset="card"
-      title="批量添加标签"
-      style="width: 420px"
-    >
-      <NInput
-        v-model:value="tagInputValue"
-        placeholder="多个标签用逗号或空格分隔，如：主图, banner"
-        size="small"
-      />
+    <NModal v-model:show="tagDialogVisible" preset="card" title="批量添加标签" style="width: 420px">
+      <NInput v-model:value="tagInputValue" placeholder="多个标签用逗号或空格分隔，如：主图, banner" size="small" />
       <template #footer>
         <div class="flex justify-end gap-2">
           <NButton size="small" @click="tagDialogVisible = false">取消</NButton>
@@ -1371,12 +1511,7 @@ onBeforeUnmount(() => {
     </NModal>
 
     <!-- 回收站 -->
-    <NModal
-      v-model:show="trashVisible"
-      preset="card"
-      title="回收站"
-      style="width: 720px"
-    >
+    <NModal v-model:show="trashVisible" preset="card" title="回收站" style="width: 720px">
       <div class="mb-3 flex items-center justify-between gap-2">
         <div class="flex items-center gap-2">
           <NInput
@@ -1405,7 +1540,10 @@ onBeforeUnmount(() => {
         </NButton>
       </div>
       <NSpin :show="trashLoading">
-        <div v-if="!trashItems.length && !trashLoading" class="flex flex-col items-center justify-center py-16 text-gray-400">
+        <div
+          v-if="!trashItems.length && !trashLoading"
+          class="flex flex-col items-center justify-center py-16 text-gray-400"
+        >
           <SvgIcon icon="mdi:delete-restore-outline" class="text-40px mb-2" />
           <span>回收站是空的</span>
         </div>
@@ -1417,15 +1555,38 @@ onBeforeUnmount(() => {
             :class="trashSelected.has(r.id) ? 'border-green-400 bg-green-50/50 dark:bg-green-900/10' : ''"
             @click="toggleTrashSelect(r.id)"
           >
-            <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded bg-gray-100 dark:bg-gray-800">
-              <img v-if="isPreviewableImage(r)" :src="r.thumb_url || r.url" :data-origin="r.url" class="h-full w-full object-cover" loading="lazy" @error="(e) => { const el = e.target as HTMLImageElement; if (el.src !== el.dataset.origin) el.src = el.dataset.origin || ''; }" />
-              <video v-else-if="isPreviewableVideo(r)" :src="r.url" preload="metadata" muted playsinline class="h-full w-full object-cover" />
+            <div
+              class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded bg-gray-100 dark:bg-gray-800"
+            >
+              <img
+                v-if="isPreviewableImage(r)"
+                :src="r.thumb_url || r.url"
+                :data-origin="r.url"
+                class="h-full w-full object-cover"
+                loading="lazy"
+                @error="
+                  e => {
+                    const el = e.target as HTMLImageElement;
+                    if (el.src !== el.dataset.origin) el.src = el.dataset.origin || '';
+                  }
+                "
+              />
+              <video
+                v-else-if="isPreviewableVideo(r)"
+                :src="r.url"
+                preload="metadata"
+                muted
+                playsinline
+                class="h-full w-full object-cover"
+              />
               <SvgIcon v-else-if="isPreviewableAudio(r)" icon="mdi:music-note" class="text-20px text-gray-400" />
               <SvgIcon v-else icon="mdi:file-document-outline" class="text-20px text-gray-400" />
             </div>
             <div class="min-w-0 flex-1">
               <div class="truncate text-sm">{{ r.name }}</div>
-              <div class="text-xs text-gray-400">{{ r.directory ? `目录：${r.directory}` : '未归档' }} · {{ formatSize(r.file_size) }}</div>
+              <div class="text-xs text-gray-400">
+                {{ r.directory ? `目录：${r.directory}` : '未归档' }} · {{ formatSize(r.file_size) }}
+              </div>
             </div>
             <div class="shrink-0 text-xs text-gray-400">删除于 {{ (r.deleted_at || '').slice(0, 10) }}</div>
             <NButton size="tiny" quaternary @click.stop="openPreview(r)">
