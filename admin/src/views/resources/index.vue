@@ -901,6 +901,30 @@ async function doBatchDelete() {
   });
 }
 
+async function handleCleanupInvalidRefs() {
+  const { data } = (await resourceApi.cleanupInvalidRefs({ dryRun: true })) as any;
+  const result = data?.data ?? {};
+  const invalid: Array<{ ref_type: string; ref_id: string; ref_label: string; reason: string }> =
+    result.invalid ?? [];
+  if (!invalid.length) {
+    message.success('未发现无效引用');
+    return;
+  }
+  dialog.warning({
+    title: '清理无效引用',
+    content: `共发现 ${invalid.length} 条无效引用，清理后对应资源将解除占用、可正常删除。确认继续？`,
+    positiveText: '清理',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      const resp = (await resourceApi.cleanupInvalidRefs({ dryRun: false })) as any;
+      const cleaned = resp?.data?.data?.cleaned ?? 0;
+      message.success(`已清理 ${cleaned} 条无效引用`);
+      currentDetail.value = null;
+      await Promise.all([loadList(), loadMeta()]);
+    }
+  });
+}
+
 function handleDeleteBySelection() {
   const ids = Array.from(selectedIds.value);
   if (ids.length === 1) {
@@ -1086,6 +1110,15 @@ onBeforeUnmount(() => {
             </template>
             {{ selectedIds.size > 1 ? '批量删除' : '删除' }}
           </NButton>
+          <NTooltip trigger="hover">
+            <template #trigger>
+              <NButton size="small" secondary @click="handleCleanupInvalidRefs">
+                <template #icon><SvgIcon icon="mdi:link-variant-off" class="text-16px" /></template>
+                清理无效引用
+              </NButton>
+            </template>
+            解除指向不存在业务对象的悬空引用（如已删除的商品）
+          </NTooltip>
           <NButton
             v-if="selectedIds.size > 1"
             size="small"
