@@ -15,8 +15,15 @@ export const resourceApi = {
     });
   },
   /** 列表 */
-  list: (params: { type?: string; siteId?: string; keyword?: string; directory?: string; tag?: string; page?: number; page_size?: number }) =>
-    get('/api/admin/v1/resources', params),
+  list: (params: {
+    type?: string;
+    siteId?: string;
+    keyword?: string;
+    directory?: string;
+    tag?: string;
+    page?: number;
+    page_size?: number;
+  }) => get('/api/admin/v1/resources', params),
   /** 详情（含引用位置与标签） */
   detail: (id: string) => get(`/api/admin/v1/resources/${id}`),
   /** 重命名 */
@@ -29,8 +36,7 @@ export const resourceApi = {
   checkName: (name: string, excludeId?: string) =>
     get('/api/admin/v1/resources/check-name', { name, exclude_id: excludeId }),
   /** 批量重名检测（上传前） */
-  checkNames: (names: string[]) =>
-    post('/api/admin/v1/resources/check-names', { names }),
+  checkNames: (names: string[]) => post('/api/admin/v1/resources/check-names', { names }),
   /** 回收站列表 */
   trashList: (params: { keyword?: string; fileType?: string; page?: number; page_size?: number }) =>
     get('/api/admin/v1/resources/trash', params),
@@ -49,6 +55,12 @@ export const resourceApi = {
       ref_id: params.refId,
       ref_label: params.refLabel || '',
       resource_ids: params.resourceIds
+    }),
+  /** 清理无效引用（dryRun=true 仅预览，不删除） */
+  cleanupInvalidRefs: (params: { resourceIds?: string[]; dryRun?: boolean }) =>
+    post('/api/admin/v1/resources/refs/cleanup', {
+      resource_ids: params.resourceIds || [],
+      dry_run: params.dryRun ?? false
     }),
   /** 批量打标 */
   setTags: (ids: string[], tags: string[]) => post('/api/admin/v1/resources/tags', { ids, tags }),
