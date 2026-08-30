@@ -1,9 +1,25 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
-  NButton, NCard, NEmpty, NForm, NFormItem, NGi, NGrid, NImage, NInput, NInputNumber,
-  NModal, NProgress, NSelect, NSpace, NSwitch, NTable, NTag, NUpload,
+  NButton,
+  NCard,
+  NEmpty,
+  NForm,
+  NFormItem,
+  NGi,
+  NGrid,
+  NImage,
+  NInput,
+  NInputNumber,
+  NModal,
+  NProgress,
+  NSelect,
+  NSpace,
+  NSwitch,
+  NTable,
+  NTag,
+  NUpload
 } from 'naive-ui';
 import { useI18n } from 'vue-i18n';
 import { get, post, patch, del } from '@/service/api/helper';
@@ -25,13 +41,59 @@ const statusChange = ref<string | null>(null);
 const images = ref<{ key: string; url: string; alt?: string; resourceId?: string }[]>([]);
 const pendingFiles = ref<File[]>([]);
 
+/** 从资源管理跳转携带的高亮资源 id（resourceId 匹配的图片加边框高亮） */
+const highlightResource = computed(() => String(route.query.highlight_resource || ''));
+const highlightMatched = computed(() =>
+  highlightResource.value ? images.value.some(i => String(i.resourceId) === highlightResource.value) : false
+);
+const highlightEl = ref<HTMLElement | null>(null);
+function setHighlightEl(el: any) {
+  if (el) highlightEl.value = el as HTMLElement;
+}
+watch([highlightResource, images], async () => {
+  if (!highlightResource.value) return;
+  await nextTick();
+  highlightEl.value?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}, { flush: 'post' });
+function clearHighlight() {
+  router.replace({ query: {} });
+}
+
 const variants = ref<any[]>([]);
 const variantModal = ref({ show: false, id: '' });
 const variantSaving = ref(false);
 const variantForm = ref({
-  sku: '', name: '', attributesText: '',
-  price: 0, cost: 0, inventory: 0, status: 'active', is_default: false,
+  sku: '',
+  name: '',
+  specRows: [] as { key: string; value: string }[],
+  price: 0,
+  cost: 0,
+  inventory: 0,
+  status: 'active',
+  is_default: false
 });
+
+const catalogOptions = ref<{
+  productTypes: { label: string; value: number }[];
+  brands: { label: string; value: number }[];
+  categories: { label: string; value: number }[];
+}>({
+  productTypes: [],
+  brands: [],
+  categories: []
+});
+
+function addSpecRow() {
+  variantForm.value.specRows.push({ key: '', value: '' });
+}
+function removeSpecRow(idx: number) {
+  variantForm.value.specRows.splice(idx, 1);
+}
+function attrsToSpecRows(attrs: Record<string, any> | null | undefined): { key: string; value: string }[] {
+  const rows: { key: string; value: string }[] = [];
+  for (const [k, v] of Object.entries(attrs ?? {})) rows.push({ key: String(k), value: v == null ? '' : String(v) });
+  return rows;
+}
 
 const seoScore = ref<any>(null);
 const seoLoading = ref(false);
@@ -82,11 +144,14 @@ async function loadSeoScore() {
 async function saveSeo() {
   seoSaving.value = true;
   try {
-    const keywords = seoForm.value.keywords.split(',').map((k: string) => k.trim()).filter(Boolean);
+    const keywords = seoForm.value.keywords
+      .split(',')
+      .map((k: string) => k.trim())
+      .filter(Boolean);
     await patch(`/api/admin/v1/products/${route.params.id}`, {
       seo_title: seoForm.value.title,
       seo_description: seoForm.value.description,
-      seo_keywords: keywords,
+      seo_keywords: keywords
     });
     error.value = '';
     loadSeoScore();
@@ -98,12 +163,23 @@ async function saveSeo() {
 }
 
 const form = ref({
-  sku: '', name: '', slug: '', category: 'FOOD', description: '',
-  price: 0, cost: 0, inventory: 0, is_ai_generated: false,
-  tags: [] as string[], region_availability: [] as string[],
+  sku: '',
+  name: '',
+  slug: '',
+  category: 'FOOD',
+  description: '',
+  category_id: null as number | null,
+  brand_id: null as number | null,
+  product_type_id: null as number | null,
+  price: 0,
+  cost: 0,
+  inventory: 0,
+  is_ai_generated: false,
+  tags: [] as string[],
+  region_availability: [] as string[],
   name_translations: {} as Record<string, string>,
   description_translations: {} as Record<string, string>,
-  ai_description_translations: {} as Record<string, string>,
+  ai_description_translations: {} as Record<string, string>
 });
 
 const langOptions = [
@@ -112,7 +188,7 @@ const langOptions = [
   { label: '简体中文 (zh-cn)', value: 'zh-cn' },
   { label: 'Français (fr)', value: 'fr' },
   { label: 'Español (es)', value: 'es' },
-  { label: 'Deutsch (de)', value: 'de' },
+  { label: 'Deutsch (de)', value: 'de' }
 ];
 
 const currentLang = ref('en');
@@ -127,61 +203,116 @@ function loadLang(lang: string) {
 }
 
 function switchLang(lang: string) {
-  syncLang('name'); syncLang('desc'); syncLang('ai');
+  syncLang('name');
+  syncLang('desc');
+  syncLang('ai');
   currentLang.value = lang;
   loadLang(lang);
 }
 
 function syncLang(kind: 'name' | 'desc' | 'ai') {
-  const key = kind === 'name' ? 'name_translations'
-    : kind === 'desc' ? 'description_translations'
-    : 'ai_description_translations';
+  const key =
+    kind === 'name'
+      ? 'name_translations'
+      : kind === 'desc'
+        ? 'description_translations'
+        : 'ai_description_translations';
   form.value[key][currentLang.value] =
-    kind === 'name' ? translationName.value
-    : kind === 'desc' ? translationDesc.value
-    : translationAi.value;
+    kind === 'name' ? translationName.value : kind === 'desc' ? translationDesc.value : translationAi.value;
 }
 
 const categoryOptions = [
-  { label: 'Food', value: 'FOOD' }, { label: 'Toy', value: 'TOY' },
-  { label: 'Health', value: 'HEALTH' }, { label: 'Accessory', value: 'ACCESSORY' },
-  { label: 'Service', value: 'SERVICE' },
+  { label: 'Food', value: 'FOOD' },
+  { label: 'Toy', value: 'TOY' },
+  { label: 'Health', value: 'HEALTH' },
+  { label: 'Accessory', value: 'ACCESSORY' },
+  { label: 'Service', value: 'SERVICE' }
 ];
+
+async function loadCatalogOptions() {
+  try {
+    const [typesRes, brandsRes, catsRes] = await Promise.all([
+      get('/api/admin/v1/catalog/product-types'),
+      get('/api/admin/v1/catalog/brands'),
+      get('/api/admin/v1/catalog/categories')
+    ]);
+    const types = (typesRes.data?.data ?? typesRes.data ?? []) as any[];
+    const brands = (brandsRes.data?.data ?? brandsRes.data ?? []) as any[];
+    const cats = (catsRes.data?.data ?? catsRes.data ?? []) as any[];
+    catalogOptions.value.productTypes = types.map((x: any) => ({ label: String(x.name || x.id), value: Number(x.id) }));
+    catalogOptions.value.brands = brands.map((x: any) => ({ label: String(x.name || x.id), value: Number(x.id) }));
+    catalogOptions.value.categories = cats.map((x: any) => ({
+      label: x.parent_id ? `${x.parent_name || ''} / ${x.name}` : String(x.name),
+      value: Number(x.id)
+    }));
+  } catch {
+    /* 目录选项加载失败不阻塞表单 */
+  }
+}
 
 const statusOptions = [
-  { label: 'Active', value: 'active' }, { label: 'Draft', value: 'draft' }, { label: 'Inactive', value: 'inactive' },
+  { label: 'Active', value: 'active' },
+  { label: 'Draft', value: 'draft' },
+  { label: 'Inactive', value: 'inactive' }
 ];
 
-function updateTags() { form.value.tags = tagsString.value.split(',').map(s => s.trim()).filter(Boolean); }
-function updateRegions() { form.value.region_availability = regionsString.value.split(',').map(s => s.trim()).filter(Boolean); }
+function updateTags() {
+  form.value.tags = tagsString.value
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+function updateRegions() {
+  form.value.region_availability = regionsString.value
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+}
 
 onMounted(async () => {
+  loadCatalogOptions();
   if (!isEdit.value) return;
   try {
     const res = await get(`/api/admin/v1/products/${route.params.id}`);
     const p = res.data?.data ?? res.data;
     form.value = {
-      sku: p.sku || '', name: p.name || '', slug: p.slug || '',
-      category: p.category || 'FOOD', description: p.description || '',
-      price: p.price || 0, cost: p.cost || 0, inventory: p.inventory || 0,
+      sku: p.sku || '',
+      name: p.name || '',
+      slug: p.slug || '',
+      category: p.category || 'FOOD',
+      description: p.description || '',
+      category_id: p.category_id ?? null,
+      brand_id: p.brand_id ?? null,
+      product_type_id: p.product_type_id ?? null,
+      price: p.price || 0,
+      cost: p.cost || 0,
+      inventory: p.inventory || 0,
       is_ai_generated: p.is_ai_generated || false,
-      tags: p.tags || [], region_availability: p.region_availability || [],
+      tags: p.tags || [],
+      region_availability: p.region_availability || [],
       name_translations: p.name_translations || {},
       description_translations: p.description_translations || {},
-      ai_description_translations: p.ai_description_translations || {},
+      ai_description_translations: p.ai_description_translations || {}
     };
     loadLang('en');
     tagsString.value = (p.tags || []).join(', ');
     regionsString.value = (p.region_availability || []).join(', ');
-    images.value = (p.images || []).map((i: any) => ({ key: i.key || '', url: i.url || '', alt: i.alt || '', resourceId: i.resource_id || '' }));
+    images.value = (p.images || []).map((i: any) => ({
+      key: i.key || '',
+      url: i.url || '',
+      alt: i.alt || '',
+      resourceId: i.resource_id || ''
+    }));
     variants.value = p.variants || [];
     seoForm.value = {
       title: p.seo_title || '',
       description: p.seo_description || '',
-      keywords: (p.seo_keywords || []).join(', '),
+      keywords: (p.seo_keywords || []).join(', ')
     };
     loadSeoScore();
-  } catch { error.value = t('common.loadFailed'); }
+  } catch {
+    error.value = t('common.loadFailed');
+  }
 });
 
 async function handleUpload({ file: fileItem }: any) {
@@ -193,14 +324,20 @@ async function handleUpload({ file: fileItem }: any) {
     const formData = new FormData();
     formData.append('file', file);
     try {
-      const res = await post(
-        `/api/admin/v1/products/${route.params.id}/upload-image`,
-        formData,
-        { 'Content-Type': 'multipart/form-data' },
-      );
+      const res = await post(`/api/admin/v1/products/${route.params.id}/upload-image`, formData, {
+        'Content-Type': 'multipart/form-data'
+      });
       const uploaded = (res.data?.data?.images || res.data?.images || []).slice(-1)[0];
-      if (uploaded) images.value.push({ key: uploaded.key || '', url: uploaded.url || '', alt: uploaded.alt || '', resourceId: uploaded.resource_id || '' });
-    } catch (e: any) { error.value = e.response?.data?.detail || t('common.uploadFailed') + ': ' + file.name; }
+      if (uploaded)
+        images.value.push({
+          key: uploaded.key || '',
+          url: uploaded.url || '',
+          alt: uploaded.alt || '',
+          resourceId: uploaded.resource_id || ''
+        });
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || t('common.uploadFailed') + ': ' + file.name;
+    }
   } else {
     pendingFiles.value.push(file);
     images.value.push({ key: '', url: URL.createObjectURL(file), alt: '' });
@@ -211,11 +348,17 @@ async function handleUpload({ file: fileItem }: any) {
 async function removeImage(idx: number) {
   if (isEdit.value) {
     const img = images.value[idx];
-    if (!img.key) { images.value.splice(idx, 1); return; }
+    if (!img.key) {
+      images.value.splice(idx, 1);
+      return;
+    }
     try {
       await del(`/api/admin/v1/products/${route.params.id}/images/${encodeURIComponent(img.key)}`);
     } catch (e: any) {
-      if (e.response?.status !== 404) { error.value = e.response?.data?.detail || t('common.deleteFailed'); return; }
+      if (e.response?.status !== 404) {
+        error.value = e.response?.data?.detail || t('common.deleteFailed');
+        return;
+      }
     }
   } else {
     pendingFiles.value.splice(idx, 1);
@@ -226,7 +369,9 @@ async function removeImage(idx: number) {
 async function save() {
   saving.value = true;
   error.value = '';
-  syncLang('name'); syncLang('desc'); syncLang('ai');
+  syncLang('name');
+  syncLang('desc');
+  syncLang('ai');
   try {
     if (isEdit.value) {
       await patch(`/api/admin/v1/products/${route.params.id}`, form.value);
@@ -237,19 +382,26 @@ async function save() {
       for (const file of pendingFiles.value) {
         const formData = new FormData();
         formData.append('file', file);
-        const up = await post(
-          `/api/admin/v1/products/${newId}/upload-image`,
-          formData,
-          { 'Content-Type': 'multipart/form-data' },
-        );
+        const up = await post(`/api/admin/v1/products/${newId}/upload-image`, formData, {
+          'Content-Type': 'multipart/form-data'
+        });
         const uploaded = (up.data?.data?.images || up.data?.images || []).slice(-1)[0];
-        if (uploaded) images.value.push({ key: uploaded.key || '', url: uploaded.url || '', alt: uploaded.alt || '', resourceId: uploaded.resource_id || '' });
+        if (uploaded)
+          images.value.push({
+            key: uploaded.key || '',
+            url: uploaded.url || '',
+            alt: uploaded.alt || '',
+            resourceId: uploaded.resource_id || ''
+          });
       }
       await syncProductRefs(String(newId));
     }
     router.push('/products');
-  } catch (e: any) { error.value = e.response?.data?.detail || t('common.saveFailed'); }
-  finally { saving.value = false; }
+  } catch (e: any) {
+    error.value = e.response?.data?.detail || t('common.saveFailed');
+  } finally {
+    saving.value = false;
+  }
 }
 
 /** 保存后同步产品图片资源引用（失败不阻塞保存主流程） */
@@ -261,7 +413,7 @@ async function syncProductRefs(productId: string) {
       refType: 'product',
       refId: productId,
       refLabel: String(form.value.name || `product-${productId}`),
-      resourceIds,
+      resourceIds
     });
   } catch {
     /* 引用同步失败仅提示 */
@@ -274,23 +426,37 @@ async function changeStatus() {
     await post(`/api/admin/v1/products/${route.params.id}/status`, { status: statusChange.value });
     statusChange.value = null;
     router.push('/products');
-  } catch (e: any) { error.value = e.response?.data?.detail || t('page.productsDetail.statusUpdateFailed'); }
+  } catch (e: any) {
+    error.value = e.response?.data?.detail || t('page.productsDetail.statusUpdateFailed');
+  }
 }
 
 function openVariantModal(v?: any) {
   if (v) {
     variantModal.value.id = v.id;
     variantForm.value = {
-      sku: v.sku || '', name: v.name || '',
-      attributesText: v.attributes && Object.keys(v.attributes).length ? JSON.stringify(v.attributes) : '',
-      price: v.price ?? 0, cost: v.cost ?? 0, inventory: v.inventory ?? 0,
-      status: v.status || 'active', is_default: !!v.is_default,
+      sku: v.sku || '',
+      name: v.name || '',
+      specRows: attrsToSpecRows(
+        v.attributes ?? (v.specs ? Object.fromEntries((v.specs as any[]).map((s: any) => [s.spec_key, s.value])) : null)
+      ),
+      price: v.price ?? 0,
+      cost: v.cost ?? 0,
+      inventory: v.inventory ?? 0,
+      status: v.status || 'active',
+      is_default: !!v.is_default
     };
   } else {
     variantModal.value.id = '';
     variantForm.value = {
-      sku: '', name: '', attributesText: '',
-      price: 0, cost: 0, inventory: 0, status: 'active', is_default: false,
+      sku: '',
+      name: '',
+      specRows: [],
+      price: 0,
+      cost: 0,
+      inventory: 0,
+      status: 'active',
+      is_default: false
     };
   }
   variantModal.value.show = true;
@@ -299,19 +465,16 @@ function openVariantModal(v?: any) {
 async function saveVariant() {
   variantSaving.value = true;
   error.value = '';
-  let attributes: Record<string, any> | undefined;
-  const attrText = variantForm.value.attributesText.trim();
-  if (attrText) {
-    try {
-      attributes = JSON.parse(attrText);
-      if (typeof attributes !== 'object' || attributes === null || Array.isArray(attributes)) throw new Error('bad');
-    } catch {
-      error.value = '属性必须是合法 JSON 对象';
+  const attributes: Record<string, any> = {};
+  for (const row of variantForm.value.specRows) {
+    const key = (row.key ?? '').trim();
+    if (!key) continue;
+    if (key in attributes) {
+      error.value = `规格名重复: ${key}`;
       variantSaving.value = false;
       return;
     }
-  } else {
-    attributes = {};
+    attributes[key] = (row.value ?? '').trim();
   }
   const payload: any = {
     sku: variantForm.value.sku.trim(),
@@ -321,7 +484,7 @@ async function saveVariant() {
     cost: variantForm.value.cost,
     inventory: variantForm.value.inventory,
     status: variantForm.value.status,
-    is_default: variantForm.value.is_default,
+    is_default: variantForm.value.is_default
   };
   try {
     if (variantModal.value.id) {
@@ -331,15 +494,20 @@ async function saveVariant() {
     }
     await reloadVariants();
     variantModal.value.show = false;
-  } catch (e: any) { error.value = e.response?.data?.detail || '变体保存失败'; }
-  finally { variantSaving.value = false; }
+  } catch (e: any) {
+    error.value = e.response?.data?.detail || '变体保存失败';
+  } finally {
+    variantSaving.value = false;
+  }
 }
 
 async function deleteVariant(id: string) {
   try {
     await del(`/api/admin/v1/products/${route.params.id}/variants/${id}`);
     await reloadVariants();
-  } catch (e: any) { error.value = e.response?.data?.detail || '变体删除失败'; }
+  } catch (e: any) {
+    error.value = e.response?.data?.detail || '变体删除失败';
+  }
 }
 
 async function reloadVariants() {
@@ -351,7 +519,9 @@ async function reloadVariants() {
 <template>
   <div class="flex flex-col gap-4">
     <div class="flex items-center justify-between">
-      <h2 class="text-lg font-semibold m-0">{{ isEdit ? t('common.edit') + ' ' + t('common.product') : t('common.new') + ' ' + t('common.product') }}</h2>
+      <h2 class="text-lg font-semibold m-0">
+        {{ isEdit ? t('common.edit') + ' ' + t('common.product') : t('common.new') + ' ' + t('common.product') }}
+      </h2>
       <NButton @click="$router.push('/products')">{{ $t('common.backToList') }}</NButton>
     </div>
 
@@ -375,8 +545,43 @@ async function reloadVariants() {
               <NSelect v-model:value="form.category" :options="categoryOptions" />
             </NFormItem>
           </NGi>
+          <NGi span="1">
+            <NFormItem label="商品类型">
+              <NSelect
+                v-model:value="form.product_type_id"
+                :options="catalogOptions.productTypes"
+                placeholder="选择规格模板"
+                clearable
+                filterable
+              />
+            </NFormItem>
+          </NGi>
+          <NGi span="1">
+            <NFormItem label="品牌">
+              <NSelect
+                v-model:value="form.brand_id"
+                :options="catalogOptions.brands"
+                placeholder="选择品牌"
+                clearable
+                filterable
+              />
+            </NFormItem>
+          </NGi>
+          <NGi span="1">
+            <NFormItem label="分类">
+              <NSelect
+                v-model:value="form.category_id"
+                :options="catalogOptions.categories"
+                placeholder="选择分类（二级树）"
+                clearable
+                filterable
+              />
+            </NFormItem>
+          </NGi>
           <NGi span="1 m:2">
-            <NFormItem :label="$t('common.description')"><NInput v-model:value="form.description" type="textarea" :rows="3" /></NFormItem>
+            <NFormItem :label="$t('common.description')">
+              <NInput v-model:value="form.description" type="textarea" :rows="3" />
+            </NFormItem>
           </NGi>
         </NGrid>
       </NCard>
@@ -384,12 +589,7 @@ async function reloadVariants() {
       <!-- Translations -->
       <NCard title="多语言内容" size="small" class="md:col-span-2">
         <NFormItem label="语言">
-          <NSelect
-            :value="currentLang"
-            :options="langOptions"
-            style="width:200px"
-            @update:value="switchLang"
-          />
+          <NSelect :value="currentLang" :options="langOptions" style="width: 200px" @update:value="switchLang" />
         </NFormItem>
         <NGrid :cols="2" :x-gap="16" responsive="screen">
           <NGi span="2">
@@ -412,13 +612,19 @@ async function reloadVariants() {
 
       <!-- Pricing -->
       <NCard :title="$t('page.pricing.title')" size="small">
-        <NFormItem :label="$t('page.products.price')"><NInputNumber v-model:value="form.price" :min="0" :step="0.01" style="width:100%" /></NFormItem>
-        <NFormItem :label="$t('common.cost')"><NInputNumber v-model:value="form.cost" :min="0" :step="0.01" style="width:100%" /></NFormItem>
+        <NFormItem :label="$t('page.products.price')">
+          <NInputNumber v-model:value="form.price" :min="0" :step="0.01" style="width: 100%" />
+        </NFormItem>
+        <NFormItem :label="$t('common.cost')">
+          <NInputNumber v-model:value="form.cost" :min="0" :step="0.01" style="width: 100%" />
+        </NFormItem>
       </NCard>
 
       <!-- Inventory -->
       <NCard :title="$t('common.inventory')" size="small">
-        <NFormItem :label="$t('page.productsDetail.inventory')"><NInputNumber v-model:value="form.inventory" :min="0" style="width:100%" /></NFormItem>
+        <NFormItem :label="$t('page.productsDetail.inventory')">
+          <NInputNumber v-model:value="form.inventory" :min="0" style="width: 100%" />
+        </NFormItem>
         <NFormItem :label="$t('page.productsDetail.aiGenerated')">
           <NSwitch v-model:value="form.is_ai_generated" />
         </NFormItem>
@@ -428,24 +634,37 @@ async function reloadVariants() {
       <NCard :title="$t('common.tagsRegions')" size="small" class="md:col-span-2">
         <NGrid :cols="2" :x-gap="16" responsive="screen">
           <NGi span="1 m:2">
-            <NFormItem :label="$t('page.productsDetail.tagsComma')"><NInput v-model:value="tagsString" @update:value="updateTags" /></NFormItem>
+            <NFormItem :label="$t('page.productsDetail.tagsComma')">
+              <NInput v-model:value="tagsString" @update:value="updateTags" />
+            </NFormItem>
           </NGi>
           <NGi span="1 m:2">
-            <NFormItem :label="$t('page.productsDetail.regionsComma')"><NInput v-model:value="regionsString" @update:value="updateRegions" /></NFormItem>
+            <NFormItem :label="$t('page.productsDetail.regionsComma')">
+              <NInput v-model:value="regionsString" @update:value="updateRegions" />
+            </NFormItem>
           </NGi>
         </NGrid>
       </NCard>
 
       <!-- Images -->
       <NCard :title="$t('common.productImages')" size="small" class="md:col-span-2">
+        <div
+          v-if="highlightResource"
+          class="mb-3 flex items-center justify-between gap-2 rounded bg-green-50 px-3 py-2 text-xs text-green-600 dark:bg-green-900/20 dark:text-green-300"
+        >
+          <span>{{ highlightMatched ? '已定位到引用图片（绿色边框高亮）' : '未在当前图片列表中找到该引用图片' }}</span>
+          <NButton size="tiny" quaternary @click="clearHighlight">清除高亮</NButton>
+        </div>
         <div v-if="images.length" class="flex flex-wrap gap-3 mb-4">
-          <div v-for="(img, idx) in images" :key="img.key || idx" class="relative w-[100px] h-[100px] rounded-md overflow-hidden border border-[var(--n-border-color)]">
-            <NImage :src="img.url" width="100" height="100" style="object-fit:cover" />
-            <NButton
-              class="absolute top-0.5 right-0.5"
-              size="tiny" circle type="error"
-              @click="removeImage(idx)"
-            >
+          <div
+            v-for="(img, idx) in images"
+            :key="img.key || idx"
+            :ref="String(img.resourceId) === highlightResource ? setHighlightEl : undefined"
+            class="relative w-[100px] h-[100px] rounded-md overflow-hidden border border-[var(--n-border-color)] transition-all duration-300"
+            :class="String(img.resourceId) === highlightResource ? 'ring-2 ring-green-500 border-green-500' : ''"
+          >
+            <NImage :src="img.url" width="100" height="100" style="object-fit: cover" />
+            <NButton class="absolute top-0.5 right-0.5" size="tiny" circle type="error" @click="removeImage(idx)">
               &times;
             </NButton>
           </div>
@@ -469,7 +688,15 @@ async function reloadVariants() {
         <NTable v-if="variants.length" size="small" :bordered="true" :single-line="false">
           <thead>
             <tr>
-              <th>名称</th><th>SKU</th><th>属性</th><th>价格</th><th>成本</th><th>库存</th><th>状态</th><th>默认</th><th style="width:170px">操作</th>
+              <th>名称</th>
+              <th>SKU</th>
+              <th>属性</th>
+              <th>价格</th>
+              <th>成本</th>
+              <th>库存</th>
+              <th>状态</th>
+              <th>默认</th>
+              <th style="width: 170px">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -502,20 +729,40 @@ async function reloadVariants() {
         style="width: 560px"
       >
         <NForm label-placement="top">
-          <NFormItem label="SKU" required><NInput v-model:value="variantForm.sku" /></NFormItem>
+          <NFormItem label="SKU">
+            <NInput v-model:value="variantForm.sku" placeholder="留空自动生成，如 PET-1001-BLK-M" />
+          </NFormItem>
           <NFormItem label="名称" required><NInput v-model:value="variantForm.name" /></NFormItem>
-          <NFormItem label="属性 (JSON)">
-            <NInput v-model:value="variantForm.attributesText" placeholder="{&quot;color&quot;:&quot;blue&quot;,&quot;size&quot;:&quot;M&quot;}" />
+          <NFormItem label="规格（用于自动生成 SKU 短码）">
+            <div class="w-full flex flex-col gap-1">
+              <div v-if="variantForm.specRows.length" class="flex flex-col gap-1">
+                <div v-for="(row, idx) in variantForm.specRows" :key="idx" class="flex items-center gap-2">
+                  <NInput v-model:value="row.key" placeholder="规格名，如 color" />
+                  <NInput v-model:value="row.value" placeholder="规格值，如 black" />
+                  <NButton size="tiny" quaternary type="error" @click="removeSpecRow(idx)">删除</NButton>
+                </div>
+              </div>
+              <div v-else class="text-xs text-gray-400">未填写规格时 SKU 仅基于货号生成</div>
+              <NButton size="tiny" type="primary" quaternary style="align-self: flex-start" @click="addSpecRow">
+                + 添加规格
+              </NButton>
+            </div>
           </NFormItem>
           <NGrid :cols="3" :x-gap="12" responsive="screen">
             <NGi>
-              <NFormItem label="价格"><NInputNumber v-model:value="variantForm.price" :min="0" :step="0.01" style="width:100%" /></NFormItem>
+              <NFormItem label="价格">
+                <NInputNumber v-model:value="variantForm.price" :min="0" :step="0.01" style="width: 100%" />
+              </NFormItem>
             </NGi>
             <NGi>
-              <NFormItem label="成本"><NInputNumber v-model:value="variantForm.cost" :min="0" :step="0.01" style="width:100%" /></NFormItem>
+              <NFormItem label="成本">
+                <NInputNumber v-model:value="variantForm.cost" :min="0" :step="0.01" style="width: 100%" />
+              </NFormItem>
             </NGi>
             <NGi>
-              <NFormItem label="库存"><NInputNumber v-model:value="variantForm.inventory" :min="0" style="width:100%" /></NFormItem>
+              <NFormItem label="库存">
+                <NInputNumber v-model:value="variantForm.inventory" :min="0" style="width: 100%" />
+              </NFormItem>
             </NGi>
           </NGrid>
           <NGrid :cols="2" :x-gap="12" responsive="screen">
@@ -546,7 +793,14 @@ async function reloadVariants() {
           </div>
           <div>
             <div class="text-sm font-medium mb-1">SEO 描述</div>
-            <NInput v-model:value="seoForm.description" type="textarea" placeholder="建议 70-160 字符" maxlength="300" show-count clearable />
+            <NInput
+              v-model:value="seoForm.description"
+              type="textarea"
+              placeholder="建议 70-160 字符"
+              maxlength="300"
+              show-count
+              clearable
+            />
           </div>
           <div>
             <div class="text-sm font-medium mb-1">SEO 关键词</div>
@@ -563,7 +817,9 @@ async function reloadVariants() {
             <div class="flex items-center gap-3">
               <span class="text-4xl font-bold" :class="gradeColor">{{ seoScore.total_score }}</span>
               <span class="text-sm opacity-60">/ 100</span>
-              <NTag v-if="seoScore.grade" size="small" :type="gradeTagType" :bordered="false">{{ seoScore.grade }}</NTag>
+              <NTag v-if="seoScore.grade" size="small" :type="gradeTagType" :bordered="false">
+                {{ seoScore.grade }}
+              </NTag>
             </div>
           </div>
 
@@ -598,10 +854,12 @@ async function reloadVariants() {
             v-model:value="statusChange"
             :options="statusOptions"
             :placeholder="$t('page.productsDetail.changeStatus')"
-            style="width:140px"
+            style="width: 140px"
             clearable
           />
-          <NButton v-if="statusChange" type="warning" @click="changeStatus">{{ $t('page.productsDetail.updateStatus') }}</NButton>
+          <NButton v-if="statusChange" type="warning" @click="changeStatus">
+            {{ $t('page.productsDetail.updateStatus') }}
+          </NButton>
         </NSpace>
       </NCard>
     </div>

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from forge.infrastructure.persistence.models import ORMProduct
@@ -49,7 +49,15 @@ _PUBLIC_FIELDS = [
 
 
 def _public_item(item: dict[str, Any]) -> dict[str, Any]:
-    return {k: item.get(k) for k in _PUBLIC_FIELDS}
+    data = {k: item.get(k) for k in _PUBLIC_FIELDS}
+    # C 端前端约定 images 为 URL 字符串数组（ProductCard 用 images[0] 直接作 src）
+    images = data.get("images") or []
+    data["images"] = [
+        img["url"]
+        for img in images
+        if isinstance(img, dict) and img.get("url")
+    ]
+    return data
 
 
 def _sort_key(sort: str) -> str:
@@ -127,3 +135,22 @@ async def _list_rating_sorted(
         "page": page,
         "page_size": page_size,
     }
+
+
+@router.get("/products/{product_id}")
+async def get_public_product(
+    product_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """C 端商品详情：支持按 slug 或数字 id 查询，仅返回上架商品。"""
+    product = await SQLAlchemyProductRepository.get_by_slug(db, product_id)
+    if product is None:
+        try:
+            pid = int(product_id)
+        except ValueError:
+            pid = -1
+        if pid > 0:
+            product = await SQLAlchemyProductRepository.get_by_id(db, pid)
+    if product is None or product.status != "active":
+        raise HTTPException(status_code=404, detail="Product not found")
+    return _public_item(product.to_dict())

@@ -17,7 +17,7 @@ from io import BytesIO
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import delete, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 try:
@@ -768,6 +768,107 @@ async def sync_resource_refs(
 
     await db.commit()
     return {"data": {"added": added, "removed": removed, "total": len(valid_ids)}}
+
+
+# ---------------------------------------------------------------------------
+# 清理无效引用 —— 供管理员一键解除指向不存在业务对象的悬空引用
+# ---------------------------------------------------------------------------
+# ref_type -> 可校验实体表；不在映射中的 ref_type 视为未知类型（无效引用）
+_REF_ENTITY_TABLES: dict[str, str] = {
+    "product": "products",
+    "products": "products",
+    "order": "orders",
+    "orders": "orders",
+    "user": "users",
+    "users": "users",
+    "supplier": "suppliers",
+    "suppliers": "suppliers",
+    "shipment": "shipments",
+    "shipments": "shipments",
+    "site": "site_profiles",
+}
+
+
+class ResourceRefCleanupPayload(BaseModel):
+    resource_ids: list[str] = []
+    dry_run: bool = False
+
+
+@router.post("/refs/cleanup")
+async def cleanup_invalid_resource_refs(
+    payload: ResourceRefCleanupPayload,
+    admin: dict[str, object] = Depends(require_permission("resources", "manage")),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, object]:
+    """清理无效引用：引用指向的业务对象不存在，或 ref_type 未知（无对应实体表）。
+
+    - resource_ids 为空时扫描全部引用；dry_run=true 仅返回清单不删除
+    - products 额外排除 status='deleted'（软删商品视为无效）
+    """
+    if not admin:
+        raise HTTPException(status_code=401, detail="未登录")
+
+    stmt = select(ORMResourceRef)
+    if payload.resource_ids:
+        rids: list[uuid.UUID] = []
+        for raw in payload.resource_ids:
+            try:
+                rids.append(uuid.UUID(raw))
+            except ValueError:
+                continue
+        if rids:
+            stmt = stmt.where(ORMResourceRef.resource_id.in_(rids))
+    refs = (await db.execute(stmt)).scalars().all()
+
+    invalid: list[dict[str, object]] = []
+    for ref in refs:
+        table = _REF_ENTITY_TABLES.get(str(ref.ref_type))
+        reason = ""
+        if table is None:
+            reason = "未知引用类型"
+        else:
+            exists = (
+                await db.execute(
+                    text(f"SELECT 1 FROM {table} WHERE id::text = :rid"),
+                    {"rid": ref.ref_id},
+                )
+            ).scalar_one_or_none()
+            if table == "products" and exists is not None:
+                soft_deleted = (
+                    await db.execute(
+                        text("SELECT 1 FROM products WHERE id::text = :rid AND status = 'deleted'"),
+                        {"rid": ref.ref_id},
+                    )
+                ).scalar_one_or_none()
+                if soft_deleted is not None:
+                    exists = None
+            if exists is None:
+                reason = f"业务对象不存在（{table}）"
+
+        if reason:
+            invalid.append(
+                {
+                    "id": str(ref.id),
+                    "resource_id": str(ref.resource_id),
+                    "ref_type": ref.ref_type,
+                    "ref_id": ref.ref_id,
+                    "ref_label": ref.ref_label,
+                    "reason": reason,
+                }
+            )
+
+    cleaned = 0
+    if invalid and not payload.dry_run:
+        for item in invalid:
+            ref_to_delete = (
+                await db.execute(select(ORMResourceRef).where(ORMResourceRef.id == uuid.UUID(str(item["id"]))))
+            ).scalar_one_or_none()
+            if ref_to_delete is not None:
+                await db.delete(ref_to_delete)
+                cleaned += 1
+        await db.commit()
+
+    return {"data": {"checked": len(refs), "invalid": invalid, "cleaned": cleaned, "dry_run": payload.dry_run}}
 
 
 # ---------------------------------------------------------------------------

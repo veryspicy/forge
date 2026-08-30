@@ -19,6 +19,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -27,6 +28,13 @@ __all__ = [
     "Base",
     "ORMProduct",
     "ORMProductVariant",
+    "ORMProductCategory",
+    "ORMBrand",
+    "ORMProductType",
+    "ORMProductTypeSpec",
+    "ORMProductSpecKey",
+    "ORMProductSpecValue",
+    "ORMVariantSpec",
     "ORMSupplier",
     "ORMSupplierCredential",
     "ORMSupplierSyncLog",
@@ -68,13 +76,17 @@ class ORMProduct(Base):
     price = Column(Numeric(12, 2), nullable=False)
     cost = Column(Numeric(12, 2), nullable=False)
     category = Column(String(50), nullable=False, index=True)
+    category_id = Column(BigInteger, nullable=True, index=True)
+    brand = Column(String(255), nullable=True)
+    brand_id = Column(BigInteger, nullable=True, index=True)
+    product_type_id = Column(BigInteger, nullable=True, index=True)
     breed_groups: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
     suitable_for = Column(JSONB, nullable=False, default=dict)
     tags: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
     inventory = Column(Integer, nullable=False, default=0)
     status = Column(String(20), nullable=False, default="draft", index=True)
     images = Column(JSONB, nullable=False, default=list)
-    brand = Column(String(255), nullable=True)
+    attributes = Column(JSONB, nullable=False, default=dict)
     is_new = Column(Boolean, nullable=False, default=False, server_default="false")
     is_recommend = Column(Boolean, nullable=False, default=False, server_default="false")
     sort_order = Column(Integer, nullable=False, default=0, server_default="0")
@@ -107,18 +119,22 @@ class ORMProduct(Base):
             "price": float(self.price) if self.price else 0,
             "cost": float(self.cost) if self.cost else 0,
             "category": self.category,
+            "category_id": self.category_id,
+            "brand": self.brand,
+            "brand_id": self.brand_id,
+            "product_type_id": self.product_type_id,
             "breed_groups": self.breed_groups or [],
             "suitable_for": self.suitable_for or {},
             "tags": self.tags or [],
             "inventory": self.inventory,
             "status": self.status or "draft",
             "images": self.images or [],
-            "brand": self.brand,
             "is_new": bool(self.is_new),
             "is_recommend": bool(self.is_recommend),
             "sort_order": self.sort_order or 0,
             "sales": self.sales or 0,
             "audit_status": self.audit_status or "pending",
+            "attributes": self.attributes or {},
             "supplier_id": str(self.supplier_id) if self.supplier_id else None,
             "supplier_sku": self.supplier_sku,
             "supplier_product_id": self.supplier_product_id,
@@ -152,6 +168,7 @@ class ORMProductVariant(Base):
     price = Column(Numeric(12, 2), nullable=True)
     cost = Column(Numeric(12, 2), nullable=True)
     inventory = Column(Integer, nullable=False, default=0)
+    low_stock_threshold = Column(Integer, nullable=True)
     status = Column(String(20), nullable=False, default="active", index=True)
     is_default = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default="now()")
@@ -167,10 +184,205 @@ class ORMProductVariant(Base):
             "price": float(self.price) if self.price else None,
             "cost": float(self.cost) if self.cost else None,
             "inventory": self.inventory or 0,
+            "low_stock_threshold": self.low_stock_threshold,
             "status": self.status or "active",
             "is_default": bool(self.is_default),
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class ORMProductCategory(Base):
+    """商品分类树（一级/二级，parent_id 自关联，预留三级）。"""
+
+    __tablename__ = "product_categories"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    parent_id = Column(
+        BigInteger,
+        ForeignKey("product_categories.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    name = Column(String(100), nullable=False)
+    slug = Column(String(150), nullable=False, unique=True)
+    icon = Column(String(500), nullable=True)
+    sort = Column(Integer, nullable=False, default=0)
+    status = Column(String(20), nullable=False, default="active")
+    level = Column(Integer, nullable=False, default=1)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default="now()")
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default="now()")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "parent_id": self.parent_id,
+            "name": self.name,
+            "slug": self.slug,
+            "icon": self.icon,
+            "sort": self.sort or 0,
+            "status": self.status or "active",
+            "level": self.level or 1,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class ORMBrand(Base):
+    """轻量品牌表。"""
+
+    __tablename__ = "brands"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    name = Column(String(100), nullable=False, unique=True)
+    logo = Column(String(500), nullable=True)
+    show_status = Column(Boolean, nullable=False, default=True)
+    sort = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default="now()")
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default="now()")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "logo": self.logo,
+            "show_status": bool(self.show_status),
+            "sort": self.sort or 0,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class ORMProductType(Base):
+    """商品类型（规格模板头）。"""
+
+    __tablename__ = "product_types"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    name = Column(String(100), nullable=False, unique=True)
+    status = Column(String(20), nullable=False, default="active")
+    sort = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default="now()")
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default="now()")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "status": self.status or "active",
+            "sort": self.sort or 0,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class ORMProductTypeSpec(Base):
+    """商品类型 → 规格键模板。"""
+
+    __tablename__ = "product_type_specs"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    product_type_id = Column(
+        BigInteger,
+        ForeignKey("product_types.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    spec_key = Column(String(50), nullable=False)
+    sort = Column(Integer, nullable=False, default=0)
+    __table_args__ = (UniqueConstraint("product_type_id", "spec_key", name="uq_product_type_specs_type_key"),)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "product_type_id": self.product_type_id,
+            "spec_key": self.spec_key,
+            "sort": self.sort or 0,
+        }
+
+
+class ORMProductSpecKey(Base):
+    """SPU 实际使用的规格键（从类型模板带出，可增删）。"""
+
+    __tablename__ = "product_spec_keys"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    product_id = Column(
+        BigInteger,
+        ForeignKey("products.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    spec_key = Column(String(50), nullable=False)
+    sort = Column(Integer, nullable=False, default=0)
+    __table_args__ = (UniqueConstraint("product_id", "spec_key", name="uq_product_spec_keys_product_key"),)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "product_id": self.product_id,
+            "spec_key": self.spec_key,
+            "sort": self.sort or 0,
+        }
+
+
+class ORMProductSpecValue(Base):
+    """规格键下的可选值。"""
+
+    __tablename__ = "product_spec_values"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    spec_key_id = Column(
+        BigInteger,
+        ForeignKey("product_spec_keys.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    value = Column(String(100), nullable=False)
+    sort = Column(Integer, nullable=False, default=0)
+    __table_args__ = (UniqueConstraint("spec_key_id", "value", name="uq_product_spec_values_key_value"),)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "spec_key_id": self.spec_key_id,
+            "value": self.value,
+            "sort": self.sort or 0,
+        }
+
+
+class ORMVariantSpec(Base):
+    """变体 ↔ 规格值关联（决定 SKU 组合）。"""
+
+    __tablename__ = "variant_specs"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    variant_id = Column(
+        "variant_id",
+        UUID(as_uuid=True),
+        ForeignKey("product_variants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    spec_key_id = Column(
+        BigInteger,
+        ForeignKey("product_spec_keys.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    spec_value_id = Column(
+        BigInteger,
+        ForeignKey("product_spec_values.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    __table_args__ = (UniqueConstraint("variant_id", "spec_key_id", name="uq_variant_specs_variant_key"),)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "variant_id": str(self.variant_id) if self.variant_id else None,
+            "spec_key_id": self.spec_key_id,
+            "spec_value_id": self.spec_value_id,
         }
 
 

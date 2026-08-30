@@ -317,6 +317,16 @@ powershell -ExecutionPolicy Bypass -File .\rebuild-service.ps1 -Service admin -S
 
 违反后果：问题看似解决了但不知道为什么解决，或者引入了新问题但不知道哪一步引入的。
 
+### 8.5 禁止并行编辑同一文件
+
+**铁律**：同一文件的多个位置修改必须**串行**执行（一次 edit 完成并确认后再做下一次），禁止在同一轮并行发起多个 `edit_file` 指向同一文件。
+
+理由：并行编辑同一文件时各编辑基于同一旧快照读写，后写覆盖先写，先前的修改会静默丢失且工具仍报告"替换成功"。
+
+违反后果：修改丢失后验证不通过，需重新定位哪一处被覆盖；若未仔细核对，会误以为功能未生效而反复排查渲染/缓存。
+
+**反例（2026-08-30）**：首页 index.vue 两处商品卡片同时并行 edit，第一处（AI 推荐区）被第二处覆盖丢失，容器内文件只剩第二处修改；grep/浏览器验证均显示第一处仍为旧代码，浪费一轮排查。串行重做第一处后一次通过。
+
 ---
 
 ## 9. 会话启动上下文恢复（强制）
@@ -649,6 +659,30 @@ podman exec forge-postgres psql -U postgres -d forge -c "SELECT count(*) FROM di
 8. 用户明确"验证通过"
 
 **反例**：代码能跑就宣告完成，无测试、无文档、migration 未验证，验收时连环返工。
+
+### 14.5 JSONB 列原地修改不触发 UPDATE（坑）
+
+**铁律**：更新 SQLAlchemy 模型的 JSONB 列时，必须赋一个**全新的 list/dict 对象**（如 `copy.deepcopy` 或重新构造），禁止对现有对象执行 `p.images.append(...)` / `p.images[0].url = ...` 等原地修改。
+
+理由：SQLAlchemy 对 JSONB 列默认按身份（identity）跟踪变更，原地修改同一对象引用不触发 dirty 检测，session.commit() 不会生成 UPDATE，DB 中数据不变，而脚本却报告"更新成功"。
+
+违反后果：迁移脚本报告更新 N 条，实际 DB 仍是旧值；前端验证时以为数据已迁移，实为旧数据，白白排查渲染/缓存问题。
+
+**反例（2026-08-30）**：商品图迁移脚本遍历商品 `p.images[i]["url"] = new_url` 原地赋值后 commit，报告"更新商品 18 个"，复查 DB 发现 url 仍为 /uploads/products/ 旧值；改用 `p.images = copy.deepcopy(new_imgs)` 赋新列表后 UPDATE 正常生效。
+
+### 14.6 资源迁移必须同步登记引用关系（resource_ref）
+
+**铁律**：把业务图片/文件迁移到 MinIO 并登记 `resource` 后，**必须同步登记 `resource_ref` 引用关系**（ref_type/ref_id/ref_label），否则 Admin 资源管理页看不到"被引用"标识（ref_count=0），资源可被误删，引用追踪断裂。
+
+理由：`resource_ref` 是"引用位置"追踪的唯一依据，Admin 列表 ref_count、详情 refs、删除拦截（有引用的资源禁止删除）都依赖它；只写 `resource` 不写 `resource_ref` 等于只完成一半迁移。
+
+正确流程：
+1. 上传对象到 MinIO（bucket=product-images，key 形如 `site/{site_id}/products/{filename}`）
+2. 登记 `resource` 记录（bucket/object_key/url/name/directory/created_by）
+3. 按业务归属登记引用：调用 `POST /api/admin/v1/resources/refs/sync`（body: ref_type=product, ref_id=商品id, ref_label=商品名, resource_ids=[该商品图片的 resource id 列表]），幂等全量同步
+4. 验证：`GET /resources?directory=products` 的 ref_count>0；`GET /resources/{rid}` 的 refs 含引用位置
+
+**反例（2026-08-30）**：MinIO 迁移只上传+登记 resource 54 条，未写 resource_ref，用户查看资源管理页发现商品图无"被引用"状态；补齐 refs/sync 后 18 商品 × 3 图全部显示被引用。
 
 ---
 

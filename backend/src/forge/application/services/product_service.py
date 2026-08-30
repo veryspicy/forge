@@ -13,6 +13,12 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from forge.infrastructure.persistence.models import ORMProduct, ORMProductVariant
+from forge.infrastructure.persistence.repositories.catalog_repo import (
+    BrandRepository,
+    CategoryRepository,
+    ProductTypeRepository,
+    SpecRepository,
+)
 from forge.infrastructure.persistence.repositories.product_repo import (
     SQLAlchemyProductRepository,
 )
@@ -22,6 +28,34 @@ ALLOWED_IMAGE_MIME = {"image/jpeg", "image/png", "image/webp"}
 MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
 
 _ASCII_STRIP_RE = re.compile(r"[^a-z0-9]+")
+
+# 规格值 → SKU 短码的常见颜色映射（兜底规则：大写字母数字取前 3 位）
+_COLOR_SHORTCODES: dict[str, str] = {
+    "black": "BLK",
+    "white": "WHT",
+    "red": "RED",
+    "blue": "BLU",
+    "green": "GRN",
+    "yellow": "YLW",
+    "orange": "ORG",
+    "purple": "PRP",
+    "pink": "PNK",
+    "gray": "GRY",
+    "grey": "GRY",
+    "brown": "BRN",
+    "navy": "NVY",
+    "gold": "GLD",
+    "silver": "SLV",
+    "beige": "BGE",
+    "cream": "CRM",
+    "khaki": "KHK",
+    "olive": "OLV",
+    "teal": "TEL",
+    "coral": "CRL",
+    "ivory": "IVY",
+    "maroon": "MRN",
+    "turquoise": "TRQ",
+}
 
 
 class ProductValidationError(ValueError):
@@ -62,10 +96,36 @@ class ProductService:
             suffix += 1
 
     @staticmethod
+    async def _validate_catalog_refs(
+        db: AsyncSession,
+        data: dict[str, Any],
+    ) -> dict[str, str]:
+        """校验目录侧外键引用（分类/品牌/类型）存在性。"""
+        errors: dict[str, str] = {}
+        if data.get("category_id") is not None:
+            category = await CategoryRepository.get_by_id(db, int(data["category_id"]))
+            if category is None:
+                errors["category_id"] = "分类不存在"
+        if data.get("brand_id") is not None:
+            brand = await BrandRepository.get_by_id(db, int(data["brand_id"]))
+            if brand is None:
+                errors["brand_id"] = "品牌不存在"
+        if data.get("product_type_id") is not None:
+            product_type = await ProductTypeRepository.get_by_id(db, int(data["product_type_id"]))
+            if product_type is None:
+                errors["product_type_id"] = "商品类型不存在"
+        if errors:
+            return errors
+        return {}
+
+    @staticmethod
     async def create_product(db: AsyncSession, data: dict[str, Any]) -> ORMProduct:
         errors = ProductService._validate_base(data)
         if errors:
             raise ProductValidationError("商品参数校验失败", errors)
+        catalog_errors = await ProductService._validate_catalog_refs(db, data)
+        if catalog_errors:
+            raise ProductValidationError("商品参数校验失败", catalog_errors)
 
         sku = str(data["sku"]).strip()
         existing = await SQLAlchemyProductRepository.get_by_sku(db, sku)
@@ -84,6 +144,9 @@ class ProductService:
         errors = ProductService._validate_base(data, partial=True)
         if errors:
             raise ProductValidationError("商品参数校验失败", errors)
+        catalog_errors = await ProductService._validate_catalog_refs(db, data)
+        if catalog_errors:
+            raise ProductValidationError("商品参数校验失败", catalog_errors)
 
         if "sku" in data and data["sku"] != product.sku:
             new_sku = str(data["sku"]).strip()
@@ -233,14 +296,48 @@ class ProductService:
     # 变体业务（P2-1）
     # ------------------------------------------------------------------
     @staticmethod
-    def _validate_variant(data: dict[str, Any], partial: bool = False) -> dict[str, str]:
+    def _spec_shortcode(value: str) -> str:
+        """规格值 → SKU 短码。颜色走常见映射，其余大写字母数字取前 3 位。"""
+        text = unicodedata.normalize("NFKD", str(value))
+        ascii_text = "".join(ch for ch in text if ch.isalnum()).upper()
+        if not ascii_text:
+            return "X"
+        lower = ascii_text.lower()
+        if lower in _COLOR_SHORTCODES:
+            return _COLOR_SHORTCODES[lower]
+        return ascii_text[:3] if len(ascii_text) > 3 else ascii_text
+
+    @staticmethod
+    async def generate_variant_sku(
+        db: AsyncSession,
+        product: ORMProduct,
+        attributes: dict[str, Any] | None,
+    ) -> str:
+        """自动生成变体 SKU：{商品货号}-{规格短码}，冲突追加序号。"""
+        base = str(product.sku or product.slug or "PRODUCT").strip().upper()
+        shortcodes = [
+            ProductService._spec_shortcode(str(v))
+            for v in (attributes or {}).values()
+            if v is not None and str(v).strip()
+        ]
+        base_sku = f"{base}-{'-'.join(shortcodes)}" if shortcodes else f"{base}-VAR"
+
+        candidate = base_sku
+        suffix = 2
+        while True:
+            existing = await SQLAlchemyProductRepository.get_variant_by_sku(db, candidate)
+            if existing is None:
+                return candidate
+            candidate = f"{base_sku}-{suffix}"
+            suffix += 1
+
+    @staticmethod
+    async def _validate_variant(data: dict[str, Any], partial: bool = False) -> dict[str, str]:
         errors: dict[str, str] = {}
 
-        if "sku" in data or not partial:
-            sku = data.get("sku")
-            if not sku or not str(sku).strip():
-                errors["sku"] = "SKU 不能为空"
-            elif len(str(sku)) > 100:
+        if "sku" in data and data["sku"] is not None:
+            sku = str(data["sku"]).strip()
+            if sku and len(sku) > 100:
                 errors["sku"] = "SKU 长度不能超过 100"
 
         if "name" in data or not partial:
@@ -280,23 +377,30 @@ class ProductService:
         product: ORMProduct,
         data: dict[str, Any],
     ) -> ORMProductVariant:
-        errors = ProductService._validate_variant(data)
+        errors = await ProductService._validate_variant(data)
         if errors:
             raise ProductValidationError("变体参数校验失败", errors)
 
-        sku = str(data["sku"]).strip()
+        payload = dict(data)
+        attributes = payload.get("attributes") or {}
+        if not payload.get("sku") or not str(payload["sku"]).strip():
+            payload["sku"] = await ProductService.generate_variant_sku(db, product, attributes)
+        sku = str(payload["sku"]).strip()
         existing = await SQLAlchemyProductRepository.get_variant_by_sku(db, sku)
         if existing:
             raise ProductSkuConflictError(f"变体 SKU 已存在: {sku}")
 
-        payload = dict(data)
         payload["product_id"] = product.id
         payload["sku"] = sku
         payload.setdefault("attributes", {})
         payload.setdefault("inventory", 0)
         payload.setdefault("status", "active")
         payload.setdefault("is_default", False)
-        return await SQLAlchemyProductRepository.create_variant(db, payload)
+        variant = await SQLAlchemyProductRepository.create_variant(db, payload)
+
+        # 规格关系表（权威）同步 + products.attributes 读快照
+        await SpecRepository.sync_variant_attributes(db, variant, payload["attributes"])
+        return variant
 
     @staticmethod
     async def update_variant(
@@ -304,15 +408,30 @@ class ProductService:
         variant: ORMProductVariant,
         data: dict[str, Any],
     ) -> ORMProductVariant:
-        errors = ProductService._validate_variant(data, partial=True)
+        errors = await ProductService._validate_variant(data, partial=True)
         if errors:
             raise ProductValidationError("变体参数校验失败", errors)
 
         if "sku" in data and data["sku"] != variant.sku:
-            new_sku = str(data["sku"]).strip()
-            existing = await SQLAlchemyProductRepository.get_variant_by_sku(db, new_sku)
-            if existing and existing.id != variant.id:
-                raise ProductSkuConflictError(f"变体 SKU 已存在: {new_sku}")
-            data["sku"] = new_sku
+            if data["sku"] and str(data["sku"]).strip():
+                new_sku = str(data["sku"]).strip()
+                existing = await SQLAlchemyProductRepository.get_variant_by_sku(db, new_sku)
+                if existing and existing.id != variant.id:
+                    raise ProductSkuConflictError(f"变体 SKU 已存在: {new_sku}")
+                data["sku"] = new_sku
+            else:
+                # 传空 sku 表示自动重新生成
+                product = await SQLAlchemyProductRepository.get_by_id(db, str(variant.product_id))
+                if product is None:
+                    raise ProductValidationError("商品不存在", {"product_id": "商品不存在"})
+                attrs = data.get("attributes")
+                if attrs is None:
+                    attrs = dict(variant.attributes or {})
+                data["sku"] = await ProductService.generate_variant_sku(db, product, attrs)
 
-        return await SQLAlchemyProductRepository.update_variant(db, variant, data)
+        variant = await SQLAlchemyProductRepository.update_variant(db, variant, data)
+
+        # attributes 变更时同步规格关系表 + 产品快照
+        if "attributes" in data:
+            await SpecRepository.sync_variant_attributes(db, variant, data["attributes"] or {})
+        return variant
