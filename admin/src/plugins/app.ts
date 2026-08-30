@@ -1,7 +1,4 @@
-import { h } from 'vue';
 import type { App } from 'vue';
-import { NButton } from 'naive-ui';
-import { $t } from '@/locales';
 
 export function setupAppErrorHandle(app: App) {
   app.config.errorHandler = (err, vm, info) => {
@@ -12,17 +9,15 @@ export function setupAppErrorHandle(app: App) {
 
 export function setupAppVersionNotification() {
   // Update check interval in milliseconds
-  const UPDATE_CHECK_INTERVAL = 3 * 60 * 1000;
+  const UPDATE_CHECK_INTERVAL = 30 * 1000;
 
-  const canAutoUpdateApp = import.meta.env.VITE_AUTOMATICALLY_DETECT_UPDATE === 'Y' && import.meta.env.PROD;
+  // dev 环境也生效：本地开发时后端/网关重建同样会导致旧连接失效
+  const canAutoUpdateApp = import.meta.env.VITE_AUTOMATICALLY_DETECT_UPDATE === 'Y';
   if (!canAutoUpdateApp) return;
 
-  let isShow = false;
   let updateInterval: ReturnType<typeof setInterval> | undefined;
 
   const checkForUpdates = async () => {
-    if (isShow) return;
-
     const buildTime = await getHtmlBuildTime();
 
     // If failed to get build time or build time hasn't changed, no update is needed.
@@ -30,40 +25,10 @@ export function setupAppVersionNotification() {
       return;
     }
 
-    isShow = true;
-
-    // Show update notification
-    const n = window.$notification?.create({
-      title: $t('system.updateTitle'),
-      content: $t('system.updateContent'),
-      action() {
-        return h('div', { style: { display: 'flex', justifyContent: 'end', gap: '12px', width: '325px' } }, [
-          h(
-            NButton,
-            {
-              onClick() {
-                n?.destroy();
-                isShow = false;
-              }
-            },
-            () => $t('system.updateCancel')
-          ),
-          h(
-            NButton,
-            {
-              type: 'primary',
-              onClick() {
-                location.reload();
-              }
-            },
-            () => $t('system.updateConfirm')
-          )
-        ]);
-      },
-      onClose() {
-        isShow = false;
-      }
-    });
+    // 检测到新版本：直接自动刷新，避免旧标签页停留在旧前端（配合请求层超时兜底）
+    // eslint-disable-next-line no-console
+    console.info('[app] buildTime changed, auto reload', BUILD_TIME, '->', buildTime);
+    location.reload();
   };
 
   const startUpdateInterval = () => {
@@ -73,26 +38,27 @@ export function setupAppVersionNotification() {
     updateInterval = setInterval(checkForUpdates, UPDATE_CHECK_INTERVAL);
   };
 
-  // If updates should be checked, set up the visibility change listener and start the update interval
-  if (!isShow && document.visibilityState === 'visible') {
-    // Check for updates when the document is visible
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') {
-        checkForUpdates();
-        startUpdateInterval();
-      }
-    });
+  // Check for updates when the document is visible
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      checkForUpdates();
+      startUpdateInterval();
+    }
+  });
 
-    // Start the update interval
-    startUpdateInterval();
-  }
+  // Start the update interval
+  startUpdateInterval();
 }
 
 async function getHtmlBuildTime(): Promise<string | null> {
   const baseUrl = import.meta.env.VITE_BASE_URL || '/';
 
+  // 原生 fetch 无超时兜底：挂 AbortController 防止半开连接下永久挂起（同请求层兜底思路）
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 10 * 1000);
+
   try {
-    const res = await fetch(`${baseUrl}index.html?time=${Date.now()}`);
+    const res = await fetch(`${baseUrl}index.html?time=${Date.now()}`, { signal: controller.signal });
 
     if (!res.ok) {
       return null;
@@ -104,5 +70,7 @@ async function getHtmlBuildTime(): Promise<string | null> {
   } catch (error) {
     window.console.error('getHtmlBuildTime error:', error);
     return null;
+  } finally {
+    window.clearTimeout(timeoutId);
   }
 }
