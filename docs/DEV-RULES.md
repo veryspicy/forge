@@ -670,6 +670,20 @@ podman exec forge-postgres psql -U postgres -d forge -c "SELECT count(*) FROM di
 
 **反例（2026-08-30）**：商品图迁移脚本遍历商品 `p.images[i]["url"] = new_url` 原地赋值后 commit，报告"更新商品 18 个"，复查 DB 发现 url 仍为 /uploads/products/ 旧值；改用 `p.images = copy.deepcopy(new_imgs)` 赋新列表后 UPDATE 正常生效。
 
+### 14.6 资源迁移必须同步登记引用关系（resource_ref）
+
+**铁律**：把业务图片/文件迁移到 MinIO 并登记 `resource` 后，**必须同步登记 `resource_ref` 引用关系**（ref_type/ref_id/ref_label），否则 Admin 资源管理页看不到"被引用"标识（ref_count=0），资源可被误删，引用追踪断裂。
+
+理由：`resource_ref` 是"引用位置"追踪的唯一依据，Admin 列表 ref_count、详情 refs、删除拦截（有引用的资源禁止删除）都依赖它；只写 `resource` 不写 `resource_ref` 等于只完成一半迁移。
+
+正确流程：
+1. 上传对象到 MinIO（bucket=product-images，key 形如 `site/{site_id}/products/{filename}`）
+2. 登记 `resource` 记录（bucket/object_key/url/name/directory/created_by）
+3. 按业务归属登记引用：调用 `POST /api/admin/v1/resources/refs/sync`（body: ref_type=product, ref_id=商品id, ref_label=商品名, resource_ids=[该商品图片的 resource id 列表]），幂等全量同步
+4. 验证：`GET /resources?directory=products` 的 ref_count>0；`GET /resources/{rid}` 的 refs 含引用位置
+
+**反例（2026-08-30）**：MinIO 迁移只上传+登记 resource 54 条，未写 resource_ref，用户查看资源管理页发现商品图无"被引用"状态；补齐 refs/sync 后 18 商品 × 3 图全部显示被引用。
+
 ---
 
 ## 15. 版本发布与提交规范（强制）
