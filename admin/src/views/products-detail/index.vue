@@ -50,11 +50,15 @@ const highlightEl = ref<HTMLElement | null>(null);
 function setHighlightEl(el: any) {
   if (el) highlightEl.value = el as HTMLElement;
 }
-watch([highlightResource, images], async () => {
-  if (!highlightResource.value) return;
-  await nextTick();
-  highlightEl.value?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-}, { flush: 'post' });
+watch(
+  [highlightResource, images],
+  async () => {
+    if (!highlightResource.value) return;
+    await nextTick();
+    highlightEl.value?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  },
+  { flush: 'post' }
+);
 function clearHighlight() {
   router.replace({ query: {} });
 }

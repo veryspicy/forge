@@ -1,4 +1,4 @@
-﻿import type { AxiosResponse } from 'axios';
+import type { AxiosResponse } from 'axios';
 import { BACKEND_ERROR_CODE, createFlatRequest } from '@sa/axios';
 import { useAuthStore } from '@/store/modules/auth';
 import { localStg } from '@/utils/storage';
@@ -62,19 +62,26 @@ export const request = createFlatRequest(
     },
     onError(error) {
       // 请求失败同样清理强制超时定时器
-      const staleConfig = error.config as (typeof error.config & { staleTimer?: number; staleTimeoutFired?: boolean }) | undefined;
+      const staleConfig = error.config as
+        | (typeof error.config & { staleTimer?: number; staleTimeoutFired?: boolean })
+        | undefined;
       if (staleConfig?.staleTimer) {
         window.clearTimeout(staleConfig.staleTimer);
       }
 
       // 服务重建/重启后，旧页面连接池仍持有指向旧容器的 keep-alive 连接（half-open），
       // 复用该连接发出的请求会长时间挂起（浏览器 TCP 重传超时可达数分钟）→ 表现为"页面卡死"。
-      // 两种超时识别：① XHR timeout 正常触发（ECONNABORTED + timeout）；
-      // ② 失效连接场景 XHR timeout 不触发，由 onRequest 中的 AbortController 强制中断（ERR_CANCELED + staleTimeoutFired 标记）。
-      // 超时后自动刷新页面以建立新连接；连续 3 次仍失败则停止刷新，仅提示错误。
+      // 触发自动 reload 自愈的四种识别（任一命中即进入循环，最多 3 次避免死循环）：
+      // ① XHR timeout 正常触发（ECONNABORTED + timeout message）
+      // ② 失效连接挂起场景 XHR timeout 不触发，由 onRequest 中的 AbortController 强制中断（ERR_CANCELED + staleTimeoutFired 标记）
+      // ③ nginx upstream 死 keep-alive 复用，nginx 等待 upstream 超时后返回 5xx（BACKEND_ERROR + 502/503/504）
+      // ④ 浏览器到 gateway 的 TCP 连接被 RST 或网络层错误（ERR_NETWORK），常见于容器 SIGKILL 场景
       const isXhrTimeout = error.code === 'ECONNABORTED' && /timeout/i.test(error.message || '');
       const isForcedAbort = error.code === 'ERR_CANCELED' && staleConfig?.staleTimeoutFired === true;
-      if (isXhrTimeout || isForcedAbort) {
+      const isBackendUnavailable =
+        error.code === BACKEND_ERROR_CODE && [502, 503, 504].includes(error.response?.status || 0);
+      const isNetworkError = error.code === 'ERR_NETWORK';
+      if (isXhrTimeout || isForcedAbort || isBackendUnavailable || isNetworkError) {
         const count = Number(sessionStorage.getItem(STALE_RELOAD_KEY) || '0') + 1;
         sessionStorage.setItem(STALE_RELOAD_KEY, String(count));
         if (count <= 3) {

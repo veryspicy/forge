@@ -1,6 +1,20 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { NButton, NEmpty, NImage, NInput, NModal, NRadioGroup, NRadioButton, NScrollbar, NPagination, NSpin, NTabPane, NTabs, NUpload, NUploadDragger, useMessage } from 'naive-ui';
+import {
+  NButton,
+  NEmpty,
+  NImage,
+  NInput,
+  NModal,
+  NScrollbar,
+  NPagination,
+  NSpin,
+  NTabPane,
+  NTabs,
+  NUpload,
+  NUploadDragger,
+  useMessage
+} from 'naive-ui';
 import { resourceApi } from '@/service/api/resources';
 
 export interface ResourceItem {
@@ -178,12 +192,7 @@ const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize))
                 @click="toggleSelect(item)"
               >
                 <div class="flex h-24 items-center justify-center overflow-hidden rounded bg-gray-50">
-                  <NImage
-                    v-if="isImage(item)"
-                    :src="previewUrl(item)"
-                    object-fit="contain"
-                    class="h-full w-full"
-                  />
+                  <NImage v-if="isImage(item)" :src="previewUrl(item)" object-fit="contain" class="h-full w-full" />
                   <div v-else class="text-xs text-gray-400">
                     {{ item.file_type || '文件' }}
                   </div>
@@ -213,12 +222,7 @@ const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize))
       </NTabPane>
 
       <NTabPane name="upload" tab="上传新资源">
-        <NUpload
-          :show-file-list="false"
-          accept="image/*"
-          :custom-request="handleUpload"
-          class="py-6"
-        >
+        <NUpload :show-file-list="false" accept="image/*" :custom-request="handleUpload" class="py-6">
           <NUploadDragger class="flex flex-col items-center justify-center gap-2 py-10">
             <div class="text-sm text-gray-500">
               {{ uploading ? '上传中…' : '点击或拖拽图片到此处上传' }}
@@ -234,9 +238,7 @@ const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize))
         <span class="text-xs text-gray-400">已选 {{ selected.length }} 项</span>
         <div class="flex gap-2">
           <NButton size="small" @click="close">取消</NButton>
-          <NButton size="small" type="primary" :disabled="!selected.length" @click="handleConfirm">
-            确定
-          </NButton>
+          <NButton size="small" type="primary" :disabled="!selected.length" @click="handleConfirm">确定</NButton>
         </div>
       </div>
     </template>

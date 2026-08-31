@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, h } from 'vue';
-import {
-  NButton, NCheckbox, NDataTable, NFormItem, NInput, NModal, NSpace, NTag,
-} from 'naive-ui';
+import { NButton, NCheckbox, NDataTable, NFormItem, NInput, NModal, NSpace, NTag } from 'naive-ui';
 import { del, get, post, put } from '@/service/api/helper';
 import type { DataTableColumns } from 'naive-ui';
 
@@ -42,7 +40,9 @@ async function fetchPerms() {
   try {
     const res = await get('/api/admin/v1/roles/permissions');
     allPerms.value = res.data?.permissions || [];
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 async function fetch() {
@@ -87,14 +87,14 @@ async function submitForm() {
       await put(`/api/admin/v1/roles/${formRole.value.id}`, {
         display_name: formDisplayName.value || undefined,
         description: formDescription.value || undefined,
-        permission_ids: formPermIds.value,
+        permission_ids: formPermIds.value
       });
     } else {
       await post('/api/admin/v1/roles/', {
         name: formName.value,
         display_name: formDisplayName.value,
         description: formDescription.value,
-        permission_ids: formPermIds.value,
+        permission_ids: formPermIds.value
       });
     }
     closeForm();
@@ -123,35 +123,47 @@ async function handleDelete(r: any) {
 const columns: DataTableColumns<any> = [
   { title: '名称', key: 'name', width: 160 },
   { title: '显示名', key: 'display_name', width: 160 },
-  { title: '描述', key: 'description', width: 220, render: (row) => row.description || '-' },
+  { title: '描述', key: 'description', width: 220, render: row => row.description || '-' },
   {
-    title: '系统', key: 'is_system', width: 80,
-    render: (row) =>
-      h(NTag, { type: row.is_system ? 'warning' : 'default', size: 'small' }, { default: () => row.is_system ? '系统' : '自定义' }),
+    title: '系统',
+    key: 'is_system',
+    width: 80,
+    render: row =>
+      h(
+        NTag,
+        { type: row.is_system ? 'warning' : 'default', size: 'small' },
+        { default: () => (row.is_system ? '系统' : '自定义') }
+      )
   },
   {
-    title: '权限', key: 'permissions', minWidth: 300,
-    render: (row) => {
+    title: '权限',
+    key: 'permissions',
+    minWidth: 300,
+    render: row => {
       const tags = (row.permissions || []).map((p: any) =>
         h(NTag, { size: 'tiny', style: { margin: '1px 2px' } }, { default: () => p.display_name || p.code })
       );
       return h('span', tags);
-    },
+    }
   },
   {
-    title: '操作', key: 'actions', width: 160,
-    render: (row) => {
-      const btns = [
-        h(NButton, { size: 'tiny', onClick: () => openEditModal(row) }, { default: () => '编辑' }),
-      ];
+    title: '操作',
+    key: 'actions',
+    width: 160,
+    render: row => {
+      const btns = [h(NButton, { size: 'tiny', onClick: () => openEditModal(row) }, { default: () => '编辑' })];
       if (!row.is_system) {
         btns.push(
-          h(NButton, { size: 'tiny', type: 'error', secondary: true, onClick: () => handleDelete(row) }, { default: () => '删除' }),
+          h(
+            NButton,
+            { size: 'tiny', type: 'error', secondary: true, onClick: () => handleDelete(row) },
+            { default: () => '删除' }
+          )
         );
       }
       return h(NSpace, { size: 'small' }, { default: () => btns });
-    },
-  },
+    }
+  }
 ];
 
 onMounted(() => {
@@ -172,27 +184,23 @@ onMounted(() => {
         @keyup.enter="fetch"
       />
       <NButton size="small" @click="fetch">搜索</NButton>
-      <NButton type="primary" size="small" @click="openCreateModal">
-        + 新增角色
-      </NButton>
+      <NButton type="primary" size="small" @click="openCreateModal">+ 新增角色</NButton>
     </div>
 
     <!-- Table -->
-    <NDataTable
-      :columns="columns"
-      :data="roles"
-      :loading="loading"
-      :bordered="false"
-      size="small"
-    />
+    <NDataTable :columns="columns" :data="roles" :loading="loading" :bordered="false" size="small" />
 
     <!-- Create / Edit Modal -->
     <NModal
       :show="!!formRole"
       preset="card"
       :title="formRole?.id ? '编辑角色' : '新增角色'"
-      style="width:600px"
-      @update:show="(v: boolean) => { if (!v) closeForm(); }"
+      style="width: 600px"
+      @update:show="
+        (v: boolean) => {
+          if (!v) closeForm();
+        }
+      "
     >
       <div class="flex flex-col gap-4">
         <NFormItem label="角色名称">

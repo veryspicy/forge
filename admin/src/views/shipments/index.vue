@@ -16,16 +16,23 @@ const statusOptions = [
   { label: 'PENDING', value: 'PENDING' },
   { label: 'IN TRANSIT', value: 'IN_TRANSIT' },
   { label: 'DELIVERED', value: 'DELIVERED' },
-  { label: 'FAILED', value: 'FAILED' },
+  { label: 'FAILED', value: 'FAILED' }
 ];
 
 const { t } = useI18n();
 const form = ref({
-  order_id: '', carrier: '', tracking_number: '',
-  status: 'PENDING', estimated_delivery: '', origin: '', destination: '',
+  order_id: '',
+  carrier: '',
+  tracking_number: '',
+  status: 'PENDING',
+  estimated_delivery: '',
+  origin: '',
+  destination: ''
 });
 
-function formatDate(s: string) { return s ? new Date(s).toLocaleDateString() : '-'; }
+function formatDate(s: string) {
+  return s ? new Date(s).toLocaleDateString() : '-';
+}
 
 const columns: DataTableColumns<any> = [
   { title: t('page.orders.orderNumber'), key: 'id', render: row => (row.id || '').slice(0, 8) },
@@ -33,14 +40,25 @@ const columns: DataTableColumns<any> = [
   { title: t('page.shipments.carrier'), key: 'carrier' },
   { title: t('page.shipments.trackingNumber'), key: 'tracking_number' },
   {
-    title: t('common.status'), key: 'status',
-    render: row => h(NTag, { type: row.status === 'DELIVERED' ? 'success' : row.status === 'FAILED' ? 'error' : 'warning', size: 'small' }, { default: () => row.status }),
+    title: t('common.status'),
+    key: 'status',
+    render: row =>
+      h(
+        NTag,
+        { type: row.status === 'DELIVERED' ? 'success' : row.status === 'FAILED' ? 'error' : 'warning', size: 'small' },
+        { default: () => row.status }
+      )
   },
-  { title: t('page.shipments.estimatedDelivery'), key: 'estimated_delivery', render: row => formatDate(row.estimated_delivery) },
   {
-    title: t('page.suppliers.actions'), key: 'actions',
-    render: row => h(NButton, { size: 'small', onClick: () => openModal(row) }, { default: () => t('common.edit') }),
+    title: t('page.shipments.estimatedDelivery'),
+    key: 'estimated_delivery',
+    render: row => formatDate(row.estimated_delivery)
   },
+  {
+    title: t('page.suppliers.actions'),
+    key: 'actions',
+    render: row => h(NButton, { size: 'small', onClick: () => openModal(row) }, { default: () => t('common.edit') })
+  }
 ];
 
 async function fetch() {
@@ -48,14 +66,32 @@ async function fetch() {
   try {
     const res = await get('/api/admin/v1/shipments/');
     shipments.value = res.data?.items || res.data || [];
-  } finally { loading.value = false; }
+  } finally {
+    loading.value = false;
+  }
 }
 
 function openModal(s?: any) {
   editing.value = s || null;
   form.value = s
-    ? { order_id: s.order_id, carrier: s.carrier || '', tracking_number: s.tracking_number || '', status: s.status, estimated_delivery: s.estimated_delivery?.slice(0, 16) || '', origin: s.origin || '', destination: s.destination || '' }
-    : { order_id: '', carrier: '', tracking_number: '', status: 'PENDING', estimated_delivery: '', origin: '', destination: '' };
+    ? {
+        order_id: s.order_id,
+        carrier: s.carrier || '',
+        tracking_number: s.tracking_number || '',
+        status: s.status,
+        estimated_delivery: s.estimated_delivery?.slice(0, 16) || '',
+        origin: s.origin || '',
+        destination: s.destination || ''
+      }
+    : {
+        order_id: '',
+        carrier: '',
+        tracking_number: '',
+        status: 'PENDING',
+        estimated_delivery: '',
+        origin: '',
+        destination: ''
+      };
   modalError.value = '';
   showModal.value = true;
 }
@@ -65,9 +101,12 @@ async function save() {
   try {
     if (editing.value) {
       await patch(`/api/admin/v1/shipments/${editing.value.id}`, {
-        tracking_number: form.value.tracking_number, status: form.value.status,
-        estimated_delivery: form.value.estimated_delivery, carrier: form.value.carrier,
-        origin: form.value.origin, destination: form.value.destination,
+        tracking_number: form.value.tracking_number,
+        status: form.value.status,
+        estimated_delivery: form.value.estimated_delivery,
+        carrier: form.value.carrier,
+        origin: form.value.origin,
+        destination: form.value.destination
       });
     } else {
       await post('/api/admin/v1/shipments/', form.value);
@@ -76,7 +115,9 @@ async function save() {
     fetch();
   } catch (e: any) {
     modalError.value = e.response?.data?.detail || 'Save failed';
-  } finally { modalLoading.value = false; }
+  } finally {
+    modalLoading.value = false;
+  }
 }
 
 onMounted(fetch);
@@ -91,17 +132,26 @@ onMounted(fetch);
 
     <NDataTable :columns="columns" :data="shipments" :loading="loading" :bordered="false" size="small" />
 
-    <NModal v-model:show="showModal" preset="card" :title="editing ? $t('common.edit') : $t('common.add')" style="width:520px">
+    <NModal
+      v-model:show="showModal"
+      preset="card"
+      :title="editing ? $t('common.edit') : $t('common.add')"
+      style="width: 520px"
+    >
       <NForm :model="form" label-placement="left" label-width="140">
         <NFormItem :label="$t('page.shipments.orderId')" :required="!editing">
           <NInput v-model:value="form.order_id" :disabled="!!editing" />
         </NFormItem>
         <NFormItem :label="$t('page.shipments.carrier')"><NInput v-model:value="form.carrier" /></NFormItem>
-        <NFormItem :label="$t('page.shipments.trackingNumber')"><NInput v-model:value="form.tracking_number" /></NFormItem>
+        <NFormItem :label="$t('page.shipments.trackingNumber')">
+          <NInput v-model:value="form.tracking_number" />
+        </NFormItem>
         <NFormItem :label="$t('common.status')">
           <NSelect v-model:value="form.status" :options="statusOptions" />
         </NFormItem>
-        <NFormItem :label="$t('page.shipments.estimatedDelivery')"><NInput v-model:value="form.estimated_delivery" placeholder="2026-07-01T00:00:00" /></NFormItem>
+        <NFormItem :label="$t('page.shipments.estimatedDelivery')">
+          <NInput v-model:value="form.estimated_delivery" placeholder="2026-07-01T00:00:00" />
+        </NFormItem>
         <NFormItem :label="$t('common.origin')"><NInput v-model:value="form.origin" /></NFormItem>
         <NFormItem :label="$t('common.destination')"><NInput v-model:value="form.destination" /></NFormItem>
       </NForm>

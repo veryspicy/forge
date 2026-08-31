@@ -20,6 +20,8 @@ const PANEL_WIDTH_MAX = 520;
  *  mousemove/mouseup（iframe 是独立文档，事件不会冒泡到父 document），
  *  否则会表现为"拖拽不跟手、松开后监听器残留继续抖"。 */
 let panelResizeRaf = 0;
+// ========== iframe 预览 ==========
+const iframeRef = ref<HTMLIFrameElement | null>(null);
 function startPanelResize(e: MouseEvent) {
   e.preventDefault();
   const startX = e.clientX;
@@ -61,7 +63,6 @@ watch(
 );
 
 // ========== iframe 预览 ==========
-const iframeRef = ref<HTMLIFrameElement | null>(null);
 const iframeKey = ref(0);
 const iframeSrc = ref('/zh?preview=true');
 const device = ref<'desktop' | 'tablet' | 'mobile'>('desktop');
@@ -149,7 +150,7 @@ function installElementSelect() {
 
   function handleMouseOver(e: Event) {
     if (!elementSelectMode.value) return;
-    const target = (e.target as HTMLElement);
+    const target = e.target as HTMLElement;
     if (!target || target === doc.body || target === doc.documentElement) return;
     if (currentHover && currentHover !== target) {
       currentHover.classList.remove('marvis-hover');
@@ -169,7 +170,7 @@ function installElementSelect() {
     if (!elementSelectMode.value) return;
     e.preventDefault();
     e.stopPropagation();
-    const target = (e.target as HTMLElement);
+    const target = e.target as HTMLElement;
     if (!target) return;
 
     // 清除之前选中
@@ -182,7 +183,7 @@ function installElementSelect() {
     // 提取元素信息并同步到 store
     const rect = target.getBoundingClientRect();
     const cs = window.getComputedStyle(target);
-    const elid = (target.dataset.marvisElid || (crypto.randomUUID?.() || genId())) as string;
+    const elid = (target.dataset.marvisElid || crypto.randomUUID?.() || genId()) as string;
     target.dataset.marvisElid = elid;
 
     const info = {
@@ -216,7 +217,11 @@ function installElementSelect() {
     while (cur && cur !== d.body && cur !== d.documentElement) {
       let seg = cur.tagName.toLowerCase();
       if (cur.classList.length > 0) {
-        seg += '.' + Array.from(cur.classList).filter(c => !c.startsWith('marvis-')).join('.');
+        seg +=
+          '.' +
+          Array.from(cur.classList)
+            .filter(c => !c.startsWith('marvis-'))
+            .join('.');
       }
       const parent = cur.parentElement;
       if (parent) {
@@ -287,7 +292,10 @@ onBeforeUnmount(() => {
 <template>
   <div class="site-config-page flex h-full gap-0" style="min-height: calc(100vh - 180px)">
     <!-- 左侧面板：站点配置列表 -->
-    <div v-if="leftPanelVisible" class="flex w-[260px] shrink-0 flex-col overflow-hidden rounded bg-white shadow-sm dark:bg-dark">
+    <div
+      v-if="leftPanelVisible"
+      class="flex w-[260px] shrink-0 flex-col overflow-hidden rounded bg-white shadow-sm dark:bg-dark"
+    >
       <div class="flex items-center gap-2 border-b border-gray-100 border-solid px-4 py-3 dark:border-gray-700">
         <SvgIcon icon="mdi:cog-outline" class="text-18px text-green-600" />
         <span class="text-sm font-semibold">站点配置</span>
@@ -297,9 +305,11 @@ onBeforeUnmount(() => {
           v-for="item in siteConfigItems"
           :key="item.key"
           class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm transition-colors"
-          :class="store.activeSiteConfigItem === item.key
-            ? 'bg-green-50 text-green-700 font-medium dark:bg-green-900/20 dark:text-green-400'
-            : 'hover:bg-gray-50 dark:hover:bg-gray-800'"
+          :class="
+            store.activeSiteConfigItem === item.key
+              ? 'bg-green-50 text-green-700 font-medium dark:bg-green-900/20 dark:text-green-400'
+              : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+          "
           @click="store.selectSiteConfigItem(item.key)"
         >
           <SvgIcon :icon="item.icon" class="text-14px shrink-0" />
@@ -311,11 +321,16 @@ onBeforeUnmount(() => {
     <!-- 中间区域：预览 iframe -->
     <div class="flex flex-1 flex-col overflow-hidden rounded bg-white dark:bg-dark">
       <!-- 顶栏：面板切换 + URL + 设备切换 + 元素选择 -->
-      <div class="flex items-center justify-between border-b border-gray-100 border-solid px-4 py-2 dark:border-gray-700">
+      <div
+        class="flex items-center justify-between border-b border-gray-100 border-solid px-4 py-2 dark:border-gray-700"
+      >
         <div class="flex items-center gap-2">
           <NButton size="small" quaternary @click="leftPanelVisible = !leftPanelVisible">
             <template #icon>
-              <SvgIcon :icon="leftPanelVisible ? 'mdi:chevron-double-left' : 'mdi:chevron-double-right'" class="text-16px" />
+              <SvgIcon
+                :icon="leftPanelVisible ? 'mdi:chevron-double-left' : 'mdi:chevron-double-right'"
+                class="text-16px"
+              />
             </template>
           </NButton>
           <NTooltip trigger="hover">
@@ -328,7 +343,12 @@ onBeforeUnmount(() => {
           </NTooltip>
           <NTooltip trigger="hover">
             <template #trigger>
-              <NButton size="small" quaternary :type="elementSelectMode ? 'primary' : 'default'" @click="toggleElementSelect">
+              <NButton
+                size="small"
+                quaternary
+                :type="elementSelectMode ? 'primary' : 'default'"
+                @click="toggleElementSelect"
+              >
                 <template #icon><SvgIcon icon="mdi:cursor-default-click" class="text-16px" /></template>
               </NButton>
             </template>
@@ -344,13 +364,28 @@ onBeforeUnmount(() => {
           </NTooltip>
         </div>
         <div class="flex items-center gap-1">
-          <NButton size="small" :type="device === 'desktop' ? 'primary' : 'default'" quaternary @click="device = 'desktop'">
+          <NButton
+            size="small"
+            :type="device === 'desktop' ? 'primary' : 'default'"
+            quaternary
+            @click="device = 'desktop'"
+          >
             <template #icon><SvgIcon icon="mdi:monitor" /></template>
           </NButton>
-          <NButton size="small" :type="device === 'tablet' ? 'primary' : 'default'" quaternary @click="device = 'tablet'">
+          <NButton
+            size="small"
+            :type="device === 'tablet' ? 'primary' : 'default'"
+            quaternary
+            @click="device = 'tablet'"
+          >
             <template #icon><SvgIcon icon="mdi:tablet" /></template>
           </NButton>
-          <NButton size="small" :type="device === 'mobile' ? 'primary' : 'default'" quaternary @click="device = 'mobile'">
+          <NButton
+            size="small"
+            :type="device === 'mobile' ? 'primary' : 'default'"
+            quaternary
+            @click="device = 'mobile'"
+          >
             <template #icon><SvgIcon icon="mdi:cellphone" /></template>
           </NButton>
         </div>

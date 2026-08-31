@@ -2,17 +2,20 @@
 import { computed } from 'vue';
 import { NCard } from 'naive-ui';
 
-const props = withDefaults(defineProps<{
-  /** 卡片标题（可选，优先使用 header slot） */
-  title?: string;
-  /** 是否显示边框，默认 true */
-  bordered?: boolean;
-  /** 内容区 padding，默认 12px */
-  contentPadding?: string;
-}>(), {
-  bordered: true,
-  contentPadding: '12px'
-});
+const props = withDefaults(
+  defineProps<{
+    /** 卡片标题（可选，优先使用 header slot） */
+    title?: string;
+    /** 是否显示边框，默认 true */
+    bordered?: boolean;
+    /** 内容区 padding，默认 12px */
+    contentPadding?: string;
+  }>(),
+  {
+    bordered: true,
+    contentPadding: '12px'
+  }
+);
 
 const contentStyle = computed(() => ({
   padding: props.contentPadding

@@ -15,6 +15,7 @@ venv/
 .kube/
 *.log
 *.bak
+docker/build_out.txt
 .DS_Store
 Thumbs.db
 *.tar.gz
