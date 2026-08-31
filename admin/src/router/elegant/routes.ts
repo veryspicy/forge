@@ -57,6 +57,24 @@ export const generatedRoutes: GeneratedRoute[] = [
     }
   },
   {
+    name: 'brands',
+    path: '/brands',
+    component: 'layout.base$view.brands',
+    meta: {
+      title: 'brands',
+      i18nKey: 'route.brands'
+    }
+  },
+  {
+    name: 'categories',
+    path: '/categories',
+    component: 'layout.base$view.categories',
+    meta: {
+      title: 'categories',
+      i18nKey: 'route.categories'
+    }
+  },
+  {
     name: 'dashboard',
     path: '/dashboard',
     component: 'layout.base$view.dashboard',
@@ -115,6 +133,15 @@ export const generatedRoutes: GeneratedRoute[] = [
     meta: {
       title: 'pricing',
       i18nKey: 'route.pricing'
+    }
+  },
+  {
+    name: 'product-types',
+    path: '/product-types',
+    component: 'layout.base$view.product-types',
+    meta: {
+      title: 'product-types',
+      i18nKey: 'route.product-types'
     }
   },
   {

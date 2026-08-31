@@ -1,17 +1,17 @@
 {
   "name": "forge-admin",
   "version": "1.0.0",
+  "private": true,
   "description": "Forge Admin Dashboard - Vue3 + Vite + TypeScript + NaiveUI + UnoCSS",
   "keywords": [
-    "forge",
+    "NaiveUI",
+    "TypeScript",
+    "UnoCSS",
     "Vite",
     "Vue3",
-    "TypeScript",
-    "NaiveUI",
-    "UnoCSS",
-    "admin-dashboard"
+    "admin-dashboard",
+    "forge"
   ],
-  "private": true,
   "author": {
     "name": "Forge Team"
   },
@@ -47,8 +47,8 @@
     "defu": "6.1.7",
     "docx-preview": "0.4.0",
     "echarts": "6.0.0",
-    "jszip": "3.10.1",
     "json5": "2.2.3",
+    "jszip": "3.10.1",
     "marked": "18.0.9",
     "naive-ui": "2.44.1",
     "nprogress": "0.2.0",
@@ -62,9 +62,9 @@
   "devDependencies": {
     "@elegant-router/vue": "0.3.8",
     "@iconify/json": "2.2.472",
+    "@sa/eslint-config": "workspace:*",
     "@sa/scripts": "workspace:*",
     "@sa/uno-preset": "workspace:*",
-    "@sa/eslint-config": "workspace:*",
     "@types/node": "25.7.0",
     "@types/nprogress": "0.2.3",
     "@vitejs/plugin-vue": "6.0.6",
@@ -92,9 +92,9 @@
     "commit-msg": "pnpm sa git-commit-verify",
     "pre-commit": "pnpm typecheck && pnpm lint && pnpm fmt && git diff --exit-code"
   },
-  "packageManager": "pnpm@10.34.5",
   "engines": {
     "node": ">=20.19.0",
     "pnpm": ">=10.5.0"
-  }
+  },
+  "packageManager": "pnpm@10.34.5"
 }

@@ -38,17 +38,26 @@ const pagination = computed(() => ({
   pageSize: pageSize.value,
   itemCount: total.value,
   showSizePicker: true,
-  pageSizes: [10, 20, 50],
+  pageSizes: [10, 20, 50]
 }));
 
-function onPageChange(p: number) { page.value = p; fetch(); }
-function onPageSizeChange(s: number) { pageSize.value = s; page.value = 1; fetch(); }
+function onPageChange(p: number) {
+  page.value = p;
+  fetch();
+}
+function onPageSizeChange(s: number) {
+  pageSize.value = s;
+  page.value = 1;
+  fetch();
+}
 
 async function fetchRoles() {
   try {
     const res = await get('/api/admin/v1/roles/');
     allRoles.value = res.data?.items || [];
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 async function fetch() {
@@ -97,11 +106,11 @@ async function submitForm() {
       await put(`/api/admin/v1/admin-users/${formUser.value.id}`, {
         display_name: formDisplayName.value || undefined,
         is_active: formIsActive.value,
-        password: formPassword.value || undefined,
+        password: formPassword.value || undefined
       });
       // Update roles
       await put(`/api/admin/v1/admin-users/${formUser.value.id}/roles`, {
-        role_ids: formRoleIds.value,
+        role_ids: formRoleIds.value
       });
     } else {
       // Create
@@ -109,7 +118,7 @@ async function submitForm() {
         email: formEmail.value,
         password: formPassword.value,
         display_name: formDisplayName.value,
-        role_ids: formRoleIds.value,
+        role_ids: formRoleIds.value
       });
     }
     closeForm();
@@ -142,7 +151,7 @@ async function assignRoles() {
   roleError.value = '';
   try {
     await put(`/api/admin/v1/admin-users/${roleUser.value.id}/roles`, {
-      role_ids: assignRoleIds.value,
+      role_ids: assignRoleIds.value
     });
     roleUser.value = null;
     fetch();
@@ -157,34 +166,54 @@ const columns: DataTableColumns<any> = [
   { title: '邮箱', key: 'email', width: 220 },
   { title: '名称', key: 'display_name', width: 140 },
   {
-    title: '角色', key: 'roles', width: 200,
-    render: (row) => {
+    title: '角色',
+    key: 'roles',
+    width: 200,
+    render: row => {
       const roleEls = (row.roles || []).map((r: any) =>
         h(NTag, { size: 'small', style: { marginRight: '4px' } }, { default: () => r.display_name || r.name })
       );
       return h('span', roleEls);
-    },
+    }
   },
   {
-    title: '状态', key: 'is_active', width: 80,
-    render: (row) =>
-      h(NTag, { type: row.is_active ? 'success' : 'default', size: 'small' }, { default: () => row.is_active ? '启用' : '禁用' }),
+    title: '状态',
+    key: 'is_active',
+    width: 80,
+    render: row =>
+      h(
+        NTag,
+        { type: row.is_active ? 'success' : 'default', size: 'small' },
+        { default: () => (row.is_active ? '启用' : '禁用') }
+      )
   },
   {
-    title: '最后登录', key: 'last_login_at', width: 150,
-    render: (row) => row.last_login_at ? new Date(row.last_login_at).toLocaleString() : '-',
+    title: '最后登录',
+    key: 'last_login_at',
+    width: 150,
+    render: row => (row.last_login_at ? new Date(row.last_login_at).toLocaleString() : '-')
   },
   {
-    title: '操作', key: 'actions', width: 220,
-    render: (row) =>
-      h(NSpace, { size: 'small' }, {
-        default: () => [
-          h(NButton, { size: 'tiny', onClick: () => openEditModal(row) }, { default: () => '编辑' }),
-          h(NButton, { size: 'tiny', onClick: () => openRoleModal(row) }, { default: () => '角色' }),
-          h(NButton, { size: 'tiny', type: 'error', secondary: true, onClick: () => handleDelete(row) }, { default: () => '删除' }),
-        ],
-      }),
-  },
+    title: '操作',
+    key: 'actions',
+    width: 220,
+    render: row =>
+      h(
+        NSpace,
+        { size: 'small' },
+        {
+          default: () => [
+            h(NButton, { size: 'tiny', onClick: () => openEditModal(row) }, { default: () => '编辑' }),
+            h(NButton, { size: 'tiny', onClick: () => openRoleModal(row) }, { default: () => '角色' }),
+            h(
+              NButton,
+              { size: 'tiny', type: 'error', secondary: true, onClick: () => handleDelete(row) },
+              { default: () => '删除' }
+            )
+          ]
+        }
+      )
+  }
 ];
 
 onMounted(() => {
@@ -205,9 +234,7 @@ onMounted(() => {
         @keyup.enter="fetch"
       />
       <NButton size="small" @click="fetch">搜索</NButton>
-      <NButton type="primary" size="small" @click="openCreateModal">
-        + 新增管理员
-      </NButton>
+      <NButton type="primary" size="small" @click="openCreateModal">+ 新增管理员</NButton>
     </div>
 
     <!-- Table -->
@@ -227,8 +254,12 @@ onMounted(() => {
       :show="!!formUser"
       preset="card"
       :title="formUser?.id ? '编辑管理员' : '新增管理员'"
-      style="width:480px"
-      @update:show="(v: boolean) => { if (!v) closeForm(); }"
+      style="width: 480px"
+      @update:show="
+        (v: boolean) => {
+          if (!v) closeForm();
+        }
+      "
     >
       <div class="flex flex-col gap-4">
         <div>
@@ -250,12 +281,7 @@ onMounted(() => {
         </div>
         <div>
           <div class="text-sm mb-1 text-[var(--n-text-color-3)]">角色</div>
-          <NSelect
-            v-model:value="formRoleIds"
-            :options="roleSelectOptions"
-            multiple
-            placeholder="选择角色..."
-          />
+          <NSelect v-model:value="formRoleIds" :options="roleSelectOptions" multiple placeholder="选择角色..." />
         </div>
         <div v-if="formError" class="text-red-500 text-sm">{{ formError }}</div>
       </div>
@@ -274,17 +300,19 @@ onMounted(() => {
       :show="!!roleUser"
       preset="card"
       title="分配角色"
-      style="width:460px"
-      @update:show="(v: boolean) => { if (!v) roleUser = null; }"
+      style="width: 460px"
+      @update:show="
+        (v: boolean) => {
+          if (!v) roleUser = null;
+        }
+      "
     >
       <div class="flex flex-col gap-3">
-        <div><span class="text-[var(--n-text-color-3)]">用户：</span>{{ roleUser?.email }}</div>
-        <NSelect
-          v-model:value="assignRoleIds"
-          :options="roleSelectOptions"
-          multiple
-          placeholder="选择角色"
-        />
+        <div>
+          <span class="text-[var(--n-text-color-3)]">用户：</span>
+          {{ roleUser?.email }}
+        </div>
+        <NSelect v-model:value="assignRoleIds" :options="roleSelectOptions" multiple placeholder="选择角色" />
         <div v-if="roleError" class="text-red-500 text-sm">{{ roleError }}</div>
       </div>
       <template #footer>

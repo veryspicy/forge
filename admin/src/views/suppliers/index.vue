@@ -2,8 +2,19 @@
 import { ref, onMounted, h } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
-  NButton, NDataTable, NInput, NModal, NForm, NFormItem, NSelect, NSpace, NTag, NEmpty, NDrawer, NDrawerContent,
-  useMessage,
+  NButton,
+  NDataTable,
+  NInput,
+  NModal,
+  NForm,
+  NFormItem,
+  NSelect,
+  NSpace,
+  NTag,
+  NEmpty,
+  NDrawer,
+  NDrawerContent,
+  useMessage
 } from 'naive-ui';
 import { get, post, patch } from '@/service/api/helper';
 import type { DataTableColumns } from 'naive-ui';
@@ -21,25 +32,32 @@ const regionsString = ref('');
 
 const filterOptions = [
   { label: t('page.suppliers.active'), value: 'true' },
-  { label: t('page.suppliers.inactive'), value: 'false' },
+  { label: t('page.suppliers.inactive'), value: 'false' }
 ];
 
 const integrationOptions = [
   { label: 'Manual', value: 'manual' },
   { label: 'API', value: 'api' },
-  { label: 'Dropship', value: 'dropship' },
+  { label: 'Dropship', value: 'dropship' }
 ];
 
 const providerOptions = ref<{ label: string; value: string }[]>([]);
 
 const form = ref({
-  name: '', contact_email: '', contact_phone: '',
-  integration_type: 'manual', shipping_regions: [] as string[],
-  default_currency: 'USD', provider_code: null as string | null,
+  name: '',
+  contact_email: '',
+  contact_phone: '',
+  integration_type: 'manual',
+  shipping_regions: [] as string[],
+  default_currency: 'USD',
+  provider_code: null as string | null
 });
 
 function updateRegions() {
-  form.value.shipping_regions = regionsString.value.split(',').map(s => s.trim()).filter(Boolean);
+  form.value.shipping_regions = regionsString.value
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
 }
 
 const columns: DataTableColumns<any> = [
@@ -47,24 +65,68 @@ const columns: DataTableColumns<any> = [
   { title: () => t('page.suppliers.contactEmail'), key: 'contact_email', render: row => row.contact_email || '-' },
   { title: t('page.suppliers.integrationType'), key: 'integration_type' },
   { title: t('page.suppliers.provider'), key: 'provider_code', render: row => row.provider_code || '-' },
-  { title: t('page.suppliers.shippingRegions'), key: 'shipping_regions', render: row => (row.shipping_regions || []).join(', ') },
   {
-    title: t('page.suppliers.active'), key: 'is_active',
-    render: row => h(NTag, { type: row.is_active ? 'success' : 'default', size: 'small' }, { default: () => row.is_active ? t('page.suppliers.active') : t('page.suppliers.inactive') }),
+    title: t('page.suppliers.shippingRegions'),
+    key: 'shipping_regions',
+    render: row => (row.shipping_regions || []).join(', ')
   },
   {
-    title: t('page.suppliers.actions'), key: 'actions',
-    render: row => h(NSpace, { size: 'small' }, {
-      default: () => [
-        h(NButton, { size: 'small', onClick: () => openEdit(row) }, { default: () => t('common.edit') }),
-        h(NButton, { size: 'small', type: 'info', disabled: !row.provider_code, onClick: () => openCredentials(row) }, { default: () => t('page.suppliers.credentials') }),
-        h(NButton, { size: 'small', type: 'primary', disabled: !row.provider_code, onClick: () => openSearch(row) }, { default: () => t('page.suppliers.searchProducts') }),
-        h(NButton, { size: 'small', type: 'warning', disabled: !row.provider_code, loading: row.syncing, onClick: () => runSync(row) }, { default: () => t('page.suppliers.syncNow') }),
-        h(NButton, { size: 'small', disabled: !row.provider_code, onClick: () => openLogs(row) }, { default: () => t('page.suppliers.syncLogs') }),
-        row.is_active ? h(NButton, { size: 'small', type: 'warning', onClick: () => deactivate(row.id) }, { default: () => t('page.suppliers.inactive') }) : null,
-      ],
-    }),
+    title: t('page.suppliers.active'),
+    key: 'is_active',
+    render: row =>
+      h(
+        NTag,
+        { type: row.is_active ? 'success' : 'default', size: 'small' },
+        { default: () => (row.is_active ? t('page.suppliers.active') : t('page.suppliers.inactive')) }
+      )
   },
+  {
+    title: t('page.suppliers.actions'),
+    key: 'actions',
+    render: row =>
+      h(
+        NSpace,
+        { size: 'small' },
+        {
+          default: () => [
+            h(NButton, { size: 'small', onClick: () => openEdit(row) }, { default: () => t('common.edit') }),
+            h(
+              NButton,
+              { size: 'small', type: 'info', disabled: !row.provider_code, onClick: () => openCredentials(row) },
+              { default: () => t('page.suppliers.credentials') }
+            ),
+            h(
+              NButton,
+              { size: 'small', type: 'primary', disabled: !row.provider_code, onClick: () => openSearch(row) },
+              { default: () => t('page.suppliers.searchProducts') }
+            ),
+            h(
+              NButton,
+              {
+                size: 'small',
+                type: 'warning',
+                disabled: !row.provider_code,
+                loading: row.syncing,
+                onClick: () => runSync(row)
+              },
+              { default: () => t('page.suppliers.syncNow') }
+            ),
+            h(
+              NButton,
+              { size: 'small', disabled: !row.provider_code, onClick: () => openLogs(row) },
+              { default: () => t('page.suppliers.syncLogs') }
+            ),
+            row.is_active
+              ? h(
+                  NButton,
+                  { size: 'small', type: 'warning', onClick: () => deactivate(row.id) },
+                  { default: () => t('page.suppliers.inactive') }
+                )
+              : null
+          ]
+        }
+      )
+  }
 ];
 
 async function fetch() {
@@ -83,7 +145,10 @@ async function loadProviders() {
   try {
     const res = await get('/api/admin/v1/supplier-sources/providers');
     const list = res.data?.data || [];
-    providerOptions.value = list.map((p: any) => ({ label: p.display_name || p.provider_code, value: p.provider_code }));
+    providerOptions.value = list.map((p: any) => ({
+      label: p.display_name || p.provider_code,
+      value: p.provider_code
+    }));
   } catch {
     providerOptions.value = [];
   }
@@ -91,7 +156,15 @@ async function loadProviders() {
 
 function openCreate() {
   editing.value = null;
-  form.value = { name: '', contact_email: '', contact_phone: '', integration_type: 'manual', shipping_regions: [], default_currency: 'USD', provider_code: null };
+  form.value = {
+    name: '',
+    contact_email: '',
+    contact_phone: '',
+    integration_type: 'manual',
+    shipping_regions: [],
+    default_currency: 'USD',
+    provider_code: null
+  };
   regionsString.value = '';
   modalError.value = '';
   showModal.value = true;
@@ -100,9 +173,13 @@ function openCreate() {
 function openEdit(s: any) {
   editing.value = s;
   form.value = {
-    name: s.name, contact_email: s.contact_email || '', contact_phone: s.contact_phone || '',
-    integration_type: s.integration_type || 'manual', shipping_regions: s.shipping_regions || [],
-    default_currency: s.default_currency || 'USD', provider_code: s.provider_code || null,
+    name: s.name,
+    contact_email: s.contact_email || '',
+    contact_phone: s.contact_phone || '',
+    integration_type: s.integration_type || 'manual',
+    shipping_regions: s.shipping_regions || [],
+    default_currency: s.default_currency || 'USD',
+    provider_code: s.provider_code || null
   };
   regionsString.value = (s.shipping_regions || []).join(', ');
   modalError.value = '';
@@ -129,7 +206,12 @@ async function save() {
 }
 
 async function deactivate(id: string) {
-  try { await post(`/api/admin/v1/suppliers/${id}/deactivate`); fetch(); } catch (e) { console.error(e); }
+  try {
+    await post(`/api/admin/v1/suppliers/${id}/deactivate`);
+    fetch();
+  } catch (e) {
+    console.error(e);
+  }
 }
 
 // ---- 凭据 ----
@@ -187,7 +269,7 @@ async function doSearch() {
   searchLoading.value = true;
   try {
     const res = await get(`/api/admin/v1/supplier-sources/${searchSupplierId}/search`, {
-      params: { keyword: searchKeyword.value, page: 1, page_size: 20 },
+      params: { keyword: searchKeyword.value, page: 1, page_size: 20 }
     });
     const data = res.data?.data || {};
     searchItems.value = data.items || [];
@@ -204,7 +286,7 @@ const searchColumns: DataTableColumns<any> = [
   { title: t('page.suppliers.name'), key: 'title' },
   { title: t('page.suppliers.price'), key: 'price', render: row => `${row.currency || ''} ${row.price}` },
   { title: t('page.suppliers.inventory'), key: 'inventory' },
-  { title: 'SKU', key: 'sku' },
+  { title: 'SKU', key: 'sku' }
 ];
 
 async function doImport() {
@@ -212,7 +294,7 @@ async function doImport() {
   importLoading.value = true;
   try {
     const res = await post(`/api/admin/v1/supplier-sources/${searchSupplierId}/import`, {
-      provider_product_ids: checkedIds.value,
+      provider_product_ids: checkedIds.value
     });
     const d = res.data?.data || {};
     const imported = (d.imported || []).length;
@@ -249,26 +331,36 @@ function openLogs(row: any) {
   syncLogs.value = [];
   showLogsDrawer.value = true;
   get(`/api/admin/v1/supplier-sources/${row.id}/sync-logs`, { params: { limit: 20 } })
-    .then(res => { syncLogs.value = res.data?.data || []; })
+    .then(res => {
+      syncLogs.value = res.data?.data || [];
+    })
     .catch(() => {});
 }
 
 const logColumns: DataTableColumns<any> = [
-  { title: t('page.suppliers.triggerType'), key: 'trigger_type', render: row => row.trigger_type === 'scheduled' ? t('page.suppliers.scheduled') : t('page.suppliers.manual') },
   {
-    title: t('page.suppliers.syncStatus'), key: 'status',
+    title: t('page.suppliers.triggerType'),
+    key: 'trigger_type',
+    render: row => (row.trigger_type === 'scheduled' ? t('page.suppliers.scheduled') : t('page.suppliers.manual'))
+  },
+  {
+    title: t('page.suppliers.syncStatus'),
+    key: 'status',
     render: row => {
       const map: Record<string, any> = { success: 'success', running: 'warning', partial: 'warning', failed: 'error' };
       return h(NTag, { type: map[row.status] || 'default', size: 'small' }, { default: () => row.status });
-    },
+    }
   },
   { title: t('page.suppliers.itemsTotal'), key: 'items_total' },
   { title: t('page.suppliers.itemsImported'), key: 'items_imported' },
   { title: t('page.suppliers.itemsUpdated'), key: 'items_updated' },
-  { title: t('page.suppliers.startedAt'), key: 'started_at', render: row => (row.started_at || '').replace('T', ' ') },
+  { title: t('page.suppliers.startedAt'), key: 'started_at', render: row => (row.started_at || '').replace('T', ' ') }
 ];
 
-onMounted(() => { loadProviders(); fetch(); });
+onMounted(() => {
+  loadProviders();
+  fetch();
+});
 </script>
 
 <template>
@@ -280,31 +372,27 @@ onMounted(() => { loadProviders(); fetch(); });
           :options="filterOptions"
           :placeholder="$t('page.suppliers.status')"
           clearable
-          style="width:140px"
+          style="width: 140px"
           @update:value="fetch"
         />
       </NSpace>
       <NButton type="primary" @click="openCreate">{{ $t('page.suppliers.addSupplier') }}</NButton>
     </div>
 
-    <NDataTable
-      :columns="columns"
-      :data="suppliers"
-      :loading="loading"
-      :bordered="false"
-      size="small"
-    />
+    <NDataTable :columns="columns" :data="suppliers" :loading="loading" :bordered="false" size="small" />
 
     <!-- 创建 / 编辑供应商 -->
     <NModal
       v-model:show="showModal"
       preset="card"
       :title="editing ? $t('page.suppliers.editSupplier') : $t('page.suppliers.addSupplier')"
-      style="width:520px"
+      style="width: 520px"
     >
       <NForm :model="form" label-placement="left" label-width="140">
         <NFormItem :label="$t('page.suppliers.name')" required><NInput v-model:value="form.name" /></NFormItem>
-        <NFormItem :label="$t('page.suppliers.contactEmail')"><NInput v-model:value="form.contact_email" type="text" /></NFormItem>
+        <NFormItem :label="$t('page.suppliers.contactEmail')">
+          <NInput v-model:value="form.contact_email" type="text" />
+        </NFormItem>
         <NFormItem :label="$t('page.suppliers.contactPhone')"><NInput v-model:value="form.contact_phone" /></NFormItem>
         <NFormItem :label="$t('page.suppliers.integrationType')">
           <NSelect v-model:value="form.integration_type" :options="integrationOptions" />
@@ -322,7 +410,9 @@ onMounted(() => { loadProviders(); fetch(); });
         <NFormItem :label="$t('page.suppliers.shippingRegions')">
           <NInput v-model:value="regionsString" placeholder="comma separated" @update:value="updateRegions" />
         </NFormItem>
-        <NFormItem :label="$t('page.suppliers.defaultCurrency')"><NInput v-model:value="form.default_currency" /></NFormItem>
+        <NFormItem :label="$t('page.suppliers.defaultCurrency')">
+          <NInput v-model:value="form.default_currency" />
+        </NFormItem>
       </NForm>
       <div v-if="modalError" class="text-red-500 text-sm mt-2">{{ modalError }}</div>
       <template #footer>
@@ -334,7 +424,7 @@ onMounted(() => { loadProviders(); fetch(); });
     </NModal>
 
     <!-- 凭据配置 -->
-    <NModal v-model:show="showCredModal" preset="card" :title="$t('page.suppliers.credentials')" style="width:520px">
+    <NModal v-model:show="showCredModal" preset="card" :title="$t('page.suppliers.credentials')" style="width: 520px">
       <NForm label-placement="left" label-width="140">
         <NFormItem :label="$t('page.suppliers.accessToken')" required>
           <NInput v-model:value="credForm.access_token" type="textarea" :rows="3" />
@@ -347,27 +437,29 @@ onMounted(() => { loadProviders(); fetch(); });
       <template #footer>
         <NSpace justify="end">
           <NButton @click="showCredModal = false">{{ $t('common.cancel') }}</NButton>
-          <NButton type="primary" :loading="credLoading" @click="saveCredentials">{{ $t('page.suppliers.saveCredentials') }}</NButton>
+          <NButton type="primary" :loading="credLoading" @click="saveCredentials">
+            {{ $t('page.suppliers.saveCredentials') }}
+          </NButton>
         </NSpace>
       </template>
     </NModal>
 
     <!-- 货源搜索 / 导入 -->
-    <NModal v-model:show="showSearchModal" preset="card" :title="$t('page.suppliers.searchProducts')" style="width:860px">
+    <NModal
+      v-model:show="showSearchModal"
+      preset="card"
+      :title="$t('page.suppliers.searchProducts')"
+      style="width: 860px"
+    >
       <NSpace class="mb-3">
         <NInput
           v-model:value="searchKeyword"
           :placeholder="$t('page.suppliers.searchPlaceholder')"
-          style="width:320px"
+          style="width: 320px"
           @keyup.enter="doSearch"
         />
         <NButton type="primary" :loading="searchLoading" @click="doSearch">{{ $t('page.suppliers.search') }}</NButton>
-        <NButton
-          type="primary"
-          :disabled="!checkedIds.length"
-          :loading="importLoading"
-          @click="doImport"
-        >
+        <NButton type="primary" :disabled="!checkedIds.length" :loading="importLoading" @click="doImport">
           {{ $t('page.suppliers.importSelected') }} ({{ checkedIds.length }})
         </NButton>
       </NSpace>
@@ -387,13 +479,7 @@ onMounted(() => { loadProviders(); fetch(); });
     <!-- 同步日志 -->
     <NDrawer v-model:show="showLogsDrawer" placement="right" :width="680">
       <NDrawerContent :title="$t('page.suppliers.syncLogs')">
-        <NDataTable
-          v-if="syncLogs.length"
-          :columns="logColumns"
-          :data="syncLogs"
-          :bordered="false"
-          size="small"
-        />
+        <NDataTable v-if="syncLogs.length" :columns="logColumns" :data="syncLogs" :bordered="false" size="small" />
         <NEmpty v-else :description="$t('page.suppliers.noLogs')" />
       </NDrawerContent>
     </NDrawer>

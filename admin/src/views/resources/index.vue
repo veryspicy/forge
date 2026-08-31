@@ -904,8 +904,7 @@ async function doBatchDelete() {
 async function handleCleanupInvalidRefs() {
   const { data } = (await resourceApi.cleanupInvalidRefs({ dryRun: true })) as any;
   const result = data?.data ?? {};
-  const invalid: Array<{ ref_type: string; ref_id: string; ref_label: string; reason: string }> =
-    result.invalid ?? [];
+  const invalid: Array<{ ref_type: string; ref_id: string; ref_label: string; reason: string }> = result.invalid ?? [];
   if (!invalid.length) {
     message.success('未发现无效引用');
     return;
@@ -1497,7 +1496,8 @@ onBeforeUnmount(() => {
         <pre
           v-else-if="previewType === 'text'"
           class="max-h-[70vh] w-full overflow-auto rounded-md border bg-gray-50 p-4 text-left text-xs"
-        >{{ previewText }}</pre>
+          >{{ previewText }}</pre
+        >
         <div
           v-else-if="previewType === 'zip'"
           class="max-h-[70vh] w-full overflow-auto rounded-md border bg-gray-50 p-4 text-left text-sm"

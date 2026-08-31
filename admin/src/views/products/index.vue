@@ -3,8 +3,24 @@ import { ref, onMounted, h } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import {
-  NButton, NCard, NDataTable, NDrawer, NDrawerContent, NForm, NFormItem, NImage, NInput, NInputNumber, NModal,
-  NPagination, NPopconfirm, NSelect, NSpace, NSwitch, NTag, useMessage
+  NButton,
+  NCard,
+  NDataTable,
+  NDrawer,
+  NDrawerContent,
+  NForm,
+  NFormItem,
+  NImage,
+  NInput,
+  NInputNumber,
+  NModal,
+  NPagination,
+  NPopconfirm,
+  NSelect,
+  NSpace,
+  NSwitch,
+  NTag,
+  useMessage
 } from 'naive-ui';
 import { get, post, patch, del } from '@/service/api/helper';
 import { localStg } from '@/utils/storage';
@@ -24,7 +40,12 @@ const total = ref(0);
 const checkedRowKeys = ref<Array<string | number>>([]);
 const fileInput = ref<HTMLInputElement | null>(null);
 const showImportModal = ref(false);
-const importResult = ref<{ created: number; updated: number; failed: number; errors: Array<{ row: number; sku: string; error: string }> } | null>(null);
+const importResult = ref<{
+  created: number;
+  updated: number;
+  failed: number;
+  errors: Array<{ row: number; sku: string; error: string }>;
+} | null>(null);
 
 // SKU 抽屉状态
 const showSkuDrawer = ref(false);
@@ -43,12 +64,12 @@ const variantForm = ref({
   inventory: 0,
   status: 'active',
   is_default: false,
-  specRows: [] as { key: string; value: string }[],
+  specRows: [] as { key: string; value: string }[]
 });
 
 const variantStatusOptions = [
   { label: '启用', value: 'active' },
-  { label: '停用', value: 'inactive' },
+  { label: '停用', value: 'inactive' }
 ];
 
 function addSpecRow() {
@@ -69,7 +90,7 @@ function resetVariantForm() {
     inventory: 0,
     status: 'active',
     is_default: false,
-    specRows: [],
+    specRows: []
   };
 }
 
@@ -101,7 +122,10 @@ function startEditVariant(row: any, index: number) {
     inventory: row.inventory ?? 0,
     status: row.status ?? 'active',
     is_default: Boolean(row.is_default),
-    specRows: attrsToSpecRows(row.attributes ?? (row.specs ? Object.fromEntries((row.specs as any[]).map((s: any) => [s.spec_key, s.value])) : null)),
+    specRows: attrsToSpecRows(
+      row.attributes ??
+        (row.specs ? Object.fromEntries((row.specs as any[]).map((s: any) => [s.spec_key, s.value])) : null)
+    )
   };
 }
 
@@ -155,7 +179,7 @@ async function saveVariant() {
     cost: variantForm.value.cost,
     inventory: variantForm.value.inventory ?? 0,
     status: variantForm.value.status,
-    is_default: variantForm.value.is_default,
+    is_default: variantForm.value.is_default
   };
 
   variantSaving.value = true;
@@ -191,36 +215,66 @@ async function deleteVariant(row: any) {
 const variantColumns: DataTableColumns<any> = [
   { title: '名称', key: 'name', render: row => row.name || '-' },
   { title: 'SKU', key: 'sku', width: 140, render: row => row.sku || '-' },
-  { title: '价格', key: 'price', width: 80, render: row => (row.price != null ? `$${Number(row.price).toFixed(2)}` : '-') },
+  {
+    title: '价格',
+    key: 'price',
+    width: 80,
+    render: row => (row.price != null ? `$${Number(row.price).toFixed(2)}` : '-')
+  },
   { title: '库存', key: 'inventory', width: 70, render: row => row.inventory ?? 0 },
   {
-    title: '状态', key: 'status', width: 80,
-    render: row => h(NTag, { size: 'small', bordered: false, type: row.status === 'active' ? 'success' : 'default' }, { default: () => row.status === 'active' ? '启用' : '停用' }),
+    title: '状态',
+    key: 'status',
+    width: 80,
+    render: row =>
+      h(
+        NTag,
+        { size: 'small', bordered: false, type: row.status === 'active' ? 'success' : 'default' },
+        { default: () => (row.status === 'active' ? '启用' : '停用') }
+      )
   },
   {
-    title: '默认', key: 'is_default', width: 60,
-    render: row => row.is_default ? h(NTag, { size: 'small', bordered: false, type: 'warning' }, { default: () => '默认' }) : '-',
+    title: '默认',
+    key: 'is_default',
+    width: 60,
+    render: row =>
+      row.is_default ? h(NTag, { size: 'small', bordered: false, type: 'warning' }, { default: () => '默认' }) : '-'
   },
   {
-    title: '操作', key: 'actions', width: 130,
-    render: (row, index) => h(NSpace, { size: 4 }, {
-      default: () => [
-        h(NButton, { size: 'tiny', quaternary: true, type: 'primary', onClick: () => startEditVariant(row, index) }, { default: () => '编辑' }),
-        h(NPopconfirm, {
-          onPositiveClick: () => deleteVariant(row),
-        }, {
-          trigger: () => h(NButton, { size: 'tiny', quaternary: true, type: 'error' }, { default: () => '删除' }),
-          default: () => '确认删除该 SKU？',
-        }),
-      ],
-    }),
-  },
+    title: '操作',
+    key: 'actions',
+    width: 130,
+    render: (row, index) =>
+      h(
+        NSpace,
+        { size: 4 },
+        {
+          default: () => [
+            h(
+              NButton,
+              { size: 'tiny', quaternary: true, type: 'primary', onClick: () => startEditVariant(row, index) },
+              { default: () => '编辑' }
+            ),
+            h(
+              NPopconfirm,
+              {
+                onPositiveClick: () => deleteVariant(row)
+              },
+              {
+                trigger: () => h(NButton, { size: 'tiny', quaternary: true, type: 'error' }, { default: () => '删除' }),
+                default: () => '确认删除该 SKU？'
+              }
+            )
+          ]
+        }
+      )
+  }
 ];
 
 const errorColumns: DataTableColumns<any> = [
   { title: t('page.products.importRow'), key: 'row', width: 70 },
   { title: t('common.sku'), key: 'sku', width: 140 },
-  { title: t('page.products.importError'), key: 'error' },
+  { title: t('page.products.importError'), key: 'error' }
 ];
 
 const categoryOptions = [
@@ -228,36 +282,15 @@ const categoryOptions = [
   { label: 'Toy', value: 'TOY' },
   { label: 'Health', value: 'HEALTH' },
   { label: 'Accessory', value: 'ACCESSORY' },
-  { label: 'Service', value: 'SERVICE' },
+  { label: 'Service', value: 'SERVICE' }
 ];
 
 const statusOptions = [
   { label: t('page.products.draft'), value: 'draft' },
   { label: t('page.products.active'), value: 'active' },
   { label: t('page.products.inactive'), value: 'inactive' },
-  { label: t('page.products.deleted'), value: 'deleted' },
+  { label: t('page.products.deleted'), value: 'deleted' }
 ];
-
-function statusTagType(value: string): 'default' | 'success' | 'warning' | 'error' {
-  const map: Record<string, 'default' | 'success' | 'warning' | 'error'> = {
-    draft: 'default',
-    active: 'success',
-    inactive: 'warning',
-    deleted: 'error',
-  };
-  return map[value] ?? 'default';
-}
-
-function statusLabel(row: any): string {
-  const key = row.status as string;
-  const labels: Record<string, string> = {
-    draft: t('page.products.draft'),
-    active: t('page.products.active'),
-    inactive: t('page.products.inactive'),
-    deleted: t('page.products.deleted'),
-  };
-  return labels[key] ?? key;
-}
 
 async function toggleStatus(row: any) {
   const next = row.status === 'active' ? 'inactive' : 'active';
@@ -284,7 +317,7 @@ function auditLabel(row: any): string {
   const map: Record<string, string> = {
     pending: '待审核',
     approved: '已通过',
-    rejected: '未通过',
+    rejected: '未通过'
   };
   return map[row.audit_status] ?? row.audit_status ?? '--';
 }
@@ -293,7 +326,7 @@ function auditTagType(value: string): 'default' | 'success' | 'warning' | 'error
   const map: Record<string, 'default' | 'success' | 'warning' | 'error'> = {
     pending: 'warning',
     approved: 'success',
-    rejected: 'error',
+    rejected: 'error'
   };
   return map[value] ?? 'default';
 }
@@ -325,92 +358,171 @@ const columns: DataTableColumns<any> = [
   { type: 'selection', width: 40 },
   { title: '编号', key: 'id', width: 80, render: row => h('span', { style: 'color: var(--n-text-color-3)' }, row.id) },
   {
-    title: t('common.image'), key: 'image', width: 70,
-    render: row => row.images?.[0]?.url
-      ? h(NImage, { src: row.images[0].url, width: 44, height: 44, style: { objectFit: 'cover', borderRadius: '4px' } })
-      : h('span', { style: { color: 'var(--n-text-color-3)' } }, '--'),
+    title: t('common.image'),
+    key: 'image',
+    width: 70,
+    render: row =>
+      row.images?.[0]?.url
+        ? h(NImage, {
+            src: row.images[0].url,
+            width: 44,
+            height: 44,
+            style: { objectFit: 'cover', borderRadius: '4px' }
+          })
+        : h('span', { style: { color: 'var(--n-text-color-3)' } }, '--')
   },
   {
-    title: t('common.name'), key: 'name', ellipsis: { tooltip: true },
-    render: row => h('div', { style: 'display:flex;flex-direction:column;gap:2px' }, [
-      h('span', { style: 'font-weight:500' }, row.name || '-'),
-      h('span', { style: 'color:var(--n-text-color-3);font-size:12px' }, `品牌: ${row.brand || '--'}`),
-    ]),
+    title: t('common.name'),
+    key: 'name',
+    ellipsis: { tooltip: true },
+    render: row =>
+      h('div', { style: 'display:flex;flex-direction:column;gap:2px' }, [
+        h('span', { style: 'font-weight:500' }, row.name || '-'),
+        h('span', { style: 'color:var(--n-text-color-3);font-size:12px' }, `品牌: ${row.brand || '--'}`)
+      ])
   },
   {
-    title: t('page.products.price'), key: 'price', width: 140,
-    render: row => h('div', { style: 'display:flex;flex-direction:column;gap:2px' }, [
-      h('span', { style: 'font-weight:500' }, `$${Number(row.price ?? 0).toFixed(2)}`),
-      h('span', { style: 'color:var(--n-text-color-3);font-size:12px' }, `货号: ${row.sku || '--'}`),
-    ]),
+    title: t('page.products.price'),
+    key: 'price',
+    width: 140,
+    render: row =>
+      h('div', { style: 'display:flex;flex-direction:column;gap:2px' }, [
+        h('span', { style: 'font-weight:500' }, `$${Number(row.price ?? 0).toFixed(2)}`),
+        h('span', { style: 'color:var(--n-text-color-3);font-size:12px' }, `货号: ${row.sku || '--'}`)
+      ])
   },
   {
-    title: '标签', key: 'tags', width: 190,
-    render: row => h(NSpace, { size: 8, align: 'center' }, {
-      default: () => [
-        h('div', { style: 'display:flex;flex-direction:column;align-items:center;gap:2px' }, [
-          h(NSwitch, {
-            size: 'small',
-            value: row.status === 'active',
-            disabled: row.status === 'deleted' || row.status === 'draft',
-            'on-update:value': () => toggleStatus(row),
-          }),
-          h('span', { style: 'color:var(--n-text-color-3);font-size:12px' }, '上架'),
-        ]),
-        h('div', { style: 'display:flex;flex-direction:column;align-items:center;gap:2px' }, [
-          h(NSwitch, { size: 'small', value: Boolean(row.is_new), 'on-update:value': () => toggleFlag(row, 'is_new') }),
-          h('span', { style: 'color:var(--n-text-color-3);font-size:12px' }, '新品'),
-        ]),
-        h('div', { style: 'display:flex;flex-direction:column;align-items:center;gap:2px' }, [
-          h(NSwitch, { size: 'small', value: Boolean(row.is_recommend), 'on-update:value': () => toggleFlag(row, 'is_recommend') }),
-          h('span', { style: 'color:var(--n-text-color-3);font-size:12px' }, '推荐'),
-        ]),
-      ],
-    }),
+    title: '标签',
+    key: 'tags',
+    width: 190,
+    render: row =>
+      h(
+        NSpace,
+        { size: 8, align: 'center' },
+        {
+          default: () => [
+            h('div', { style: 'display:flex;flex-direction:column;align-items:center;gap:2px' }, [
+              h(NSwitch, {
+                size: 'small',
+                value: row.status === 'active',
+                disabled: row.status === 'deleted' || row.status === 'draft',
+                'on-update:value': () => toggleStatus(row)
+              }),
+              h('span', { style: 'color:var(--n-text-color-3);font-size:12px' }, '上架')
+            ]),
+            h('div', { style: 'display:flex;flex-direction:column;align-items:center;gap:2px' }, [
+              h(NSwitch, {
+                size: 'small',
+                value: Boolean(row.is_new),
+                'on-update:value': () => toggleFlag(row, 'is_new')
+              }),
+              h('span', { style: 'color:var(--n-text-color-3);font-size:12px' }, '新品')
+            ]),
+            h('div', { style: 'display:flex;flex-direction:column;align-items:center;gap:2px' }, [
+              h(NSwitch, {
+                size: 'small',
+                value: Boolean(row.is_recommend),
+                'on-update:value': () => toggleFlag(row, 'is_recommend')
+              }),
+              h('span', { style: 'color:var(--n-text-color-3);font-size:12px' }, '推荐')
+            ])
+          ]
+        }
+      )
   },
   {
-    title: '排序', key: 'sort_order', width: 120, align: 'center',
-    render: row => h(NInputNumber, {
-      size: 'small',
-      value: row.sort_order ?? 0,
-      min: 0,
-      style: 'width: 96px',
-      'on-update:value': (val: number | null) => updateSortOrder(row, val),
-    }),
+    title: '排序',
+    key: 'sort_order',
+    width: 120,
+    align: 'center',
+    render: row =>
+      h(NInputNumber, {
+        size: 'small',
+        value: row.sort_order ?? 0,
+        min: 0,
+        style: 'width: 96px',
+        'on-update:value': (val: number | null) => updateSortOrder(row, val)
+      })
   },
   {
-    title: 'SKU库存', key: 'skuInventory', width: 110,
-    render: row => h('div', {
-      style: 'display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;border-radius:50%;background:#1677ff;color:#fff;font-weight:600;font-size:13px;padding:0 8px;cursor:pointer;user-select:none',
-      title: `${row.variant_count ?? 0} 个 SKU，点击查看明细`,
-      onClick: () => openSkuDrawer(row),
-    }, `${row.total_inventory ?? 0}`),
+    title: 'SKU库存',
+    key: 'skuInventory',
+    width: 110,
+    render: row =>
+      h(
+        'div',
+        {
+          style:
+            'display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;border-radius:50%;background:#1677ff;color:#fff;font-weight:600;font-size:13px;padding:0 8px;cursor:pointer;user-select:none',
+          title: `${row.variant_count ?? 0} 个 SKU，点击查看明细`,
+          onClick: () => openSkuDrawer(row)
+        },
+        `${row.total_inventory ?? 0}`
+      )
   },
   { title: '销量', key: 'sales', width: 80, render: row => row.sales ?? 0 },
   {
-    title: '审核状态', key: 'audit_status', width: 110,
-    render: row => h(NSpace, { size: 4, align: 'center' }, {
-      default: () => [
-        h(NTag, { size: 'small', bordered: false, type: auditTagType(row.audit_status) }, { default: () => auditLabel(row) }),
-        h('a', { style: 'color:#1677ff;font-size:12px;cursor:pointer', onClick: () => router.push(`/products/${row.id}`) }, '审核详情'),
-      ],
-    }),
+    title: '审核状态',
+    key: 'audit_status',
+    width: 110,
+    render: row =>
+      h(
+        NSpace,
+        { size: 4, align: 'center' },
+        {
+          default: () => [
+            h(
+              NTag,
+              { size: 'small', bordered: false, type: auditTagType(row.audit_status) },
+              { default: () => auditLabel(row) }
+            ),
+            h(
+              'a',
+              {
+                style: 'color:#1677ff;font-size:12px;cursor:pointer',
+                onClick: () => router.push(`/products/${row.id}`)
+              },
+              '审核详情'
+            )
+          ]
+        }
+      )
   },
   {
-    title: t('page.suppliers.actions'), key: 'actions', width: 190,
-    render: row => h(NSpace, { size: 8, align: 'center' }, {
-      default: () => [
-        h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: () => router.push(`/products/${row.id}`) }, { default: () => '查看' }),
-        h(NButton, { size: 'small', quaternary: true, type: 'primary', onClick: () => router.push(`/products/${row.id}`) }, { default: () => t('common.edit') }),
-        h(NPopconfirm, {
-          onPositiveClick: () => deleteProduct(row),
-        }, {
-          trigger: () => h(NButton, { size: 'small', quaternary: true, type: 'error' }, { default: () => t('common.delete') }),
-          default: () => t('page.products.deleteConfirm'),
-        }),
-      ],
-    }),
-  },
+    title: t('page.suppliers.actions'),
+    key: 'actions',
+    width: 190,
+    render: row =>
+      h(
+        NSpace,
+        { size: 8, align: 'center' },
+        {
+          default: () => [
+            h(
+              NButton,
+              { size: 'small', quaternary: true, type: 'primary', onClick: () => router.push(`/products/${row.id}`) },
+              { default: () => '查看' }
+            ),
+            h(
+              NButton,
+              { size: 'small', quaternary: true, type: 'primary', onClick: () => router.push(`/products/${row.id}`) },
+              { default: () => t('common.edit') }
+            ),
+            h(
+              NPopconfirm,
+              {
+                onPositiveClick: () => deleteProduct(row)
+              },
+              {
+                trigger: () =>
+                  h(NButton, { size: 'small', quaternary: true, type: 'error' }, { default: () => t('common.delete') }),
+                default: () => t('page.products.deleteConfirm')
+              }
+            )
+          ]
+        }
+      )
+  }
 ];
 
 async function loadProducts() {
@@ -442,7 +554,10 @@ function handleReset() {
   loadProducts();
 }
 
-function goPage(p: number) { page.value = p; loadProducts(); }
+function goPage(p: number) {
+  page.value = p;
+  loadProducts();
+}
 
 async function batchStatus(target: string) {
   if (!checkedRowKeys.value.length) {
@@ -452,7 +567,7 @@ async function batchStatus(target: string) {
   try {
     const res = await post('/api/admin/v1/products/batch-status', {
       ids: checkedRowKeys.value,
-      status: target,
+      status: target
     });
     const data = (res as any)?.data ?? res;
     message.success(`${t('page.products.statusUpdated')}（${data?.updated ?? 0}）`);
@@ -482,7 +597,7 @@ async function onExport() {
   const token = localStg.get('token');
   try {
     const res = await fetch('/api/admin/v1/products/export', {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
     });
     if (!res.ok) throw new Error('export failed');
     const blob = await res.blob();
@@ -525,9 +640,27 @@ onMounted(loadProducts);
   <div class="flex flex-col gap-4">
     <NCard :bordered="false" size="small">
       <NSpace align="center" wrap>
-        <NInput v-model:value="search" :placeholder="$t('page.products.searchPlaceholder')" clearable style="width: 260px" @keyup.enter="handleQuery" />
-        <NSelect v-model:value="category" :options="categoryOptions" :placeholder="$t('page.products.allCategories')" clearable style="width: 160px" />
-        <NSelect v-model:value="status" :options="statusOptions" :placeholder="$t('page.products.allStatus')" clearable style="width: 140px" />
+        <NInput
+          v-model:value="search"
+          :placeholder="$t('page.products.searchPlaceholder')"
+          clearable
+          style="width: 260px"
+          @keyup.enter="handleQuery"
+        />
+        <NSelect
+          v-model:value="category"
+          :options="categoryOptions"
+          :placeholder="$t('page.products.allCategories')"
+          clearable
+          style="width: 160px"
+        />
+        <NSelect
+          v-model:value="status"
+          :options="statusOptions"
+          :placeholder="$t('page.products.allStatus')"
+          clearable
+          style="width: 140px"
+        />
         <NButton type="primary" @click="handleQuery">{{ $t('page.products.query') }}</NButton>
         <NButton @click="handleReset">{{ $t('page.products.reset') }}</NButton>
       </NSpace>
@@ -548,9 +681,27 @@ onMounted(loadProducts);
 
       <NSpace class="mb-3" align="center">
         <span class="text-sm">{{ $t('page.products.batchActions') }}:</span>
-        <NButton size="small" type="success" secondary :disabled="!checkedRowKeys.length" @click="batchStatus('active')">{{ $t('page.products.batchEnable') }}</NButton>
-        <NButton size="small" type="warning" secondary :disabled="!checkedRowKeys.length" @click="batchStatus('inactive')">{{ $t('page.products.batchDisable') }}</NButton>
-        <NButton size="small" type="error" secondary :disabled="!checkedRowKeys.length" @click="batchDelete">{{ $t('page.products.batchDelete') }}</NButton>
+        <NButton
+          size="small"
+          type="success"
+          secondary
+          :disabled="!checkedRowKeys.length"
+          @click="batchStatus('active')"
+        >
+          {{ $t('page.products.batchEnable') }}
+        </NButton>
+        <NButton
+          size="small"
+          type="warning"
+          secondary
+          :disabled="!checkedRowKeys.length"
+          @click="batchStatus('inactive')"
+        >
+          {{ $t('page.products.batchDisable') }}
+        </NButton>
+        <NButton size="small" type="error" secondary :disabled="!checkedRowKeys.length" @click="batchDelete">
+          {{ $t('page.products.batchDelete') }}
+        </NButton>
       </NSpace>
 
       <NDataTable
@@ -570,9 +721,16 @@ onMounted(loadProducts);
           <span class="text-sm text-gray-500">{{ $t('page.products.perPage') }}</span>
           <NSelect
             v-model:value="pageSize"
-            :options="[{ label: '10', value: 10 }, { label: '20', value: 20 }, { label: '50', value: 50 }]"
+            :options="[
+              { label: '10', value: 10 },
+              { label: '20', value: 20 },
+              { label: '50', value: 50 }
+            ]"
             style="width: 80px"
-            @update:value="page = 1; loadProducts()"
+            @update:value="
+              page = 1;
+              loadProducts();
+            "
           />
           <NPagination :page="page" :page-size="pageSize" :item-count="total" @update:page="goPage" />
         </NSpace>
@@ -582,11 +740,23 @@ onMounted(loadProducts);
     <NModal v-model:show="showImportModal" preset="card" :title="$t('page.products.importResult')" style="width: 720px">
       <NSpace vertical>
         <NSpace>
-          <NTag type="success" :bordered="false">{{ $t('page.products.importCreated') }}: {{ importResult?.created ?? 0 }}</NTag>
-          <NTag type="info" :bordered="false">{{ $t('page.products.importUpdated') }}: {{ importResult?.updated ?? 0 }}</NTag>
-          <NTag :type="(importResult?.failed ?? 0) > 0 ? 'error' : 'default'" :bordered="false">{{ $t('page.products.importFailed') }}: {{ importResult?.failed ?? 0 }}</NTag>
+          <NTag type="success" :bordered="false">
+            {{ $t('page.products.importCreated') }}: {{ importResult?.created ?? 0 }}
+          </NTag>
+          <NTag type="info" :bordered="false">
+            {{ $t('page.products.importUpdated') }}: {{ importResult?.updated ?? 0 }}
+          </NTag>
+          <NTag :type="(importResult?.failed ?? 0) > 0 ? 'error' : 'default'" :bordered="false">
+            {{ $t('page.products.importFailed') }}: {{ importResult?.failed ?? 0 }}
+          </NTag>
         </NSpace>
-        <NDataTable v-if="importResult?.errors?.length" :columns="errorColumns" :data="importResult.errors" size="small" :bordered="false" />
+        <NDataTable
+          v-if="importResult?.errors?.length"
+          :columns="errorColumns"
+          :data="importResult.errors"
+          size="small"
+          :bordered="false"
+        />
       </NSpace>
     </NModal>
 
@@ -603,26 +773,44 @@ onMounted(loadProducts);
             style="flex: 1; min-height: 0"
           />
 
-          <NCard v-if="editingIndex >= 0 || addingVariant" :bordered="true" size="small" :title="variantForm.id ? '编辑 SKU' : '新增 SKU'" class="mt-4">
+          <NCard
+            v-if="editingIndex >= 0 || addingVariant"
+            :bordered="true"
+            size="small"
+            :title="variantForm.id ? '编辑 SKU' : '新增 SKU'"
+            class="mt-4"
+          >
             <NForm label-placement="left" label-width="80" size="small">
               <div class="flex flex-wrap" style="row-gap: 0">
                 <div style="width: 50%">
-                  <NFormItem label="名称"><NInput v-model:value="variantForm.name" placeholder="如：红色 / M 码" /></NFormItem>
+                  <NFormItem label="名称">
+                    <NInput v-model:value="variantForm.name" placeholder="如：红色 / M 码" />
+                  </NFormItem>
                 </div>
                 <div style="width: 50%">
-                  <NFormItem label="SKU"><NInput v-model:value="variantForm.sku" placeholder="留空自动生成，如 PET-1001-BLK-M" /></NFormItem>
+                  <NFormItem label="SKU">
+                    <NInput v-model:value="variantForm.sku" placeholder="留空自动生成，如 PET-1001-BLK-M" />
+                  </NFormItem>
                 </div>
                 <div style="width: 50%">
-                  <NFormItem label="价格"><NInputNumber v-model:value="variantForm.price" :min="0" :precision="2" style="width: 100%" /></NFormItem>
+                  <NFormItem label="价格">
+                    <NInputNumber v-model:value="variantForm.price" :min="0" :precision="2" style="width: 100%" />
+                  </NFormItem>
                 </div>
                 <div style="width: 50%">
-                  <NFormItem label="成本"><NInputNumber v-model:value="variantForm.cost" :min="0" :precision="2" style="width: 100%" /></NFormItem>
+                  <NFormItem label="成本">
+                    <NInputNumber v-model:value="variantForm.cost" :min="0" :precision="2" style="width: 100%" />
+                  </NFormItem>
                 </div>
                 <div style="width: 50%">
-                  <NFormItem label="库存"><NInputNumber v-model:value="variantForm.inventory" :min="0" style="width: 100%" /></NFormItem>
+                  <NFormItem label="库存">
+                    <NInputNumber v-model:value="variantForm.inventory" :min="0" style="width: 100%" />
+                  </NFormItem>
                 </div>
                 <div style="width: 50%">
-                  <NFormItem label="状态"><NSelect v-model:value="variantForm.status" :options="variantStatusOptions" style="width: 100%" /></NFormItem>
+                  <NFormItem label="状态">
+                    <NSelect v-model:value="variantForm.status" :options="variantStatusOptions" style="width: 100%" />
+                  </NFormItem>
                 </div>
                 <div style="width: 50%">
                   <NFormItem label="默认"><NSwitch v-model:value="variantForm.is_default" /></NFormItem>
