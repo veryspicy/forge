@@ -30,7 +30,8 @@ jobs:
       - name: Install dependencies
         run: |
           cd backend
-          uv sync --frozen
+          # dev 工具链（ruff/mypy/pytest/pip-audit）在 optional-dependencies.dev，需 --all-extras
+          uv sync --frozen --all-extras
       
       - name: Run linter
         run: |
@@ -63,15 +64,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.21.0
+          run_install: false
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: "pnpm"
           cache-dependency-path: portal-web/pnpm-lock.yaml
-      
-      - name: Enable pnpm
-        run: corepack enable
       
       - name: Install dependencies
         run: cd portal-web && pnpm install --frozen-lockfile
@@ -96,15 +100,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: "pnpm"
           cache-dependency-path: admin/pnpm-lock.yaml
-      
-      - name: Enable pnpm
-        run: corepack enable
       
       - name: Install dependencies
         run: cd admin && pnpm install --frozen-lockfile
@@ -130,7 +137,8 @@ jobs:
       
       - name: Secret scanning (gitleaks)
         run: |
-          curl -sSfL https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks_$(uname -s)_x86_64.tar.gz | tar -xz gitleaks
+          # 固定版本资产名（latest/download 的 gitleaks_Linux_x86_64 旧命名已失效）
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz | tar -xz gitleaks
           ./gitleaks detect --source . --redact --verbose
 
   build-images:
