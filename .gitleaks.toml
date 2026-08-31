@@ -1,0 +1,6 @@
+# gitleaks 配置：测试脚本中 curl Authorization header 使用的是无效 token（invalid-token）
+# 用于验证 401 未授权场景，非真实密钥，加入 allowlist 避免误报
+[allowlist]
+files = [
+    "backend/tests/functional/functional_test_admin.sh",
+]

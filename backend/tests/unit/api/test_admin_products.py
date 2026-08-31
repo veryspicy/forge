@@ -5,11 +5,11 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from forge.main import dependencies
 
-PRODUCT_ID = str(uuid4())
+PRODUCT_ID = "1001"
 FAKE_ADMIN_ID = "d290f1ee-6c54-4b01-90e6-d701748f0851"
 
 
@@ -411,7 +411,7 @@ class TestAdminProductsAPI:
 
         _setup_auth_overrides(test_client)
         p1 = _make_product(name="Toy A", sku="TA-001")
-        ghost_id = str(uuid4())
+        ghost_id = "999999"
         with (
             patch.object(
                 SQLAlchemyProductRepository,
@@ -461,7 +461,7 @@ class TestAdminProductsAPI:
         try:
             response = test_client.post(
                 "/api/admin/v1/products/batch-status",
-                json={"ids": [str(uuid4()) for _ in range(201)], "status": "active"},
+                json={"ids": [str(i) for i in range(201)], "status": "active"},
             )
         finally:
             test_client.app.dependency_overrides.clear()
