@@ -41,7 +41,7 @@ function itemName(item: ProbeItem) {
   const map: Record<string, string> = {
     ai_service: t('page.aiProbe.aiService'),
     llm_key: t('page.aiProbe.llmKey'),
-    database: t('page.aiProbe.database'),
+    database: t('page.aiProbe.database')
   };
   return map[item.key] ?? item.name;
 }
@@ -82,13 +82,7 @@ onMounted(fetchProbe);
     </div>
 
     <div v-if="result" class="grid gap-4 md:grid-cols-3">
-      <NCard
-        v-for="item in result.items"
-        :key="item.key"
-        size="small"
-        :title="itemName(item)"
-        segmented
-      >
+      <NCard v-for="item in result.items" :key="item.key" size="small" :title="itemName(item)" segmented>
         <div class="flex flex-col gap-2">
           <div class="flex items-center gap-2">
             <NTag :type="statusTagType(item.status)" size="small">

@@ -22,12 +22,15 @@ declare module "@elegant-router/types" {
     "500": "/500";
     "admin-users": "/admin-users";
     "ai-probe": "/ai-probe";
+    "brands": "/brands";
+    "categories": "/categories";
     "dashboard": "/dashboard";
     "iframe-page": "/iframe-page/:url";
     "login": "/login/:module(pwd-login|code-login|register|reset-pwd|bind-wechat)?";
     "orders": "/orders";
     "orders-detail": "/orders-detail";
     "pricing": "/pricing";
+    "product-types": "/product-types";
     "products": "/products";
     "products-detail": "/products-detail";
     "products-new": "/products-new";
@@ -74,12 +77,15 @@ declare module "@elegant-router/types" {
     | "500"
     | "admin-users"
     | "ai-probe"
+    | "brands"
+    | "categories"
     | "dashboard"
     | "iframe-page"
     | "login"
     | "orders"
     | "orders-detail"
     | "pricing"
+    | "product-types"
     | "products"
     | "products-detail"
     | "products-new"
@@ -113,10 +119,13 @@ declare module "@elegant-router/types" {
     | "login"
     | "admin-users"
     | "ai-probe"
+    | "brands"
+    | "categories"
     | "dashboard"
     | "orders-detail"
     | "orders"
     | "pricing"
+    | "product-types"
     | "products-detail"
     | "products-new"
     | "products"

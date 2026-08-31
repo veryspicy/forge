@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { createReusableTemplate } from '@vueuse/core';
-import { NGrid, NGi, NCard, NSpin, NSkeleton } from 'naive-ui';
+import { NGrid, NGi, NCard, NSpin } from 'naive-ui';
 import { useAppStore } from '@/store/modules/app';
 import { useThemeStore } from '@/store/modules/theme';
 import { useEcharts } from '@/hooks/common/echarts';
@@ -120,60 +120,92 @@ const statCards = computed<StatCard[]>(() => {
 
   return [
     {
-      key: 'today_orders', title: 'page.dashboard.todayOrders',
+      key: 'today_orders',
+      title: 'page.dashboard.todayOrders',
       value: String(stats.value.today_orders ?? '-'),
       numericValue: n(stats.value.today_orders),
-      prefix: '', suffix: '', decimals: 0,
-      icon: 'ant-design:shopping-cart-outlined', color: colorSchemes[0]
+      prefix: '',
+      suffix: '',
+      decimals: 0,
+      icon: 'ant-design:shopping-cart-outlined',
+      color: colorSchemes[0]
     },
     {
-      key: 'pending_orders', title: 'page.dashboard.pendingOrders',
+      key: 'pending_orders',
+      title: 'page.dashboard.pendingOrders',
       value: String(stats.value.pending_orders ?? '-'),
       numericValue: n(stats.value.pending_orders),
-      prefix: '', suffix: '', decimals: 0,
-      icon: 'ant-design:clock-circle-outlined', color: colorSchemes[1]
+      prefix: '',
+      suffix: '',
+      decimals: 0,
+      icon: 'ant-design:clock-circle-outlined',
+      color: colorSchemes[1]
     },
     {
-      key: 'today_gmv', title: 'page.dashboard.todayGMV',
+      key: 'today_gmv',
+      title: 'page.dashboard.todayGMV',
       value: has(stats.value.today_gmv) ? `$${Number(stats.value.today_gmv).toFixed(2)}` : '-',
       numericValue: n(stats.value.today_gmv),
-      prefix: '$', suffix: '', decimals: 2,
-      icon: 'ant-design:dollar-outlined', color: colorSchemes[2]
+      prefix: '$',
+      suffix: '',
+      decimals: 2,
+      icon: 'ant-design:dollar-outlined',
+      color: colorSchemes[2]
     },
     {
-      key: 'active_products', title: 'page.dashboard.activeProducts',
+      key: 'active_products',
+      title: 'page.dashboard.activeProducts',
       value: String(stats.value.active_products ?? '-'),
       numericValue: n(stats.value.active_products),
-      prefix: '', suffix: '', decimals: 0,
-      icon: 'ant-design:appstore-outlined', color: colorSchemes[3]
+      prefix: '',
+      suffix: '',
+      decimals: 0,
+      icon: 'ant-design:appstore-outlined',
+      color: colorSchemes[3]
     },
     {
-      key: 'probe_adoption_rate', title: 'page.dashboard.probeAdoption',
+      key: 'probe_adoption_rate',
+      title: 'page.dashboard.probeAdoption',
       value: has(stats.value.probe_adoption_rate) ? `${stats.value.probe_adoption_rate}%` : '-',
       numericValue: n(stats.value.probe_adoption_rate),
-      prefix: '', suffix: '%', decimals: 0,
-      icon: 'ant-design:percentage-outlined', color: colorSchemes[0]
+      prefix: '',
+      suffix: '%',
+      decimals: 0,
+      icon: 'ant-design:percentage-outlined',
+      color: colorSchemes[0]
     },
     {
-      key: 'procurement_errors', title: 'page.dashboard.procurementErrors',
+      key: 'procurement_errors',
+      title: 'page.dashboard.procurementErrors',
       value: String(stats.value.procurement_errors ?? '-'),
       numericValue: n(stats.value.procurement_errors),
-      prefix: '', suffix: '', decimals: 0,
-      icon: 'ant-design:warning-outlined', color: colorSchemes[1]
+      prefix: '',
+      suffix: '',
+      decimals: 0,
+      icon: 'ant-design:warning-outlined',
+      color: colorSchemes[1]
     },
     {
-      key: 'total_suppliers', title: 'page.dashboard.activeSuppliers',
+      key: 'total_suppliers',
+      title: 'page.dashboard.activeSuppliers',
       value: String(stats.value.total_suppliers ?? '-'),
       numericValue: n(stats.value.total_suppliers),
-      prefix: '', suffix: '', decimals: 0,
-      icon: 'ant-design:team-outlined', color: colorSchemes[2]
+      prefix: '',
+      suffix: '',
+      decimals: 0,
+      icon: 'ant-design:team-outlined',
+      color: colorSchemes[2]
     },
     {
-      key: 'today_probe_requests', title: 'page.dashboard.probeRequests',
+      key: 'today_probe_requests',
+      title: 'page.dashboard.probeRequests',
       value: String(stats.value.today_probe_requests ?? '-'),
       numericValue: n(stats.value.today_probe_requests),
-      prefix: '', suffix: '', decimals: 0,
-      icon: 'ant-design:scan-outlined', color: colorSchemes[3]
+      prefix: '',
+      suffix: '',
+      decimals: 0,
+      icon: 'ant-design:scan-outlined',
+      color: colorSchemes[3]
     }
   ];
 });
@@ -181,7 +213,9 @@ const statCards = computed<StatCard[]>(() => {
 const statRows = computed(() => [statCards.value.slice(0, 4), statCards.value.slice(4, 8)]);
 
 // ==================== GradientBg reusable template ====================
-interface GradientBgProps { gradientColor: string }
+interface GradientBgProps {
+  gradientColor: string;
+}
 const [DefineGradientBg, GradientBg] = createReusableTemplate<GradientBgProps>();
 
 function getGradientColor(color: StatCard['color']) {
@@ -194,19 +228,28 @@ const { domRef: lineDomRef, updateOptions: updateLineOptions } = useEcharts(() =
   grid: { left: '3%', right: '4%', bottom: '3%', top: '10%' },
   xAxis: { type: 'category', boundaryGap: false, data: [] as string[] },
   yAxis: { type: 'value', minInterval: 1 },
-  series: [{
-    color: '#8e9dff',
-    name: 'Orders',
-    type: 'line',
-    smooth: true,
-    areaStyle: {
-      color: {
-        type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
-        colorStops: [{ offset: 0.25, color: '#8e9dff' }, { offset: 1, color: '#fff' }]
-      }
-    },
-    data: [] as number[]
-  }]
+  series: [
+    {
+      color: '#8e9dff',
+      name: 'Orders',
+      type: 'line',
+      smooth: true,
+      areaStyle: {
+        color: {
+          type: 'linear',
+          x: 0,
+          y: 0,
+          x2: 0,
+          y2: 1,
+          colorStops: [
+            { offset: 0.25, color: '#8e9dff' },
+            { offset: 1, color: '#fff' }
+          ]
+        }
+      },
+      data: [] as number[]
+    }
+  ]
 }));
 
 function updateLineChart() {
@@ -223,18 +266,20 @@ watch(orderTrend, () => updateLineChart(), { deep: true });
 const { domRef: pieDomRef, updateOptions: updatePieOptions } = useEcharts(() => ({
   tooltip: { trigger: 'item' },
   legend: { bottom: '1%', left: 'center', itemStyle: { borderWidth: 0 } },
-  series: [{
-    color: ['#5da8ff', '#8e9dff', '#fedc69', '#26deca', '#ec4786', '#fcbc25'],
-    name: 'Categories',
-    type: 'pie',
-    radius: ['45%', '75%'],
-    avoidLabelOverlap: false,
-    itemStyle: { borderRadius: 10, borderColor: '#fff', borderWidth: 1 },
-    label: { show: false, position: 'center' },
-    emphasis: { label: { show: true, fontSize: '12' } },
-    labelLine: { show: false },
-    data: [] as { name: string; value: number }[]
-  }]
+  series: [
+    {
+      color: ['#5da8ff', '#8e9dff', '#fedc69', '#26deca', '#ec4786', '#fcbc25'],
+      name: 'Categories',
+      type: 'pie',
+      radius: ['45%', '75%'],
+      avoidLabelOverlap: false,
+      itemStyle: { borderRadius: 10, borderColor: '#fff', borderWidth: 1 },
+      label: { show: false, position: 'center' },
+      emphasis: { label: { show: true, fontSize: '12' } },
+      labelLine: { show: false },
+      data: [] as { name: string; value: number }[]
+    }
+  ]
 }));
 
 function updatePieChart() {
@@ -247,10 +292,13 @@ function updatePieChart() {
 watch(categoryData, () => updatePieChart(), { deep: true });
 
 // ==================== Locale watch ====================
-watch(() => appStore.locale, () => {
-  updateLineChart();
-  updatePieChart();
-});
+watch(
+  () => appStore.locale,
+  () => {
+    updateLineChart();
+    updatePieChart();
+  }
+);
 </script>
 
 <template>
@@ -276,7 +324,14 @@ watch(() => appStore.locale, () => {
                 <SvgIcon :icon="item.icon" class="text-32px" />
                 <span class="text-30px font-bold">
                   <template v-if="Number.isNaN(item.numericValue)">{{ item.value }}</template>
-                  <CountTo v-else :start-value="0" :end-value="item.numericValue" :decimals="item.decimals" :prefix="item.prefix" :suffix="item.suffix" />
+                  <CountTo
+                    v-else
+                    :start-value="0"
+                    :end-value="item.numericValue"
+                    :decimals="item.decimals"
+                    :prefix="item.prefix"
+                    :suffix="item.suffix"
+                  />
                 </span>
               </div>
             </GradientBg>

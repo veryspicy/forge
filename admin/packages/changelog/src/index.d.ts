@@ -45,7 +45,10 @@ interface ChangelogOption {
   prerelease?: boolean;
 }
 
-declare function getChangelogMarkdown(options?: Partial<ChangelogOption>, showTitle?: boolean): Promise<{
+declare function getChangelogMarkdown(
+  options?: Partial<ChangelogOption>,
+  showTitle?: boolean
+): Promise<{
   markdown: string;
   commits: GitCommit[];
   options: ChangelogOption;
@@ -54,4 +57,10 @@ declare function getTotalChangelogMarkdown(options?: Partial<ChangelogOption>, s
 declare function generateChangelog(options?: Partial<ChangelogOption>): Promise<void>;
 declare function generateTotalChangelog(options?: Partial<ChangelogOption>, showProgress?: boolean): Promise<void>;
 
-export { type ChangelogOption, generateChangelog, generateTotalChangelog, getChangelogMarkdown, getTotalChangelogMarkdown };
+export {
+  type ChangelogOption,
+  generateChangelog,
+  generateTotalChangelog,
+  getChangelogMarkdown,
+  getTotalChangelogMarkdown
+};

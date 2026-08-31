@@ -97,7 +97,7 @@ export default defineConfig(configEnv => {
         '/proxy-default': {
           target: viteEnv.VITE_SERVICE_BASE_URL || 'http://127.0.0.1:8000',
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/proxy-default/, '')
+          rewrite: path => path.replace(/^\/proxy-default/, '')
         },
         // Admin 端专属接口长前缀优先匹配（避免被 /api/v1 规则误吃）
         '/api/admin/v1': {
