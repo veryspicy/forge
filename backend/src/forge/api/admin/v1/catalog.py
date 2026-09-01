@@ -226,9 +226,7 @@ async def delete_category(
 
     from forge.infrastructure.persistence.models import ORMProduct
 
-    ref_count = (
-        await db.execute(select(func.count(ORMProduct.id)).where(ORMProduct.category_id == cid))
-    ).scalar_one()
+    ref_count = (await db.execute(select(func.count(ORMProduct.id)).where(ORMProduct.category_id == cid))).scalar_one()
     if ref_count > 0:
         raise HTTPException(status_code=400, detail=f"仍有 {ref_count} 个商品使用该分类，请先调整商品分类")
 
@@ -313,9 +311,7 @@ async def delete_brand(
 
     from forge.infrastructure.persistence.models import ORMProduct
 
-    ref_count = (
-        await db.execute(select(func.count(ORMProduct.id)).where(ORMProduct.brand_id == bid))
-    ).scalar_one()
+    ref_count = (await db.execute(select(func.count(ORMProduct.id)).where(ORMProduct.brand_id == bid))).scalar_one()
     if ref_count > 0:
         raise HTTPException(status_code=400, detail=f"仍有 {ref_count} 个商品使用该品牌，请先调整商品品牌")
 

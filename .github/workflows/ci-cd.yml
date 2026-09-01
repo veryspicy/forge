@@ -14,7 +14,34 @@ env:
   REGISTRY_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
 
 jobs:
+  # 变更检测：按目录决定哪些 job 需要运行，避免每次合并全量跑
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      admin: ${{ steps.filter.outputs.admin }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - '.github/workflows/ci-cd.yml'
+            frontend:
+              - 'portal-web/**'
+              - '.github/workflows/ci-cd.yml'
+            admin:
+              - 'admin/**'
+              - '.github/workflows/ci-cd.yml'
+
   test-backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -52,7 +79,9 @@ jobs:
       - name: Run dependency audit
         run: |
           cd backend
-          uv run pip-audit
+          # ecdsa 的 Minerva 时序攻击（PYSEC-2026-1325 / CVE-2024-23342）影响全部版本且上游无修复计划，
+          # python-jose 间接依赖，仅签名侧信道风险；待 python-jose 迁移后移除忽略。
+          uv run pip-audit --ignore-vuln PYSEC-2026-1325
       
       - name: Upload coverage
         uses: codecov/codecov-action@v4
@@ -60,6 +89,8 @@ jobs:
           file: ./backend/coverage.xml
 
   test-frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -73,7 +104,8 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # portal-web packageManager=pnpm@11.21.0 要求 Node >= 22.13
+          node-version: 22
           cache: "pnpm"
           cache-dependency-path: portal-web/pnpm-lock.yaml
       
@@ -90,12 +122,17 @@ jobs:
         run: cd portal-web && pnpm typecheck
       
       - name: Build
+        # dev 合并不部署，构建留给 main/tag 的 build-images job
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         run: cd portal-web && pnpm build
       
       - name: Run dependency audit
-        run: cd portal-web && pnpm audit --prod --audit-level=high
+        # .npmrc 指向 npmmirror（无 audit 端点），audit 临时切官方 registry
+        run: cd portal-web && pnpm audit --prod --audit-level=high --registry=https://registry.npmjs.org
 
   test-admin:
+    needs: changes
+    if: needs.changes.outputs.admin == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -123,10 +160,13 @@ jobs:
         run: cd admin && pnpm typecheck
       
       - name: Build
+        # dev 合并不部署，构建留给 main/tag 的 build-images job
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         run: cd admin && pnpm build
       
       - name: Run dependency audit
-        run: cd admin && pnpm audit --prod --audit-level=high
+        # .npmrc 指向 npmmirror（无 audit 端点），audit 临时切官方 registry
+        run: cd admin && pnpm audit --prod --audit-level=high --registry=https://registry.npmjs.org
 
   security-scan:
     runs-on: ubuntu-latest
