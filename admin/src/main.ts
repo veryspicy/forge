@@ -1,6 +1,5 @@
 import { createApp } from 'vue';
 import './plugins/assets';
-import { setupVueRootValidator } from 'vite-plugin-vue-transition-root-validator/client';
 import {
   setupAppVersionNotification,
   setupDayjs,
@@ -13,6 +12,24 @@ import { setupStore } from './store';
 import { setupRouter, router } from './router';
 import { getLocale, setupI18n } from './locales';
 import App from './App.vue';
+
+// Dev-only: validate Vue transition root nodes. This plugin injects an import of
+// /@vite/client (Vite HMR runtime) which returns 404 in production. Gate on DEV
+// mode so production builds avoid spurious network requests and the validator does
+// not run inside a production bundle (it is only meaningful for local development).
+const setupVueRootValidator = async (
+  app: Parameters<typeof import('vue').createApp>[0],
+  options: { lang: 'zh' | 'en' }
+) => {
+  if (!import.meta.env.DEV) return;
+  try {
+    const mod = await import('vite-plugin-vue-transition-root-validator/client');
+    mod.setupVueRootValidator(app, options);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn('[main] transition root validator disabled:', (err as Error).message);
+  }
+};
 
 const CHUNK_RETRY_KEY = 'forge-admin-chunk-retry';
 
