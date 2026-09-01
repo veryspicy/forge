@@ -1,4 +1,4 @@
-import { createApp } from 'vue';
+import { createApp, type App as VueApp } from 'vue';
 import './plugins/assets';
 import {
   setupAppVersionNotification,
@@ -18,7 +18,7 @@ import App from './App.vue';
 // mode so production builds avoid spurious network requests and the validator does
 // not run inside a production bundle (it is only meaningful for local development).
 const setupVueRootValidator = async (
-  app: Parameters<typeof import('vue').createApp>[0],
+  app: VueApp,
   options: { lang: 'zh' | 'en' }
 ) => {
   if (!import.meta.env.DEV) return;
