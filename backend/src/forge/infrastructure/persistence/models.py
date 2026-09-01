@@ -502,7 +502,7 @@ class ORMUser(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
     email = Column(String(320), nullable=False, unique=True)
-    password_hash = Column(String(128), nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(128), nullable=False)
     name = Column(String(200), nullable=False)
     role = Column(String(20), nullable=False, default="customer")
     is_active = Column(Boolean, nullable=False, default=True)
@@ -515,7 +515,7 @@ class ORMAdminUser(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
     email = Column(String(320), nullable=False, unique=True)
-    password_hash = Column(String(128), nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(128), nullable=False)
     display_name = Column(String(200), nullable=False)
     role = Column(String(20), nullable=False, default="super_admin", server_default="super_admin")
     # 兼容旧代码：新逻辑以 admin_user_roles 多对多为准，role 字段保留首个角色名

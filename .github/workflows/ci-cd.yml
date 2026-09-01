@@ -14,7 +14,34 @@ env:
   REGISTRY_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
 
 jobs:
+  # 变更检测：按目录决定哪些 job 需要运行，避免每次合并全量跑
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      admin: ${{ steps.filter.outputs.admin }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - '.github/workflows/ci-cd.yml'
+            frontend:
+              - 'portal-web/**'
+              - '.github/workflows/ci-cd.yml'
+            admin:
+              - 'admin/**'
+              - '.github/workflows/ci-cd.yml'
+
   test-backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,7 +57,8 @@ jobs:
       - name: Install dependencies
         run: |
           cd backend
-          uv sync --frozen
+          # dev 工具链（ruff/mypy/pytest/pip-audit）在 optional-dependencies.dev，需 --all-extras
+          uv sync --frozen --all-extras
       
       - name: Run linter
         run: |
@@ -51,7 +79,9 @@ jobs:
       - name: Run dependency audit
         run: |
           cd backend
-          uv run pip-audit
+          # ecdsa 的 Minerva 时序攻击（PYSEC-2026-1325 / CVE-2024-23342）影响全部版本且上游无修复计划，
+          # python-jose 间接依赖，仅签名侧信道风险；待 python-jose 迁移后移除忽略。
+          uv run pip-audit --ignore-vuln PYSEC-2026-1325
       
       - name: Upload coverage
         uses: codecov/codecov-action@v4
@@ -59,19 +89,25 @@ jobs:
           file: ./backend/coverage.xml
 
   test-frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.21.0
+          run_install: false
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # portal-web packageManager=pnpm@11.21.0 要求 Node >= 22.13
+          node-version: 22
           cache: "pnpm"
           cache-dependency-path: portal-web/pnpm-lock.yaml
-      
-      - name: Enable pnpm
-        run: corepack enable
       
       - name: Install dependencies
         run: cd portal-web && pnpm install --frozen-lockfile
@@ -86,25 +122,33 @@ jobs:
         run: cd portal-web && pnpm typecheck
       
       - name: Build
+        # dev 合并不部署，构建留给 main/tag 的 build-images job
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         run: cd portal-web && pnpm build
       
       - name: Run dependency audit
-        run: cd portal-web && pnpm audit --prod --audit-level=high
+        # .npmrc 指向 npmmirror（无 audit 端点），audit 临时切官方 registry
+        run: cd portal-web && pnpm audit --prod --audit-level=high --registry=https://registry.npmjs.org
 
   test-admin:
+    needs: changes
+    if: needs.changes.outputs.admin == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: "pnpm"
           cache-dependency-path: admin/pnpm-lock.yaml
-      
-      - name: Enable pnpm
-        run: corepack enable
       
       - name: Install dependencies
         run: cd admin && pnpm install --frozen-lockfile
@@ -116,10 +160,13 @@ jobs:
         run: cd admin && pnpm typecheck
       
       - name: Build
+        # dev 合并不部署，构建留给 main/tag 的 build-images job
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         run: cd admin && pnpm build
       
       - name: Run dependency audit
-        run: cd admin && pnpm audit --prod --audit-level=high
+        # .npmrc 指向 npmmirror（无 audit 端点），audit 临时切官方 registry
+        run: cd admin && pnpm audit --prod --audit-level=high --registry=https://registry.npmjs.org
 
   security-scan:
     runs-on: ubuntu-latest
@@ -130,7 +177,8 @@ jobs:
       
       - name: Secret scanning (gitleaks)
         run: |
-          curl -sSfL https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks_$(uname -s)_x86_64.tar.gz | tar -xz gitleaks
+          # 固定版本资产名（latest/download 的 gitleaks_Linux_x86_64 旧命名已失效）
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz | tar -xz gitleaks
           ./gitleaks detect --source . --redact --verbose
 
   build-images:

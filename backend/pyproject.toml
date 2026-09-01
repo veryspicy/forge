@@ -50,6 +50,8 @@ dev = [
     "mypy>=1.13.0",
     "pip-audit>=2.7.0",
     "httpx>=0.28.0",
+    "types-python-jose>=3.3.4",
+    "types-passlib>=1.7.7",
 ]
 
 [tool.ruff]
@@ -74,6 +76,11 @@ warn_unused_configs = true
 explicit_package_bases = true
 mypy_path = "src"
 plugins = ["pydantic.mypy", "sqlalchemy.ext.mypy.plugin"]
+
+[[tool.mypy.overrides]]
+# apscheduler 无官方类型 stub（PyPI 无 types-apscheduler），按未 typed 模块处理
+module = ["apscheduler.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

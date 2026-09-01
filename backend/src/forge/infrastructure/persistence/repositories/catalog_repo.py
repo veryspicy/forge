@@ -262,9 +262,7 @@ class SpecRepository:
     # ---- 变体规格关联 ----
     @staticmethod
     async def list_variant_specs(db: AsyncSession, variant_id: str) -> list[ORMVariantSpec]:
-        result = await db.execute(
-            select(ORMVariantSpec).where(ORMVariantSpec.variant_id == variant_id)
-        )
+        result = await db.execute(select(ORMVariantSpec).where(ORMVariantSpec.variant_id == variant_id))
         return list(result.scalars().all())
 
     @staticmethod
@@ -321,9 +319,7 @@ class SpecRepository:
     async def sync_product_attributes(db: AsyncSession, product_id: int) -> None:
         snapshot = await SpecRepository.build_product_attributes(db, product_id)
         await db.execute(
-            update(ORMProduct)
-            .where(ORMProduct.id == product_id)
-            .values(attributes=snapshot, updated_at=_now())
+            update(ORMProduct).where(ORMProduct.id == product_id).values(attributes=snapshot, updated_at=_now())
         )
         await db.flush()
 

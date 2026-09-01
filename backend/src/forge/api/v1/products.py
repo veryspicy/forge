@@ -52,11 +52,7 @@ def _public_item(item: dict[str, Any]) -> dict[str, Any]:
     data = {k: item.get(k) for k in _PUBLIC_FIELDS}
     # C 端前端约定 images 为 URL 字符串数组（ProductCard 用 images[0] 直接作 src）
     images = data.get("images") or []
-    data["images"] = [
-        img["url"]
-        for img in images
-        if isinstance(img, dict) and img.get("url")
-    ]
+    data["images"] = [img["url"] for img in images if isinstance(img, dict) and img.get("url")]
     return data
 
 
