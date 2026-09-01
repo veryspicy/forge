@@ -130,8 +130,10 @@ onBeforeUnmount(() => {
     </svg>
   </template>
   <template v-else-if="remoteUnavailable">
-    <!-- Remote icon timed out: render an invisible 1em placeholder so layout does
-         not break and the parent Transition can commit its final DOM. -->
+    <!--
+ Remote icon timed out: render an invisible 1em placeholder so layout does
+         not break and the parent Transition can commit its final DOM. 
+-->
     <svg
       aria-hidden="true"
       width="1em"
