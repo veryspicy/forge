@@ -1496,8 +1496,7 @@ onBeforeUnmount(() => {
         <pre
           v-else-if="previewType === 'text'"
           class="max-h-[70vh] w-full overflow-auto rounded-md border bg-gray-50 p-4 text-left text-xs"
-          >{{ previewText }}</pre
-        >
+        >{{ previewText }}</pre>
         <div
           v-else-if="previewType === 'zip'"
           class="max-h-[70vh] w-full overflow-auto rounded-md border bg-gray-50 p-4 text-left text-sm"

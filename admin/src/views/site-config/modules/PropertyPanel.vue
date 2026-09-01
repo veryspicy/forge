@@ -1035,14 +1035,14 @@ function removeTranslation(k: string) {
             name="logo.data"
             type="string (SVG)"
             range="合法 SVG 源码"
-            example='<svg viewBox="0 0 100 100">...</svg>'
+            example="<svg viewBox=&quot;0 0 100 100&quot;>...</svg>"
             desc="粘贴 SVG 源码，将过滤 script / on* 等注入后实时预览。"
           />
           <NInput
             v-model:value="config.brand.logo.data"
             type="textarea"
             :autosize="{ minRows: 8, maxRows: 16 }"
-            placeholder='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">...</svg>'
+            placeholder="<svg xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 100 100&quot;>...</svg>"
             class="font-mono text-[11px] leading-5"
           />
           <div
