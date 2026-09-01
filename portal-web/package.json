@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "prepare": "simple-git-hooks",
+    "pretest": "nuxi prepare",
     "test": "vitest run",
     "test:watch": "vitest"
   },
