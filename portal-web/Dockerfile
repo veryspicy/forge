@@ -9,7 +9,8 @@ COPY .npmrc ./
 RUN npm install -g pnpm@11.21.0
 
 # Install dependencies (ignore scripts first to avoid ERR_PNPM_IGNORED_BUILDS)
-COPY package.json pnpm-lock.yaml ./
+# pnpm-workspace.yaml carries overrides/allowBuilds needed by frozen install validation
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # Copy source (bind mount overlay for hot-reload)
