@@ -1,5 +1,5 @@
 // Auth middleware — guards admin and authenticated routes
-export default defineNuxtRouteMiddleware((to) => {
+export default defineNuxtRouteMiddleware(async (to) => {
   const authStore = useAuthStore();
   const localePath = useLocalePath();
 
@@ -17,13 +17,23 @@ export default defineNuxtRouteMiddleware((to) => {
     } catch { /* cross-origin: not in iframe */ }
   }
 
-  if (!authStore.isAuthenticated) {
-    const redirectPath = to.fullPath;
-    return navigateTo(localePath(`/login?redirect=${encodeURIComponent(redirectPath)}`));
-  }
+  // 已登录：客户端先校验 token 有效性（/auth/me），失效则自动清除并回登录页
+  if (authStore.isAuthenticated) {
+    if (import.meta.client) {
+      await authStore.fetchUser();
+      if (!authStore.isAuthenticated) {
+        const redirectPath = to.fullPath;
+        return navigateTo(localePath(`/login?redirect=${encodeURIComponent(redirectPath)}`));
+      }
+    }
 
-  // Admin routes: currently placeholder — logged-in users can access
-  if (to.path.startsWith("/admin")) {
+    // Admin routes: currently placeholder — logged-in users can access
+    if (to.path.startsWith("/admin")) {
+      return;
+    }
     return;
   }
+
+  const redirectPath = to.fullPath;
+  return navigateTo(localePath(`/login?redirect=${encodeURIComponent(redirectPath)}`));
 });
