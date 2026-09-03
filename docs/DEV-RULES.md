@@ -127,6 +127,26 @@ AIGC:
 - 依赖 audit（pip-audit / pnpm audit）等既有漏洞导致的失败必须在合并前修复，禁止通过调低 audit 门槛或改 workflow 跳过绕过
 - 规则 2026-09-03 起生效。**反例**：此前 2026-09-03 曾直接将 `fix/ci-admin-error-codes` 等分支合 dev 后才暴露 test-backend 失败、合 dev 后再补 audit 修复，属合并前未做 CI 验证的带病合入，本次固化禁止。
 
+### 1.5 代码审查自动化门禁（脚本）
+
+> 单人开发无真人 reviewer，机械审查与质量复验由脚本自动执行，输出统一报告。Marvis 在合并/发布场景**必须调用脚本**，禁止绕过脚本手写命令走捷径；脚本只做机械/质量/CI 门禁，**不替代 §1.3 用户验证门禁**。
+
+**脚本清单**（均位于 `scripts/`，PowerShell 5.1 兼容）：
+
+| 脚本 | 场景 | 行为 |
+|---|---|---|
+| `code-review-gate.ps1` | 合并/发布前门禁（核心） | 分支命名、commit 规范、备份/密钥/temp 机械检查、改动文件质量复验（backend 走 pre-commit ruff+mypy 与 hook 同参；前端 pnpm lint+typecheck）、报告落 `temp/code-review-report-<ts>.md`；有 blocker 则 exit 1 |
+| `merge-dev.ps1` | 用户已"验证通过"后的合 dev 动作 | 先跑 gate → ff 同步 origin/dev → `--no-ff` merge → push → 轮询该 merge commit 的 CI run 直至绿；CI 红/超时则 fail 并提示保留分支 |
+| `release-gate.ps1` | 大版本发布（dev → main / 打 tag）前 | 校验 dev 分支与工作区、同步 origin、CHANGELOG Unreleased 非空、backend/admin/portal 版本号一致性，再对 origin/main 跑完整 gate |
+
+**执行规则**：
+
+1. 合 dev / 发布动作**必须**经由脚本；脚本报 blocker 时禁止手动 `git merge` 绕过（先修复再重跑）
+2. 脚本内 CI 轮询与 §1.4 的 API 查询等价，失败即视为 CI 不健康，禁止带病合入
+3. 与 §1.3 顺序仍为：CI/门禁绿 → 用户验证通过 → `merge-dev.ps1` 合 dev
+4. 修改 `scripts/` 下脚本本身：先 PowerShell Parser 语法预检（`[System.Management.Automation.Language.Parser]::ParseFile`），提交信息按 Conventional Commits（`chore(scripts): ...`）
+5. 脚本报告统一写 `temp/`，禁止提交；脚本文本保持 ASCII，规避 PowerShell 5.1 无 BOM UTF-8 解析乱码
+
 ---
 
 ## 2. 缓存清理与重启

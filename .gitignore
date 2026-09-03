@@ -32,3 +32,4 @@ temp_*
 !docker/rebuild-admin.ps1
 !docker/check-admin.ps1
 portal-web/.output/
+!scripts/*.ps1
