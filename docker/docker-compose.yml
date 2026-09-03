@@ -164,6 +164,7 @@ services:
     build:
       context: ../ai-service
       dockerfile: Dockerfile
+    image: forge-ai:latest
     container_name: forge-ai
     restart: unless-stopped
     networks:

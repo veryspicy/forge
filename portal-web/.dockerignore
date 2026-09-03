@@ -1,8 +1,10 @@
 # Dependencies (installed by pnpm in Docker)
 node_modules/
+.pnpm-store/
 
 # Build output
 .nuxt/
+.output/
 dist/
 .nuxtrc
 

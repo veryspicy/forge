@@ -510,6 +510,45 @@ class ORMUser(Base):
     updated_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
 
 
+class ORMPetProfile(Base):
+    """C 端宠物档案（映射 pet_profiles 表，migration 已建）。"""
+
+    __tablename__ = "pet_profiles"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
+    owner_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    name = Column(String(200), nullable=False)
+    breed = Column(String(100), nullable=False, default="UNKNOWN")
+    breed_custom = Column(String(200), nullable=True)
+    birthday = Column(DateTime(timezone=False), nullable=True)
+    weight = Column(Float, nullable=True)
+    gender = Column(String(20), nullable=False, default="UNKNOWN")
+    spayed_neutered = Column(Boolean, nullable=False, default=False)
+    health_notes: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
+    allergies: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
+    lifecycle = Column(String(50), nullable=False, default="UNKNOWN")
+    created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+    updated_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "owner_id": str(self.owner_id),
+            "name": self.name,
+            "breed": self.breed,
+            "breed_custom": self.breed_custom,
+            "birthday": self.birthday.isoformat() if self.birthday else None,
+            "weight": self.weight,
+            "gender": self.gender,
+            "spayed_neutered": self.spayed_neutered,
+            "health_notes": self.health_notes or [],
+            "allergies": self.allergies or [],
+            "lifecycle": self.lifecycle,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
 class ORMAdminUser(Base):
     __tablename__ = "admin_users"
 

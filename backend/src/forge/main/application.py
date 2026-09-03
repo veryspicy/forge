@@ -35,6 +35,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+from forge.api.errors import register_error_handlers  # noqa: E402
+
+register_error_handlers(app)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -88,6 +92,13 @@ try:
     from forge.api.v1.products import router as public_products_router
 
     app.include_router(public_products_router, prefix="/api/v1")
+except ImportError:
+    pass
+
+try:
+    from forge.api.v1.pets import router as public_pets_router
+
+    app.include_router(public_pets_router, prefix="/api/v1")
 except ImportError:
     pass
 

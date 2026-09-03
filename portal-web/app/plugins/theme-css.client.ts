@@ -1,6 +1,16 @@
-export default defineNuxtPlugin(async () => {
+/**
+ * Client plugin: apply site-profile theme CSS variables BEFORE first paint.
+ *
+ * Same rationale as i18n-site.client.ts: do NOT call useSiteProfile() inside a Nuxt plugin
+ * (useFetch/useAsyncData unsupported there). Read the serialized payload (site-profile-v5)
+ * synchronously and write :root CSS variables once. Runtime theme changes are handled by
+ * component-level code (DIY preview etc.).
+ */
+export default defineNuxtPlugin((nuxtApp) => {
   try {
-    const { profile, pending } = useSiteProfile()
+    const profile = (nuxtApp.payload?.data as any)?.['site-profile-v5'] ?? null
+    const theme = profile?.theme
+    if (!theme) return
 
     const STYLE_ID = 'site-theme-vars'
 
@@ -16,15 +26,13 @@ export default defineNuxtPlugin(async () => {
     }
 
     function rgbToHex(r: number, g: number, b: number): string {
-      const toHex = (n: number) =>
-        Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0')
+      const toHex = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0')
       return `#${toHex(r)}${toHex(g)}${toHex(b)}`
     }
 
     function lightenHex(hex: string, percent: number): string {
       const rgb = hexToRgb(hex)
       if (!rgb) return hex
-      const amount = 255 * (percent / 100)
       return rgbToHex(rgb.r + (255 - rgb.r) * (percent / 100), rgb.g + (255 - rgb.g) * (percent / 100), rgb.b + (255 - rgb.b) * (percent / 100))
     }
 
@@ -34,52 +42,36 @@ export default defineNuxtPlugin(async () => {
       return rgbToHex(rgb.r * (1 - percent / 100), rgb.g * (1 - percent / 100), rgb.b * (1 - percent / 100))
     }
 
-    function applyTheme() {
-      if (!profile.value || !profile.value.theme) return
-
-      const theme = profile.value.theme
-      const vars: Record<string, string> = {}
-
-      if (theme.primaryColor) {
-        vars['--color-primary-500'] = theme.primaryColor
-        vars['--color-primary-400'] = theme.primaryLight || lightenHex(theme.primaryColor, 10)
-        vars['--color-primary-600'] = theme.primaryDark || darkenHex(theme.primaryColor, 10)
-      }
-
-      if (theme.secondaryColor) {
-        vars['--color-secondary-400'] = theme.secondaryColor
-      }
-
-      if (theme.accentColor) {
-        vars['--color-accent-500'] = theme.accentColor
-      }
-
-      if (theme.fontHeading) {
-        vars['--font-heading'] = theme.fontHeading
-      }
-
-      if (theme.fontBody) {
-        vars['--font-body'] = theme.fontBody
-      }
-
-      let styleEl = document.getElementById(STYLE_ID) as HTMLStyleElement | null
-      if (!styleEl) {
-        styleEl = document.createElement('style')
-        styleEl.id = STYLE_ID
-        document.head.appendChild(styleEl)
-      }
-
-      const cssText = Object.entries(vars)
-        .map(([k, v]) => `${k}: ${v};`)
-        .join('\n')
-      styleEl.textContent = `:root {\n${cssText}\n}`
+    const vars: Record<string, string> = {}
+    if (theme.primaryColor) {
+      vars['--color-primary-500'] = theme.primaryColor
+      vars['--color-primary-400'] = theme.primaryLight || lightenHex(theme.primaryColor, 10)
+      vars['--color-primary-600'] = theme.primaryDark || darkenHex(theme.primaryColor, 10)
     }
+    if (theme.secondaryColor) {
+      vars['--color-secondary-400'] = theme.secondaryColor
+    }
+    if (theme.accentColor) {
+      vars['--color-accent-500'] = theme.accentColor
+    }
+    if (theme.fontHeading) {
+      vars['--font-heading'] = theme.fontHeading
+    }
+    if (theme.fontBody) {
+      vars['--font-body'] = theme.fontBody
+    }
+    if (Object.keys(vars).length === 0) return
 
-    watchEffect(() => {
-      if (!pending.value) {
-        applyTheme()
-      }
-    })
+    let styleEl = document.getElementById(STYLE_ID) as HTMLStyleElement | null
+    if (!styleEl) {
+      styleEl = document.createElement('style')
+      styleEl.id = STYLE_ID
+      document.head.appendChild(styleEl)
+    }
+    const cssText = Object.entries(vars)
+      .map(([k, v]) => `${k}: ${v};`)
+      .join('\n')
+    styleEl.textContent = `:root {\n${cssText}\n}`
   } catch (err) {
     console.warn('[theme-css] plugin error:', err)
   }

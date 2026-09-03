@@ -71,6 +71,11 @@ export function useSiteProfile() {
     lazy: false,
     transform: (raw: Record<string, any> | null) => {
       const r = (raw?.data?.config ?? raw?.data ?? raw ?? {}) as Record<string, any>
+      // 在 SSR 数据注入渲染之前同步合并站点翻译进 vue-i18n：
+      // transform 的执行早于组件首次渲染与 watch(pre-flush) 回调，可避免 SSR HTML 使用旧静态文案导致的水合不一致。
+      try {
+        if (r.i18n) applyI18nTranslations(r.i18n as NonNullable<SiteProfile['i18n']>)
+      } catch { /* ignore */ }
       const nav = (r.navigation || r.nav || []) as NavItem[]
       return {
         brand: { name: 'Forge', tagline: '', nameColor: 'auto', logo: null, ...(r.brand || {}) },

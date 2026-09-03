@@ -63,9 +63,6 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import enMessages from '~/i18n/locales/en.json'
-
-const errorsEN: Record<string, string> = enMessages.errors
 
 const localePath = useLocalePath()
 
@@ -107,8 +104,7 @@ async function handleLogin() {
       await navigateTo(getRedirectPath())
     }
   } catch (err: any) {
-    const detail = err?.data?.detail
-    errorMsg.value = detail ? (errorsEN[detail] || detail) : (err.message || 'Login failed. Please check your credentials.')
+    errorMsg.value = useApiError().toMessage(err)
   } finally {
     loading.value = false
   }

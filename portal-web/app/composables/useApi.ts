@@ -12,7 +12,25 @@ export function useApi() {
 
   async function authFetch(url: string, opts: any = {}) {
     const headers = { ...getAuthHeaders(), ...(opts.headers || {}) };
-    return $fetch(url, { ...opts, headers });
+    try {
+      return await $fetch(url, { ...opts, headers });
+    } catch (err: any) {
+      const status = err?.response?.status;
+      // 会话失效（401/403）：清除 token 并回登录页，避免流程卡死
+      if ((status === 401 || status === 403) && import.meta.client && getAuthHeaders().Authorization) {
+        const authStore = useAuthStore();
+        authStore.logout();
+        const g = globalThis as any;
+        if (!g.__forgeAuthRedirecting) {
+          g.__forgeAuthRedirecting = true;
+          const route = useRoute();
+          const localePath = useLocalePath();
+          const redirectPath = encodeURIComponent(route.fullPath || '/');
+          navigateTo(localePath(`/login?redirect=${redirectPath}`));
+        }
+      }
+      throw err;
+    }
   }
 
   const fetchProducts = async (params?: Record<string, any>) => {

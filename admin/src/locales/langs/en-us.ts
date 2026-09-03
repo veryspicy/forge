@@ -693,7 +693,18 @@ const local: App.I18n.Schema = {
     UNAUTHORIZED: 'Please log in first',
     TOKEN_EXPIRED: 'Session expired, please log in again',
     USER_NOT_FOUND: 'User not found',
-    EMAIL_ALREADY_REGISTERED: 'Email already registered'
+    EMAIL_ALREADY_REGISTERED: 'Email already registered',
+    ACCOUNT_DISABLED: 'Account disabled, please contact the administrator',
+    FORBIDDEN: 'You do not have permission to perform this action',
+    VALIDATION_ERROR: 'Invalid input, please review and try again',
+    BAD_REQUEST: 'Bad request, please try again',
+    REQUIRED_FIELD: 'Please fill in the required fields',
+    NOT_FOUND: 'Requested resource not found',
+    CONFLICT: 'Data conflict, please refresh and try again',
+    RATE_LIMITED: 'Too many attempts, please try again later',
+    SERVER_ERROR: 'Service temporarily unavailable, please try again later',
+    NETWORK_ERROR: 'Network error, please check your connection',
+    UNKNOWN_ERROR: 'Operation failed, please try again'
   }
 };
 
