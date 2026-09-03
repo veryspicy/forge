@@ -35,6 +35,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+from forge.api.errors import register_error_handlers  # noqa: E402
+
+register_error_handlers(app)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

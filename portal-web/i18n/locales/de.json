@@ -369,5 +369,23 @@
     "title": "Demnächst",
     "description": "Diese Seite befindet sich im Aufbau. Wir arbeiten hart daran, etwas Großartiges für Sie zu schaffen!",
     "backHome": "Zurück zur Startseite"
+  },
+  "errors": {
+    "UNAUTHORIZED": "Bitte melden Sie sich zuerst an",
+    "TOKEN_EXPIRED": "Sitzung abgelaufen, bitte melden Sie sich erneut an",
+    "INVALID_CREDENTIALS": "E-Mail oder Passwort ist falsch",
+    "ACCOUNT_DISABLED": "Konto deaktiviert, bitte wenden Sie sich an den Support",
+    "FORBIDDEN": "Keine Berechtigung für diese Aktion",
+    "USER_NOT_FOUND": "Benutzer nicht gefunden",
+    "VALIDATION_ERROR": "Eingabe ungültig, bitte prüfen und erneut versuchen",
+    "BAD_REQUEST": "Ungültige Anfrage, bitte erneut versuchen",
+    "REQUIRED_FIELD": "Bitte füllen Sie die Pflichtfelder aus",
+    "NOT_FOUND": "Angeforderte Ressource nicht gefunden",
+    "CONFLICT": "Datenkonflikt, bitte Seite aktualisieren und erneut versuchen",
+    "EMAIL_ALREADY_REGISTERED": "E-Mail bereits registriert",
+    "RATE_LIMITED": "Zu viele Versuche, bitte später erneut versuchen",
+    "SERVER_ERROR": "Dienst vorübergehend nicht verfügbar, bitte später erneut versuchen",
+    "NETWORK_ERROR": "Netzwerkfehler, bitte Verbindung prüfen",
+    "UNKNOWN_ERROR": "Vorgang fehlgeschlagen, bitte erneut versuchen"
   }
 }

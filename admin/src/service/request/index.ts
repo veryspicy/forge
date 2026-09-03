@@ -15,6 +15,17 @@ const STALE_RELOAD_KEY = 'forge:stale-reload-count';
 /** 请求超时上限：服务重建/重启后旧连接失效时，避免请求无限挂起（@sa/axios 默认 10s，显式声明防包默认值变化） */
 const REQUEST_TIMEOUT = 10_000;
 
+/** HTTP 状态码兜底错误码（后端未返回 data.code 或尚未迁移时使用） */
+const FALLBACK_ERROR_CODE_BY_STATUS: Record<number, string> = {
+  400: 'BAD_REQUEST',
+  401: 'UNAUTHORIZED',
+  403: 'FORBIDDEN',
+  404: 'NOT_FOUND',
+  409: 'CONFLICT',
+  422: 'VALIDATION_ERROR',
+  429: 'RATE_LIMITED'
+};
+
 export const request = createFlatRequest(
   {
     baseURL,
@@ -94,24 +105,37 @@ export const request = createFlatRequest(
         sessionStorage.removeItem(STALE_RELOAD_KEY);
       }
 
-      let message = error.message;
+      // ---- 错误提示统一收敛（契约见 docs/ERROR-CODE-CONVENTION.md）----
+      // 只展示 errors.* 本地化文案：优先 data.code -> HTTP 状态兜底码 -> UNKNOWN_ERROR。
+      // 后端 message 为英文开发者文案、detail/msg 为历史原文，一律禁止直显。
+      const httpStatus = error.response?.status;
+      const data = error.response?.data as { code?: string; detail?: unknown; msg?: unknown } | undefined;
 
-      if (error.code === BACKEND_ERROR_CODE) {
-        message = error.response?.data?.detail || error.response?.data?.msg || message;
-      } else if (error.response?.data?.detail) {
-        // HTTP 状态码错误（如 409 引用冲突）优先展示后端具体原因
-        message = error.response.data.detail;
-      }
+      const toLocalized = (code: string): string => {
+        const key = `errors.${code}` as App.I18n.I18nKey;
+        const text = $t(key) as string;
+        // vue-i18n 缺 key 时回显 key 本身；命中即兜底通用文案，不回显机器码
+        return text === key ? ($t('errors.UNKNOWN_ERROR' as App.I18n.I18nKey) as string) : text;
+      };
 
-      // Handle 401: extract backend error code and map to i18n
-      if (error.response?.status === 401) {
-        const authStore = useAuthStore();
-        authStore.resetStore();
-        const detail = error.response?.data?.detail;
-        message = detail ? $t(`errors.${detail}` as App.I18n.I18nKey) : $t('request.logoutMsg');
-        window.$message?.error(message);
+      const resolveCode = (): string => {
+        const code = data?.code;
+        if (typeof code === 'string' && code) return code;
+        if (httpStatus && httpStatus >= 500) return 'SERVER_ERROR';
+        if (httpStatus && FALLBACK_ERROR_CODE_BY_STATUS[httpStatus]) {
+          return FALLBACK_ERROR_CODE_BY_STATUS[httpStatus];
+        }
+        return 'UNKNOWN_ERROR';
+      };
+
+      // 401：先重置登录态，再提示（登录失败等场景 token 本就为空，reset 无副作用）
+      if (httpStatus === 401) {
+        useAuthStore().resetStore();
+        window.$message?.error(toLocalized(resolveCode()));
         return;
       }
+
+      const message = toLocalized(resolveCode());
 
       if (!request.state.errMsgStack?.length) {
         request.state.errMsgStack = [];

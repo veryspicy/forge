@@ -2,12 +2,13 @@
 
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from jose import jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from forge.api.errors import APIError, ErrorCode
 from forge.infrastructure.persistence.models import ORMAdminUser
 from forge.infrastructure.persistence.repositories.user_repo import SQLAlchemyAdminUserRepository
 from forge.main.config import settings
@@ -43,15 +44,9 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)) -> dict[
     repo = SQLAlchemyAdminUserRepository()
     admin: ORMAdminUser | None = await repo.get_by_email(db, body.email)
     if admin is None or not pwd_context.verify(body.password, admin.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="INVALID_CREDENTIALS",
-        )
+        raise APIError(code=ErrorCode.INVALID_CREDENTIALS)
     if not admin.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="ACCOUNT_DISABLED",
-        )
+        raise APIError(code=ErrorCode.ACCOUNT_DISABLED)
 
     # Update last_login_at
     admin.last_login_at = datetime.now()  # type: ignore[assignment]
@@ -81,13 +76,13 @@ async def me(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, object]:
     if not admin_claims:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="UNAUTHORIZED")
+        raise APIError(code=ErrorCode.UNAUTHORIZED)
 
     email = admin_claims.get("sub", "")
     repo = SQLAlchemyAdminUserRepository()
     admin: ORMAdminUser | None = await repo.get_by_email(db, email)  # type: ignore[arg-type]
     if admin is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="USER_NOT_FOUND")
+        raise APIError(code=ErrorCode.USER_NOT_FOUND, http_status=401)
 
     roles = admin_claims.get("roles") or [admin_claims.get("role", "")]
     return {

@@ -688,7 +688,18 @@ const local: App.I18n.Schema = {
     UNAUTHORIZED: '请先登录',
     TOKEN_EXPIRED: '登录已过期，请重新登录',
     USER_NOT_FOUND: '用户不存在',
-    EMAIL_ALREADY_REGISTERED: '邮箱已被注册'
+    EMAIL_ALREADY_REGISTERED: '邮箱已被注册',
+    ACCOUNT_DISABLED: '账号已被禁用，请联系管理员',
+    FORBIDDEN: '没有权限执行此操作',
+    VALIDATION_ERROR: '提交的信息有误，请检查后重试',
+    BAD_REQUEST: '请求无效，请稍后重试',
+    REQUIRED_FIELD: '请填写必填项',
+    NOT_FOUND: '请求的内容不存在',
+    CONFLICT: '数据冲突，请刷新后重试',
+    RATE_LIMITED: '操作过于频繁，请稍后再试',
+    SERVER_ERROR: '服务暂时不可用，请稍后再试',
+    NETWORK_ERROR: '网络异常，请检查网络连接',
+    UNKNOWN_ERROR: '操作失败，请稍后重试'
   }
 };
 

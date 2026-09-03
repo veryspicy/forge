@@ -129,7 +129,7 @@ async function handleRegister() {
     await register({ email: email.value, password: password.value, name: name.value })
     await navigateTo(localePath('/'))
   } catch (err: any) {
-    errorMsg.value = err.message || 'Registration failed. Please try again.'
+    errorMsg.value = useApiError().toMessage(err)
   } finally {
     loading.value = false
   }
