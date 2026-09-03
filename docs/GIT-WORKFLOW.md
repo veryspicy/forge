@@ -12,8 +12,10 @@ AIGC:
 # Git 开发工作流规范 (Git Flow)
 
 > 适用项目：全部  
-> 生效日期：2026-07-02  
-> 本文档为项目 Git 开发工作流的唯一权威规范，所有团队成员必须严格遵守。
+> 生效日期：2026-07-02（2026-09-03 修订）  
+> 本文档为通用 Git 工作流骨架与操作速查。
+>
+> **权威裁决（2026-09-03）**：Forge 项目现行唯一权威为 [DEV-RULES.md](./DEV-RULES.md)（单人开发模式，含 §1.3 用户验证门禁、§1.4 合并前 CI 健康门禁）。本文档与 DEV-RULES.md 冲突时，一律以 DEV-RULES.md 为准。本文档中面向多人协作的条款（PR-only、Code Review 人数、任务编号必填等）为团队扩展场景的通用模板，Forge 单人流程按下方标注的「单人适配」执行。
 
 ---
 
@@ -76,7 +78,7 @@ hotfix/xxx ─────────────┘  └───────�
 
 - 全部小写，单词间用 `-` 连接
 - 描述部分简洁明了，不超过 4 个单词
-- 有任务跟踪系统（JIRA / GitHub Issues）时，必须在分支名末尾附上编号
+- 有任务跟踪系统（JIRA / GitHub Issues）时，可在分支名末尾附上编号（**单人适配**：Forge 暂无任务系统，编号可选，可省略）
 - 禁止使用个人姓名、日期、无意义编号作为分支名
 
 ```bash
@@ -150,9 +152,29 @@ fix bug               # 描述太模糊
 
 ### 4.1 核心原则
 
-**禁止直接 push 到 `main` 和 `dev` 分支。所有变更必须通过 Pull Request / Merge Request 合并。**
+**通用场景（多人团队）：禁止直接 push 到 `main` 和 `dev` 分支，所有变更必须通过 Pull Request / Merge Request 合并。**
+
+**单人适配（Forge 现行，依据 DEV-RULES.md §1.3/§1.4）**：单人开发默认走本地 `--no-ff` 合 dev 后 push origin dev；但合并前必须满足两道门禁：
+
+1. §1.3 用户验证门禁——用户明确"验证通过"前禁止合并 dev
+2. §1.4 CI 健康门禁——功能分支先 push + 创建 PR 触发 CI，CI 健康（success）后才允许本地 merge 进 dev
+
+> 本地合并是单人流程的执行方式，PR 仍保留：用于触发 CI 验证与变更留痕。
 
 ### 4.2 合并流程
+
+**单人适配流程（Forge）**：
+
+| 步骤 | 操作 |
+|------|------|
+| 1 | 从 dev 切出工作分支 |
+| 2 | 在工作分支上开发和提交 |
+| 3 | 本地部署验证（重建镜像 + 容器），用户明确"验证通过" |
+| 4 | 推送到远程并创建指向 dev 的 PR，触发 CI |
+| 5 | CI 健康（success）后本地 `git merge --no-ff <branch>` 到 dev |
+| 6 | push origin dev，关注最终 CI run 健康 |
+
+**通用场景（多人团队）**：
 
 | 步骤 | 操作 | 责任人 |
 |------|------|--------|
@@ -166,6 +188,10 @@ fix bug               # 描述太模糊
 
 ### 4.3 Code Review 要求
 
+**单人适配**：无独立 Reviewer，PR 自查代替 Review（核对变更范围、无调试残留、质量门槛通过）；多人扩展时启用以下通用要求。
+
+**通用场景**：
+
 - 所有 PR/MR 必须至少 **1 人 Approve** 后方可合并
 - `main` 分支的 PR/MR 需要 **2 人 Approve**
 - Review 关注点：逻辑正确性、安全性、性能、可读性、测试覆盖
@@ -173,10 +199,12 @@ fix bug               # 描述太模糊
 
 ### 4.4 分支保护规则
 
+**Forge 目标态（GitHub 侧设置未完全启用前，由 DEV-RULES.md §1.3/§1.4 门禁兜底）**：
+
 | 分支 | 禁止直接 Push | 要求 PR | 要求 Review | 要求 CI 通过 |
 |------|:---:|:---:|:---:|:---:|
-| `main` | ✅ | ✅ | 2 人 | ✅ |
-| `dev` | ✅ | ✅ | 1 人 | ✅ |
+| `main` | ✅ | ✅ | 2 人（多人） | ✅ |
+| `dev` | ✅（多人） | ✅ | 1 人（多人） | ✅ |
 | `feature/*` | — | — | — | 推荐 |
 | `fix/*` | — | — | — | 推荐 |
 | `hotfix/*` | — | ✅ | 1 人 | ✅ |
@@ -254,8 +282,9 @@ fix bug               # 描述太模糊
 
 | 禁止行为 | 说明 |
 |----------|------|
-| ❌ 直接 push 到 `main` | 必须通过 PR/MR 合并 |
-| ❌ 直接 push 到 `dev` | 必须通过 PR/MR 合并 |
+| ❌ 直接 push 到 `main` | 必须通过 PR/MR 合并（单人适配：main 仍走 PR 或显式发版流程，禁止随手 push） |
+| ❌ 绕过 CI 门禁合入 `dev` | 单人适配：本地合并 + push 前必须先 PR 触发 CI 且健康（DEV-RULES §1.4）；CI 红禁止合并 |
+| ❌ 未经验证合入 `dev` | 用户明确"验证通过"前禁止合并 dev（DEV-RULES §1.3） |
 | ❌ 强制推送 (`--force`) 到共享分支 | 会覆盖他人提交，禁止对 `main`/`dev`/`release`/`hotfix` 使用 |
 | ❌ 使用 `git push --force-with-lease` 到共享分支 | 同上 |
 | ❌ 长期不合并的功能分支 | 分支存活不超过 2 周，避免合并冲突累积 |
@@ -282,15 +311,11 @@ fix bug               # 描述太模糊
 
 ---
 
-## 7. 备份文件清理清单
+## 7. 备份文件清理
 
-以下为项目中已发现的需清理备份/临时文件，请确认后删除：
+**状态（2026-09-03 复核）**：`temp\inspect_routes_20260630_212129_567.py` 已清理，当前无遗留备份文件。
 
-| 文件 | 路径 | 说明 |
-|------|------|------|
-| `inspect_routes_20260630_212129_567.py` | `temp\inspect_routes_20260630_212129_567.py` | 带时间戳的备份文件 |
-
-> **注意**：以上清单基于当前项目文件扫描结果。如任务中提到的 `auth_20260626_221511_435.py`、`dependencies_20260626_221511_932.py` 等文件未在项目中找到，可能已被清理或位于其他路径。若发现其他符合 `*_202*.py`、`*_backup*`、`*_old*` 等模式的备份文件，请一并列入清理计划。
+> 若发现符合 `*_202*.py`、`*_backup*`、`*_old*` 等模式的备份文件，请列入清理计划确认后删除；禁止提交 `*_backup.py`、`*_old.py`、`*_20260629.py`、`*_v2.py` 等备份/旧版文件（§6.2）。
 
 ---
 
@@ -301,10 +326,10 @@ fix bug               # 描述太模糊
 ```bash
 git checkout dev
 git pull origin dev
-git checkout -b feature/<描述>-<编号>
-# ... 开发、提交 ...
-git push origin feature/<描述>-<编号>
-# 创建 PR/MR → dev，等待 Review 后合并
+git checkout -b feature/<描述>
+# ... 开发、提交、本地部署验证（用户确认）...
+git push origin feature/<描述>
+# 创建 PR → dev（触发 CI）；CI 健康后本地 merge 进 dev 并 push
 ```
 
 ### 8.2 Bug 修复
@@ -312,10 +337,10 @@ git push origin feature/<描述>-<编号>
 ```bash
 git checkout dev
 git pull origin dev
-git checkout -b fix/<描述>-<编号>
-# ... 修复、提交 ...
-git push origin fix/<描述>-<编号>
-# 创建 PR/MR → dev，等待 Review 后合并
+git checkout -b fix/<描述>
+# ... 修复、提交、本地部署验证（用户确认）...
+git push origin fix/<描述>
+# 创建 PR → dev（触发 CI）；CI 健康后本地 merge 进 dev 并 push
 ```
 
 ### 8.3 紧急修复
@@ -326,7 +351,7 @@ git pull origin main
 git checkout -b hotfix/v<版本>-<描述>
 # ... 修复、提交 ...
 git push origin hotfix/v<版本>-<描述>
-# 创建 PR/MR → main（同时需手动合并到 dev）
+# 创建 PR → main（同时需手动合并到 dev）
 ```
 
 ---
