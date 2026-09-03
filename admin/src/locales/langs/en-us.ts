@@ -704,6 +704,16 @@ const local: App.I18n.Schema = {
     RATE_LIMITED: 'Too many attempts, please try again later',
     SERVER_ERROR: 'Service temporarily unavailable, please try again later',
     NETWORK_ERROR: 'Network error, please check your connection',
+    ROLE_NAME_EXISTS: 'Role name already exists',
+    INVALID_PERMISSION_IDS: 'Some permission items are invalid',
+    ROLE_NOT_FOUND: 'Role not found',
+    SUPER_ADMIN_ROLE_FIXED: 'Super admin role cannot be modified',
+    SYSTEM_ROLE_PROTECTED: 'System roles are protected and cannot be deleted',
+    MCP_KEY_NAME_REQUIRED: 'API key name is required',
+    MCP_KEY_INVALID_SCOPE: 'Requested scopes are not supported',
+    MCP_KEY_SCOPES_REQUIRED: 'At least one of read/write scopes is required',
+    MCP_KEY_NOT_FOUND: 'API key not found',
+    INVALID_ID: 'Invalid id format',
     UNKNOWN_ERROR: 'Operation failed, please try again'
   }
 };

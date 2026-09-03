@@ -90,7 +90,7 @@ class TestMcpKeysAPI:
         finally:
             test_client.app.dependency_overrides.clear()
         assert resp.status_code == 400
-        assert resp.json()["detail"] == "名称不能为空"
+        assert resp.json()["code"] == "MCP_KEY_NAME_REQUIRED"
 
     def test_create_key_invalid_scope(self, test_client):
         _setup_auth(test_client)
@@ -100,7 +100,7 @@ class TestMcpKeysAPI:
         finally:
             test_client.app.dependency_overrides.clear()
         assert resp.status_code == 400
-        assert "无效的 scopes" in resp.json()["detail"]
+        assert resp.json()["code"] == "MCP_KEY_INVALID_SCOPE"
 
     def test_create_key_empty_scopes(self, test_client):
         _setup_auth(test_client)

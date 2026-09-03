@@ -386,6 +386,16 @@
     "RATE_LIMITED": "محاولات كثيرة جداً، يرجى المحاولة لاحقاً",
     "SERVER_ERROR": "الخدمة غير متاحة مؤقتاً، يرجى المحاولة لاحقاً",
     "NETWORK_ERROR": "خطأ في الشبكة، يرجى التحقق من الاتصال",
+    "ROLE_NAME_EXISTS": "اسم الدور موجود بالفعل",
+    "INVALID_PERMISSION_IDS": "بعض عناصر الصلاحية غير صالحة",
+    "ROLE_NOT_FOUND": "الدور غير موجود",
+    "SUPER_ADMIN_ROLE_FIXED": "لا يمكن تعديل دور المدير العام",
+    "SYSTEM_ROLE_PROTECTED": "الأدوار النظامية محمية ولا يمكن حذفها",
+    "MCP_KEY_NAME_REQUIRED": "اسم مفتاح API مطلوب",
+    "MCP_KEY_INVALID_SCOPE": "النطاقات المطلوبة غير مدعومة",
+    "MCP_KEY_SCOPES_REQUIRED": "مطلوب نطاق قراءة أو كتابة واحد على الأقل",
+    "MCP_KEY_NOT_FOUND": "مفتاح API غير موجود",
+    "INVALID_ID": "تنسيق المعرف غير صالح",
     "UNKNOWN_ERROR": "فشلت العملية، يرجى إعادة المحاولة"
   }
 }

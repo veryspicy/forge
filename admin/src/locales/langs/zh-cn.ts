@@ -699,6 +699,16 @@ const local: App.I18n.Schema = {
     RATE_LIMITED: '操作过于频繁，请稍后再试',
     SERVER_ERROR: '服务暂时不可用，请稍后再试',
     NETWORK_ERROR: '网络异常，请检查网络连接',
+    ROLE_NAME_EXISTS: '角色名称已存在',
+    INVALID_PERMISSION_IDS: '包含无效的权限项',
+    ROLE_NOT_FOUND: '角色不存在',
+    SUPER_ADMIN_ROLE_FIXED: '超级管理员角色不可修改',
+    SYSTEM_ROLE_PROTECTED: '系统角色受保护，不可删除',
+    MCP_KEY_NAME_REQUIRED: 'API 密钥名称不能为空',
+    MCP_KEY_INVALID_SCOPE: '包含无效的权限范围',
+    MCP_KEY_SCOPES_REQUIRED: '至少需要 read 或 write 权限',
+    MCP_KEY_NOT_FOUND: 'API 密钥不存在',
+    INVALID_ID: 'ID 格式无效',
     UNKNOWN_ERROR: '操作失败，请稍后重试'
   }
 };
