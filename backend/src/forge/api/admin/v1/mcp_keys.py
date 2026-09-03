@@ -64,12 +64,12 @@ async def create_api_key(
 ) -> dict[str, Any]:
     await _require_admin(admin)
     if not payload.name.strip():
-        raise HTTPException(status_code=400, detail="名称不能为空")
+        raise HTTPException(status_code=400, detail="MCP_KEY_NAME_REQUIRED")
     invalid = set(payload.scopes) - VALID_SCOPES
     if invalid:
-        raise HTTPException(status_code=400, detail=f"无效的 scopes: {sorted(invalid)}")
+        raise HTTPException(status_code=400, detail="MCP_KEY_INVALID_SCOPE")
     if not payload.scopes:
-        raise HTTPException(status_code=400, detail="至少需要 read 或 write 权限")
+        raise HTTPException(status_code=400, detail="MCP_KEY_SCOPES_REQUIRED")
 
     plain_key = generate_api_key()
     key = ORMMcpApiKey(
@@ -109,7 +109,7 @@ async def revoke_api_key(
     result = await db.execute(select(ORMMcpApiKey).where(ORMMcpApiKey.id == raw))
     key = result.scalar_one_or_none()
     if key is None:
-        raise HTTPException(status_code=404, detail="API Key 不存在")
+        raise HTTPException(status_code=404, detail="MCP_KEY_NOT_FOUND")
     key.is_active = False  # type: ignore[assignment]
     key.revoked_at = datetime.now()  # type: ignore[assignment]
     await db.commit()

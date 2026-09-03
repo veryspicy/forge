@@ -133,7 +133,7 @@ class TestRolesAPI:
         finally:
             test_client.app.dependency_overrides.clear()
         assert resp.status_code == 400
-        assert resp.json()["detail"] == "ROLE_NAME_EXISTS"
+        assert resp.json()["code"] == "ROLE_NAME_EXISTS"
 
     def test_create_role_invalid_permissions(self, test_client):
         _setup_auth(test_client)
@@ -152,7 +152,7 @@ class TestRolesAPI:
         finally:
             test_client.app.dependency_overrides.clear()
         assert resp.status_code == 400
-        assert resp.json()["detail"] == "INVALID_PERMISSION_IDS"
+        assert resp.json()["code"] == "INVALID_PERMISSION_IDS"
 
     def test_update_role_success(self, test_client):
         _setup_auth(test_client)
@@ -181,7 +181,7 @@ class TestRolesAPI:
         finally:
             test_client.app.dependency_overrides.clear()
         assert resp.status_code == 404
-        assert resp.json()["detail"] == "ROLE_NOT_FOUND"
+        assert resp.json()["code"] == "ROLE_NOT_FOUND"
 
     def test_update_super_admin_fixed(self, test_client):
         _setup_auth(test_client)
@@ -191,7 +191,7 @@ class TestRolesAPI:
         finally:
             test_client.app.dependency_overrides.clear()
         assert resp.status_code == 400
-        assert resp.json()["detail"] == "SUPER_ADMIN_ROLE_FIXED"
+        assert resp.json()["code"] == "SUPER_ADMIN_ROLE_FIXED"
 
     def test_delete_role_success(self, test_client):
         _setup_auth(test_client)
@@ -220,7 +220,7 @@ class TestRolesAPI:
         finally:
             test_client.app.dependency_overrides.clear()
         assert resp.status_code == 400
-        assert resp.json()["detail"] == "SYSTEM_ROLE_PROTECTED"
+        assert resp.json()["code"] == "SYSTEM_ROLE_PROTECTED"
 
     def test_roles_unauthorized(self, test_client):
         resp = test_client.get("/api/admin/v1/roles/")

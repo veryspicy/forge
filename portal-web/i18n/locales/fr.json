@@ -386,6 +386,16 @@
     "RATE_LIMITED": "Trop de tentatives, veuillez réessayer plus tard",
     "SERVER_ERROR": "Service temporairement indisponible, veuillez réessayer plus tard",
     "NETWORK_ERROR": "Erreur réseau, veuillez vérifier votre connexion",
+    "ROLE_NAME_EXISTS": "Nom de rôle déjà utilisé",
+    "INVALID_PERMISSION_IDS": "Certaines permissions sont invalides",
+    "ROLE_NOT_FOUND": "Rôle introuvable",
+    "SUPER_ADMIN_ROLE_FIXED": "Le rôle super admin ne peut pas être modifié",
+    "SYSTEM_ROLE_PROTECTED": "Les rôles système sont protégés et ne peuvent pas être supprimés",
+    "MCP_KEY_NAME_REQUIRED": "Le nom de la clé API est requis",
+    "MCP_KEY_INVALID_SCOPE": "Les portées demandées ne sont pas prises en charge",
+    "MCP_KEY_SCOPES_REQUIRED": "Au moins une portée read/write est requise",
+    "MCP_KEY_NOT_FOUND": "Clé API introuvable",
+    "INVALID_ID": "Format d'identifiant invalide",
     "UNKNOWN_ERROR": "Échec de l'opération, veuillez réessayer"
   }
 }
