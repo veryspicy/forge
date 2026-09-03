@@ -369,5 +369,23 @@
     "title": "Bientôt disponible",
     "description": "Cette page est en construction. Nous travaillons dur pour vous offrir quelque chose d'incroyable!",
     "backHome": "Retour à l'accueil"
+  },
+  "errors": {
+    "UNAUTHORIZED": "Veuillez d'abord vous connecter",
+    "TOKEN_EXPIRED": "Session expirée, veuillez vous reconnecter",
+    "INVALID_CREDENTIALS": "E-mail ou mot de passe incorrect",
+    "ACCOUNT_DISABLED": "Compte désactivé, veuillez contacter le support",
+    "FORBIDDEN": "Vous n'avez pas la permission d'effectuer cette action",
+    "USER_NOT_FOUND": "Utilisateur introuvable",
+    "VALIDATION_ERROR": "Saisie invalide, veuillez vérifier et réessayer",
+    "BAD_REQUEST": "Requête invalide, veuillez réessayer",
+    "REQUIRED_FIELD": "Veuillez remplir les champs obligatoires",
+    "NOT_FOUND": "Ressource introuvable",
+    "CONFLICT": "Conflit de données, veuillez actualiser et réessayer",
+    "EMAIL_ALREADY_REGISTERED": "E-mail déjà enregistré",
+    "RATE_LIMITED": "Trop de tentatives, veuillez réessayer plus tard",
+    "SERVER_ERROR": "Service temporairement indisponible, veuillez réessayer plus tard",
+    "NETWORK_ERROR": "Erreur réseau, veuillez vérifier votre connexion",
+    "UNKNOWN_ERROR": "Échec de l'opération, veuillez réessayer"
   }
 }

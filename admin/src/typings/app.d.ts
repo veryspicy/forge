@@ -622,6 +622,17 @@ declare namespace App {
         TOKEN_EXPIRED: string;
         USER_NOT_FOUND: string;
         EMAIL_ALREADY_REGISTERED: string;
+        ACCOUNT_DISABLED: string;
+        FORBIDDEN: string;
+        VALIDATION_ERROR: string;
+        BAD_REQUEST: string;
+        REQUIRED_FIELD: string;
+        NOT_FOUND: string;
+        CONFLICT: string;
+        RATE_LIMITED: string;
+        SERVER_ERROR: string;
+        NETWORK_ERROR: string;
+        UNKNOWN_ERROR: string;
       };
     };
 

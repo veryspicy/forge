@@ -2,13 +2,14 @@
 
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from forge.api.errors import APIError, ErrorCode
 from forge.infrastructure.persistence.models import ORMUser
 from forge.infrastructure.persistence.repositories.user_repo import SQLAlchemyUserRepository
 from forge.main.config import settings
@@ -71,7 +72,7 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security_scheme),
 ) -> dict[str, object]:
     if credentials is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="UNAUTHORIZED")
+        raise APIError(code=ErrorCode.UNAUTHORIZED)
     try:
         payload = jwt.decode(
             credentials.credentials,
@@ -80,7 +81,7 @@ async def get_current_user(
         )
         return {"sub": payload.get("sub", ""), "role": payload.get("role", "customer")}
     except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="TOKEN_EXPIRED") from None
+        raise APIError(code=ErrorCode.TOKEN_EXPIRED) from None
 
 
 # ---------------------------------------------------------------------------
@@ -93,7 +94,7 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)) -> dict[
     repo = SQLAlchemyUserRepository()
     user: ORMUser | None = await repo.get_by_email(db, body.email)
     if user is None or not pwd_context.verify(body.password, user.password_hash):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="INVALID_CREDENTIALS")
+        raise APIError(code=ErrorCode.INVALID_CREDENTIALS)
     token, _ = _create_token(str(user.email), str(user.role))
     return {
         "access_token": token,
@@ -113,7 +114,7 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)) ->
     repo = SQLAlchemyUserRepository()
     existing = await repo.get_by_email(db, body.email)
     if existing is not None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="EMAIL_ALREADY_REGISTERED")
+        raise APIError(code=ErrorCode.EMAIL_ALREADY_REGISTERED)
 
     password_hash = pwd_context.hash(body.password)
     user: ORMUser = await repo.create(db, body.email, password_hash, body.name)
@@ -144,5 +145,5 @@ async def me(
     repo = SQLAlchemyUserRepository()
     user: ORMUser | None = await repo.get_by_email(db, email)  # type: ignore[arg-type]
     if user is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="USER_NOT_FOUND")
+        raise APIError(code=ErrorCode.USER_NOT_FOUND)
     return {"user_id": str(user.id), "email": user.email, "name": user.name}
