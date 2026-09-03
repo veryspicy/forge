@@ -633,6 +633,16 @@ declare namespace App {
         SERVER_ERROR: string;
         NETWORK_ERROR: string;
         UNKNOWN_ERROR: string;
+        ROLE_NAME_EXISTS: string;
+        INVALID_PERMISSION_IDS: string;
+        ROLE_NOT_FOUND: string;
+        SUPER_ADMIN_ROLE_FIXED: string;
+        SYSTEM_ROLE_PROTECTED: string;
+        MCP_KEY_NAME_REQUIRED: string;
+        MCP_KEY_INVALID_SCOPE: string;
+        MCP_KEY_SCOPES_REQUIRED: string;
+        MCP_KEY_NOT_FOUND: string;
+        INVALID_ID: string;
       };
     };
 

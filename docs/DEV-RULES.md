@@ -106,6 +106,27 @@ AIGC:
 
 **反例（2026-08-15）**：用户说"现在部署 dev 我要验证"，Marvis 直接执行 `git merge fix/c-end-brand-i18n-rework` 并 `git push origin dev`，将未经验证的代码合入 dev，违反用户真实意图（先部署供验证）。
 
+### 1.4 合并前 CI 健康门禁（强制）
+
+> 本项目已配置 GitHub Actions CI（`.github/workflows/ci-cd.yml`），触发条件：push 到 dev/main/tags（`v*`）、以及指向 dev/main 的 Pull Request。单人开发默认合并路径为本地 `--no-ff` 合 dev 后 push，合入即触发 CI；因此**任何代码合入 dev 之前必须先完成一次针对该代码的 CI 验证**。
+
+**铁律**：合并代码到 dev（本地 merge 或 push origin dev）之前，必须先让目标代码跑过 CI 且健康（success）；CI 不健康时禁止合并，必须检查代码定位并修复，直至 CI 全绿。
+
+**执行步骤**：
+
+1. 功能分支开发完成、提交前质量门槛（§13）通过后，先 `git push origin <branch>` 推送功能分支，创建指向 dev 的 Pull Request（workflow 已配置 `pull_request` 触发，PR 即触发完整 CI）
+2. Marvis 主动关注 CI 状态：通过 GitHub Actions API 查询对应 run 与 job（无 gh CLI 时用 `git credential fill` 取 PAT，调 `/repos/{owner}/{repo}/actions/runs` 与 `/actions/jobs/{id}/logs`）
+3. CI 健康（对应 run 为 success）→ 才允许合并：本地 `git merge --no-ff <branch>` 到 dev 并 push origin dev
+4. CI 不健康 → 禁止合并：先读失败 job 日志定位根因，修复后重新提交并推送触发新一轮 CI，循环直至健康，禁止带病合入
+5. push origin dev 后仍必须关注最终 CI run：push 会对合并后完整代码再跑一遍，若失败按同流程在 dev 上切修复分支处理（§1.1），禁止放任 dev 处于 CI 红态
+6. CI 仅被 docs 等 paths-filter 判为无需测试的改动触发时（changes 输出全 false、测试 job 跳过），run 为 success 即视为健康，可合并
+
+**例外与边界**：
+
+- 与 §1.3 用户验证门禁相互独立、顺序固定：**先 CI 健康 → 合 dev / push → 部署供用户验证**；CI 红不允许合并，用户未验证不允许部署上生产
+- 依赖 audit（pip-audit / pnpm audit）等既有漏洞导致的失败必须在合并前修复，禁止通过调低 audit 门槛或改 workflow 跳过绕过
+- 规则 2026-09-03 起生效。**反例**：此前 2026-09-03 曾直接将 `fix/ci-admin-error-codes` 等分支合 dev 后才暴露 test-backend 失败、合 dev 后再补 audit 修复，属合并前未做 CI 验证的带病合入，本次固化禁止。
+
 ---
 
 ## 2. 缓存清理与重启

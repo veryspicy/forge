@@ -386,6 +386,16 @@
     "RATE_LIMITED": "Zu viele Versuche, bitte später erneut versuchen",
     "SERVER_ERROR": "Dienst vorübergehend nicht verfügbar, bitte später erneut versuchen",
     "NETWORK_ERROR": "Netzwerkfehler, bitte Verbindung prüfen",
+    "ROLE_NAME_EXISTS": "Rollenname bereits vergeben",
+    "INVALID_PERMISSION_IDS": "Einige Berechtigungen sind ungültig",
+    "ROLE_NOT_FOUND": "Rolle nicht gefunden",
+    "SUPER_ADMIN_ROLE_FIXED": "Super-Admin-Rolle kann nicht geändert werden",
+    "SYSTEM_ROLE_PROTECTED": "Systemrollen sind geschützt und können nicht gelöscht werden",
+    "MCP_KEY_NAME_REQUIRED": "Name des API-Schlüssels ist erforderlich",
+    "MCP_KEY_INVALID_SCOPE": "Angeforderte Bereiche werden nicht unterstützt",
+    "MCP_KEY_SCOPES_REQUIRED": "Mindestens einer der Bereiche read/write ist erforderlich",
+    "MCP_KEY_NOT_FOUND": "API-Schlüssel nicht gefunden",
+    "INVALID_ID": "Ungültiges ID-Format",
     "UNKNOWN_ERROR": "Vorgang fehlgeschlagen, bitte erneut versuchen"
   }
 }

@@ -66,6 +66,22 @@ class ErrorCode(StrEnum):
     CONFLICT = "CONFLICT"
     EMAIL_ALREADY_REGISTERED = "EMAIL_ALREADY_REGISTERED"
 
+    # Admin RBAC / roles
+    ROLE_NAME_EXISTS = "ROLE_NAME_EXISTS"
+    INVALID_PERMISSION_IDS = "INVALID_PERMISSION_IDS"
+    ROLE_NOT_FOUND = "ROLE_NOT_FOUND"
+    SUPER_ADMIN_ROLE_FIXED = "SUPER_ADMIN_ROLE_FIXED"
+    SYSTEM_ROLE_PROTECTED = "SYSTEM_ROLE_PROTECTED"
+
+    # Admin MCP API keys
+    MCP_KEY_NAME_REQUIRED = "MCP_KEY_NAME_REQUIRED"
+    MCP_KEY_INVALID_SCOPE = "MCP_KEY_INVALID_SCOPE"
+    MCP_KEY_SCOPES_REQUIRED = "MCP_KEY_SCOPES_REQUIRED"
+    MCP_KEY_NOT_FOUND = "MCP_KEY_NOT_FOUND"
+
+    # Common validation
+    INVALID_ID = "INVALID_ID"
+
     # Rate limit / server
     RATE_LIMITED = "RATE_LIMITED"
     SERVER_ERROR = "SERVER_ERROR"
@@ -111,6 +127,33 @@ _REGISTRY: dict[ErrorCode, ErrorSpec] = {
     ErrorCode.EMAIL_ALREADY_REGISTERED: ErrorSpec(
         ErrorType.CONFLICT_ERROR, 409, "Email already registered."
     ),
+    # Admin RBAC / roles
+    ErrorCode.ROLE_NAME_EXISTS: ErrorSpec(
+        ErrorType.CONFLICT_ERROR, 400, "A role with this name already exists."
+    ),
+    ErrorCode.INVALID_PERMISSION_IDS: ErrorSpec(
+        ErrorType.VALIDATION_ERROR, 400, "Some permission ids are invalid."
+    ),
+    ErrorCode.ROLE_NOT_FOUND: ErrorSpec(ErrorType.RESOURCE_ERROR, 404, "Role does not exist."),
+    ErrorCode.SUPER_ADMIN_ROLE_FIXED: ErrorSpec(
+        ErrorType.CONFLICT_ERROR, 400, "The super admin role is fixed and cannot be modified."
+    ),
+    ErrorCode.SYSTEM_ROLE_PROTECTED: ErrorSpec(
+        ErrorType.CONFLICT_ERROR, 400, "System roles are protected and cannot be deleted."
+    ),
+    # Admin MCP API keys
+    ErrorCode.MCP_KEY_NAME_REQUIRED: ErrorSpec(
+        ErrorType.VALIDATION_ERROR, 400, "API key name is required."
+    ),
+    ErrorCode.MCP_KEY_INVALID_SCOPE: ErrorSpec(
+        ErrorType.VALIDATION_ERROR, 400, "Requested scope is not supported."
+    ),
+    ErrorCode.MCP_KEY_SCOPES_REQUIRED: ErrorSpec(
+        ErrorType.VALIDATION_ERROR, 400, "At least one of read/write scopes is required."
+    ),
+    ErrorCode.MCP_KEY_NOT_FOUND: ErrorSpec(ErrorType.RESOURCE_ERROR, 404, "API key not found."),
+    # Common validation
+    ErrorCode.INVALID_ID: ErrorSpec(ErrorType.VALIDATION_ERROR, 400, "Identifier is not a valid UUID."),
     # Rate limit / server
     ErrorCode.RATE_LIMITED: ErrorSpec(ErrorType.RATE_LIMIT_ERROR, 429, "Too many requests, slow down."),
     ErrorCode.SERVER_ERROR: ErrorSpec(ErrorType.SERVER_ERROR, 500, "Internal server error."),
