@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
   NButton,
@@ -158,6 +158,10 @@ async function submitForm() {
 function openReset(row: any) {
   resetUser.value = row;
   newPassword.value = '';
+  // 浏览器密码管理器可能对新插入的密码框自动填充已保存凭据，二次清空兜底
+  nextTick(() => {
+    newPassword.value = '';
+  });
 }
 
 async function submitReset() {
@@ -325,6 +329,7 @@ onMounted(fetch);
             v-model:value="form.password"
             type="password"
             show-password-on="click"
+            :input-props="{ autocomplete: 'new-password' }"
             :placeholder="$t('page.users.passwordPlaceholder')"
           />
         </div>
@@ -355,6 +360,7 @@ onMounted(fetch);
           v-model:value="newPassword"
           type="password"
           show-password-on="click"
+          :input-props="{ autocomplete: 'new-password' }"
           :placeholder="$t('page.users.passwordPlaceholder')"
         />
       </div>
