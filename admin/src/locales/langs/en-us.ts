@@ -533,6 +533,8 @@ const local: App.I18n.Schema = {
       disabled: 'Frozen',
       status: 'Status',
       customer: 'Customer',
+      email: 'Email',
+      customerProfile: 'Customer Profile',
       name: 'Name',
       phone: 'Phone',
       createdAt: 'Created At',

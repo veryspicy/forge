@@ -528,6 +528,8 @@ const local: App.I18n.Schema = {
       disabled: '已冻结',
       status: '状态',
       customer: '客户',
+      email: '邮箱',
+      customerProfile: '客户资料',
       name: '姓名',
       phone: '手机号',
       createdAt: '注册时间',

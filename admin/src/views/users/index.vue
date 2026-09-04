@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, onMounted, ref } from 'vue';
+import { computed, h, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
   NButton,
@@ -199,34 +199,38 @@ function remove(row: any) {
 }
 
 function renderActions(row: any) {
-  if (!canManage.value) return null;
   const btns: any[] = [
     h(
       NButton,
       { size: 'tiny', text: true, type: 'primary', onClick: () => openDetail(row) },
       { default: () => t('page.users.detail') }
-    ),
-    h(
-      NButton,
-      {
-        size: 'tiny',
-        text: true,
-        type: row.is_active ? 'warning' : 'success',
-        onClick: () => toggleFreeze(row)
-      },
-      { default: () => (row.is_active ? t('page.users.freeze') : t('page.users.unfreeze')) }
-    ),
-    h(
-      NButton,
-      { size: 'tiny', text: true, onClick: () => openReset(row) },
-      { default: () => t('page.users.resetPassword') }
-    ),
-    h(
-      NButton,
-      { size: 'tiny', text: true, type: 'error', onClick: () => remove(row) },
-      { default: () => t('page.users.delete') }
     )
   ];
+  if (canManage.value) {
+    btns.push(
+      h(NButton, { size: 'tiny', text: true, onClick: () => openEdit(row) }, { default: () => t('page.users.edit') }),
+      h(
+        NButton,
+        {
+          size: 'tiny',
+          text: true,
+          type: row.is_active ? 'warning' : 'success',
+          onClick: () => toggleFreeze(row)
+        },
+        { default: () => (row.is_active ? t('page.users.freeze') : t('page.users.unfreeze')) }
+      ),
+      h(
+        NButton,
+        { size: 'tiny', text: true, onClick: () => openReset(row) },
+        { default: () => t('page.users.resetPassword') }
+      ),
+      h(
+        NButton,
+        { size: 'tiny', text: true, type: 'error', onClick: () => remove(row) },
+        { default: () => t('page.users.delete') }
+      )
+    );
+  }
   return h(NSpace, { size: 4, justify: 'end' }, { default: () => btns });
 }
 
@@ -236,11 +240,7 @@ const columns = computed<DataTableColumns<any>>(() => [
     key: 'email',
     minWidth: 200,
     render: row =>
-      h(
-        NButton,
-        { text: true, type: 'primary', onClick: () => openDetail(row) },
-        { default: () => row.email }
-      )
+      h(NButton, { text: true, type: 'primary', onClick: () => openDetail(row) }, { default: () => row.email })
   },
   { title: t('page.users.name'), key: 'name', minWidth: 120, render: row => row.name || '-' },
   { title: t('page.users.phone'), key: 'phone', minWidth: 120, render: row => row.phone || '-' },
@@ -255,7 +255,7 @@ const columns = computed<DataTableColumns<any>>(() => [
   {
     title: t('page.users.actions'),
     key: 'actions',
-    width: 280,
+    width: 340,
     align: 'right',
     render: row => renderActions(row)
   }
@@ -291,6 +291,15 @@ function onSearch() {
   fetch();
 }
 
+let searchTimer: ReturnType<typeof setTimeout> | undefined;
+watch(keyword, () => {
+  if (searchTimer) clearTimeout(searchTimer);
+  searchTimer = setTimeout(onSearch, 400);
+});
+onBeforeUnmount(() => {
+  if (searchTimer) clearTimeout(searchTimer);
+});
+
 onMounted(fetch);
 </script>
 
@@ -304,16 +313,8 @@ onMounted(fetch);
           clearable
           :placeholder="$t('page.users.searchPlaceholder')"
           style="width: 280px"
-          @keydown.enter="onSearch"
-          @clear="onSearch"
         />
-        <NSelect
-          v-model:value="status"
-          :options="statusOptions"
-          style="width: 130px"
-          @update:value="onSearch"
-        />
-        <NButton @click="onSearch">{{ $t('common.search') }}</NButton>
+        <NSelect v-model:value="status" :options="statusOptions" style="width: 130px" @update:value="onSearch" />
       </NSpace>
       <NButton v-permission="'users:manage'" type="primary" @click="openCreate">
         {{ $t('page.users.addCustomer') }}
@@ -401,7 +402,7 @@ onMounted(fetch);
 
     <!-- Detail drawer -->
     <NDrawer v-model:show="drawerShow" placement="right" :width="640" @update:show="v => v || closeDetail()">
-      <NDrawerContent :title="detail ? `${detail.email}` : ''" closable>
+      <NDrawerContent :title="detail ? $t('page.users.customerProfile') : ''" closable>
         <div v-if="detailLoading" class="py-12 text-center text-sm text-[var(--n-text-color-3)]">
           {{ $t('common.loadingText') }}
         </div>
@@ -432,12 +433,8 @@ onMounted(fetch);
 
           <!-- Stats -->
           <NSpace :size="8" class="mb-4">
-            <NTag type="info" size="medium">
-              {{ $t('page.users.totalOrders') }}: {{ detail.stats?.orders ?? 0 }}
-            </NTag>
-            <NTag type="info" size="medium">
-              {{ $t('page.users.totalPets') }}: {{ detail.stats?.pets ?? 0 }}
-            </NTag>
+            <NTag type="info" size="medium">{{ $t('page.users.totalOrders') }}: {{ detail.stats?.orders ?? 0 }}</NTag>
+            <NTag type="info" size="medium">{{ $t('page.users.totalPets') }}: {{ detail.stats?.pets ?? 0 }}</NTag>
           </NSpace>
 
           <!-- Pets -->
@@ -467,9 +464,7 @@ onMounted(fetch);
             >
               <span class="font-mono">{{ o.order_number }}</span>
               <NTag size="small">{{ o.status }}</NTag>
-              <span class="text-[var(--n-text-color-3)]">
-                {{ o.currency }} {{ o.total }}
-              </span>
+              <span class="text-[var(--n-text-color-3)]">{{ o.currency }} {{ o.total }}</span>
               <span class="text-[var(--n-text-color-3)]">{{ fmtDate(o.created_at) }}</span>
             </div>
           </div>
