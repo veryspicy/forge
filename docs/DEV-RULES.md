@@ -598,6 +598,24 @@ podman exec forge-postgres psql -U postgres -d forge -c "SELECT count(*) FROM di
 2. 对既有占位实现先确认其是否真实生效（是否只是 `return` 透传），再决定是否依赖它，禁止假设"已存在权限控制"
 3. FastAPI 依赖默认参数统一 `# noqa: B008`；`except` 内 `raise HTTPException` 统一 `from None`，否则 ruff 拦截
 
+**13.5.5 锁文件副作用防护（uv.lock，强制）**
+
+> **核心原则**：uv.lock 只允许在"确需更新依赖"的独立提交中变更；任何触发 uv 工具链（`uv run` / `uv sync` / `pre-commit` 中经 `uv run` 执行的 ruff/mypy）的动作都可能自动归一化重写 uv.lock，引入与任务无关的 diff，禁止让此类副作用混入业务提交。
+
+**触发条件**：任何可能触发 uv 执行的提交前流程（pre-commit 后端检查、手动 `uv run` 命令、`uv add/remove/lock` 等）。
+
+**执行步骤**：
+
+1. `git commit` 前先跑 `git status`，检查 uv.lock 是否有改动
+2. 若 uv.lock 出现改动但本次任务**不涉及依赖变更**，立即 `git restore uv.lock` 还原，禁止带进提交
+3. 确需更新依赖时，单独提交 `build(backend): update uv.lock`，与业务改动隔离，便于 review 与回滚
+
+**坑位**：
+- pre-commit 后端 hook 通过 `uv run ruff/mypy` 执行（见 §13.2），uv 启动时自动执行 lockfile 归一化，可能静默删除 uv.lock 中重复的 dev 依赖声明（如历史中一次删除 12 行），diff 与业务无关
+- `git add -A` / `git commit -am` 会把 uv.lock 副作用一并纳入暂存，务必先 `git status` 拦截
+
+**反例（2026-09-04）**：剥离 AIGC 水印提交时 pre-commit 触发 `uv run`，uv 自动归一化删除了 uv.lock 中重复 dev 依赖声明 12 行，未核查 git status 导致无关 diff 差点进入提交；已 `git restore uv.lock` 还原，未进提交。
+
 ---
 
 ## 14. 数据与发布安全（强制）
@@ -827,4 +845,4 @@ podman exec forge-postgres psql -U postgres -d forge -c "SELECT count(*) FROM di
 
 ---
 
-*最后更新：2026-09-03*
+*最后更新：2026-09-04*
