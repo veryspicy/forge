@@ -202,37 +202,8 @@ function remove(row: any) {
     .catch(() => undefined);
 }
 
-function renderActions(row: any) {
-  // 详情统一由 email 列点击进入，操作列仅展示管理操作（需 users:manage）
-  const btns: any[] = [];
-  if (canManage.value) {
-    btns.push(
-      h(NButton, { size: 'tiny', text: true, onClick: () => openEdit(row) }, { default: () => t('page.users.edit') }),
-      h(
-        NButton,
-        {
-          size: 'tiny',
-          text: true,
-          type: row.is_active ? 'warning' : 'success',
-          onClick: () => toggleFreeze(row)
-        },
-        { default: () => (row.is_active ? t('page.users.freeze') : t('page.users.unfreeze')) }
-      ),
-      h(
-        NButton,
-        { size: 'tiny', text: true, onClick: () => openReset(row) },
-        { default: () => t('page.users.resetPassword') }
-      ),
-      h(
-        NButton,
-        { size: 'tiny', text: true, type: 'error', onClick: () => remove(row) },
-        { default: () => t('page.users.delete') }
-      )
-    );
-  }
-  return h(NSpace, { size: 4, justify: 'end' }, { default: () => btns });
-}
-
+// 管理操作统一收敛到客户资料抽屉（点 email 进入），列表不渲染操作列，避免与抽屉内操作重复。
+// 后续如需在列表提供高频且安全的快捷操作（如复制邮箱、导出），在此新增专用列。
 const columns = computed<DataTableColumns<any>>(() => {
   const cols: DataTableColumns<any> = [
     {
@@ -253,16 +224,6 @@ const columns = computed<DataTableColumns<any>>(() => {
     { title: t('page.users.status'), key: 'is_active', width: 100, render: row => statusTag(row) },
     { title: t('page.users.createdAt'), key: 'created_at', width: 170, render: row => fmtDate(row.created_at) }
   ];
-  // 仅具备管理权限的用户展示操作列，避免只读用户看到空列
-  if (canManage.value) {
-    cols.push({
-      title: t('page.users.actions'),
-      key: 'actions',
-      width: 260,
-      align: 'right',
-      render: row => renderActions(row)
-    });
-  }
   return cols;
 });
 
