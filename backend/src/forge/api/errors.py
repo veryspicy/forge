@@ -62,6 +62,10 @@ class ErrorCode(StrEnum):
     # Resource
     NOT_FOUND = "NOT_FOUND"
 
+    # Customers (C-end users) management
+    CUSTOMER_NOT_FOUND = "CUSTOMER_NOT_FOUND"
+    CUSTOMER_CANNOT_DELETE = "CUSTOMER_CANNOT_DELETE"
+
     # Conflict
     CONFLICT = "CONFLICT"
     EMAIL_ALREADY_REGISTERED = "EMAIL_ALREADY_REGISTERED"
@@ -122,6 +126,13 @@ _REGISTRY: dict[ErrorCode, ErrorSpec] = {
     ErrorCode.REQUIRED_FIELD: ErrorSpec(ErrorType.VALIDATION_ERROR, 422, "A required field is missing."),
     # Resource
     ErrorCode.NOT_FOUND: ErrorSpec(ErrorType.RESOURCE_ERROR, 404, "Resource not found."),
+    # Customers (C-end users) management
+    ErrorCode.CUSTOMER_NOT_FOUND: ErrorSpec(
+        ErrorType.RESOURCE_ERROR, 404, "Customer does not exist."
+    ),
+    ErrorCode.CUSTOMER_CANNOT_DELETE: ErrorSpec(
+        ErrorType.CONFLICT_ERROR, 409, "Customer has orders or pet profiles and cannot be deleted; freeze instead."
+    ),
     # Conflict
     ErrorCode.CONFLICT: ErrorSpec(ErrorType.CONFLICT_ERROR, 409, "Resource state conflict."),
     ErrorCode.EMAIL_ALREADY_REGISTERED: ErrorSpec(
