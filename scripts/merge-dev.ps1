@@ -73,7 +73,7 @@ if ($localDev -ne $originDev) {
     if ($LASTEXITCODE -ne 0) { Fail 'Could not fast-forward dev to origin/dev.' }
 }
 git checkout dev | Out-Host
-git merge --no-ff $Branch -m "merge: $Branch into dev" 2>&1 | Out-Host
+git merge --no-ff $Branch -m "Merge $Branch into dev" 2>&1 | Out-Host
 if ($LASTEXITCODE -ne 0) {
     Write-Host '[merge-dev] Merge conflicts detected. Resolve manually, do NOT run merge-dev again.' -ForegroundColor Yellow
     Fail 'Merge conflict. See git status.'

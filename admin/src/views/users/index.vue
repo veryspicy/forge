@@ -181,7 +181,8 @@ async function submitReset() {
 
 function toggleFreeze(row: any) {
   const action = row.is_active ? t('page.users.freeze') : t('page.users.unfreeze');
-  if (!window.confirm(t('page.users.freezeConfirm', { email: row.email }))) return;
+  const confirmKey = row.is_active ? 'page.users.freezeConfirm' : 'page.users.unfreezeConfirm';
+  if (!window.confirm(t(confirmKey, { email: row.email }))) return;
   put(`/api/admin/v1/users/${row.id}`, { is_active: !row.is_active })
     .then(() => {
       message.success(action);
@@ -281,6 +282,7 @@ onMounted(fetch);
         <NInput
           v-model:value="keyword"
           clearable
+          :input-props="{ autocomplete: 'off' }"
           :placeholder="$t('page.users.searchPlaceholder')"
           style="width: 280px"
         />

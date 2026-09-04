@@ -108,22 +108,13 @@ class SQLAlchemyUserRepository:
 
     @staticmethod
     async def list_pets_by_owner(db: AsyncSession, owner_id: UUID) -> list[ORMPetProfile]:
-        stmt = (
-            select(ORMPetProfile)
-            .where(ORMPetProfile.owner_id == owner_id)
-            .order_by(ORMPetProfile.created_at.desc())
-        )
+        stmt = select(ORMPetProfile).where(ORMPetProfile.owner_id == owner_id).order_by(ORMPetProfile.created_at.desc())
         result = await db.execute(stmt)
         return list(result.scalars().all())
 
     @staticmethod
     async def list_recent_orders(db: AsyncSession, user_id: UUID, limit: int = 5) -> list[ORMOrder]:
-        stmt = (
-            select(ORMOrder)
-            .where(ORMOrder.user_id == user_id)
-            .order_by(ORMOrder.created_at.desc())
-            .limit(limit)
-        )
+        stmt = select(ORMOrder).where(ORMOrder.user_id == user_id).order_by(ORMOrder.created_at.desc()).limit(limit)
         result = await db.execute(stmt)
         return list(result.scalars().all())
 
