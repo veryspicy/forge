@@ -26,7 +26,11 @@ const authStore = useAuthStore();
 const { t } = useI18n();
 const message = useMessage();
 
-const can = (perm: string) => (authStore.userInfo.permissions || []).includes(perm);
+const can = (perm: string) => {
+  const perms = authStore.userInfo.permissions || [];
+  // super_admin 通配符：permissions 含 '*' 时放行任意权限码
+  return perms.includes('*') || perms.includes(perm);
+};
 const canManage = computed(() => can('users:manage'));
 
 const loading = ref(false);
@@ -199,13 +203,8 @@ function remove(row: any) {
 }
 
 function renderActions(row: any) {
-  const btns: any[] = [
-    h(
-      NButton,
-      { size: 'tiny', text: true, type: 'primary', onClick: () => openDetail(row) },
-      { default: () => t('page.users.detail') }
-    )
-  ];
+  // 详情统一由 email 列点击进入，操作列仅展示管理操作（需 users:manage）
+  const btns: any[] = [];
   if (canManage.value) {
     btns.push(
       h(NButton, { size: 'tiny', text: true, onClick: () => openEdit(row) }, { default: () => t('page.users.edit') }),
@@ -234,32 +233,38 @@ function renderActions(row: any) {
   return h(NSpace, { size: 4, justify: 'end' }, { default: () => btns });
 }
 
-const columns = computed<DataTableColumns<any>>(() => [
-  {
-    title: t('page.users.email'),
-    key: 'email',
-    minWidth: 200,
-    render: row =>
-      h(NButton, { text: true, type: 'primary', onClick: () => openDetail(row) }, { default: () => row.email })
-  },
-  { title: t('page.users.name'), key: 'name', minWidth: 120, render: row => row.name || '-' },
-  { title: t('page.users.phone'), key: 'phone', minWidth: 120, render: row => row.phone || '-' },
-  {
-    title: t('page.users.role'),
-    key: 'role',
-    width: 100,
-    render: () => h(NTag, { size: 'small' }, { default: () => t('page.users.customer') })
-  },
-  { title: t('page.users.status'), key: 'is_active', width: 100, render: row => statusTag(row) },
-  { title: t('page.users.createdAt'), key: 'created_at', width: 170, render: row => fmtDate(row.created_at) },
-  {
-    title: t('page.users.actions'),
-    key: 'actions',
-    width: 340,
-    align: 'right',
-    render: row => renderActions(row)
+const columns = computed<DataTableColumns<any>>(() => {
+  const cols: DataTableColumns<any> = [
+    {
+      title: t('page.users.email'),
+      key: 'email',
+      minWidth: 200,
+      render: row =>
+        h(NButton, { text: true, type: 'primary', onClick: () => openDetail(row) }, { default: () => row.email })
+    },
+    { title: t('page.users.name'), key: 'name', minWidth: 120, render: row => row.name || '-' },
+    { title: t('page.users.phone'), key: 'phone', minWidth: 120, render: row => row.phone || '-' },
+    {
+      title: t('page.users.role'),
+      key: 'role',
+      width: 100,
+      render: () => h(NTag, { size: 'small' }, { default: () => t('page.users.customer') })
+    },
+    { title: t('page.users.status'), key: 'is_active', width: 100, render: row => statusTag(row) },
+    { title: t('page.users.createdAt'), key: 'created_at', width: 170, render: row => fmtDate(row.created_at) }
+  ];
+  // 仅具备管理权限的用户展示操作列，避免只读用户看到空列
+  if (canManage.value) {
+    cols.push({
+      title: t('page.users.actions'),
+      key: 'actions',
+      width: 260,
+      align: 'right',
+      render: row => renderActions(row)
+    });
   }
-]);
+  return cols;
+});
 
 async function fetch() {
   loading.value = true;
