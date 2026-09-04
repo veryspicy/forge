@@ -17,7 +17,8 @@ function checkPermission(el: HTMLElement, binding: DirectiveBinding<string | str
   if (!binding.value) return;
 
   const required = Array.isArray(binding.value) ? binding.value : [binding.value];
-  const hasPermission = required.some(p => permissions.includes(p));
+  // super_admin 通配符：permissions 含 '*' 时放行任意权限码
+  const hasPermission = permissions.includes('*') || required.some(p => permissions.includes(p));
 
   if (!hasPermission) {
     el.parentNode?.removeChild(el);

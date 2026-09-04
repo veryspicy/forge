@@ -504,6 +504,7 @@ class ORMUser(Base):
     email = Column(String(320), nullable=False, unique=True)
     password_hash: Mapped[str] = mapped_column(String(128), nullable=False)
     name = Column(String(200), nullable=False)
+    phone = Column(String(50), nullable=True, index=True)
     role = Column(String(20), nullable=False, default="customer")
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
