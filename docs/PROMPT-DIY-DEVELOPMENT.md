@@ -1,16 +1,3 @@
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_2a99d38e8b4811f184f2525400e6dd8f
-    ReservedCode1: uTIOpBGZIse7nAzihw29nyAAVp/JkHo5B0k3gN2e9OlIGMnAPq0mhH84m2iwE+9PuqAyqeRAF+l0uLdsDwOdx9SlNePIE4IWk2IRpP0DtC+gXPiO9jBksc2owfayBctkLsdn6QXJcs9q+KwXEaslTsTWhDExM7AoLaPjAmYxAjc6og5yz1cdfWWJWHI=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_2a99d38e8b4811f184f2525400e6dd8f
-    ReservedCode2: uTIOpBGZIse7nAzihw29nyAAVp/JkHo5B0k3gN2e9OlIGMnAPq0mhH84m2iwE+9PuqAyqeRAF+l0uLdsDwOdx9SlNePIE4IWk2IRpP0DtC+gXPiO9jBksc2owfayBctkLsdn6QXJcs9q+KwXEaslTsTWhDExM7AoLaPjAmYxAjc6og5yz1cdfWWJWHI=
----
-
-
-
 # Forge DIY 页面装修 — CodeBuddy 开发提示词
 
 > 基于 `Forge_DIY页面装修方案.md` 生成。分三个阶段，每个阶段为独立的 CodeBuddy 提示词，可直接复制使用。
@@ -763,5 +750,3 @@ useHead({
 - [x] 设为首页功能完整：列表中可设置，`GET /api/v1/diy/pages/home` 返回正确的页面（已实现）
 - [x] 权限：非 settings:manage 角色无法访问 `/api/admin/v1/site/*`（已实现）
 - [x] 所有 15 个组件在编辑器中可拖拽、编辑、删除，在 C 端完整渲染（已实现）
-*（内容由AI生成，仅供参考）*
-*（内容由AI生成，仅供参考）*

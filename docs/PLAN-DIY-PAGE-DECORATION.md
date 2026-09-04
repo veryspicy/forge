@@ -1,17 +1,3 @@
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_29ab48288b4811f1a642525400287e28
-    ReservedCode1: ERvN4i1xtfyd1KEKZXBrYY7ITxB52HdHvYEemUqWl5q7so7/xijEEP6ATqQeuFclxf+Hx/rMdgg5z+0cySAiL9BQepMw1CMrrnazPkpabhUw7NyBVWQDjbCTMJvlbMOSHaWLZ2eimtUugTbvBuBxpRjqXIsAkTKCi2m/eaXq9LqXDXUuSLszo2+uWFw=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_29ab48288b4811f1a642525400287e28
-    ReservedCode2: ERvN4i1xtfyd1KEKZXBrYY7ITxB52HdHvYEemUqWl5q7so7/xijEEP6ATqQeuFclxf+Hx/rMdgg5z+0cySAiL9BQepMw1CMrrnazPkpabhUw7NyBVWQDjbCTMJvlbMOSHaWLZ2eimtUugTbvBuBxpRjqXIsAkTKCi2m/eaXq9LqXDXUuSLszo2+uWFw=
----
-
-
-
-
 # Forge 可视化 DIY 页面装修技术方案
 
 > 基于项目现有架构（FastAPI + SQLAlchemy + Vue 3 + NaiveUI + Nuxt 3）设计，完全对齐现有技术栈、代码风格、DDD 分层公约。
@@ -1174,6 +1160,3 @@ site_profiles.config (JSONB)
 | **Redis 可用性熔断** | Redis 不可用时自动降级直查 DB，不阻塞功能 |
 | **图片上传使用本地目录** | 初期简化部署，后续可迁移到 MinIO |
 | **listPages 客户端过滤** | 系统页+自定义页合并后数据量小，前端过滤即可 |
-*（内容由AI生成，仅供参考）*
-*（内容由AI生成，仅供参考）*
-*（内容由AI生成，仅供参考）*

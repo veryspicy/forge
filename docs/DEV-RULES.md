@@ -1,58 +1,3 @@
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_506246f39fa011f1a238525400e6dd8f
-    ReservedCode1: yxvHqhc7x0iIv5sYo9lN21fzYT+hLcdzQZXXCQIC1gTe8EGI2BcK9ZAPjp58VQgTdof8RBEDY441+p7F+XvBUnQxCPX6Av24G1kOo3Zv5bFIvVpBIRRmVS5m4wZo87DWmBZmqefI3glOuAKLBH4P/0snOWquTbYoyYoU27gd2E3vPDbJKeMViDy3p3c=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_506246f39fa011f1a238525400e6dd8f
-    ReservedCode2: yxvHqhc7x0iIv5sYo9lN21fzYT+hLcdzQZXXCQIC1gTe8EGI2BcK9ZAPjp58VQgTdof8RBEDY441+p7F+XvBUnQxCPX6Av24G1kOo3Zv5bFIvVpBIRRmVS5m4wZo87DWmBZmqefI3glOuAKLBH4P/0snOWquTbYoyYoU27gd2E3vPDbJKeMViDy3p3c=
----
-
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_ae9b99199afd11f1a98a525400f8a581
-    ReservedCode1: BAJo5HLEN50HY5JRVCjWtk6+osHNTGyAsCeEU3SChzi1PuETbgJnYLKibERq1s1aHPYtsI+DAJQ4xIMOE8eMtbyY8zuPrGu2mo8xkCP53rr2jsib2ATDyHJ4gEWahH39xmNr7XKnoV3/1zBQyrlMy2P7+RgKT643a1+YyBb3rZIkMFUXyu3NZ6yuUvo=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_ae9b99199afd11f1a98a525400f8a581
-    ReservedCode2: BAJo5HLEN50HY5JRVCjWtk6+osHNTGyAsCeEU3SChzi1PuETbgJnYLKibERq1s1aHPYtsI+DAJQ4xIMOE8eMtbyY8zuPrGu2mo8xkCP53rr2jsib2ATDyHJ4gEWahH39xmNr7XKnoV3/1zBQyrlMy2P7+RgKT643a1+YyBb3rZIkMFUXyu3NZ6yuUvo=
----
-
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_a93b3c429af711f1a98a525400f8a581
-    ReservedCode1: jIXEkxuanppiwrZ0FhCww+AdyurM9fjmGoGUACc8ygO3285V8a6cRYa3eJmiDo4NwlD2uUwaBn5JWsNKO58+ePQQsqp4x00cR6nzf13xLnz9nctgQxwC78oF7MczNXyNcRRCU1QTf+QqP8SP4ZmBqeg3AjRl0Cnk4vKzrfEj7mmE5iduvcPfeVgENkU=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_a93b3c429af711f1a98a525400f8a581
-    ReservedCode2: jIXEkxuanppiwrZ0FhCww+AdyurM9fjmGoGUACc8ygO3285V8a6cRYa3eJmiDo4NwlD2uUwaBn5JWsNKO58+ePQQsqp4x00cR6nzf13xLnz9nctgQxwC78oF7MczNXyNcRRCU1QTf+QqP8SP4ZmBqeg3AjRl0Cnk4vKzrfEj7mmE5iduvcPfeVgENkU=
----
-
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_9dd3814e839411f184135254006c9bbf
-    ReservedCode1: 8Rd1/yF+3VhHdr52zpgHBzQl11fo1kTBUYUD4aoP+cFgxGex0ZGQpT+1bAeCrNhOzF/8k6tyuZZUZXQsydsUW1mCqnPDRoEdOUG/K2eJ3+kiKP1aPUtMhCRgi2jEFVwfoPcWx6Sp3aioWzcCM6vgNhDFwRGBI5LjM08zizm444jI4DQGTip7N94BONQ=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_9dd3814e839411f184135254006c9bbf
-    ReservedCode2: 8Rd1/yF+3VhHdr52zpgHBzQl11fo1kTBUYUD4aoP+cFgxGex0ZGQpT+1bAeCrNhOzF/8k6tyuZZUZXQsydsUW1mCqnPDRoEdOUG/K2eJ3+kiKP1aPUtMhCRgi2jEFVwfoPcWx6Sp3aioWzcCM6vgNhDFwRGBI5LjM08zizm444jI4DQGTip7N94BONQ=
----
-
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_de6542c3757b11f19641525400d9a7a1
-    ReservedCode1: aRlwyaXIE05IvV85qkqs64aqtUZblvhSPZSYit2rpeHXPD2YBKeLOSnzFBJ2Gkeh+k8pEd9Z726GkXtb5JG/OHqBwzzijMkkZotfS4i07IkahRemJib/z1RE4kinWify+miyX96bSjiOZ7x9PPIbv61aa6A1h8ij4pEivT1+On6pY/PzPgsBWeNgPOM=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_de6542c3757b11f19641525400d9a7a1
-    ReservedCode2: aRlwyaXIE05IvV85qkqs64aqtUZblvhSPZSYit2rpeHXPD2YBKeLOSnzFBJ2Gkeh+k8pEd9Z726GkXtb5JG/OHqBwzzijMkkZotfS4i07IkahRemJib/z1RE4kinWify+miyX96bSjiOZ7x9PPIbv61aa6A1h8ij4pEivT1+On6pY/PzPgsBWeNgPOM=
----
-
 # 开发规则手册
 
 > 适用于 Marvis AI 助手在本项目中的所有开发协助行为。
@@ -281,6 +226,23 @@ powershell -ExecutionPolicy Bypass -File .\rebuild-service.ps1 -Service admin -S
 - 新增文件、引入新内容无需用户审批
 - 每次完成任务后，必须在回复中声明产出物（使用 `yyb-product` 卡片）
 - 所有文档（`.md`）必须放在 `docs/` 目录下，根目录仅允许 `README.md` 一个 Markdown 文档（docker/、scripts/ 等代码与配置目录内的说明文件不受此限，但必须随模块归档）
+
+### 6.1 禁止 AI 生成类水印与元数据（强制）
+
+**铁律**：项目内禁止出现任何"AI 生成 / AIGC"类噪声标记，包括但不限于 Markdown 头部 YAML 水印、文末注脚、PNG 等图片内嵌的 AIGC XMP/iTXt 元数据。此类标记无功能价值，一律视为噪声丢弃；正文中真实存在的业务描述（如"AI 推荐功能"）不属于水印，必须保留。
+
+**适用范围与已清理记录（2026-09-04）**：
+
+- `docs/*.md`（21 个）：剥离头部 `ai_generated` YAML 与尾部 AIGC 注脚；git grep 文本扫描 CLEAN
+- `admin/public/logo.png` 与 `backend/uploads/diy/` 下 3 个 PNG（字节相同）：各含一个 802 字节 `iTXt` AIGC chunk，已无损剥离（仅移除文本 chunk，像素数据不变）
+
+**执行步骤**：
+
+1. 新生成/修改文件（含图片导出、AI 工具产物）落盘前检查是否带 AIGC 标记；PNG 用文本 chunk 检查（`iTXt`/`tEXt`/`zTXt`），文档检查头部 YAML 与注脚
+2. 发现即剥离：PNG 用无损 chunk 重建（只删文本 chunk，保留 IHDR/IDAT/IEND 及 CRC），文档直接删除水印行
+3. 提交前可用 `git grep -I -E "AIGC|ai_generated|AI 生成|Created with"` 扫描确认无残留
+
+**反例**：曾出现 3 个字节相同的 PNG 均带 AIGC XMP 元数据，说明 AI 工具导出产物会静默嵌入水印；仅靠肉眼/网页预览无法发现，必须做二进制文本 chunk 级检查。
 
 ---
 
@@ -866,5 +828,3 @@ podman exec forge-postgres psql -U postgres -d forge -c "SELECT count(*) FROM di
 ---
 
 *最后更新：2026-09-03*
-*（内容由AI生成，仅供参考）*
-*（内容由AI生成，仅供参考）*

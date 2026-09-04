@@ -1,14 +1,3 @@
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_f5cd389d8dd611f196d8525400f8a581
-    ReservedCode1: NIh/gXn7EPI8+6aepYgl/tGz0NDEEoKv/m4lGUDT+38My1C/3tfhhv2shsOLO2/ZdIvbMhWYWGfHc2BJFoR+8nMoIa0QI2s91RajSCTJiPWXZ9QEHPCXqe+6o6s6/mEHzBQLPbVE4nGDRGGF+rlW/5ESWnr1bbwfFgzLAz67nFKoW5vh+CiM2xMvTok=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_f5cd389d8dd611f196d8525400f8a581
-    ReservedCode2: NIh/gXn7EPI8+6aepYgl/tGz0NDEEoKv/m4lGUDT+38My1C/3tfhhv2shsOLO2/ZdIvbMhWYWGfHc2BJFoR+8nMoIa0QI2s91RajSCTJiPWXZ9QEHPCXqe+6o6s6/mEHzBQLPbVE4nGDRGGF+rlW/5ESWnr1bbwfFgzLAz67nFKoW5vh+CiM2xMvTok=
----
-
 # Podman 测试环境部署、发布与功能测试 SOP
 
 > **项目路径**: `D:\codeRepo\forge`
@@ -431,4 +420,3 @@ podman exec forge-admin wget -qO- http://forge-backend:8000/health
 ---
 
 *最后更新：2026-08-02*
-*（内容由AI生成，仅供参考）*

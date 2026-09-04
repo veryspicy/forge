@@ -1,14 +1,3 @@
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_3b6e647d756b11f1a8895254002afed2
-    ReservedCode1: Bj7kZ0EsvaSQJnylMmWM8dCUlBY2/gO33f5QFG9655fMOA1aUYKRj0mRtvrTSYPlz7G/PHe3fCTwZZV9E81zxFg8fE1VUbTVjnm1O8LRGEJRZK3q3EI879pdcvSkHVoMVCttj/95aBnMJrD2DkJJAT2ToqJx7qSRO/jBUdWaAFJeufW8QR0tFqdfiHI=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_3b6e647d756b11f1a8895254002afed2
-    ReservedCode2: Bj7kZ0EsvaSQJnylMmWM8dCUlBY2/gO33f5QFG9655fMOA1aUYKRj0mRtvrTSYPlz7G/PHe3fCTwZZV9E81zxFg8fE1VUbTVjnm1O8LRGEJRZK3q3EI879pdcvSkHVoMVCttj/95aBnMJrD2DkJJAT2ToqJx7qSRO/jBUdWaAFJeufW8QR0tFqdfiHI=
----
-
 # Git 开发工作流规范 (Git Flow)
 
 > 适用项目：全部  
@@ -357,4 +346,3 @@ git push origin hotfix/v<版本>-<描述>
 ---
 
 > **最终解释权**：本规范由项目负责人维护，任何异议以本文档为准。违反规范的行为将在 Code Review 阶段被拦截。
-*（内容由AI生成，仅供参考）*

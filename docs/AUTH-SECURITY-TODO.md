@@ -1,14 +1,3 @@
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_94b706ef6fdd11f1986d525400d9a7a1
-    ReservedCode1: QHxHPs1/4Lj8iQNg/GR8brk7GpSy7/MQpxJGvbjTBm399ln2NTxn8I2oxnsXxxFneFbQ3WL4KUbcxaIpX3Ygz92LLo6E0Ds4QW+xvjmOor3ltVX/86hUebsWOiti/BC7L2f/UWKyUomuxqWEJy7xuOYXheCSNvETrp1twcV6zpxdarqRUClUm4Z1JAY=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_94b706ef6fdd11f1986d525400d9a7a1
-    ReservedCode2: QHxHPs1/4Lj8iQNg/GR8brk7GpSy7/MQpxJGvbjTBm399ln2NTxn8I2oxnsXxxFneFbQ3WL4KUbcxaIpX3Ygz92LLo6E0Ds4QW+xvjmOor3ltVX/86hUebsWOiti/BC7L2f/UWKyUomuxqWEJy7xuOYXheCSNvETrp1twcV6zpxdarqRUClUm4Z1JAY=
----
-
 # 认证鉴权安全加固清单
 
 > **背景**：当前认证体系为开发阶段占位实现，生产上线前必须逐项修复。架构设计（共用 JWT + 路径隔离 + 角色依赖注入）本身无问题，风险集中在占位代码。
@@ -127,4 +116,3 @@ JWT 真实验证 → 角色查库 → Cookie 加固 → 前端角色守卫 → T
 ## 完成后清理
 
 全部修复验证通过后，删除本文件。
-*（内容由AI生成，仅供参考）*

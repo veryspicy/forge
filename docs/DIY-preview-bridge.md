@@ -1,14 +1,3 @@
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_b90adc81957d11f181ac525400f8a581
-    ReservedCode1: vAbMv8zdU2mnaXZucWtBpIATcZC6t7V6nWTZKznt+P++qS9ejI5yXuPS+qB3Nh2yT2idukY4VkeIRf5erheKeeb+gh8tOxnR5gWlU3HY1jpE11ztRDzMbZOYeJjrQ/WMEnn8j2/8BkvtuZoeYzoXenS3pl45QrHFwAnEd+BS9bpcT81paPEjm2HCmQE=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_b90adc81957d11f181ac525400f8a581
-    ReservedCode2: vAbMv8zdU2mnaXZucWtBpIATcZC6t7V6nWTZKznt+P++qS9ejI5yXuPS+qB3Nh2yT2idukY4VkeIRf5erheKeeb+gh8tOxnR5gWlU3HY1jpE11ztRDzMbZOYeJjrQ/WMEnn8j2/8BkvtuZoeYzoXenS3pl45QrHFwAnEd+BS9bpcT81paPEjm2HCmQE=
----
-
 # 站点配置编辑器 - iframe 预览与元素选择
 
 > 状态：已实现（重构版）

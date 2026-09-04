@@ -1,14 +1,3 @@
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_9caf3159756111f19641525400d9a7a1
-    ReservedCode1: ejGrBjvoHA0gxrL/3Jird+UllULBEECoeoCGOpSIGpo2lw840cbsKiehvbZ5W4QQAMU+xM8qCX5ABmoeVkC5rPsvEkqMGCHFfLh3F14DLOCs2zK4aXCLsYm522Pl6cp4IVSybPoHSPBNCOtpRzisnMi/S5HZ+TJjhGXow4a/ijyRzHkQ+folkeHR1Qs=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_9caf3159756111f19641525400d9a7a1
-    ReservedCode2: ejGrBjvoHA0gxrL/3Jird+UllULBEECoeoCGOpSIGpo2lw840cbsKiehvbZ5W4QQAMU+xM8qCX5ABmoeVkC5rPsvEkqMGCHFfLh3F14DLOCs2zK4aXCLsYm522Pl6cp4IVSybPoHSPBNCOtpRzisnMi/S5HZ+TJjhGXow4a/ijyRzHkQ+folkeHR1Qs=
----
-
 # Forge — 项目目录结构说明
 
 > 所有文档、SOP 规范、设计决策必须放在 `docs/` 目录下，禁止散落在项目根目录。
@@ -223,4 +212,3 @@ k8s/
 | 根目录 `*.md`（除 README） | `docs/` | 所有文档类文件 |
 | 临时脚本 | `temp/`（中间产物目录） | 不要放根目录 |
 | 产物输出 | `output/`（结果产物目录） | 由 Agent 管理 |
-*（内容由AI生成，仅供参考）*

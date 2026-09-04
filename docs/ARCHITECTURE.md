@@ -1,16 +1,3 @@
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_0e0b98e46fd411f1b2f55254006c9bbf
-    ReservedCode1: RmWTM34s4/+1Isz4SCVkF7dC08mCuZxemerLjDdmFCsAFhdCkSNi94l7ee/eGS2kFK4j1R1YLUVNxddPjYCxJa8RqpaRRYjAOxOwNvGOF3Yq0jD0fj4nZzwOO48PZc7bLYLbh2sY+Nh6ZmzCApd5TMca1oQ2y+UDlJhdaIcc7F7iXA3Pe+1ocLF3KAM=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_0e0b98e46fd411f1b2f55254006c9bbf
-    ReservedCode2: RmWTM34s4/+1Isz4SCVkF7dC08mCuZxemerLjDdmFCsAFhdCkSNi94l7ee/eGS2kFK4j1R1YLUVNxddPjYCxJa8RqpaRRYjAOxOwNvGOF3Yq0jD0fj4nZzwOO48PZc7bLYLbh2sY+Nh6ZmzCApd5TMca1oQ2y+UDlJhdaIcc7F7iXA3Pe+1ocLF3KAM=
----
-
-
-
 ﻿# Forge — 总体架构文档
 
 ## 1. 项目概述
@@ -410,6 +397,3 @@ Nuxt 3 SPA/SSR，面向消费者。布局、路由、组件分层详见 `FRONTEN
 - 状态驱动色彩：订单状态机 8 种 oklch 色码映射
 - 定价层级可视化：四级优先级缩进 + 颜色深浅
 - 零第三方 UI 框架：纯 Tailwind CSS 4 手写
-
-*（内容由AI生成，仅供参考）*
-*（内容由AI生成，仅供参考）*
