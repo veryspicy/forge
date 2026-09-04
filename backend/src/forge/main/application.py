@@ -103,6 +103,20 @@ except ImportError:
     pass
 
 try:
+    from forge.api.v1.cart import router as public_cart_router
+
+    app.include_router(public_cart_router, prefix="/api/v1")
+except ImportError:
+    pass
+
+try:
+    from forge.api.v1.orders import router as public_orders_router
+
+    app.include_router(public_orders_router, prefix="/api/v1")
+except ImportError:
+    pass
+
+try:
     from forge.api.admin.v1.routes import router as routes_router
 
     app.include_router(routes_router)

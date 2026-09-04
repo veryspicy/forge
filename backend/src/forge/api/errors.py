@@ -86,6 +86,14 @@ class ErrorCode(StrEnum):
     # Common validation
     INVALID_ID = "INVALID_ID"
 
+    # C-end commerce (cart / orders / payment placeholder)
+    CART_ITEM_NOT_FOUND = "CART_ITEM_NOT_FOUND"
+    ORDER_NOT_FOUND = "ORDER_NOT_FOUND"
+    ORDER_EMPTY = "ORDER_EMPTY"
+    ORDER_NOT_CANCELLABLE = "ORDER_NOT_CANCELLABLE"
+    INSUFFICIENT_STOCK = "INSUFFICIENT_STOCK"
+    PRODUCT_UNAVAILABLE = "PRODUCT_UNAVAILABLE"
+
     # Rate limit / server
     RATE_LIMITED = "RATE_LIMITED"
     SERVER_ERROR = "SERVER_ERROR"
@@ -153,6 +161,17 @@ _REGISTRY: dict[ErrorCode, ErrorSpec] = {
     ErrorCode.MCP_KEY_NOT_FOUND: ErrorSpec(ErrorType.RESOURCE_ERROR, 404, "API key not found."),
     # Common validation
     ErrorCode.INVALID_ID: ErrorSpec(ErrorType.VALIDATION_ERROR, 400, "Identifier is not a valid UUID."),
+    # C-end commerce (cart / orders / payment placeholder)
+    ErrorCode.CART_ITEM_NOT_FOUND: ErrorSpec(ErrorType.RESOURCE_ERROR, 404, "Cart item does not exist."),
+    ErrorCode.ORDER_NOT_FOUND: ErrorSpec(ErrorType.RESOURCE_ERROR, 404, "Order does not exist."),
+    ErrorCode.ORDER_EMPTY: ErrorSpec(ErrorType.VALIDATION_ERROR, 400, "Order has no items."),
+    ErrorCode.ORDER_NOT_CANCELLABLE: ErrorSpec(
+        ErrorType.CONFLICT_ERROR, 409, "Order cannot be cancelled in its current state."
+    ),
+    ErrorCode.INSUFFICIENT_STOCK: ErrorSpec(
+        ErrorType.CONFLICT_ERROR, 409, "Insufficient stock for one or more items."
+    ),
+    ErrorCode.PRODUCT_UNAVAILABLE: ErrorSpec(ErrorType.RESOURCE_ERROR, 400, "Product is not available."),
     # Rate limit / server
     ErrorCode.RATE_LIMITED: ErrorSpec(ErrorType.RATE_LIMIT_ERROR, 429, "Too many requests, slow down."),
     ErrorCode.SERVER_ERROR: ErrorSpec(ErrorType.SERVER_ERROR, 500, "Internal server error."),
