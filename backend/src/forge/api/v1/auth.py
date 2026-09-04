@@ -95,6 +95,8 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)) -> dict[
     user: ORMUser | None = await repo.get_by_email(db, body.email)
     if user is None or not pwd_context.verify(body.password, user.password_hash):
         raise APIError(code=ErrorCode.INVALID_CREDENTIALS)
+    if not user.is_active:
+        raise APIError(code=ErrorCode.ACCOUNT_DISABLED)
     token, _ = _create_token(str(user.email), str(user.role))
     return {
         "access_token": token,

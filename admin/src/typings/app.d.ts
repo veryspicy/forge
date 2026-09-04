@@ -642,6 +642,8 @@ declare namespace App {
         MCP_KEY_INVALID_SCOPE: string;
         MCP_KEY_SCOPES_REQUIRED: string;
         MCP_KEY_NOT_FOUND: string;
+        CUSTOMER_NOT_FOUND: string;
+        CUSTOMER_CANNOT_DELETE: string;
         INVALID_ID: string;
       };
     };

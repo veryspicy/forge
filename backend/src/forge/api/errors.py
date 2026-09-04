@@ -62,6 +62,10 @@ class ErrorCode(StrEnum):
     # Resource
     NOT_FOUND = "NOT_FOUND"
 
+    # Customers (C-end users) management
+    CUSTOMER_NOT_FOUND = "CUSTOMER_NOT_FOUND"
+    CUSTOMER_CANNOT_DELETE = "CUSTOMER_CANNOT_DELETE"
+
     # Conflict
     CONFLICT = "CONFLICT"
     EMAIL_ALREADY_REGISTERED = "EMAIL_ALREADY_REGISTERED"
@@ -122,18 +126,17 @@ _REGISTRY: dict[ErrorCode, ErrorSpec] = {
     ErrorCode.REQUIRED_FIELD: ErrorSpec(ErrorType.VALIDATION_ERROR, 422, "A required field is missing."),
     # Resource
     ErrorCode.NOT_FOUND: ErrorSpec(ErrorType.RESOURCE_ERROR, 404, "Resource not found."),
+    # Customers (C-end users) management
+    ErrorCode.CUSTOMER_NOT_FOUND: ErrorSpec(ErrorType.RESOURCE_ERROR, 404, "Customer does not exist."),
+    ErrorCode.CUSTOMER_CANNOT_DELETE: ErrorSpec(
+        ErrorType.CONFLICT_ERROR, 409, "Customer has orders or pet profiles and cannot be deleted; freeze instead."
+    ),
     # Conflict
     ErrorCode.CONFLICT: ErrorSpec(ErrorType.CONFLICT_ERROR, 409, "Resource state conflict."),
-    ErrorCode.EMAIL_ALREADY_REGISTERED: ErrorSpec(
-        ErrorType.CONFLICT_ERROR, 409, "Email already registered."
-    ),
+    ErrorCode.EMAIL_ALREADY_REGISTERED: ErrorSpec(ErrorType.CONFLICT_ERROR, 409, "Email already registered."),
     # Admin RBAC / roles
-    ErrorCode.ROLE_NAME_EXISTS: ErrorSpec(
-        ErrorType.CONFLICT_ERROR, 400, "A role with this name already exists."
-    ),
-    ErrorCode.INVALID_PERMISSION_IDS: ErrorSpec(
-        ErrorType.VALIDATION_ERROR, 400, "Some permission ids are invalid."
-    ),
+    ErrorCode.ROLE_NAME_EXISTS: ErrorSpec(ErrorType.CONFLICT_ERROR, 400, "A role with this name already exists."),
+    ErrorCode.INVALID_PERMISSION_IDS: ErrorSpec(ErrorType.VALIDATION_ERROR, 400, "Some permission ids are invalid."),
     ErrorCode.ROLE_NOT_FOUND: ErrorSpec(ErrorType.RESOURCE_ERROR, 404, "Role does not exist."),
     ErrorCode.SUPER_ADMIN_ROLE_FIXED: ErrorSpec(
         ErrorType.CONFLICT_ERROR, 400, "The super admin role is fixed and cannot be modified."
@@ -142,12 +145,8 @@ _REGISTRY: dict[ErrorCode, ErrorSpec] = {
         ErrorType.CONFLICT_ERROR, 400, "System roles are protected and cannot be deleted."
     ),
     # Admin MCP API keys
-    ErrorCode.MCP_KEY_NAME_REQUIRED: ErrorSpec(
-        ErrorType.VALIDATION_ERROR, 400, "API key name is required."
-    ),
-    ErrorCode.MCP_KEY_INVALID_SCOPE: ErrorSpec(
-        ErrorType.VALIDATION_ERROR, 400, "Requested scope is not supported."
-    ),
+    ErrorCode.MCP_KEY_NAME_REQUIRED: ErrorSpec(ErrorType.VALIDATION_ERROR, 400, "API key name is required."),
+    ErrorCode.MCP_KEY_INVALID_SCOPE: ErrorSpec(ErrorType.VALIDATION_ERROR, 400, "Requested scope is not supported."),
     ErrorCode.MCP_KEY_SCOPES_REQUIRED: ErrorSpec(
         ErrorType.VALIDATION_ERROR, 400, "At least one of read/write scopes is required."
     ),

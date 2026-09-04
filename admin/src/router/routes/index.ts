@@ -192,7 +192,7 @@ const customRoutes = [
       i18nKey: 'route.customers',
       icon: 'mdi:account-group',
       order: 4,
-      roles: ['super_admin', 'admin', 'operator']
+      roles: ['super_admin', 'admin']
     }
   },
 

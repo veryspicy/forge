@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from sqlalchemy import func, select
+from uuid import UUID
+
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from forge.infrastructure.persistence.models import ORMAdminUser, ORMUser
+from forge.infrastructure.persistence.models import ORMAdminUser, ORMOrder, ORMPetProfile, ORMUser
 
 
 class SQLAlchemyUserRepository:
@@ -19,12 +21,27 @@ class SQLAlchemyUserRepository:
         return result.scalar_one_or_none()
 
     @staticmethod
-    async def create(db: AsyncSession, email: str, password_hash: str, name: str) -> ORMUser:
+    async def get_by_id(db: AsyncSession, user_id: UUID) -> ORMUser | None:
+        stmt = select(ORMUser).where(ORMUser.id == user_id)
+        result = await db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    @staticmethod
+    async def create(
+        db: AsyncSession,
+        email: str,
+        password_hash: str,
+        name: str,
+        phone: str | None = None,
+        is_active: bool = True,
+    ) -> ORMUser:
         user = ORMUser(
             email=email,
             password_hash=password_hash,
             name=name,
+            phone=phone,
             role="customer",
+            is_active=is_active,
         )
         db.add(user)
         await db.flush()
@@ -35,11 +52,28 @@ class SQLAlchemyUserRepository:
         db: AsyncSession,
         page: int = 1,
         page_size: int = 20,
+        keyword: str | None = None,
+        status: str | None = None,
     ) -> dict[str, object]:
-        total_query = select(func.count(ORMUser.id))
+        filters = []
+        if keyword:
+            kw = f"%{keyword.strip()}%"
+            filters.append(or_(ORMUser.email.ilike(kw), ORMUser.name.ilike(kw), ORMUser.phone.ilike(kw)))
+        if status == "active":
+            filters.append(ORMUser.is_active.is_(True))
+        elif status == "disabled":
+            filters.append(ORMUser.is_active.is_(False))
+
+        total_query = select(func.count(ORMUser.id)).where(*filters)
         total = (await db.execute(total_query)).scalar_one()
 
-        query = select(ORMUser).order_by(ORMUser.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+        query = (
+            select(ORMUser)
+            .where(*filters)
+            .order_by(ORMUser.created_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
         result = await db.execute(query)
         users = result.scalars().all()
 
@@ -49,6 +83,7 @@ class SQLAlchemyUserRepository:
                     "id": str(u.id),
                     "email": u.email,
                     "name": u.name,
+                    "phone": u.phone,
                     "role": u.role,
                     "is_active": u.is_active,
                     "created_at": u.created_at.isoformat() if u.created_at else None,
@@ -59,6 +94,29 @@ class SQLAlchemyUserRepository:
             "page": page,
             "page_size": page_size,
         }
+
+    @staticmethod
+    async def business_counts(db: AsyncSession, user_id: UUID) -> dict[str, int]:
+        """客户业务数据计数（订单 / 宠物档案），用于删除保护与详情聚合。"""
+        order_total = (
+            await db.execute(select(func.count(ORMOrder.id)).where(ORMOrder.user_id == user_id))
+        ).scalar_one()
+        pet_total = (
+            await db.execute(select(func.count(ORMPetProfile.id)).where(ORMPetProfile.owner_id == user_id))
+        ).scalar_one()
+        return {"orders": order_total, "pets": pet_total}
+
+    @staticmethod
+    async def list_pets_by_owner(db: AsyncSession, owner_id: UUID) -> list[ORMPetProfile]:
+        stmt = select(ORMPetProfile).where(ORMPetProfile.owner_id == owner_id).order_by(ORMPetProfile.created_at.desc())
+        result = await db.execute(stmt)
+        return list(result.scalars().all())
+
+    @staticmethod
+    async def list_recent_orders(db: AsyncSession, user_id: UUID, limit: int = 5) -> list[ORMOrder]:
+        stmt = select(ORMOrder).where(ORMOrder.user_id == user_id).order_by(ORMOrder.created_at.desc()).limit(limit)
+        result = await db.execute(stmt)
+        return list(result.scalars().all())
 
     @staticmethod
     async def count(db: AsyncSession) -> int:
