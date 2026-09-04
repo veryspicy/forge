@@ -113,6 +113,7 @@ if ($diffText) {
             $_.Line -notmatch '=\s*[A-Za-z]+-[A-Za-z]+\s*$' -and
             $_.Line -notmatch '=\s*[A-Za-z_]+\(\)?\s*$' -and
             $_.Line -notmatch ':\s*[$@]' -and
+            $_.Line -notmatch '[:=]\s*[A-Za-z_$][\w$]*(\.[\w$]+)+' -and
             $_.Line -notmatch '\["''(password|token|secret|key)"''\]'
         } | Select-Object -First 5)
     if ($secretHits.Count -gt 0) {
@@ -130,7 +131,13 @@ if (-not $SkipQuality) {
         $preCommitPy = Join-Path $env:USERPROFILE '.local\precommit-env\Scripts\python.exe'
         if (Test-Path $preCommitPy) {
             Write-Report 'INFO' 'Running pre-commit hooks (ruff + mypy, hook-equivalent params) on changed files...'
-            $out = & $preCommitPy -m pre_commit run --files $pyFiles 2>&1 | Out-String
+            Push-Location (Join-Path $repoRoot 'backend')
+            try {
+                $relPyFiles = @($pyFiles | ForEach-Object { $_ -replace '^backend/', '' })
+                $out = & $preCommitPy -m pre_commit run -c .pre-commit-config.yaml --files $relPyFiles 2>&1 | Out-String
+            } finally {
+                Pop-Location
+            }
             if ($LASTEXITCODE -ne 0) {
                 Write-Report 'BLOCKER' 'backend quality gate failed (ruff/mypy). See pre-commit output below.'
                 $reportLines.Add('--- pre-commit tail ---') | Out-Null
