@@ -7,7 +7,7 @@ const content = readFileSync(messageFile, "utf8");
 
 // 跳过 merge / revert 等 git 自动生成的消息
 const firstLine = content.split("\n")[0].trim();
-if (/^(Merge|Revert|fixup!|squash!)/.test(firstLine)) {
+if (/^(merge|revert|fixup!|squash!)/i.test(firstLine)) {
   process.exit(0);
 }
 
