@@ -1,14 +1,3 @@
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_67c47b286f2911f195af5254002afed2
-    ReservedCode1: N2k11sjdiaLLGJCuiL1Che6PGzFnWf82jWeXR/L7PRWH1BA7sZkgtYcP0KaEXFMtSH6ey89aaE3+N8Dq48+SDFhZvki2+vukEgXks7AeM5nM5MHZVlPAkqkcYi3df+521xfx+0Ql0uAoGFrtfjKqik1bhoahn1hwoisAhVQx6TZno11I+d4fjOv80M0=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_67c47b286f2911f195af5254002afed2
-    ReservedCode2: N2k11sjdiaLLGJCuiL1Che6PGzFnWf82jWeXR/L7PRWH1BA7sZkgtYcP0KaEXFMtSH6ey89aaE3+N8Dq48+SDFhZvki2+vukEgXks7AeM5nM5MHZVlPAkqkcYi3df+521xfx+0Ql0uAoGFrtfjKqik1bhoahn1hwoisAhVQx6TZno11I+d4fjOv80M0=
----
-
 ﻿# API 接口参考文档
 
 ## 基础信息
@@ -820,4 +809,3 @@ X-Signature: <stripe-signature>
 | PAYMENT_FAILED | 402 | 支付失败 |
 | INTERNAL_ERROR | 500 | 服务器内部错误 |
 | AI_SERVICE_UNAVAILABLE | 503 | AI 服务暂时不可用 |
-*（内容由AI生成，仅供参考）*

@@ -1,16 +1,3 @@
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_0c9cd1426fd411f1897e5254002afed2
-    ReservedCode1: roUcpV435y17/+KR7FIqKDylDW8ts6UiDdvf///uOyiMdVOITyn6sA+EU7Q9Z01Rf+++pUP+ph/dUMsuhh1lvY+k5UMG3hMOLlsF4SD+AzmcmyaFAei10JUiPrcNZDBwqbV6N8vMYtf3kDR36BabxTf5Qgi3DWQZZprbLZpfhaf1iin9dX0atsLqhkQ=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_0c9cd1426fd411f1897e5254002afed2
-    ReservedCode2: roUcpV435y17/+KR7FIqKDylDW8ts6UiDdvf///uOyiMdVOITyn6sA+EU7Q9Z01Rf+++pUP+ph/dUMsuhh1lvY+k5UMG3hMOLlsF4SD+AzmcmyaFAei10JUiPrcNZDBwqbV6N8vMYtf3kDR36BabxTf5Qgi3DWQZZprbLZpfhaf1iin9dX0atsLqhkQ=
----
-
-
-
 # 管理后台后端 — 开发日志
 
 > 记录日期: 2026-06-24  
@@ -343,6 +330,3 @@ PROCURING → PROCURE_FAILED (采购失败)
 | 供应商 SKU 映射 | Mock | 暂用 mock 数据，待对接真实供应商 API |
 | 角色权限严格检查 | 占位 | 当前已登录即可，后续收紧为三角色 RBAC |
 | 日期范围筛选器 | 可升级 | 当前为原生 date input，可升级为日期选择组件 |
-
-*（内容由AI生成，仅供参考）*
-*（内容由AI生成，仅供参考）*

@@ -1,14 +1,3 @@
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_42205d9b966311f1b799525400826444
-    ReservedCode1: aUcQHa9r++G65hNrqvmoxsCPdFPTUqNK6iy9efz/9d9+ynq/kHAUy8p/jQNvpleLrpGSxQIpc9PsDe/jgAsZvGQHb36Itn54Xpqm+wAL5BbXf9wkATtVcy2KRy3mEYA+bkJ002JzkLsUKrivuawtvXbgXIkqTsmUBswqTu3fIQBWYWYPniyemiSm84M=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_42205d9b966311f1b799525400826444
-    ReservedCode2: aUcQHa9r++G65hNrqvmoxsCPdFPTUqNK6iy9efz/9d9+ynq/kHAUy8p/jQNvpleLrpGSxQIpc9PsDe/jgAsZvGQHb36Itn54Xpqm+wAL5BbXf9wkATtVcy2KRy3mEYA+bkJ002JzkLsUKrivuawtvXbgXIkqTsmUBswqTu3fIQBWYWYPniyemiSm84M=
----
-
 # Forge 架构重构方案一：统一网关（Admin + C 端同域）
 
 > 状态：设计文档（待实现）
@@ -758,4 +747,3 @@ ingress:
 | 11 | `admin/nginx.conf` | **修改**（可选） | 增加 `/healthz` 探活端点（k8s readiness/liveness 使用，compose 不影响） |
 
 *最后更新：2026-08-12*
-*（内容由AI生成，仅供参考）*

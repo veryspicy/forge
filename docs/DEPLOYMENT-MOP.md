@@ -1,14 +1,3 @@
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_419836126ef011f184585254007bceed
-    ReservedCode1: /OfFOZ0FtXMtDlExeQHLacmMdT7eG1BQaGCn/Swq/B2wYbAVB+RC0Vux07eyVadRQlY6RxlHYFO9IBJ0kR85bqwoNFLUwvFEniTC7ccqNTcHZ4V1iXPqUMMNPme7g0NjRzVqu/cLk5YRuyebZNcRd6wM3JWwxBgQLQxMLFMzjWYVIafnaCiPOQF/9Ec=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_419836126ef011f184585254007bceed
-    ReservedCode2: /OfFOZ0FtXMtDlExeQHLacmMdT7eG1BQaGCn/Swq/B2wYbAVB+RC0Vux07eyVadRQlY6RxlHYFO9IBJ0kR85bqwoNFLUwvFEniTC7ccqNTcHZ4V1iXPqUMMNPme7g0NjRzVqu/cLk5YRuyebZNcRd6wM3JWwxBgQLQxMLFMzjWYVIafnaCiPOQF/9Ec=
----
-
 # Forge — 本地开发环境部署 MOP (Method of Procedure)
 
 > **项目路径**: `D:\codeRepo\forge`  
@@ -271,4 +260,3 @@ curl http://localhost:3000
 | MinIO Console | 9001 | http://localhost:9001 |
 | RocketMQ NameServer | 9876 | localhost:9876 |
 | RocketMQ Broker | 10911 | localhost:10911 |
-*（内容由AI生成，仅供参考）*

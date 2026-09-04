@@ -1,14 +1,3 @@
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_0ee523676fd411f1897e5254002afed2
-    ReservedCode1: F7UXwuPeaE00jV1XQkumvRURul7CYoDnZJJHLO5DTFnvTsFKb24kfdsGX2c3nGCey1kmFS7hoV3Xv1+PqwXK9eMI8Tx5M3oTxKA7w3aFhXOP9AaYSylgHkHBfhN9etJgIQ6Z+VEHe7LR8DJmMZhEb356+cuxHg/07vnSExqBTMnmvucAfJnLZ2kX1t4=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_0ee523676fd411f1897e5254002afed2
-    ReservedCode2: F7UXwuPeaE00jV1XQkumvRURul7CYoDnZJJHLO5DTFnvTsFKb24kfdsGX2c3nGCey1kmFS7hoV3Xv1+PqwXK9eMI8Tx5M3oTxKA7w3aFhXOP9AaYSylgHkHBfhN9etJgIQ6Z+VEHe7LR8DJmMZhEb356+cuxHg/07vnSExqBTMnmvucAfJnLZ2kX1t4=
----
-
 # Forge — 前端项目探测报告
 
 > 探测日期：2026-06-24
@@ -328,4 +317,3 @@ app/
 ## 5. 探测后记（2026-06-24）
 
 本探测报告已完成前端实现。管理后台前端（基础架构 + 7 个页面 + 6 个公共组件）已按探测报告中 §4 的方案完整落地，详见 `DEVELOPMENT-LOG.md`（管理后台前端章节）和 `ARCHITECTURE.md`（§11.2 管理后台架构）。
-*（内容由AI生成，仅供参考）*

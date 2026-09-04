@@ -1,14 +1,3 @@
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_0f9399446fcb11f1986d525400d9a7a1
-    ReservedCode1: wg1wsG1IULma47qXPBbIattfjfhGHQUL0927EHhgSnzf01y4vR7GtesuaXz1Z57iuNTRQjQmSgjiiOBq/KNIIx4NUns57mRcvTQUVeFPR205tccvS5HAP6+zFaLI1HjYSmFXny8WJEIJqUnyoY8lcUILtijrTlKPqPTXMtdijOdJfn7oTobB4IsR8EQ=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_0f9399446fcb11f1986d525400d9a7a1
-    ReservedCode2: wg1wsG1IULma47qXPBbIattfjfhGHQUL0927EHhgSnzf01y4vR7GtesuaXz1Z57iuNTRQjQmSgjiiOBq/KNIIx4NUns57mRcvTQUVeFPR205tccvS5HAP6+zFaLI1HjYSmFXny8WJEIJqUnyoY8lcUILtijrTlKPqPTXMtdijOdJfn7oTobB4IsR8EQ=
----
-
 ﻿# DDD 聚合设计文档
 
 ## 1. 聚合根 (Aggregate Roots)
@@ -615,4 +604,3 @@ class RocketMQConsumer:
             quantity=message["quantity"],
         )
 ```
-*（内容由AI生成，仅供参考）*

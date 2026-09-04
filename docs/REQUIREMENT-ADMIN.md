@@ -1,16 +1,3 @@
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_496ecc446f2a11f1aefd5254006c9bbf
-    ReservedCode1: f6WcWF9veS40+PDsh9icuQmV9Uub0guqKQeKC9o5/rixMw6Zy8xchRau2Z7yKsOL0SvqsQV7OXYwucjmR+u52EkLiavNnHtEx6rmNF6VRbiXtjxESivdCdbRLg8zOC0LSzXa2k3G36wbbifVPP/RnUb4XXxwN2LcifWPZyKt5wzWKbPtHeDmauFKXvs=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_496ecc446f2a11f1aefd5254006c9bbf
-    ReservedCode2: f6WcWF9veS40+PDsh9icuQmV9Uub0guqKQeKC9o5/rixMw6Zy8xchRau2Z7yKsOL0SvqsQV7OXYwucjmR+u52EkLiavNnHtEx6rmNF6VRbiXtjxESivdCdbRLg8zOC0LSzXa2k3G36wbbifVPP/RnUb4XXxwN2LcifWPZyKt5wzWKbPtHeDmauFKXvs=
----
-
-
-
 # 宠物用品 AI 独立站 — 管理后台需求规格
 
 ## 1. 概述
@@ -570,8 +557,6 @@ AIGC:
 - 批量操作上限限制（单次最多 50 个商品）
 - 创建的商品默认为「草稿」状态，需人工审核后上架（可配置为自动上架）
 - API Key 可随时吊销
-*（内容由AI生成，仅供参考）*
-*（内容由AI生成，仅供参考）*
 
 ---
 
