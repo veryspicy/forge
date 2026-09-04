@@ -1,14 +1,3 @@
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_ba03261c9f9811f1a413525400287e28
-    ReservedCode1: bIY42VwFHD0Zi/Ejipr+/dQBE7knqDcsMPzkltv2f7QeniSaQs3noCX/Fx08X7l914K/YrjrMrdpBW7lIOGtwmE/mIyYaMBM0ErTJ6oyLdg6xkYL2C6ipATZksKkvq3xNFDkJsTHrCTIxFV5GD7RmP70O70J5U618RyyLMBj/i1MJMrxGtbamPWTlbg=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_ba03261c9f9811f1a413525400287e28
-    ReservedCode2: bIY42VwFHD0Zi/Ejipr+/dQBE7knqDcsMPzkltv2f7QeniSaQs3noCX/Fx08X7l914K/YrjrMrdpBW7lIOGtwmE/mIyYaMBM0ErTJ6oyLdg6xkYL2C6ipATZksKkvq3xNFDkJsTHrCTIxFV5GD7RmP70O70J5U618RyyLMBj/i1MJMrxGtbamPWTlbg=
----
-
 # Forge 本地开发环境基线（INFRA-BASELINE）
 
 > 适用范围：Windows 11 + WSL2 + podman machine 容器化开发环境。
@@ -121,4 +110,3 @@ podman network connect docker_forge forge-gateway
 4. **init-admin 阻塞 compose（已解决）**：根因是 `backend/seed_admin.py` 第 35 行 import 已删除的 `casbin_enforcer` 模块，导致 `forge-init-admin` 容器必然 Exited(1)，compose up 每次尝试重建该一次性容器而卡住。2026-08-24 方案A落地：已从 docker-compose.yml 移除 init-admin 服务定义（compose 不再包含该服务），并修复 seed_admin.py（移除 casbin 引用，RBAC 数据由 migration + API 落地，admin 可正常登录）。seed_admin.py 保留为手动初始化脚本（容器内 `python /app/seed_admin.py`），不再参与 compose 生命周期。
 5. **podman-compose 曾被 SAC 误拦截（已解决）**：Smart App Control 曾误拦 podman-compose.exe 及 uv/venv Python 可执行文件（python.exe、alembic.exe、uvicorn.exe、.pyd 等，均无微软信誉签名）；2026-08-24 用户手动关闭 SAC 后恢复可用。SAC 关闭不可逆（重新开启需重置 Windows）。若再遇 App Control 拦截，先查 SAC 状态（Windows 安全中心 → 应用和浏览器控制）与 CodeIntegrity 事件日志（3076/3077）。
 6. **admin 静态资源缓存**：admin 重建后浏览器需 Ctrl+Shift+R 硬刷新（nginx 强缓存），见 DEV-RULES §3.2。
-*（内容由AI生成，仅供参考）*

@@ -1,14 +1,3 @@
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_d36e8c91a23f11f1bc17525400826444
-    ReservedCode1: AmoR4wHjJdrFbufN+8zlfSXLH5lR0Vl2tj/CH5riaUJZKVNrarJ1GPflGZ6os5MjldOLC8XIc+6wZjDNfGF1xMl3MHgcsl4jZaBsSxbZRMOLu3owFA5w9E62YFKjWygI9VKmNMMEuK5E3uqAtKwZbP7ojwaTX7L6xIHq/EOcsWrA//Sjz8xHnOEVNeQ=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_d36e8c91a23f11f1bc17525400826444
-    ReservedCode2: AmoR4wHjJdrFbufN+8zlfSXLH5lR0Vl2tj/CH5riaUJZKVNrarJ1GPflGZ6os5MjldOLC8XIc+6wZjDNfGF1xMl3MHgcsl4jZaBsSxbZRMOLu3owFA5w9E62YFKjWygI9VKmNMMEuK5E3uqAtKwZbP7ojwaTX7L6xIHq/EOcsWrA//Sjz8xHnOEVNeQ=
----
-
 # Forge 商品体系改造设计（分类树 + 商品类型规格模板 + SKU 自动编号 + 轻量品牌）
 
 > 状态：设计稿（待用户确认决策点后进入实施）
@@ -291,4 +280,3 @@ UNIQUE(variant_id, spec_key_id)
 | D5 | 库存预警值字段 | 变体表新增 `low_stock_threshold`，本轮落地 |
 | D6 | 规格键模板是否允许 SPU 级增删 | 允许（模板带出后可增删） |
 | D7 | 变体保存形态 | 逐行 PUT（与现有接口一致），不做批量事务接口 |
-*（内容由AI生成，仅供参考）*

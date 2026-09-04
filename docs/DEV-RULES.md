@@ -1,58 +1,3 @@
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_506246f39fa011f1a238525400e6dd8f
-    ReservedCode1: yxvHqhc7x0iIv5sYo9lN21fzYT+hLcdzQZXXCQIC1gTe8EGI2BcK9ZAPjp58VQgTdof8RBEDY441+p7F+XvBUnQxCPX6Av24G1kOo3Zv5bFIvVpBIRRmVS5m4wZo87DWmBZmqefI3glOuAKLBH4P/0snOWquTbYoyYoU27gd2E3vPDbJKeMViDy3p3c=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_506246f39fa011f1a238525400e6dd8f
-    ReservedCode2: yxvHqhc7x0iIv5sYo9lN21fzYT+hLcdzQZXXCQIC1gTe8EGI2BcK9ZAPjp58VQgTdof8RBEDY441+p7F+XvBUnQxCPX6Av24G1kOo3Zv5bFIvVpBIRRmVS5m4wZo87DWmBZmqefI3glOuAKLBH4P/0snOWquTbYoyYoU27gd2E3vPDbJKeMViDy3p3c=
----
-
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_ae9b99199afd11f1a98a525400f8a581
-    ReservedCode1: BAJo5HLEN50HY5JRVCjWtk6+osHNTGyAsCeEU3SChzi1PuETbgJnYLKibERq1s1aHPYtsI+DAJQ4xIMOE8eMtbyY8zuPrGu2mo8xkCP53rr2jsib2ATDyHJ4gEWahH39xmNr7XKnoV3/1zBQyrlMy2P7+RgKT643a1+YyBb3rZIkMFUXyu3NZ6yuUvo=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_ae9b99199afd11f1a98a525400f8a581
-    ReservedCode2: BAJo5HLEN50HY5JRVCjWtk6+osHNTGyAsCeEU3SChzi1PuETbgJnYLKibERq1s1aHPYtsI+DAJQ4xIMOE8eMtbyY8zuPrGu2mo8xkCP53rr2jsib2ATDyHJ4gEWahH39xmNr7XKnoV3/1zBQyrlMy2P7+RgKT643a1+YyBb3rZIkMFUXyu3NZ6yuUvo=
----
-
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_a93b3c429af711f1a98a525400f8a581
-    ReservedCode1: jIXEkxuanppiwrZ0FhCww+AdyurM9fjmGoGUACc8ygO3285V8a6cRYa3eJmiDo4NwlD2uUwaBn5JWsNKO58+ePQQsqp4x00cR6nzf13xLnz9nctgQxwC78oF7MczNXyNcRRCU1QTf+QqP8SP4ZmBqeg3AjRl0Cnk4vKzrfEj7mmE5iduvcPfeVgENkU=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_a93b3c429af711f1a98a525400f8a581
-    ReservedCode2: jIXEkxuanppiwrZ0FhCww+AdyurM9fjmGoGUACc8ygO3285V8a6cRYa3eJmiDo4NwlD2uUwaBn5JWsNKO58+ePQQsqp4x00cR6nzf13xLnz9nctgQxwC78oF7MczNXyNcRRCU1QTf+QqP8SP4ZmBqeg3AjRl0Cnk4vKzrfEj7mmE5iduvcPfeVgENkU=
----
-
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_9dd3814e839411f184135254006c9bbf
-    ReservedCode1: 8Rd1/yF+3VhHdr52zpgHBzQl11fo1kTBUYUD4aoP+cFgxGex0ZGQpT+1bAeCrNhOzF/8k6tyuZZUZXQsydsUW1mCqnPDRoEdOUG/K2eJ3+kiKP1aPUtMhCRgi2jEFVwfoPcWx6Sp3aioWzcCM6vgNhDFwRGBI5LjM08zizm444jI4DQGTip7N94BONQ=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_9dd3814e839411f184135254006c9bbf
-    ReservedCode2: 8Rd1/yF+3VhHdr52zpgHBzQl11fo1kTBUYUD4aoP+cFgxGex0ZGQpT+1bAeCrNhOzF/8k6tyuZZUZXQsydsUW1mCqnPDRoEdOUG/K2eJ3+kiKP1aPUtMhCRgi2jEFVwfoPcWx6Sp3aioWzcCM6vgNhDFwRGBI5LjM08zizm444jI4DQGTip7N94BONQ=
----
-
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_de6542c3757b11f19641525400d9a7a1
-    ReservedCode1: aRlwyaXIE05IvV85qkqs64aqtUZblvhSPZSYit2rpeHXPD2YBKeLOSnzFBJ2Gkeh+k8pEd9Z726GkXtb5JG/OHqBwzzijMkkZotfS4i07IkahRemJib/z1RE4kinWify+miyX96bSjiOZ7x9PPIbv61aa6A1h8ij4pEivT1+On6pY/PzPgsBWeNgPOM=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_de6542c3757b11f19641525400d9a7a1
-    ReservedCode2: aRlwyaXIE05IvV85qkqs64aqtUZblvhSPZSYit2rpeHXPD2YBKeLOSnzFBJ2Gkeh+k8pEd9Z726GkXtb5JG/OHqBwzzijMkkZotfS4i07IkahRemJib/z1RE4kinWify+miyX96bSjiOZ7x9PPIbv61aa6A1h8ij4pEivT1+On6pY/PzPgsBWeNgPOM=
----
-
 # 开发规则手册
 
 > 适用于 Marvis AI 助手在本项目中的所有开发协助行为。
@@ -126,6 +71,26 @@ AIGC:
 - 与 §1.3 用户验证门禁相互独立、顺序固定：**先 CI 健康 → 合 dev / push → 部署供用户验证**；CI 红不允许合并，用户未验证不允许部署上生产
 - 依赖 audit（pip-audit / pnpm audit）等既有漏洞导致的失败必须在合并前修复，禁止通过调低 audit 门槛或改 workflow 跳过绕过
 - 规则 2026-09-03 起生效。**反例**：此前 2026-09-03 曾直接将 `fix/ci-admin-error-codes` 等分支合 dev 后才暴露 test-backend 失败、合 dev 后再补 audit 修复，属合并前未做 CI 验证的带病合入，本次固化禁止。
+
+### 1.5 代码审查自动化门禁（脚本）
+
+> 单人开发无真人 reviewer，机械审查与质量复验由脚本自动执行，输出统一报告。Marvis 在合并/发布场景**必须调用脚本**，禁止绕过脚本手写命令走捷径；脚本只做机械/质量/CI 门禁，**不替代 §1.3 用户验证门禁**。
+
+**脚本清单**（均位于 `scripts/`，PowerShell 5.1 兼容）：
+
+| 脚本 | 场景 | 行为 |
+|---|---|---|
+| `code-review-gate.ps1` | 合并/发布前门禁（核心） | 分支命名、commit 规范、备份/密钥/temp 机械检查、改动文件质量复验（backend 走 pre-commit ruff+mypy 与 hook 同参；前端 pnpm lint+typecheck）、报告落 `temp/code-review-report-<ts>.md`；有 blocker 则 exit 1 |
+| `merge-dev.ps1` | 用户已"验证通过"后的合 dev 动作 | 先跑 gate → ff 同步 origin/dev → `--no-ff` merge → push → 轮询该 merge commit 的 CI run 直至绿；CI 红/超时则 fail 并提示保留分支 |
+| `release-gate.ps1` | 大版本发布（dev → main / 打 tag）前 | 校验 dev 分支与工作区、同步 origin、CHANGELOG Unreleased 非空、backend/admin/portal 版本号一致性，再对 origin/main 跑完整 gate |
+
+**执行规则**：
+
+1. 合 dev / 发布动作**必须**经由脚本；脚本报 blocker 时禁止手动 `git merge` 绕过（先修复再重跑）
+2. 脚本内 CI 轮询与 §1.4 的 API 查询等价，失败即视为 CI 不健康，禁止带病合入
+3. 与 §1.3 顺序仍为：CI/门禁绿 → 用户验证通过 → `merge-dev.ps1` 合 dev
+4. 修改 `scripts/` 下脚本本身：先 PowerShell Parser 语法预检（`[System.Management.Automation.Language.Parser]::ParseFile`），提交信息按 Conventional Commits（`chore(scripts): ...`）
+5. 脚本报告统一写 `temp/`，禁止提交；脚本文本保持 ASCII，规避 PowerShell 5.1 无 BOM UTF-8 解析乱码
 
 ---
 
@@ -261,6 +226,23 @@ powershell -ExecutionPolicy Bypass -File .\rebuild-service.ps1 -Service admin -S
 - 新增文件、引入新内容无需用户审批
 - 每次完成任务后，必须在回复中声明产出物（使用 `yyb-product` 卡片）
 - 所有文档（`.md`）必须放在 `docs/` 目录下，根目录仅允许 `README.md` 一个 Markdown 文档（docker/、scripts/ 等代码与配置目录内的说明文件不受此限，但必须随模块归档）
+
+### 6.1 禁止 AI 生成类水印与元数据（强制）
+
+**铁律**：项目内禁止出现任何"AI 生成 / AIGC"类噪声标记，包括但不限于 Markdown 头部 YAML 水印、文末注脚、PNG 等图片内嵌的 AIGC XMP/iTXt 元数据。此类标记无功能价值，一律视为噪声丢弃；正文中真实存在的业务描述（如"AI 推荐功能"）不属于水印，必须保留。
+
+**适用范围与已清理记录（2026-09-04）**：
+
+- `docs/*.md`（21 个）：剥离头部 `ai_generated` YAML 与尾部 AIGC 注脚；git grep 文本扫描 CLEAN
+- `admin/public/logo.png` 与 `backend/uploads/diy/` 下 3 个 PNG（字节相同）：各含一个 802 字节 `iTXt` AIGC chunk，已无损剥离（仅移除文本 chunk，像素数据不变）
+
+**执行步骤**：
+
+1. 新生成/修改文件（含图片导出、AI 工具产物）落盘前检查是否带 AIGC 标记；PNG 用文本 chunk 检查（`iTXt`/`tEXt`/`zTXt`），文档检查头部 YAML 与注脚
+2. 发现即剥离：PNG 用无损 chunk 重建（只删文本 chunk，保留 IHDR/IDAT/IEND 及 CRC），文档直接删除水印行
+3. 提交前可用 `git grep -I -E "AIGC|ai_generated|AI 生成|Created with"` 扫描确认无残留
+
+**反例**：曾出现 3 个字节相同的 PNG 均带 AIGC XMP 元数据，说明 AI 工具导出产物会静默嵌入水印；仅靠肉眼/网页预览无法发现，必须做二进制文本 chunk 级检查。
 
 ---
 
@@ -616,6 +598,24 @@ podman exec forge-postgres psql -U postgres -d forge -c "SELECT count(*) FROM di
 2. 对既有占位实现先确认其是否真实生效（是否只是 `return` 透传），再决定是否依赖它，禁止假设"已存在权限控制"
 3. FastAPI 依赖默认参数统一 `# noqa: B008`；`except` 内 `raise HTTPException` 统一 `from None`，否则 ruff 拦截
 
+**13.5.5 锁文件副作用防护（uv.lock，强制）**
+
+> **核心原则**：uv.lock 只允许在"确需更新依赖"的独立提交中变更；任何触发 uv 工具链（`uv run` / `uv sync` / `pre-commit` 中经 `uv run` 执行的 ruff/mypy）的动作都可能自动归一化重写 uv.lock，引入与任务无关的 diff，禁止让此类副作用混入业务提交。
+
+**触发条件**：任何可能触发 uv 执行的提交前流程（pre-commit 后端检查、手动 `uv run` 命令、`uv add/remove/lock` 等）。
+
+**执行步骤**：
+
+1. `git commit` 前先跑 `git status`，检查 uv.lock 是否有改动
+2. 若 uv.lock 出现改动但本次任务**不涉及依赖变更**，立即 `git restore uv.lock` 还原，禁止带进提交
+3. 确需更新依赖时，单独提交 `build(backend): update uv.lock`，与业务改动隔离，便于 review 与回滚
+
+**坑位**：
+- pre-commit 后端 hook 通过 `uv run ruff/mypy` 执行（见 §13.2），uv 启动时自动执行 lockfile 归一化，可能静默删除 uv.lock 中重复的 dev 依赖声明（如历史中一次删除 12 行），diff 与业务无关
+- `git add -A` / `git commit -am` 会把 uv.lock 副作用一并纳入暂存，务必先 `git status` 拦截
+
+**反例（2026-09-04）**：剥离 AIGC 水印提交时 pre-commit 触发 `uv run`，uv 自动归一化删除了 uv.lock 中重复 dev 依赖声明 12 行，未核查 git status 导致无关 diff 差点进入提交；已 `git restore uv.lock` 还原，未进提交。
+
 ---
 
 ## 14. 数据与发布安全（强制）
@@ -845,6 +845,4 @@ podman exec forge-postgres psql -U postgres -d forge -c "SELECT count(*) FROM di
 
 ---
 
-*最后更新：2026-09-03*
-*（内容由AI生成，仅供参考）*
-*（内容由AI生成，仅供参考）*
+*最后更新：2026-09-04*

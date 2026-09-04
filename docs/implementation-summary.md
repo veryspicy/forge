@@ -1,14 +1,3 @@
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_08be9bab6ee111f18805525400d9a7a1
-    ReservedCode1: MrxyDmPuaUmdXioBNS9ApWoGHEit0xRZfUXAt80ko3yvgFw/JIDk5M3TAV4t64SwtOMcKIMpJEbnHZGxulIH2Qv5D6H35Gcu3IwHFW/xJN0Mtgx/Mhjfa/w+vr61a5k98TRo4HIlLKhRaGnR9MaEkxeov2LUpNshJtYyIWMGST/ZJrauHCkcEWOFyeY=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_08be9bab6ee111f18805525400d9a7a1
-    ReservedCode2: MrxyDmPuaUmdXioBNS9ApWoGHEit0xRZfUXAt80ko3yvgFw/JIDk5M3TAV4t64SwtOMcKIMpJEbnHZGxulIH2Qv5D6H35Gcu3IwHFW/xJN0Mtgx/Mhjfa/w+vr61a5k98TRo4HIlLKhRaGnR9MaEkxeov2LUpNshJtYyIWMGST/ZJrauHCkcEWOFyeY=
----
-
 # Forge 前端实现汇总
 
 > 项目: 全球化宠物用品 AI 独立站  
@@ -100,4 +89,3 @@ AIGC:
 | DE | EUR | 19% VAT | Stripe, PayPal, Klarna | DHL, DPD |
 | FR | EUR | 20% VAT | Stripe, PayPal | Colissimo, Chronopost |
 | SA | SAR | 15% VAT | Stripe | Aramex, DHL |
-*（内容由AI生成，仅供参考）*
