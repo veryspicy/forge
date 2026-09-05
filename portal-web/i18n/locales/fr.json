@@ -17,7 +17,10 @@
     "apply": "Appliquer",
     "subscribe": "S'abonner",
     "submit": "Soumettre",
-    "submitting": "Envoi en cours..."
+    "submitting": "Envoi en cours...",
+    "yes": "Oui",
+    "no": "Non",
+    "backHome": "Retour à l'accueil"
   },
   "nav": {
     "products": "Produits",
@@ -26,7 +29,12 @@
     "aiChat": "Chat IA",
     "home": "Accueil",
     "language": "Langue",
-    "currency": "Devise"
+    "currency": "Devise",
+    "login": "Connexion",
+    "logout": "Déconnexion",
+    "register": "Inscription",
+    "pets": "Mes animaux",
+    "chat": "Chat IA"
   },
   "home": {
     "heroTitle": "Soins pour animaux alimentés par IA, livrés dans le monde entier",
@@ -43,7 +51,12 @@
     "globalShipping": "Livraison mondiale",
     "aiRecommendations": "Recommandations IA",
     "vetCertified": "Certifié vétérinaire",
-    "securePayment": "Paiement sécurisé"
+    "securePayment": "Paiement sécurisé",
+    "aiTeaser": "Shopping assisté par IA",
+    "aiTeaserDesc": "Parlez de votre animal à notre assistant IA et obtenez des recommandations personnalisées instantanément.",
+    "categories": "Catégories",
+    "featured": "Produits vedettes",
+    "startChat": "Démarrer le chat"
   },
   "categories": {
     "food": "Nourriture",
@@ -51,7 +64,10 @@
     "health": "Santé",
     "grooming": "Toilettage",
     "supplies": "Fournitures",
-    "accessories": "Accessoires"
+    "accessories": "Accessoires",
+    "furniture": "Meubles",
+    "litter": "Litière",
+    "training": "Dressage"
   },
   "pets": {
     "title": "Mes Animaux",
@@ -122,7 +138,13 @@
     "years_age": "ans",
     "month": "mois",
     "months": "mois",
-    "lessThanOneMonth": "< 1 mois"
+    "lessThanOneMonth": "< 1 mois",
+    "selectBreed": "Sélectionnez la race",
+    "lifecycle": "Cycle de vie",
+    "spayedNeutered": "Stérilisé/Castré",
+    "healthNotes": "Notes de santé",
+    "recommendedProducts": "Produits recommandés",
+    "notFound": "Animal non trouvé"
   },
   "products": {
     "title": "Produits",
@@ -179,7 +201,8 @@
     "retry": "Réessayer",
     "failedToLoad": "Échec du chargement des produits.",
     "browseProducts": "Parcourir les produits",
-    "addedToCart": "\"{name}\" ajouté au panier"
+    "addedToCart": "\"{name}\" ajouté au panier",
+    "noProducts": "Aucun produit ne correspond à vos critères."
   },
   "cart": {
     "title": "Panier",
@@ -246,7 +269,12 @@
     "viewYourOrders": "Voir vos commandes",
     "back": "Retour",
     "qty": "Qté",
-    "secureSSL": "Paiement sécurisé SSL. Vos données sont protégées."
+    "secureSSL": "Paiement sécurisé SSL. Vos données sont protégées.",
+    "cardName": "Nom du titulaire de la carte",
+    "cardExpiry": "Date d'expiration (MM/AA)",
+    "cardCvv": "CVV",
+    "paymentNote": "Mode test : aucun paiement réel ne sera débité.",
+    "invalidCard": "Veuillez vérifier les informations de carte saisies."
   },
   "orders": {
     "title": "Mes Commandes",
@@ -319,7 +347,12 @@
     "suggestion2": "À quelle fréquence dois-je toiletter mon chat ?",
     "suggestion3": "Recommandez des jouets pour un chiot actif",
     "suggestion4": "Conseils pour les soins dentaires des animaux",
-    "mockResponse": "Excellente question ! Je serais ravi de vous aider. Pourriez-vous me donner plus de détails sur votre animal ?"
+    "mockResponse": "Excellente question ! Je serais ravi de vous aider. Pourriez-vous me donner plus de détails sur votre animal ?",
+    "emptyHint": "Pas encore de messages. Commencez une conversation !",
+    "noPets": "Aucun animal trouvé. Ajoutez un animal pour des recommandations personnalisées.",
+    "petContextHint": "Les recommandations sont basées sur le profil de votre animal.",
+    "recommendations": "Recommandé pour vous",
+    "selectPet": "Choisir un animal"
   },
   "auth": {
     "signIn": "Connectez-vous",
@@ -328,7 +361,15 @@
     "password": "Mot de passe",
     "signInButton": "Se connecter",
     "signingIn": "Connexion...",
-    "loginFailed": "Échec de connexion. Vérifiez vos identifiants."
+    "loginFailed": "Échec de connexion. Vérifiez vos identifiants.",
+    "confirmPassword": "Confirmer le mot de passe",
+    "createAccount": "Créer un compte",
+    "haveAccount": "Vous avez déjà un compte ?",
+    "name": "Nom",
+    "noAccount": "Pas encore de compte ?",
+    "passwordMinLength": "Le mot de passe doit contenir au moins 6 caractères",
+    "passwordMismatch": "Les mots de passe ne correspondent pas",
+    "registerSuccess": "Inscription réussie"
   },
   "footer": {
     "shop": "Boutique",
@@ -397,5 +438,11 @@
     "MCP_KEY_NOT_FOUND": "Clé API introuvable",
     "INVALID_ID": "Format d'identifiant invalide",
     "UNKNOWN_ERROR": "Échec de l'opération, veuillez réessayer"
+  },
+  "hero": {
+    "title": "Votre animal mérite le meilleur",
+    "subtitle": "Shopping intelligent pour vos amis à fourrure, propulsé par l'IA.",
+    "cta1Label": "Acheter maintenant",
+    "cta2Label": "Ajouter votre animal"
   }
 }

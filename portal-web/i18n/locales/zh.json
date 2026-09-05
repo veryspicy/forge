@@ -17,7 +17,10 @@
     "apply": "应用",
     "subscribe": "订阅",
     "submit": "提交",
-    "submitting": "提交中..."
+    "submitting": "提交中...",
+    "yes": "是",
+    "no": "否",
+    "backHome": "返回首页"
   },
   "nav": {
     "products": "商品",
@@ -29,7 +32,9 @@
     "currency": "货币",
     "login": "登录",
     "register": "注册",
-    "logout": "退出登录"
+    "logout": "退出登录",
+    "pets": "我的宠物",
+    "chat": "AI 助手"
   },
   "home": {
     "heroTitle": "AI 驱动的宠物护理，全球配送",
@@ -136,7 +141,13 @@
     "years_age": "岁",
     "month": "个月",
     "months": "个月",
-    "lessThanOneMonth": "不足 1 个月"
+    "lessThanOneMonth": "不足 1 个月",
+    "selectBreed": "选择品种",
+    "lifecycle": "生命周期",
+    "spayedNeutered": "绝育",
+    "healthNotes": "健康记录",
+    "recommendedProducts": "推荐产品",
+    "notFound": "未找到该宠物"
   },
   "products": {
     "title": "商品",
@@ -261,7 +272,12 @@
     "viewYourOrders": "查看我的订单",
     "back": "返回",
     "qty": "数量",
-    "secureSSL": "SSL 安全加密结账，您的数据受到保护。"
+    "secureSSL": "SSL 安全加密结账，您的数据受到保护。",
+    "cardName": "持卡人姓名",
+    "cardExpiry": "有效期 (MM/YY)",
+    "cardCvv": "CVV",
+    "paymentNote": "测试模式：不会产生真实扣款。",
+    "invalidCard": "请检查填写的银行卡信息。"
   },
   "orders": {
     "title": "我的订单",
@@ -425,5 +441,11 @@
     "MCP_KEY_NOT_FOUND": "API 密钥不存在",
     "INVALID_ID": "ID 格式无效",
     "UNKNOWN_ERROR": "操作失败，请稍后重试"
+  },
+  "hero": {
+    "title": "给宠物最好的陪伴",
+    "subtitle": "AI 驱动的智能购物，为您的毛孩子挑选最好的。",
+    "cta1Label": "立即选购",
+    "cta2Label": "添加您的宠物"
   }
 }

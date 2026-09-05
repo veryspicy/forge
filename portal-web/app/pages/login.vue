@@ -78,6 +78,7 @@ const email = ref('')
 const password = ref('')
 const loading = ref(false)
 const errorMsg = ref('')
+const { toMessage } = useApiError()
 
 function getRedirectPath(): string {
   const redirect = route.query.redirect as string
@@ -104,7 +105,7 @@ async function handleLogin() {
       await navigateTo(getRedirectPath())
     }
   } catch (err: any) {
-    errorMsg.value = useApiError().toMessage(err)
+    errorMsg.value = toMessage(err)
   } finally {
     loading.value = false
   }

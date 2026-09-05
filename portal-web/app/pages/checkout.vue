@@ -77,6 +77,55 @@
               <span class="text-sm font-medium text-gray-900">{{ $t('checkout.paypal') }}</span>
             </label>
           </div>
+
+          <div v-if="form.payment === 'card'" class="mt-5 pt-5 border-t border-gray-200 space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('checkout.cardName') }}</label>
+              <input
+                v-model="form.cardName"
+                type="text"
+                autocomplete="cc-name"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('checkout.cardNumber') }}</label>
+              <input
+                v-model="form.cardNumber"
+                type="text"
+                inputmode="numeric"
+                autocomplete="cc-number"
+                placeholder="4242 4242 4242 4242"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('checkout.cardExpiry') }}</label>
+                <input
+                  v-model="form.cardExpiry"
+                  type="text"
+                  inputmode="numeric"
+                  autocomplete="cc-exp"
+                  placeholder="MM/YY"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('checkout.cardCvv') }}</label>
+                <input
+                  v-model="form.cardCvv"
+                  type="password"
+                  inputmode="numeric"
+                  autocomplete="cc-csc"
+                  placeholder="CVV"
+                  maxlength="4"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                />
+              </div>
+            </div>
+            <p class="text-xs text-gray-500">{{ $t('checkout.paymentNote') }}</p>
+          </div>
         </div>
       </div>
 
@@ -112,7 +161,7 @@
           :disabled="submitting"
           @click="placeOrder"
         >
-          {{ submitting ? 'Placing Order...' : $t('checkout.placeOrder') }}
+          {{ submitting ? $t('checkout.placingOrder') : $t('checkout.placeOrder') }}
         </button>
         <p v-if="error" class="mt-3 text-sm text-red-600 text-center">{{ error }}</p>
       </div>
@@ -133,6 +182,8 @@ definePageMeta({
 const cartStore = useCartStore()
 const { formatPrice } = useCurrency()
 const { createOrder } = useApi()
+const { t } = useI18n()
+const { toMessage } = useApiError()
 const error = ref('')
 const submitting = ref(false)
 const router = useRouter()
@@ -149,14 +200,37 @@ const form = reactive({
   zipCode: '',
   country: 'US',
   payment: 'card',
+  cardName: '',
+  cardNumber: '',
+  cardExpiry: '',
+  cardCvv: '',
 })
+
+function validateCardFields(): boolean {
+  if (form.payment !== 'card') return true
+  const number = form.cardNumber.replace(/[\s-]/g, '')
+  if (!form.cardName.trim() || !/^\d{13,19}$/.test(number)) {
+    error.value = t('checkout.invalidCard')
+    return false
+  }
+  if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(form.cardExpiry.trim())) {
+    error.value = t('checkout.invalidCard')
+    return false
+  }
+  if (!/^\d{3,4}$/.test(form.cardCvv.trim())) {
+    error.value = t('checkout.invalidCard')
+    return false
+  }
+  return true
+}
 
 async function placeOrder() {
   error.value = ''
   if (!cartStore.items.length) {
-    error.value = 'Cart is empty'
+    error.value = t('cart.emptyTitle')
     return
   }
+  if (!validateCardFields()) return
   submitting.value = true
   try {
     const items = cartStore.items.map((item: any) => ({
@@ -165,6 +239,7 @@ async function placeOrder() {
     }))
     const order = await createOrder({
       items,
+      payment_method: form.payment,
       shipping_address: {
         name: `${form.firstName} ${form.lastName}`.trim(),
         line1: form.address,
@@ -179,7 +254,7 @@ async function placeOrder() {
     cartStore.clearCart()
     router.push(`/orders/${order.order_number || order.id}`)
   } catch (err: any) {
-    error.value = err?.data?.detail || err?.message || 'Failed to place order'
+    error.value = toMessage(err)
   } finally {
     submitting.value = false
   }

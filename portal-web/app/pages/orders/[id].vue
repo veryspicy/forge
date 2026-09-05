@@ -264,6 +264,7 @@ definePageMeta({
 const route = useRoute()
 const orderStore = useOrderStore()
 const { fetchShipments, cancelOrder } = useApi()
+const { toMessage, resolveCode } = useApiError()
 const order = ref<any>(null)
 const shipments = ref<any[]>([])
 const loading = ref(true)
@@ -348,7 +349,7 @@ const doCancelOrder = async () => {
     order.value.status = 'cancelled'
     showCancelModal.value = false
   } catch (err: any) {
-    error.value = err?.data?.detail || err?.message || 'Failed to cancel order'
+    error.value = toMessage(err)
   } finally {
     cancelling.value = false
   }
@@ -365,7 +366,13 @@ onMounted(async () => {
       shipments.value = []
     }
   } catch (err: any) {
-    error.value = err?.data?.detail || err?.message || 'Failed to load order'
+    const code = resolveCode(err)
+    const httpStatus: number | undefined = err?.status ?? err?.response?.status
+    if (code === 'NOT_FOUND' || code === 'ORDER_NOT_FOUND' || httpStatus === 404) {
+      showError({ statusCode: 404, statusMessage: 'NOT_FOUND' })
+      return
+    }
+    error.value = toMessage(err)
   } finally {
     loading.value = false
   }

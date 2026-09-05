@@ -17,7 +17,10 @@
     "apply": "Apply",
     "subscribe": "Subscribe",
     "submit": "Submit",
-    "submitting": "Submitting..."
+    "submitting": "Submitting...",
+    "yes": "Yes",
+    "no": "No",
+    "backHome": "Back to Home"
   },
   "nav": {
     "products": "Products",
@@ -29,7 +32,9 @@
     "currency": "Currency",
     "login": "Login",
     "register": "Register",
-    "logout": "Logout"
+    "logout": "Logout",
+    "pets": "My Pets",
+    "chat": "AI Chat"
   },
   "home": {
     "heroTitle": "AI-Powered Pet Care, Delivered Globally",
@@ -136,7 +141,13 @@
     "years_age": "years",
     "month": "month",
     "months": "months",
-    "lessThanOneMonth": "< 1 month"
+    "lessThanOneMonth": "< 1 month",
+    "selectBreed": "Select breed",
+    "lifecycle": "Lifecycle",
+    "spayedNeutered": "Spayed/Neutered",
+    "healthNotes": "Health Notes",
+    "recommendedProducts": "Recommended Products",
+    "notFound": "Pet not found"
   },
   "products": {
     "title": "Products",
@@ -261,7 +272,12 @@
     "viewYourOrders": "View Your Orders",
     "back": "Back",
     "qty": "Qty",
-    "secureSSL": "Secure SSL encrypted checkout. Your data is protected."
+    "secureSSL": "Secure SSL encrypted checkout. Your data is protected.",
+    "cardName": "Cardholder Name",
+    "cardExpiry": "Expiry (MM/YY)",
+    "cardCvv": "CVV",
+    "paymentNote": "Test mode: no real payment will be charged.",
+    "invalidCard": "Please check the card information you entered."
   },
   "orders": {
     "title": "My Orders",
@@ -425,5 +441,11 @@
     "MCP_KEY_NOT_FOUND": "API key not found",
     "INVALID_ID": "Invalid id format",
     "UNKNOWN_ERROR": "Operation failed, please try again"
+  },
+  "hero": {
+    "title": "Your Pet Deserves the Best",
+    "subtitle": "Smart shopping for your furry friends, powered by AI.",
+    "cta1Label": "Shop Now",
+    "cta2Label": "Add Your Pet"
   }
 }

@@ -17,7 +17,10 @@
     "apply": "Anwenden",
     "subscribe": "Abonnieren",
     "submit": "Absenden",
-    "submitting": "Wird gesendet..."
+    "submitting": "Wird gesendet...",
+    "yes": "Ja",
+    "no": "Nein",
+    "backHome": "Zurück zur Startseite"
   },
   "nav": {
     "products": "Produkte",
@@ -26,7 +29,12 @@
     "aiChat": "KI-Chat",
     "home": "Startseite",
     "language": "Sprache",
-    "currency": "Währung"
+    "currency": "Währung",
+    "login": "Anmelden",
+    "logout": "Abmelden",
+    "register": "Registrieren",
+    "pets": "Meine Haustiere",
+    "chat": "KI-Chat"
   },
   "home": {
     "heroTitle": "KI-gestützte Haustierpflege, weltweit geliefert",
@@ -43,7 +51,12 @@
     "globalShipping": "Weltweiter Versand",
     "aiRecommendations": "KI-Empfehlungen",
     "vetCertified": "Tierarztgeprüft",
-    "securePayment": "Sichere Zahlung"
+    "securePayment": "Sichere Zahlung",
+    "aiTeaser": "KI-gestütztes Einkaufen",
+    "aiTeaserDesc": "Erzählen Sie unserem KI-Assistenten von Ihrem Haustier und erhalten Sie sofort personalisierte Produktempfehlungen.",
+    "categories": "Kategorien",
+    "featured": "Empfohlene Produkte",
+    "startChat": "Chat starten"
   },
   "categories": {
     "food": "Futter",
@@ -51,7 +64,10 @@
     "health": "Gesundheit",
     "grooming": "Pflege",
     "supplies": "Zubehör",
-    "accessories": "Accessoires"
+    "accessories": "Accessoires",
+    "furniture": "Möbel",
+    "litter": "Streu",
+    "training": "Training"
   },
   "pets": {
     "title": "Meine Haustiere",
@@ -122,7 +138,13 @@
     "years_age": "Jahre",
     "month": "Monat",
     "months": "Monate",
-    "lessThanOneMonth": "< 1 Monat"
+    "lessThanOneMonth": "< 1 Monat",
+    "selectBreed": "Rasse auswählen",
+    "lifecycle": "Lebensphase",
+    "spayedNeutered": "Kastriert/Sterilisiert",
+    "healthNotes": "Gesundheitsnotizen",
+    "recommendedProducts": "Empfohlene Produkte",
+    "notFound": "Haustier nicht gefunden"
   },
   "products": {
     "title": "Produkte",
@@ -179,7 +201,8 @@
     "retry": "Wiederholen",
     "failedToLoad": "Produkte konnten nicht geladen werden.",
     "browseProducts": "Produkte durchsuchen",
-    "addedToCart": "\"{name}\" wurde zum Warenkorb hinzugefügt"
+    "addedToCart": "\"{name}\" wurde zum Warenkorb hinzugefügt",
+    "noProducts": "Keine Produkte gefunden, die Ihren Kriterien entsprechen."
   },
   "cart": {
     "title": "Warenkorb",
@@ -246,7 +269,12 @@
     "viewYourOrders": "Ihre Bestellungen anzeigen",
     "back": "Zurück",
     "qty": "Anz.",
-    "secureSSL": "Sichere SSL-verschlüsselte Kasse. Ihre Daten sind geschützt."
+    "secureSSL": "Sichere SSL-verschlüsselte Kasse. Ihre Daten sind geschützt.",
+    "cardName": "Name des Karteninhabers",
+    "cardExpiry": "Ablaufdatum (MM/JJ)",
+    "cardCvv": "CVV",
+    "paymentNote": "Testmodus: Es wird keine echte Zahlung belastet.",
+    "invalidCard": "Bitte überprüfen Sie die eingegebenen Kartendaten."
   },
   "orders": {
     "title": "Meine Bestellungen",
@@ -319,7 +347,12 @@
     "suggestion2": "Wie oft sollte ich meine Katze pflegen?",
     "suggestion3": "Empfehlen Sie Spielzeug für einen aktiven Welpen",
     "suggestion4": "Tipps zur Zahnpflege bei Haustieren",
-    "mockResponse": "Eine großartige Frage! Ich helfe Ihnen gerne weiter. Könnten Sie mir mehr Details zu Ihrem Haustier geben, damit ich die persönlichste Beratung geben kann?"
+    "mockResponse": "Eine großartige Frage! Ich helfe Ihnen gerne weiter. Könnten Sie mir mehr Details zu Ihrem Haustier geben, damit ich die persönlichste Beratung geben kann?",
+    "emptyHint": "Noch keine Nachrichten. Starten Sie eine Unterhaltung!",
+    "noPets": "Keine Haustiere gefunden. Fügen Sie ein Haustier hinzu für personalisierte Empfehlungen.",
+    "petContextHint": "Empfehlungen basieren auf dem Profil Ihres Haustiers.",
+    "recommendations": "Für Sie empfohlen",
+    "selectPet": "Haustier auswählen"
   },
   "auth": {
     "signIn": "Anmelden",
@@ -328,7 +361,15 @@
     "password": "Passwort",
     "signInButton": "Anmelden",
     "signingIn": "Anmeldung...",
-    "loginFailed": "Anmeldung fehlgeschlagen. Bitte überprüfen Sie Ihre Anmeldedaten."
+    "loginFailed": "Anmeldung fehlgeschlagen. Bitte überprüfen Sie Ihre Anmeldedaten.",
+    "confirmPassword": "Passwort bestätigen",
+    "createAccount": "Konto erstellen",
+    "haveAccount": "Haben Sie bereits ein Konto?",
+    "name": "Name",
+    "noAccount": "Noch kein Konto?",
+    "passwordMinLength": "Das Passwort muss mindestens 6 Zeichen lang sein",
+    "passwordMismatch": "Die Passwörter stimmen nicht überein",
+    "registerSuccess": "Registrierung erfolgreich"
   },
   "footer": {
     "shop": "Shop",
@@ -397,5 +438,11 @@
     "MCP_KEY_NOT_FOUND": "API-Schlüssel nicht gefunden",
     "INVALID_ID": "Ungültiges ID-Format",
     "UNKNOWN_ERROR": "Vorgang fehlgeschlagen, bitte erneut versuchen"
+  },
+  "hero": {
+    "title": "Ihr Haustier verdient das Beste",
+    "subtitle": "Intelligentes Einkaufen für Ihre pelzigen Freunde, unterstützt von KI.",
+    "cta1Label": "Jetzt einkaufen",
+    "cta2Label": "Haustier hinzufügen"
   }
 }
