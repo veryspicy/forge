@@ -356,7 +356,7 @@
   },
   "auth": {
     "signIn": "Anmelden",
-    "enterCredentials": "Geben Sie Ihre Anmeldedaten ein, um auf das Dashboard zuzugreifen",
+    "enterCredentials": "Willkommen zurück! Melden Sie sich in Ihrem Konto an",
     "email": "E-Mail",
     "password": "Passwort",
     "signInButton": "Anmelden",

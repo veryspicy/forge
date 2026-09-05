@@ -359,7 +359,7 @@
   },
   "auth": {
     "signIn": "Sign in",
-    "enterCredentials": "Enter your credentials to access the dashboard",
+    "enterCredentials": "Welcome back! Sign in to your account",
     "email": "Email",
     "password": "Password",
     "signInButton": "Sign in",

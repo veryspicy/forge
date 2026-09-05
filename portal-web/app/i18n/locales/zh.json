@@ -359,7 +359,7 @@
   },
   "auth": {
     "signIn": "登录",
-    "enterCredentials": "请输入您的凭据以访问管理后台",
+    "enterCredentials": "欢迎回来，请登录您的账户",
     "email": "邮箱",
     "password": "密码",
     "signInButton": "登录",

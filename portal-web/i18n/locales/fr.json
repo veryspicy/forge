@@ -356,7 +356,7 @@
   },
   "auth": {
     "signIn": "Connectez-vous",
-    "enterCredentials": "Entrez vos identifiants pour accéder au tableau de bord",
+    "enterCredentials": "Bon retour ! Connectez-vous à votre compte",
     "email": "E-mail",
     "password": "Mot de passe",
     "signInButton": "Se connecter",
