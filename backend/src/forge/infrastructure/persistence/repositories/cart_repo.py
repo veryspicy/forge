@@ -30,22 +30,20 @@ class SQLAlchemyCartRepository:
     @staticmethod
     async def list_by_user(db: AsyncSession, user_id: UUID) -> list[ORMCartItem]:
         rows = (
-            await db.execute(
-                select(ORMCartItem)
-                .where(ORMCartItem.user_id == user_id)
-                .order_by(ORMCartItem.created_at.asc())
+            (
+                await db.execute(
+                    select(ORMCartItem).where(ORMCartItem.user_id == user_id).order_by(ORMCartItem.created_at.asc())
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         return list(rows)
 
     @staticmethod
     async def get_for_user(db: AsyncSession, user_id: UUID, item_id: UUID) -> ORMCartItem | None:
         return (
-            await db.execute(
-                select(ORMCartItem).where(
-                    ORMCartItem.id == item_id, ORMCartItem.user_id == user_id
-                )
-            )
+            await db.execute(select(ORMCartItem).where(ORMCartItem.id == item_id, ORMCartItem.user_id == user_id))
         ).scalar_one_or_none()
 
     @staticmethod
@@ -60,9 +58,7 @@ class SQLAlchemyCartRepository:
         product_id = cast(int, product["id"])
         existing = (
             await db.execute(
-                select(ORMCartItem).where(
-                    ORMCartItem.user_id == user_id, ORMCartItem.product_id == product_id
-                )
+                select(ORMCartItem).where(ORMCartItem.user_id == user_id, ORMCartItem.product_id == product_id)
             )
         ).scalar_one_or_none()
         if existing is not None:
