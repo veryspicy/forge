@@ -183,9 +183,7 @@ def _tracking_events(order: ORMOrder) -> list[dict[str, Any]]:
         )
     if order.status == "cancelled":
         cancelled_time = order.updated_at.isoformat() if order.updated_at else None
-        events.append(
-            {"status": "cancelled", "label": "Order cancelled", "time": cancelled_time}
-        )
+        events.append({"status": "cancelled", "label": "Order cancelled", "time": cancelled_time})
     return events
 
 
@@ -340,9 +338,7 @@ async def update_order_shipping_address(
     """修改收货地址：仅未发货订单（pending/confirmed/processing）允许。"""
     owner_id = await _current_owner_id(user_claims, db)
     order = await _owned_order_or_404(db, owner_id, order_number)
-    updated = await SQLAlchemyCustomerOrderRepository.update_shipping_address(
-        db, order, payload.shipping_address
-    )
+    updated = await SQLAlchemyCustomerOrderRepository.update_shipping_address(db, order, payload.shipping_address)
     await db.commit()
     await db.refresh(updated, attribute_names=["items"])
     return _order_to_dict(updated)

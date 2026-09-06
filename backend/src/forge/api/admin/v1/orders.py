@@ -46,9 +46,7 @@ class AdminCancelRequest(BaseModel):
 async def _admin_order_or_404(db: AsyncSession, order_number: str) -> ORMOrder:
     order = (
         await db.execute(
-            select(ORMOrder)
-            .where(ORMOrder.order_number == order_number)
-            .options(selectinload(ORMOrder.items))
+            select(ORMOrder).where(ORMOrder.order_number == order_number).options(selectinload(ORMOrder.items))
         )
     ).scalar_one_or_none()
     if order is None:

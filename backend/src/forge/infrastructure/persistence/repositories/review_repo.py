@@ -56,9 +56,7 @@ class SQLAlchemyReviewRepository:
                 message="Order must be delivered before writing a review.",
             )
         exists = (
-            await db.execute(
-                select(ORMProductReview.id).where(ORMProductReview.order_item_id == order_item.id)
-            )
+            await db.execute(select(ORMProductReview.id).where(ORMProductReview.order_item_id == order_item.id))
         ).scalar_one_or_none()
         if exists is not None:
             raise APIError(
@@ -81,9 +79,7 @@ class SQLAlchemyReviewRepository:
 
     @staticmethod
     async def get_by_id(db: AsyncSession, review_id: UUID) -> ORMProductReview | None:
-        return (
-            await db.execute(select(ORMProductReview).where(ORMProductReview.id == review_id))
-        ).scalar_one_or_none()
+        return (await db.execute(select(ORMProductReview).where(ORMProductReview.id == review_id))).scalar_one_or_none()
 
     @staticmethod
     async def delete(db: AsyncSession, review: ORMProductReview) -> None:
@@ -98,16 +94,12 @@ class SQLAlchemyReviewRepository:
         page_size: int = 10,
     ) -> dict[str, Any]:
         base = select(ORMProductReview).where(ORMProductReview.product_id == product_id)
-        count_stmt = (
-            select(func.count()).select_from(ORMProductReview).where(ORMProductReview.product_id == product_id)
-        )
+        count_stmt = select(func.count()).select_from(ORMProductReview).where(ORMProductReview.product_id == product_id)
         total = int((await db.execute(count_stmt)).scalar_one())
         rows = (
             (
                 await db.execute(
-                    base.order_by(ORMProductReview.created_at.desc())
-                    .offset((page - 1) * page_size)
-                    .limit(page_size)
+                    base.order_by(ORMProductReview.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
                 )
             )
             .scalars()
@@ -150,9 +142,7 @@ class SQLAlchemyReviewRepository:
         total = int(
             (
                 await db.execute(
-                    select(func.count())
-                    .select_from(ORMProductReview)
-                    .where(ORMProductReview.user_id == user_id)
+                    select(func.count()).select_from(ORMProductReview).where(ORMProductReview.user_id == user_id)
                 )
             ).scalar_one()
         )

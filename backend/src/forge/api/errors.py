@@ -179,13 +179,9 @@ _REGISTRY: dict[ErrorCode, ErrorSpec] = {
     ErrorCode.ORDER_NOT_CANCELLABLE: ErrorSpec(
         ErrorType.CONFLICT_ERROR, 409, "Order cannot be cancelled in its current state."
     ),
-    ErrorCode.INSUFFICIENT_STOCK: ErrorSpec(
-        ErrorType.CONFLICT_ERROR, 409, "Insufficient stock for one or more items."
-    ),
+    ErrorCode.INSUFFICIENT_STOCK: ErrorSpec(ErrorType.CONFLICT_ERROR, 409, "Insufficient stock for one or more items."),
     ErrorCode.PRODUCT_UNAVAILABLE: ErrorSpec(ErrorType.RESOURCE_ERROR, 400, "Product is not available."),
-    ErrorCode.ORDER_NOT_PAYABLE: ErrorSpec(
-        ErrorType.CONFLICT_ERROR, 409, "Order cannot be paid in its current state."
-    ),
+    ErrorCode.ORDER_NOT_PAYABLE: ErrorSpec(ErrorType.CONFLICT_ERROR, 409, "Order cannot be paid in its current state."),
     ErrorCode.ORDER_ALREADY_PAID: ErrorSpec(ErrorType.CONFLICT_ERROR, 409, "Order has already been paid."),
     ErrorCode.ORDER_NOT_CONFIRMABLE: ErrorSpec(
         ErrorType.CONFLICT_ERROR, 409, "Order cannot be confirmed in its current state."
@@ -200,9 +196,7 @@ _REGISTRY: dict[ErrorCode, ErrorSpec] = {
         ErrorType.VALIDATION_ERROR, 400, "Payment method is not supported."
     ),
     ErrorCode.PAYMENT_DECLINED: ErrorSpec(ErrorType.CONFLICT_ERROR, 402, "Payment was declined by the gateway."),
-    ErrorCode.PAYMENT_GATEWAY_ERROR: ErrorSpec(
-        ErrorType.SERVER_ERROR, 502, "Payment gateway temporarily unavailable."
-    ),
+    ErrorCode.PAYMENT_GATEWAY_ERROR: ErrorSpec(ErrorType.SERVER_ERROR, 502, "Payment gateway temporarily unavailable."),
     ErrorCode.REVIEW_NOT_ELIGIBLE: ErrorSpec(
         ErrorType.CONFLICT_ERROR, 409, "Order must be completed before writing a review."
     ),

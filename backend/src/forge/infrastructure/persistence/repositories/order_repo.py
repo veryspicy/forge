@@ -177,19 +177,13 @@ class SQLAlchemyCustomerOrderRepository:
             .order_by(ORMOrder.created_at.desc())
         )
         count_stmt = (
-            select(func.count())
-            .select_from(ORMOrder)
-            .where(ORMOrder.user_id == user_id, ORMOrder.deleted_at.is_(None))
+            select(func.count()).select_from(ORMOrder).where(ORMOrder.user_id == user_id, ORMOrder.deleted_at.is_(None))
         )
         if status:
             stmt = stmt.where(ORMOrder.status == status)
             count_stmt = count_stmt.where(ORMOrder.status == status)
         total = int((await db.execute(count_stmt)).scalar_one())
-        rows = (
-            (await db.execute(stmt.offset((page - 1) * page_size).limit(page_size)))
-            .scalars()
-            .all()
-        )
+        rows = (await db.execute(stmt.offset((page - 1) * page_size).limit(page_size))).scalars().all()
         return {
             "items": [_order_to_dict(o) for o in rows],
             "total": total,
@@ -228,11 +222,7 @@ class SQLAlchemyCustomerOrderRepository:
             raise APIError(ErrorCode.ORDER_EMPTY, message="Order has no items.")
         product_ids = [cast(int, line["product_id"]) for line in lines]
         products = (
-            (
-                await db.execute(
-                    select(ORMProduct).where(ORMProduct.id.in_(product_ids)).with_for_update()
-                )
-            )
+            (await db.execute(select(ORMProduct).where(ORMProduct.id.in_(product_ids)).with_for_update()))
             .scalars()
             .all()
         )
@@ -302,11 +292,7 @@ class SQLAlchemyCustomerOrderRepository:
             if product.inventory is not None:
                 product.inventory = cast(Any, product.inventory - quantity)
 
-        shipping_cost = (
-            Decimal("0")
-            if subtotal > _FREE_SHIPPING_THRESHOLD
-            else Decimal(str(_FLAT_SHIPPING))
-        )
+        shipping_cost = Decimal("0") if subtotal > _FREE_SHIPPING_THRESHOLD else Decimal(str(_FLAT_SHIPPING))
         order.subtotal = cast(Any, subtotal)
         order.shipping_cost = cast(Any, shipping_cost)
         order.total = cast(Any, subtotal + shipping_cost)
@@ -334,11 +320,7 @@ class SQLAlchemyCustomerOrderRepository:
             product_ids = [cast(int, i.product_id) for i in item_rows if i.product_id is not None]
             if product_ids:
                 products = (
-                    (
-                        await db.execute(
-                            select(ORMProduct).where(ORMProduct.id.in_(product_ids)).with_for_update()
-                        )
-                    )
+                    (await db.execute(select(ORMProduct).where(ORMProduct.id.in_(product_ids)).with_for_update()))
                     .scalars()
                     .all()
                 )
@@ -465,12 +447,14 @@ class SQLAlchemyCustomerOrderRepository:
     @staticmethod
     async def list_shipments(db: AsyncSession, order_id: UUID) -> list[ORMShipment]:
         rows = (
-            await db.execute(
-                select(ORMShipment)
-                .where(ORMShipment.order_id == order_id)
-                .order_by(ORMShipment.created_at.asc())
+            (
+                await db.execute(
+                    select(ORMShipment).where(ORMShipment.order_id == order_id).order_by(ORMShipment.created_at.asc())
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         return list(rows)
 
     @staticmethod

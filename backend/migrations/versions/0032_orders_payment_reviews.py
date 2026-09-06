@@ -27,9 +27,7 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     op.execute(sa.text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50)"))
     op.execute(
-        sa.text(
-            "ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_status VARCHAR(20) NOT NULL DEFAULT 'unpaid'"
-        )
+        sa.text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_status VARCHAR(20) NOT NULL DEFAULT 'unpaid'")
     )
     op.execute(sa.text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS paid_at TIMESTAMP WITHOUT TIME ZONE"))
     op.execute(sa.text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMP WITHOUT TIME ZONE"))
