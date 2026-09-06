@@ -405,7 +405,7 @@
     "haveAccount": "Already have an account? Sign in",
     "noAccount": "Don't have an account? Sign up",
     "registerSuccess": "Registration successful",
-    "emailPlaceholder": "you@example.com",
+    "emailPlaceholder": "Enter your email",
     "passwordPlaceholder": "Enter your password"
   },
   "footer": {
