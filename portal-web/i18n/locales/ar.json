@@ -17,7 +17,10 @@
     "apply": "تطبيق",
     "subscribe": "اشتراك",
     "submit": "إرسال",
-    "submitting": "جار الإرسال..."
+    "submitting": "جار الإرسال...",
+    "yes": "نعم",
+    "no": "لا",
+    "backHome": "العودة إلى الصفحة الرئيسية"
   },
   "nav": {
     "products": "المنتجات",
@@ -26,7 +29,12 @@
     "aiChat": "الدردشة الذكية",
     "home": "الرئيسية",
     "language": "اللغة",
-    "currency": "العملة"
+    "currency": "العملة",
+    "login": "تسجيل الدخول",
+    "logout": "تسجيل الخروج",
+    "register": "التسجيل",
+    "pets": "حيواناتي",
+    "chat": "الدردشة الذكية"
   },
   "home": {
     "heroTitle": "رعاية الحيوانات الأليفة بالذكاء الاصطناعي، توصيل عالمي",
@@ -43,7 +51,12 @@
     "globalShipping": "شحن عالمي",
     "aiRecommendations": "توصيات الذكاء الاصطناعي",
     "vetCertified": "معتمد بيطرياً",
-    "securePayment": "دفع آمن"
+    "securePayment": "دفع آمن",
+    "aiTeaser": "تسوق ذكي بالذكاء الاصطناعي",
+    "aiTeaserDesc": "أخبر مساعدنا الذكي عن حيوانك الأليف واحصل على توصيات مخصصة فورًا.",
+    "categories": "الفئات",
+    "featured": "منتجات مميزة",
+    "startChat": "ابدأ الدردشة"
   },
   "categories": {
     "food": "طعام",
@@ -51,7 +64,10 @@
     "health": "صحة",
     "grooming": "عناية",
     "supplies": "لوازم",
-    "accessories": "إكسسوارات"
+    "accessories": "إكسسوارات",
+    "furniture": "أثاث",
+    "litter": "فضلات",
+    "training": "تدريب"
   },
   "pets": {
     "title": "حيواناتي",
@@ -122,7 +138,13 @@
     "years_age": "سنوات",
     "month": "شهر",
     "months": "أشهر",
-    "lessThanOneMonth": "< شهر واحد"
+    "lessThanOneMonth": "< شهر واحد",
+    "selectBreed": "اختر السلالة",
+    "lifecycle": "دورة الحياة",
+    "spayedNeutered": "معقم/مخصي",
+    "healthNotes": "ملاحظات صحية",
+    "recommendedProducts": "منتجات موصى بها",
+    "notFound": "الحيوان الأليف غير موجود"
   },
   "products": {
     "title": "المنتجات",
@@ -179,7 +201,8 @@
     "retry": "إعادة المحاولة",
     "failedToLoad": "فشل تحميل المنتجات.",
     "browseProducts": "تصفح المنتجات",
-    "addedToCart": "تمت إضافة \"{name}\" إلى السلة"
+    "addedToCart": "تمت إضافة \"{name}\" إلى السلة",
+    "noProducts": "لم يتم العثور على منتجات مطابقة لمعاييرك."
   },
   "cart": {
     "title": "سلة التسوق",
@@ -246,7 +269,14 @@
     "viewYourOrders": "عرض طلباتك",
     "back": "رجوع",
     "qty": "الكمية",
-    "secureSSL": "دفع آمن مشفر SSL. بياناتك محمية."
+    "secureSSL": "دفع آمن مشفر SSL. بياناتك محمية.",
+    "cardName": "اسم حامل البطاقة",
+    "cardExpiry": "تاريخ الانتهاء (MM/YY)",
+    "cardCvv": "CVV",
+    "paymentNote": "مشفّر وآمن. بوابة دفع تجريبية — لا خصم حقيقي. أكمل الدفع من صفحة الطلب.",
+    "invalidCard": "يرجى التحقق من معلومات البطاقة المدخلة.",
+    "payNow": "اطلب وادفع",
+    "payAfterOrderNote": "بعد تأكيد الطلب، أكمل الدفع من صفحة الطلب (بوابة تجريبية، لا خصم حقيقي)."
   },
   "orders": {
     "title": "طلباتي",
@@ -256,9 +286,9 @@
     "pending": "قيد الانتظار",
     "processing": "قيد المعالجة",
     "shipped": "تم الشحن",
-    "delivered": "تم التوصيل",
+    "delivered": "تم تأكيد الاستلام",
     "cancelled": "ملغي",
-    "confirmed": "مؤكد",
+    "confirmed": "بانتظار الشحن",
     "noOrders": "لا توجد طلبات بعد",
     "noOrdersHint": "عند تقديم الطلبات، ستظهر هنا.",
     "startShopping": "ابدأ التسوق",
@@ -276,9 +306,9 @@
     "tracking": "تقدم الطلب",
     "step": {
       "ordered": "تم الطلب",
-      "processing": "قيد المعالجة",
+      "confirmed": "بانتظار الشحن",
       "shipped": "تم الشحن",
-      "delivered": "تم التوصيل"
+      "delivered": "تم تأكيد الاستلام"
     },
     "shippingInfo": "معلومات الشحن",
     "carrier": "الناقل",
@@ -296,7 +326,30 @@
     "cancelOrderTitle": "إلغاء الطلب",
     "cancelConfirmText": "هل أنت متأكد من إلغاء هذا الطلب؟ لا يمكن التراجع عن هذا الإجراء.",
     "keepOrder": "الاحتفاظ بالطلب",
-    "cancelling": "جار الإلغاء..."
+    "cancelling": "جار الإلغاء...",
+    "pay": "ادفع الآن",
+    "payTitle": "دفع الطلب",
+    "payMockNote": "هذه بوابة دفع تجريبية (Sandbox) ولن يتم أي خصم حقيقي.",
+    "paySuccess": "تم الدفع بنجاح",
+    "paying": "جارٍ الدفع...",
+    "paid": "مدفوع",
+    "unpaid": "غير مدفوع",
+    "confirmReceipt": "تأكيد الاستلام",
+    "confirmReceiptHint": "بعد التأكيد سيتم إكمال الطلب وتفعيل التقييمات.",
+    "confirmReceiptConfirm": "لقد استلمت المنتجات",
+    "confirmReceiptTitle": "تأكيد الاستلام",
+    "confirmingReceipt": "جارٍ الإرسال...",
+    "deleteOrder": "حذف الطلب",
+    "deleteConfirmTitle": "حذف الطلب",
+    "deleteConfirmText": "سيتم أرشفة هذا الطلب وإزالته من قائمتك. هل تريد المتابعة؟",
+    "deleting": "جارٍ الحذف...",
+    "orderDeleted": "تم حذف الطلب",
+    "completed": "مكتمل",
+    "shipmentTracking": "تتبع الشحن",
+    "trackingStatus": "الحالة",
+    "noShipment": "معلومات التتبع غير متاحة بعد، يرجى التحقق لاحقًا",
+    "noTrackingEvents": "لا توجد أحداث تتبع بعد",
+    "trackingUpdate": "تحديث"
   },
   "chat": {
     "title": "محادثة الذكاء الاصطناعي",
@@ -319,16 +372,31 @@
     "suggestion2": "كم مرة يجب أن أعنى بقطتي؟",
     "suggestion3": "أوصني بألعاب لجرو نشط",
     "suggestion4": "نصائح للعناية بأسنان الحيوانات الأليفة",
-    "mockResponse": "سؤال رائع! يسعدني مساعدتك. هل يمكنك تقديم المزيد من التفاصيل عن حيوانك الأليف؟"
+    "mockResponse": "سؤال رائع! يسعدني مساعدتك. هل يمكنك تقديم المزيد من التفاصيل عن حيوانك الأليف؟",
+    "emptyHint": "لا توجد رسائل بعد. ابدأ محادثة!",
+    "noPets": "لم يتم العثور على حيوانات أليفة. أضف حيوانًا أليفًا للحصول على توصيات مخصصة.",
+    "petContextHint": "التوصيات تستند إلى ملف حيوانك الأليف.",
+    "recommendations": "موصى به لك",
+    "selectPet": "اختيار حيوان أليف"
   },
   "auth": {
-    "signIn": "تسجيل الدخول إلى لوحة إدارة Forge",
-    "enterCredentials": "أدخل بيانات الاعتماد للوصول إلى لوحة التحكم",
+    "signIn": "تسجيل الدخول",
+    "enterCredentials": "مرحباً بعودتك! سجّل الدخول لمواصلة التسوق",
     "email": "البريد الإلكتروني",
     "password": "كلمة المرور",
     "signInButton": "تسجيل الدخول",
     "signingIn": "جار تسجيل الدخول...",
-    "loginFailed": "فشل تسجيل الدخول. يرجى التحقق من بيانات الاعتماد."
+    "loginFailed": "فشل تسجيل الدخول. يرجى التحقق من بيانات الاعتماد.",
+    "confirmPassword": "تأكيد كلمة المرور",
+    "createAccount": "إنشاء حساب",
+    "haveAccount": "لديك حساب بالفعل؟",
+    "name": "الاسم",
+    "noAccount": "ليس لديك حساب؟",
+    "passwordMinLength": "يجب ألا تقل كلمة المرور عن 6 أحرف",
+    "passwordMismatch": "كلمتا المرور غير متطابقتين",
+    "registerSuccess": "تم التسجيل بنجاح",
+    "emailPlaceholder": "you@example.com",
+    "passwordPlaceholder": "أدخل كلمة المرور"
   },
   "footer": {
     "shop": "المتجر",
@@ -397,5 +465,31 @@
     "MCP_KEY_NOT_FOUND": "مفتاح API غير موجود",
     "INVALID_ID": "تنسيق المعرف غير صالح",
     "UNKNOWN_ERROR": "فشلت العملية، يرجى إعادة المحاولة"
+  },
+  "hero": {
+    "title": "حيوانك الأليف يستحق الأفضل",
+    "subtitle": "تسوق ذكي لأصدقائك ذوي الفراء، مدعوم بالذكاء الاصطناعي.",
+    "cta1Label": "تسوق الآن",
+    "cta2Label": "أضف حيوانك الأليف"
+  },
+  "reviews": {
+    "title": "تقييمات المنتج",
+    "myTitle": "تقييماتي",
+    "write": "اكتب تقييماً",
+    "submit": "إرسال التقييم",
+    "submitting": "جارٍ الإرسال...",
+    "success": "شكراً لتقييمك!",
+    "rating": "التقييم",
+    "rateRequired": "يرجى اختيار تقييم",
+    "reviewed": "تم التقييم",
+    "eligibleHint": "اكتمل الطلب. اكتب تقييماً للمنتج.",
+    "titlePlaceholder": "عنوان مختصر (اختياري)",
+    "contentPlaceholder": "شارك تجربتك (اختياري)",
+    "empty": "لا توجد تقييمات بعد. كن أول من يقيّم!",
+    "productTitle": "تقييمات العملاء",
+    "avgLabel": "متوسط التقييم",
+    "totalLabel": "{count} تقييم",
+    "deleteReview": "حذف التقييم",
+    "deleted": "تم حذف التقييم"
   }
 }

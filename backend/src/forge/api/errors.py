@@ -86,6 +86,25 @@ class ErrorCode(StrEnum):
     # Common validation
     INVALID_ID = "INVALID_ID"
 
+    # C-end commerce (cart / orders / payment placeholder)
+    CART_ITEM_NOT_FOUND = "CART_ITEM_NOT_FOUND"
+    ORDER_NOT_FOUND = "ORDER_NOT_FOUND"
+    ORDER_EMPTY = "ORDER_EMPTY"
+    ORDER_NOT_CANCELLABLE = "ORDER_NOT_CANCELLABLE"
+    ORDER_NOT_PAYABLE = "ORDER_NOT_PAYABLE"
+    ORDER_NOT_CONFIRMABLE = "ORDER_NOT_CONFIRMABLE"
+    ORDER_NOT_EDITABLE = "ORDER_NOT_EDITABLE"
+    ORDER_NOT_DELETABLE = "ORDER_NOT_DELETABLE"
+    ORDER_ALREADY_PAID = "ORDER_ALREADY_PAID"
+    INSUFFICIENT_STOCK = "INSUFFICIENT_STOCK"
+    PRODUCT_UNAVAILABLE = "PRODUCT_UNAVAILABLE"
+    PAYMENT_METHOD_UNSUPPORTED = "PAYMENT_METHOD_UNSUPPORTED"
+    PAYMENT_DECLINED = "PAYMENT_DECLINED"
+    PAYMENT_GATEWAY_ERROR = "PAYMENT_GATEWAY_ERROR"
+    REVIEW_NOT_ELIGIBLE = "REVIEW_NOT_ELIGIBLE"
+    REVIEW_ALREADY_EXISTS = "REVIEW_ALREADY_EXISTS"
+    REVIEW_NOT_FOUND = "REVIEW_NOT_FOUND"
+
     # Rate limit / server
     RATE_LIMITED = "RATE_LIMITED"
     SERVER_ERROR = "SERVER_ERROR"
@@ -153,6 +172,36 @@ _REGISTRY: dict[ErrorCode, ErrorSpec] = {
     ErrorCode.MCP_KEY_NOT_FOUND: ErrorSpec(ErrorType.RESOURCE_ERROR, 404, "API key not found."),
     # Common validation
     ErrorCode.INVALID_ID: ErrorSpec(ErrorType.VALIDATION_ERROR, 400, "Identifier is not a valid UUID."),
+    # C-end commerce (cart / orders / payment placeholder)
+    ErrorCode.CART_ITEM_NOT_FOUND: ErrorSpec(ErrorType.RESOURCE_ERROR, 404, "Cart item does not exist."),
+    ErrorCode.ORDER_NOT_FOUND: ErrorSpec(ErrorType.RESOURCE_ERROR, 404, "Order does not exist."),
+    ErrorCode.ORDER_EMPTY: ErrorSpec(ErrorType.VALIDATION_ERROR, 400, "Order has no items."),
+    ErrorCode.ORDER_NOT_CANCELLABLE: ErrorSpec(
+        ErrorType.CONFLICT_ERROR, 409, "Order cannot be cancelled in its current state."
+    ),
+    ErrorCode.INSUFFICIENT_STOCK: ErrorSpec(ErrorType.CONFLICT_ERROR, 409, "Insufficient stock for one or more items."),
+    ErrorCode.PRODUCT_UNAVAILABLE: ErrorSpec(ErrorType.RESOURCE_ERROR, 400, "Product is not available."),
+    ErrorCode.ORDER_NOT_PAYABLE: ErrorSpec(ErrorType.CONFLICT_ERROR, 409, "Order cannot be paid in its current state."),
+    ErrorCode.ORDER_ALREADY_PAID: ErrorSpec(ErrorType.CONFLICT_ERROR, 409, "Order has already been paid."),
+    ErrorCode.ORDER_NOT_CONFIRMABLE: ErrorSpec(
+        ErrorType.CONFLICT_ERROR, 409, "Order cannot be confirmed in its current state."
+    ),
+    ErrorCode.ORDER_NOT_EDITABLE: ErrorSpec(
+        ErrorType.CONFLICT_ERROR, 409, "Order cannot be edited in its current state."
+    ),
+    ErrorCode.ORDER_NOT_DELETABLE: ErrorSpec(
+        ErrorType.CONFLICT_ERROR, 409, "Only completed or cancelled orders can be deleted."
+    ),
+    ErrorCode.PAYMENT_METHOD_UNSUPPORTED: ErrorSpec(
+        ErrorType.VALIDATION_ERROR, 400, "Payment method is not supported."
+    ),
+    ErrorCode.PAYMENT_DECLINED: ErrorSpec(ErrorType.CONFLICT_ERROR, 402, "Payment was declined by the gateway."),
+    ErrorCode.PAYMENT_GATEWAY_ERROR: ErrorSpec(ErrorType.SERVER_ERROR, 502, "Payment gateway temporarily unavailable."),
+    ErrorCode.REVIEW_NOT_ELIGIBLE: ErrorSpec(
+        ErrorType.CONFLICT_ERROR, 409, "Order must be completed before writing a review."
+    ),
+    ErrorCode.REVIEW_ALREADY_EXISTS: ErrorSpec(ErrorType.CONFLICT_ERROR, 409, "Review already exists for this item."),
+    ErrorCode.REVIEW_NOT_FOUND: ErrorSpec(ErrorType.RESOURCE_ERROR, 404, "Review does not exist."),
     # Rate limit / server
     ErrorCode.RATE_LIMITED: ErrorSpec(ErrorType.RATE_LIMIT_ERROR, 429, "Too many requests, slow down."),
     ErrorCode.SERVER_ERROR: ErrorSpec(ErrorType.SERVER_ERROR, 500, "Internal server error."),

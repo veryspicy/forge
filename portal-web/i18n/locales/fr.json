@@ -17,7 +17,10 @@
     "apply": "Appliquer",
     "subscribe": "S'abonner",
     "submit": "Soumettre",
-    "submitting": "Envoi en cours..."
+    "submitting": "Envoi en cours...",
+    "yes": "Oui",
+    "no": "Non",
+    "backHome": "Retour à l'accueil"
   },
   "nav": {
     "products": "Produits",
@@ -26,7 +29,12 @@
     "aiChat": "Chat IA",
     "home": "Accueil",
     "language": "Langue",
-    "currency": "Devise"
+    "currency": "Devise",
+    "login": "Connexion",
+    "logout": "Déconnexion",
+    "register": "Inscription",
+    "pets": "Mes animaux",
+    "chat": "Chat IA"
   },
   "home": {
     "heroTitle": "Soins pour animaux alimentés par IA, livrés dans le monde entier",
@@ -43,7 +51,12 @@
     "globalShipping": "Livraison mondiale",
     "aiRecommendations": "Recommandations IA",
     "vetCertified": "Certifié vétérinaire",
-    "securePayment": "Paiement sécurisé"
+    "securePayment": "Paiement sécurisé",
+    "aiTeaser": "Shopping assisté par IA",
+    "aiTeaserDesc": "Parlez de votre animal à notre assistant IA et obtenez des recommandations personnalisées instantanément.",
+    "categories": "Catégories",
+    "featured": "Produits vedettes",
+    "startChat": "Démarrer le chat"
   },
   "categories": {
     "food": "Nourriture",
@@ -51,7 +64,10 @@
     "health": "Santé",
     "grooming": "Toilettage",
     "supplies": "Fournitures",
-    "accessories": "Accessoires"
+    "accessories": "Accessoires",
+    "furniture": "Meubles",
+    "litter": "Litière",
+    "training": "Dressage"
   },
   "pets": {
     "title": "Mes Animaux",
@@ -122,7 +138,13 @@
     "years_age": "ans",
     "month": "mois",
     "months": "mois",
-    "lessThanOneMonth": "< 1 mois"
+    "lessThanOneMonth": "< 1 mois",
+    "selectBreed": "Sélectionnez la race",
+    "lifecycle": "Cycle de vie",
+    "spayedNeutered": "Stérilisé/Castré",
+    "healthNotes": "Notes de santé",
+    "recommendedProducts": "Produits recommandés",
+    "notFound": "Animal non trouvé"
   },
   "products": {
     "title": "Produits",
@@ -179,7 +201,8 @@
     "retry": "Réessayer",
     "failedToLoad": "Échec du chargement des produits.",
     "browseProducts": "Parcourir les produits",
-    "addedToCart": "\"{name}\" ajouté au panier"
+    "addedToCart": "\"{name}\" ajouté au panier",
+    "noProducts": "Aucun produit ne correspond à vos critères."
   },
   "cart": {
     "title": "Panier",
@@ -246,7 +269,14 @@
     "viewYourOrders": "Voir vos commandes",
     "back": "Retour",
     "qty": "Qté",
-    "secureSSL": "Paiement sécurisé SSL. Vos données sont protégées."
+    "secureSSL": "Paiement sécurisé SSL. Vos données sont protégées.",
+    "cardName": "Nom du titulaire de la carte",
+    "cardExpiry": "Date d'expiration (MM/AA)",
+    "cardCvv": "CVV",
+    "paymentNote": "Chiffré et sécurisé. Passerelle sandbox — aucun débit réel. Payez sur la page de commande.",
+    "invalidCard": "Veuillez vérifier les informations de carte saisies.",
+    "payNow": "Commander et payer",
+    "payAfterOrderNote": "Après la commande, effectuez le paiement sur la page de commande (passerelle sandbox, aucun débit réel)."
   },
   "orders": {
     "title": "Mes Commandes",
@@ -256,9 +286,9 @@
     "pending": "En attente",
     "processing": "En cours",
     "shipped": "Expédiée",
-    "delivered": "Livrée",
+    "delivered": "Réception confirmée",
     "cancelled": "Annulée",
-    "confirmed": "Confirmée",
+    "confirmed": "En attente d'expédition",
     "noOrders": "Pas encore de commandes",
     "noOrdersHint": "Lorsque vous passez des commandes, elles apparaîtront ici.",
     "startShopping": "Commencer les achats",
@@ -276,9 +306,9 @@
     "tracking": "Suivi de commande",
     "step": {
       "ordered": "Commandée",
-      "processing": "En cours",
+      "confirmed": "En attente d'expédition",
       "shipped": "Expédiée",
-      "delivered": "Livrée"
+      "delivered": "Réception confirmée"
     },
     "shippingInfo": "Informations de livraison",
     "carrier": "Transporteur",
@@ -296,7 +326,30 @@
     "cancelOrderTitle": "Annuler la commande",
     "cancelConfirmText": "Êtes-vous sûr de vouloir annuler cette commande ? Cette action est irréversible.",
     "keepOrder": "Conserver la commande",
-    "cancelling": "Annulation..."
+    "cancelling": "Annulation...",
+    "pay": "Payer",
+    "payTitle": "Payer la commande",
+    "payMockNote": "Passerelle de paiement sandbox. Aucun débit réel.",
+    "paySuccess": "Paiement réussi",
+    "paying": "Paiement en cours...",
+    "paid": "Payé",
+    "unpaid": "Impayé",
+    "confirmReceipt": "Confirmer la réception",
+    "confirmReceiptHint": "Après confirmation, la commande sera terminée et les avis seront ouverts.",
+    "confirmReceiptConfirm": "J'ai reçu les articles",
+    "confirmReceiptTitle": "Confirmer la réception",
+    "confirmingReceipt": "Envoi...",
+    "deleteOrder": "Supprimer la commande",
+    "deleteConfirmTitle": "Supprimer la commande",
+    "deleteConfirmText": "Cette commande sera archivée et retirée de votre liste. Continuer ?",
+    "deleting": "Suppression...",
+    "orderDeleted": "Commande supprimée",
+    "completed": "Terminée",
+    "shipmentTracking": "Suivi d'expédition",
+    "trackingStatus": "Statut",
+    "noShipment": "Informations de suivi pas encore disponibles, veuillez réessayer plus tard",
+    "noTrackingEvents": "Aucun événement de suivi",
+    "trackingUpdate": "Mise à jour"
   },
   "chat": {
     "title": "Chat IA",
@@ -319,16 +372,31 @@
     "suggestion2": "À quelle fréquence dois-je toiletter mon chat ?",
     "suggestion3": "Recommandez des jouets pour un chiot actif",
     "suggestion4": "Conseils pour les soins dentaires des animaux",
-    "mockResponse": "Excellente question ! Je serais ravi de vous aider. Pourriez-vous me donner plus de détails sur votre animal ?"
+    "mockResponse": "Excellente question ! Je serais ravi de vous aider. Pourriez-vous me donner plus de détails sur votre animal ?",
+    "emptyHint": "Pas encore de messages. Commencez une conversation !",
+    "noPets": "Aucun animal trouvé. Ajoutez un animal pour des recommandations personnalisées.",
+    "petContextHint": "Les recommandations sont basées sur le profil de votre animal.",
+    "recommendations": "Recommandé pour vous",
+    "selectPet": "Choisir un animal"
   },
   "auth": {
     "signIn": "Connectez-vous",
-    "enterCredentials": "Entrez vos identifiants pour accéder au tableau de bord",
+    "enterCredentials": "Bon retour ! Connectez-vous pour continuer vos achats",
     "email": "E-mail",
     "password": "Mot de passe",
     "signInButton": "Se connecter",
     "signingIn": "Connexion...",
-    "loginFailed": "Échec de connexion. Vérifiez vos identifiants."
+    "loginFailed": "Échec de connexion. Vérifiez vos identifiants.",
+    "confirmPassword": "Confirmer le mot de passe",
+    "createAccount": "Créer un compte",
+    "haveAccount": "Vous avez déjà un compte ?",
+    "name": "Nom",
+    "noAccount": "Pas encore de compte ?",
+    "passwordMinLength": "Le mot de passe doit contenir au moins 6 caractères",
+    "passwordMismatch": "Les mots de passe ne correspondent pas",
+    "registerSuccess": "Inscription réussie",
+    "emailPlaceholder": "you@example.com",
+    "passwordPlaceholder": "Entrez votre mot de passe"
   },
   "footer": {
     "shop": "Boutique",
@@ -397,5 +465,31 @@
     "MCP_KEY_NOT_FOUND": "Clé API introuvable",
     "INVALID_ID": "Format d'identifiant invalide",
     "UNKNOWN_ERROR": "Échec de l'opération, veuillez réessayer"
+  },
+  "hero": {
+    "title": "Votre animal mérite le meilleur",
+    "subtitle": "Shopping intelligent pour vos amis à fourrure, propulsé par l'IA.",
+    "cta1Label": "Acheter maintenant",
+    "cta2Label": "Ajouter votre animal"
+  },
+  "reviews": {
+    "title": "Avis produits",
+    "myTitle": "Mes avis",
+    "write": "Écrire un avis",
+    "submit": "Soumettre l'avis",
+    "submitting": "Envoi...",
+    "success": "Merci pour votre avis !",
+    "rating": "Note",
+    "rateRequired": "Veuillez choisir une note",
+    "reviewed": "Évalué",
+    "eligibleHint": "Commande terminée. Écrivez un avis sur le produit.",
+    "titlePlaceholder": "Titre court (optionnel)",
+    "contentPlaceholder": "Partagez votre expérience (optionnel)",
+    "empty": "Aucun avis pour le moment. Soyez le premier !",
+    "productTitle": "Avis clients",
+    "avgLabel": "Note moyenne",
+    "totalLabel": "{count} avis",
+    "deleteReview": "Supprimer l'avis",
+    "deleted": "Avis supprimé"
   }
 }

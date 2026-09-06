@@ -511,6 +511,21 @@ podman exec forge-postgres psql -U postgres -d forge -c "SELECT count(*) FROM di
 | portal-web | `pnpm lint`、`pnpm typecheck`（simple-git-hooks 自动执行） | test-frontend |
 | admin | `pnpm typecheck`、`pnpm lint`、`pnpm fmt`（simple-git-hooks 自动执行） | test-admin |
 
+### 13.1.1 portal-web 前端类型检查权威口径（强制）
+
+**教训（2026-09-06）**：`products/[id].vue` 的 `res?.items`、`stores/order.ts` 的 `{...result}` 两类 vue-tsc 类型错误曾在浏览器 vue-tsc overlay 持续报错，但当时依赖宿主 `pnpm typecheck` 判定"通过"而漏检。排查确认宿主 typecheck 实际 EXIT=2 且报 574 个错误（输出被工具吞掉造成假通过），宿主类型环境与容器不一致。
+
+**根因**：
+1. 宿主 `nuxt typecheck` 运行依赖宿主 `node_modules` / `.nuxt` 生成状态，与运行容器（forge-portal-web）不一致；宿主 i18n 类型扩展未生效，会出现 `Vue I18n configuration file ... not found` WARN，导致全量 `Property '$t' does not exist` 假错误（574 个），真实错误被淹没或行号错位。
+2. 宿主命令的输出/退出码可能被上层工具吞掉，无输出 ≠ 通过。
+
+**强制口径**：
+1. portal-web 前端类型检查以**容器内 vue-tsc 为准**：读 `podman logs forge-portal-web` 中 Nuxt dev 内置 vue-tsc watch 的 `[vue-tsc] Found 0 errors. Watching for file changes.` 输出；或在容器内执行 `podman exec forge-portal-web pnpm typecheck` 并校验退出码为 0。
+2. 宿主 `pnpm typecheck` / `pnpm lint` 结果**不得作为通过依据**，仅可作辅助；若在宿主执行，必须显式校验 `$LASTEXITCODE`，禁止把"无输出"当作"通过"。
+3. 每次 portal-web 源码改动后必须确认容器 vue-tsc `Found 0 errors`（dev 场景）或容器内 typecheck 退出码 0；重建/重启后按第 11 章执行端到端验证，并浏览器复核无 `vue-tsc` 类型错误 overlay。
+4. 修改 srcDir（`app/`）内文件后若 dev 容器未热更，需 `podman restart forge-portal-web` 再验证（bind mount 不保证 HMR）。
+5. 任何临时备份文件禁止放在 `portal-web/` 等被 lint/typecheck 扫描的源码目录内，统一移入仓库 `temp/`（反例：`portal-web/temp_orders_backup.vue` 曾滞留源码目录被 vue-tsc 扫描）。
+
 ### 13.2 Git Hooks
 
 - **backend**：`backend/.pre-commit-config.yaml`（pre-commit 框架）。安装：`uv tool install pre-commit && cd backend && pre-commit install --hook-type pre-commit --hook-type commit-msg`；手动全量检查：`pre-commit run --all-files`

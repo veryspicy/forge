@@ -20,7 +20,7 @@
               type="email"
               required
               class="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              placeholder="admin@forge.com"
+              placeholder="you@example.com"
             />
           </div>
           <div>
@@ -31,7 +31,7 @@
               type="password"
               required
               class="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              placeholder="Enter your password"
+              :placeholder="$t('auth.passwordPlaceholder')"
             />
           </div>
         </div>
@@ -78,6 +78,7 @@ const email = ref('')
 const password = ref('')
 const loading = ref(false)
 const errorMsg = ref('')
+const { toMessage } = useApiError()
 
 function getRedirectPath(): string {
   const redirect = route.query.redirect as string
@@ -104,7 +105,7 @@ async function handleLogin() {
       await navigateTo(getRedirectPath())
     }
   } catch (err: any) {
-    errorMsg.value = useApiError().toMessage(err)
+    errorMsg.value = toMessage(err)
   } finally {
     loading.value = false
   }
