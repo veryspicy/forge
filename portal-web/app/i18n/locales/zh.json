@@ -276,8 +276,10 @@
     "cardName": "持卡人姓名",
     "cardExpiry": "有效期 (MM/YY)",
     "cardCvv": "CVV",
-    "paymentNote": "测试模式：不会产生真实扣款。",
-    "invalidCard": "请检查填写的银行卡信息。"
+    "paymentNote": "安全加密传输。模拟支付网关（Sandbox），不会真实扣款。下单后请在订单页完成支付。",
+    "invalidCard": "请检查填写的银行卡信息。",
+    "payNow": "下单并去支付",
+    "payAfterOrderNote": "下单后将跳转订单详情页完成支付（沙箱网关演示，不会真实扣款）"
   },
   "orders": {
     "title": "我的订单",
@@ -287,9 +289,9 @@
     "pending": "待付款",
     "processing": "处理中",
     "shipped": "已发货",
-    "delivered": "已签收",
+    "delivered": "已确认收货",
     "cancelled": "已取消",
-    "confirmed": "已确认",
+    "confirmed": "待发货",
     "noOrders": "暂无订单",
     "noOrdersHint": "您的订单将会显示在这里。",
     "startShopping": "开始购物",
@@ -307,9 +309,9 @@
     "tracking": "订单进度",
     "step": {
       "ordered": "已下单",
-      "processing": "处理中",
+      "confirmed": "待发货",
       "shipped": "已发货",
-      "delivered": "已签收"
+      "delivered": "已确认收货"
     },
     "shippingInfo": "配送信息",
     "carrier": "承运商",
@@ -323,11 +325,41 @@
     "shipping": "运费",
     "discount": "优惠",
     "shippingAddress": "收货地址",
+    "editOrder": "修改订单",
+    "editShippingAddress": "修改收货地址",
+    "editShippingAddressHint": "仅未发货订单可修改收货地址",
+    "saveAddress": "保存地址",
+    "savingAddress": "保存中...",
+    "addressUpdated": "收货地址已更新",
+    "addressUpdateFailed": "收货地址更新失败，请重试",
     "cancelOrder": "取消订单",
     "cancelOrderTitle": "取消订单",
     "cancelConfirmText": "确定要取消此订单吗？该操作无法撤销。",
     "keepOrder": "保留订单",
-    "cancelling": "正在取消..."
+    "cancelling": "正在取消...",
+    "pay": "去支付",
+    "payTitle": "支付订单",
+    "payMockNote": "当前为模拟支付网关（Sandbox），不会真实扣款",
+    "paySuccess": "支付成功",
+    "paying": "支付中...",
+    "paid": "已支付",
+    "unpaid": "待支付",
+    "confirmReceipt": "确认收货",
+    "confirmReceiptHint": "确认已收到商品后，订单将完成并开放评价",
+    "confirmReceiptConfirm": "我已收到商品",
+    "confirmReceiptTitle": "确认收货",
+    "confirmingReceipt": "提交中...",
+    "deleteOrder": "删除订单",
+    "deleteConfirmTitle": "删除订单",
+    "deleteConfirmText": "删除后订单将从列表中移除（已完成订单归档），是否继续？",
+    "deleting": "删除中...",
+    "orderDeleted": "订单已删除",
+    "completed": "已完成",
+    "shipmentTracking": "物流信息",
+    "trackingStatus": "状态",
+    "noShipment": "物流信息暂未更新，请稍后查看",
+    "noTrackingEvents": "暂无物流动态",
+    "trackingUpdate": "更新"
   },
   "chat": {
     "title": "AI 客服",
@@ -359,7 +391,7 @@
   },
   "auth": {
     "signIn": "登录",
-    "enterCredentials": "欢迎回来，请登录您的账户",
+    "enterCredentials": "登录您的账户，继续为毛孩子挑选好物",
     "email": "邮箱",
     "password": "密码",
     "signInButton": "登录",
@@ -372,7 +404,9 @@
     "passwordMismatch": "两次密码输入不一致",
     "haveAccount": "已有账号？去登录",
     "noAccount": "还没有账号？去注册",
-    "registerSuccess": "注册成功"
+    "registerSuccess": "注册成功",
+    "emailPlaceholder": "输入邮箱地址",
+    "passwordPlaceholder": "请输入密码"
   },
   "footer": {
     "shop": "购物",
@@ -447,5 +481,25 @@
     "subtitle": "AI 驱动的智能购物，为您的毛孩子挑选最好的。",
     "cta1Label": "立即选购",
     "cta2Label": "添加您的宠物"
+  },
+  "reviews": {
+    "title": "商品评价",
+    "myTitle": "我的评价",
+    "write": "写评价",
+    "submit": "提交评价",
+    "submitting": "提交中...",
+    "success": "评价成功，感谢您的反馈",
+    "rating": "评分",
+    "rateRequired": "请选择评分",
+    "reviewed": "已评价",
+    "eligibleHint": "订单已完成，欢迎为商品写评价",
+    "titlePlaceholder": "一句话标题（选填）",
+    "contentPlaceholder": "分享商品的使用体验（选填）",
+    "empty": "暂无评价，来抢沙发",
+    "productTitle": "客户评价",
+    "avgLabel": "综合评分",
+    "totalLabel": "共 {count} 条评价",
+    "deleteReview": "删除评价",
+    "deleted": "评价已删除"
   }
 }

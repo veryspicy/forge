@@ -276,8 +276,10 @@
     "cardName": "Cardholder Name",
     "cardExpiry": "Expiry (MM/YY)",
     "cardCvv": "CVV",
-    "paymentNote": "Test mode: no real payment will be charged.",
-    "invalidCard": "Please check the card information you entered."
+    "paymentNote": "Encrypted and secure. Sandbox payment gateway — no real charge. Complete payment on the order page after placing the order.",
+    "invalidCard": "Please check the card information you entered.",
+    "payNow": "Place order & pay",
+    "payAfterOrderNote": "After placing the order, complete payment on the order page (sandbox gateway, no real charge)."
   },
   "orders": {
     "title": "My Orders",
@@ -287,9 +289,9 @@
     "pending": "Pending",
     "processing": "Processing",
     "shipped": "Shipped",
-    "delivered": "Delivered",
+    "delivered": "Receipt Confirmed",
     "cancelled": "Cancelled",
-    "confirmed": "Confirmed",
+    "confirmed": "Awaiting Shipment",
     "noOrders": "No orders yet",
     "noOrdersHint": "When you place orders, they will appear here.",
     "startShopping": "Start Shopping",
@@ -307,9 +309,9 @@
     "tracking": "Order Progress",
     "step": {
       "ordered": "Ordered",
-      "processing": "Processing",
+      "confirmed": "Awaiting Shipment",
       "shipped": "Shipped",
-      "delivered": "Delivered"
+      "delivered": "Receipt Confirmed"
     },
     "shippingInfo": "Shipping Information",
     "carrier": "Carrier",
@@ -323,11 +325,41 @@
     "shipping": "Shipping",
     "discount": "Discount",
     "shippingAddress": "Shipping Address",
+    "editOrder": "Edit Order",
+    "editShippingAddress": "Edit Shipping Address",
+    "editShippingAddressHint": "Shipping address can only be changed before the order ships.",
+    "saveAddress": "Save Address",
+    "savingAddress": "Saving...",
+    "addressUpdated": "Shipping address updated",
+    "addressUpdateFailed": "Failed to update shipping address. Please try again.",
     "cancelOrder": "Cancel Order",
     "cancelOrderTitle": "Cancel Order",
     "cancelConfirmText": "Are you sure you want to cancel this order? This action cannot be undone.",
     "keepOrder": "Keep Order",
-    "cancelling": "Cancelling..."
+    "cancelling": "Cancelling...",
+    "pay": "Pay now",
+    "payTitle": "Pay for order",
+    "payMockNote": "This is a sandbox payment gateway. No real charge will be made.",
+    "paySuccess": "Payment successful",
+    "paying": "Processing payment...",
+    "paid": "Paid",
+    "unpaid": "Unpaid",
+    "confirmReceipt": "Confirm receipt",
+    "confirmReceiptHint": "After confirming delivery, the order will be completed and reviews will open.",
+    "confirmReceiptConfirm": "I have received the items",
+    "confirmReceiptTitle": "Confirm receipt",
+    "confirmingReceipt": "Submitting...",
+    "deleteOrder": "Delete order",
+    "deleteConfirmTitle": "Delete order",
+    "deleteConfirmText": "This order will be archived and removed from your list. Continue?",
+    "deleting": "Deleting...",
+    "orderDeleted": "Order deleted",
+    "completed": "Completed",
+    "shipmentTracking": "Shipment Tracking",
+    "trackingStatus": "Status",
+    "noShipment": "Tracking info not available yet, please check back later",
+    "noTrackingEvents": "No tracking events yet",
+    "trackingUpdate": "Update"
   },
   "chat": {
     "title": "AI Chat",
@@ -359,7 +391,7 @@
   },
   "auth": {
     "signIn": "Sign in",
-    "enterCredentials": "Welcome back! Sign in to your account",
+    "enterCredentials": "Welcome back! Sign in to your account to continue shopping",
     "email": "Email",
     "password": "Password",
     "signInButton": "Sign in",
@@ -372,7 +404,9 @@
     "passwordMismatch": "Passwords do not match",
     "haveAccount": "Already have an account? Sign in",
     "noAccount": "Don't have an account? Sign up",
-    "registerSuccess": "Registration successful"
+    "registerSuccess": "Registration successful",
+    "emailPlaceholder": "you@example.com",
+    "passwordPlaceholder": "Enter your password"
   },
   "footer": {
     "shop": "Shop",
@@ -447,5 +481,25 @@
     "subtitle": "Smart shopping for your furry friends, powered by AI.",
     "cta1Label": "Shop Now",
     "cta2Label": "Add Your Pet"
+  },
+  "reviews": {
+    "title": "Product Reviews",
+    "myTitle": "My Reviews",
+    "write": "Write a review",
+    "submit": "Submit review",
+    "submitting": "Submitting...",
+    "success": "Thanks for your review!",
+    "rating": "Rating",
+    "rateRequired": "Please choose a rating",
+    "reviewed": "Reviewed",
+    "eligibleHint": "Order completed. Write a review for the product.",
+    "titlePlaceholder": "Short headline (optional)",
+    "contentPlaceholder": "Share your experience (optional)",
+    "empty": "No reviews yet. Be the first!",
+    "productTitle": "Customer Reviews",
+    "avgLabel": "Average rating",
+    "totalLabel": "{count} reviews",
+    "deleteReview": "Delete review",
+    "deleted": "Review deleted"
   }
 }

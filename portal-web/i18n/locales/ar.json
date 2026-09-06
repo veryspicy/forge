@@ -273,8 +273,10 @@
     "cardName": "اسم حامل البطاقة",
     "cardExpiry": "تاريخ الانتهاء (MM/YY)",
     "cardCvv": "CVV",
-    "paymentNote": "وضع تجريبي: لن يتم خصم أي دفعة حقيقية.",
-    "invalidCard": "يرجى التحقق من معلومات البطاقة المدخلة."
+    "paymentNote": "مشفّر وآمن. بوابة دفع تجريبية — لا خصم حقيقي. أكمل الدفع من صفحة الطلب.",
+    "invalidCard": "يرجى التحقق من معلومات البطاقة المدخلة.",
+    "payNow": "اطلب وادفع",
+    "payAfterOrderNote": "بعد تأكيد الطلب، أكمل الدفع من صفحة الطلب (بوابة تجريبية، لا خصم حقيقي)."
   },
   "orders": {
     "title": "طلباتي",
@@ -284,9 +286,9 @@
     "pending": "قيد الانتظار",
     "processing": "قيد المعالجة",
     "shipped": "تم الشحن",
-    "delivered": "تم التوصيل",
+    "delivered": "تم تأكيد الاستلام",
     "cancelled": "ملغي",
-    "confirmed": "مؤكد",
+    "confirmed": "بانتظار الشحن",
     "noOrders": "لا توجد طلبات بعد",
     "noOrdersHint": "عند تقديم الطلبات، ستظهر هنا.",
     "startShopping": "ابدأ التسوق",
@@ -304,9 +306,9 @@
     "tracking": "تقدم الطلب",
     "step": {
       "ordered": "تم الطلب",
-      "processing": "قيد المعالجة",
+      "confirmed": "بانتظار الشحن",
       "shipped": "تم الشحن",
-      "delivered": "تم التوصيل"
+      "delivered": "تم تأكيد الاستلام"
     },
     "shippingInfo": "معلومات الشحن",
     "carrier": "الناقل",
@@ -324,7 +326,30 @@
     "cancelOrderTitle": "إلغاء الطلب",
     "cancelConfirmText": "هل أنت متأكد من إلغاء هذا الطلب؟ لا يمكن التراجع عن هذا الإجراء.",
     "keepOrder": "الاحتفاظ بالطلب",
-    "cancelling": "جار الإلغاء..."
+    "cancelling": "جار الإلغاء...",
+    "pay": "ادفع الآن",
+    "payTitle": "دفع الطلب",
+    "payMockNote": "هذه بوابة دفع تجريبية (Sandbox) ولن يتم أي خصم حقيقي.",
+    "paySuccess": "تم الدفع بنجاح",
+    "paying": "جارٍ الدفع...",
+    "paid": "مدفوع",
+    "unpaid": "غير مدفوع",
+    "confirmReceipt": "تأكيد الاستلام",
+    "confirmReceiptHint": "بعد التأكيد سيتم إكمال الطلب وتفعيل التقييمات.",
+    "confirmReceiptConfirm": "لقد استلمت المنتجات",
+    "confirmReceiptTitle": "تأكيد الاستلام",
+    "confirmingReceipt": "جارٍ الإرسال...",
+    "deleteOrder": "حذف الطلب",
+    "deleteConfirmTitle": "حذف الطلب",
+    "deleteConfirmText": "سيتم أرشفة هذا الطلب وإزالته من قائمتك. هل تريد المتابعة؟",
+    "deleting": "جارٍ الحذف...",
+    "orderDeleted": "تم حذف الطلب",
+    "completed": "مكتمل",
+    "shipmentTracking": "تتبع الشحن",
+    "trackingStatus": "الحالة",
+    "noShipment": "معلومات التتبع غير متاحة بعد، يرجى التحقق لاحقًا",
+    "noTrackingEvents": "لا توجد أحداث تتبع بعد",
+    "trackingUpdate": "تحديث"
   },
   "chat": {
     "title": "محادثة الذكاء الاصطناعي",
@@ -356,7 +381,7 @@
   },
   "auth": {
     "signIn": "تسجيل الدخول",
-    "enterCredentials": "مرحباً بعودتك! سجّل الدخول إلى حسابك",
+    "enterCredentials": "مرحباً بعودتك! سجّل الدخول لمواصلة التسوق",
     "email": "البريد الإلكتروني",
     "password": "كلمة المرور",
     "signInButton": "تسجيل الدخول",
@@ -369,7 +394,9 @@
     "noAccount": "ليس لديك حساب؟",
     "passwordMinLength": "يجب ألا تقل كلمة المرور عن 6 أحرف",
     "passwordMismatch": "كلمتا المرور غير متطابقتين",
-    "registerSuccess": "تم التسجيل بنجاح"
+    "registerSuccess": "تم التسجيل بنجاح",
+    "emailPlaceholder": "you@example.com",
+    "passwordPlaceholder": "أدخل كلمة المرور"
   },
   "footer": {
     "shop": "المتجر",
@@ -444,5 +471,25 @@
     "subtitle": "تسوق ذكي لأصدقائك ذوي الفراء، مدعوم بالذكاء الاصطناعي.",
     "cta1Label": "تسوق الآن",
     "cta2Label": "أضف حيوانك الأليف"
+  },
+  "reviews": {
+    "title": "تقييمات المنتج",
+    "myTitle": "تقييماتي",
+    "write": "اكتب تقييماً",
+    "submit": "إرسال التقييم",
+    "submitting": "جارٍ الإرسال...",
+    "success": "شكراً لتقييمك!",
+    "rating": "التقييم",
+    "rateRequired": "يرجى اختيار تقييم",
+    "reviewed": "تم التقييم",
+    "eligibleHint": "اكتمل الطلب. اكتب تقييماً للمنتج.",
+    "titlePlaceholder": "عنوان مختصر (اختياري)",
+    "contentPlaceholder": "شارك تجربتك (اختياري)",
+    "empty": "لا توجد تقييمات بعد. كن أول من يقيّم!",
+    "productTitle": "تقييمات العملاء",
+    "avgLabel": "متوسط التقييم",
+    "totalLabel": "{count} تقييم",
+    "deleteReview": "حذف التقييم",
+    "deleted": "تم حذف التقييم"
   }
 }

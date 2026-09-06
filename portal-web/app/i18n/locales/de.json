@@ -273,8 +273,10 @@
     "cardName": "Name des Karteninhabers",
     "cardExpiry": "Ablaufdatum (MM/JJ)",
     "cardCvv": "CVV",
-    "paymentNote": "Testmodus: Es wird keine echte Zahlung belastet.",
-    "invalidCard": "Bitte überprüfen Sie die eingegebenen Kartendaten."
+    "paymentNote": "Sicher verschlüsselt. Sandbox-Zahlungsgateway – keine echte Abbuchung. Bezahlen Sie auf der Bestellseite.",
+    "invalidCard": "Bitte überprüfen Sie die eingegebenen Kartendaten.",
+    "payNow": "Bestellen & bezahlen",
+    "payAfterOrderNote": "Nach der Bestellung zahlen Sie auf der Bestellseite (Sandbox, keine echte Belastung)."
   },
   "orders": {
     "title": "Meine Bestellungen",
@@ -284,9 +286,9 @@
     "pending": "Ausstehend",
     "processing": "In Bearbeitung",
     "shipped": "Versendet",
-    "delivered": "Geliefert",
+    "delivered": "Empfang bestätigt",
     "cancelled": "Storniert",
-    "confirmed": "Bestätigt",
+    "confirmed": "Versand ausstehend",
     "noOrders": "Noch keine Bestellungen",
     "noOrdersHint": "Wenn Sie Bestellungen aufgeben, erscheinen sie hier.",
     "startShopping": "Einkauf starten",
@@ -304,9 +306,9 @@
     "tracking": "Bestellfortschritt",
     "step": {
       "ordered": "Bestellt",
-      "processing": "In Bearbeitung",
+      "confirmed": "Versand ausstehend",
       "shipped": "Versendet",
-      "delivered": "Geliefert"
+      "delivered": "Empfang bestätigt"
     },
     "shippingInfo": "Versandinformationen",
     "carrier": "Spediteur",
@@ -324,7 +326,30 @@
     "cancelOrderTitle": "Bestellung stornieren",
     "cancelConfirmText": "Sind Sie sicher, dass Sie diese Bestellung stornieren möchten? Dies kann nicht rückgängig gemacht werden.",
     "keepOrder": "Bestellung behalten",
-    "cancelling": "Wird storniert..."
+    "cancelling": "Wird storniert...",
+    "pay": "Jetzt bezahlen",
+    "payTitle": "Bestellung bezahlen",
+    "payMockNote": "Dies ist ein Sandbox-Zahlungsgateway. Es wird keine echte Abbuchung vorgenommen.",
+    "paySuccess": "Zahlung erfolgreich",
+    "paying": "Zahlung läuft...",
+    "paid": "Bezahlt",
+    "unpaid": "Unbezahlt",
+    "confirmReceipt": "Ware erhalten bestätigen",
+    "confirmReceiptHint": "Nach Bestätigung wird die Bestellung abgeschlossen und Bewertungen werden freigeschaltet.",
+    "confirmReceiptConfirm": "Ich habe die Ware erhalten",
+    "confirmReceiptTitle": "Ware erhalten",
+    "confirmingReceipt": "Wird gesendet...",
+    "deleteOrder": "Bestellung löschen",
+    "deleteConfirmTitle": "Bestellung löschen",
+    "deleteConfirmText": "Diese Bestellung wird archiviert und aus Ihrer Liste entfernt. Fortfahren?",
+    "deleting": "Wird gelöscht...",
+    "orderDeleted": "Bestellung gelöscht",
+    "completed": "Abgeschlossen",
+    "shipmentTracking": "Sendungsverfolgung",
+    "trackingStatus": "Status",
+    "noShipment": "Versandinformationen noch nicht verfügbar, bitte später erneut prüfen",
+    "noTrackingEvents": "Noch keine Sendungsereignisse",
+    "trackingUpdate": "Aktualisierung"
   },
   "chat": {
     "title": "KI-Chat",
@@ -356,7 +381,7 @@
   },
   "auth": {
     "signIn": "Anmelden",
-    "enterCredentials": "Willkommen zurück! Melden Sie sich in Ihrem Konto an",
+    "enterCredentials": "Willkommen zurück! Melden Sie sich an, um weiter einzukaufen",
     "email": "E-Mail",
     "password": "Passwort",
     "signInButton": "Anmelden",
@@ -369,7 +394,9 @@
     "noAccount": "Noch kein Konto?",
     "passwordMinLength": "Das Passwort muss mindestens 6 Zeichen lang sein",
     "passwordMismatch": "Die Passwörter stimmen nicht überein",
-    "registerSuccess": "Registrierung erfolgreich"
+    "registerSuccess": "Registrierung erfolgreich",
+    "emailPlaceholder": "E-Mail-Adresse eingeben",
+    "passwordPlaceholder": "Passwort eingeben"
   },
   "footer": {
     "shop": "Shop",
@@ -444,5 +471,25 @@
     "subtitle": "Intelligentes Einkaufen für Ihre pelzigen Freunde, unterstützt von KI.",
     "cta1Label": "Jetzt einkaufen",
     "cta2Label": "Haustier hinzufügen"
+  },
+  "reviews": {
+    "title": "Produktbewertungen",
+    "myTitle": "Meine Bewertungen",
+    "write": "Bewertung schreiben",
+    "submit": "Bewertung absenden",
+    "submitting": "Wird gesendet...",
+    "success": "Vielen Dank für Ihre Bewertung!",
+    "rating": "Bewertung",
+    "rateRequired": "Bitte wählen Sie eine Bewertung",
+    "reviewed": "Bewertet",
+    "eligibleHint": "Bestellung abgeschlossen. Schreiben Sie eine Bewertung.",
+    "titlePlaceholder": "Kurze Überschrift (optional)",
+    "contentPlaceholder": "Teilen Sie Ihre Erfahrung (optional)",
+    "empty": "Noch keine Bewertungen. Seien Sie die/der Erste!",
+    "productTitle": "Kundenbewertungen",
+    "avgLabel": "Durchschnitt",
+    "totalLabel": "{count} Bewertungen",
+    "deleteReview": "Bewertung löschen",
+    "deleted": "Bewertung gelöscht"
   }
 }

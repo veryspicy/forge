@@ -273,8 +273,10 @@
     "cardName": "Nom du titulaire de la carte",
     "cardExpiry": "Date d'expiration (MM/AA)",
     "cardCvv": "CVV",
-    "paymentNote": "Mode test : aucun paiement réel ne sera débité.",
-    "invalidCard": "Veuillez vérifier les informations de carte saisies."
+    "paymentNote": "Chiffré et sécurisé. Passerelle sandbox — aucun débit réel. Payez sur la page de commande.",
+    "invalidCard": "Veuillez vérifier les informations de carte saisies.",
+    "payNow": "Commander et payer",
+    "payAfterOrderNote": "Après la commande, effectuez le paiement sur la page de commande (passerelle sandbox, aucun débit réel)."
   },
   "orders": {
     "title": "Mes Commandes",
@@ -284,9 +286,9 @@
     "pending": "En attente",
     "processing": "En cours",
     "shipped": "Expédiée",
-    "delivered": "Livrée",
+    "delivered": "Réception confirmée",
     "cancelled": "Annulée",
-    "confirmed": "Confirmée",
+    "confirmed": "En attente d'expédition",
     "noOrders": "Pas encore de commandes",
     "noOrdersHint": "Lorsque vous passez des commandes, elles apparaîtront ici.",
     "startShopping": "Commencer les achats",
@@ -304,9 +306,9 @@
     "tracking": "Suivi de commande",
     "step": {
       "ordered": "Commandée",
-      "processing": "En cours",
+      "confirmed": "En attente d'expédition",
       "shipped": "Expédiée",
-      "delivered": "Livrée"
+      "delivered": "Réception confirmée"
     },
     "shippingInfo": "Informations de livraison",
     "carrier": "Transporteur",
@@ -324,7 +326,30 @@
     "cancelOrderTitle": "Annuler la commande",
     "cancelConfirmText": "Êtes-vous sûr de vouloir annuler cette commande ? Cette action est irréversible.",
     "keepOrder": "Conserver la commande",
-    "cancelling": "Annulation..."
+    "cancelling": "Annulation...",
+    "pay": "Payer",
+    "payTitle": "Payer la commande",
+    "payMockNote": "Passerelle de paiement sandbox. Aucun débit réel.",
+    "paySuccess": "Paiement réussi",
+    "paying": "Paiement en cours...",
+    "paid": "Payé",
+    "unpaid": "Impayé",
+    "confirmReceipt": "Confirmer la réception",
+    "confirmReceiptHint": "Après confirmation, la commande sera terminée et les avis seront ouverts.",
+    "confirmReceiptConfirm": "J'ai reçu les articles",
+    "confirmReceiptTitle": "Confirmer la réception",
+    "confirmingReceipt": "Envoi...",
+    "deleteOrder": "Supprimer la commande",
+    "deleteConfirmTitle": "Supprimer la commande",
+    "deleteConfirmText": "Cette commande sera archivée et retirée de votre liste. Continuer ?",
+    "deleting": "Suppression...",
+    "orderDeleted": "Commande supprimée",
+    "completed": "Terminée",
+    "shipmentTracking": "Suivi d'expédition",
+    "trackingStatus": "Statut",
+    "noShipment": "Informations de suivi pas encore disponibles, veuillez réessayer plus tard",
+    "noTrackingEvents": "Aucun événement de suivi",
+    "trackingUpdate": "Mise à jour"
   },
   "chat": {
     "title": "Chat IA",
@@ -356,7 +381,7 @@
   },
   "auth": {
     "signIn": "Connectez-vous",
-    "enterCredentials": "Bon retour ! Connectez-vous à votre compte",
+    "enterCredentials": "Bon retour ! Connectez-vous pour continuer vos achats",
     "email": "E-mail",
     "password": "Mot de passe",
     "signInButton": "Se connecter",
@@ -369,7 +394,9 @@
     "noAccount": "Pas encore de compte ?",
     "passwordMinLength": "Le mot de passe doit contenir au moins 6 caractères",
     "passwordMismatch": "Les mots de passe ne correspondent pas",
-    "registerSuccess": "Inscription réussie"
+    "registerSuccess": "Inscription réussie",
+    "emailPlaceholder": "Entrez votre e-mail",
+    "passwordPlaceholder": "Entrez votre mot de passe"
   },
   "footer": {
     "shop": "Boutique",
@@ -444,5 +471,25 @@
     "subtitle": "Shopping intelligent pour vos amis à fourrure, propulsé par l'IA.",
     "cta1Label": "Acheter maintenant",
     "cta2Label": "Ajouter votre animal"
+  },
+  "reviews": {
+    "title": "Avis produits",
+    "myTitle": "Mes avis",
+    "write": "Écrire un avis",
+    "submit": "Soumettre l'avis",
+    "submitting": "Envoi...",
+    "success": "Merci pour votre avis !",
+    "rating": "Note",
+    "rateRequired": "Veuillez choisir une note",
+    "reviewed": "Évalué",
+    "eligibleHint": "Commande terminée. Écrivez un avis sur le produit.",
+    "titlePlaceholder": "Titre court (optionnel)",
+    "contentPlaceholder": "Partagez votre expérience (optionnel)",
+    "empty": "Aucun avis pour le moment. Soyez le premier !",
+    "productTitle": "Avis clients",
+    "avgLabel": "Note moyenne",
+    "totalLabel": "{count} avis",
+    "deleteReview": "Supprimer l'avis",
+    "deleted": "Avis supprimé"
   }
 }
