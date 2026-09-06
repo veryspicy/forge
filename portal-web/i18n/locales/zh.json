@@ -405,7 +405,7 @@
     "haveAccount": "已有账号？去登录",
     "noAccount": "还没有账号？去注册",
     "registerSuccess": "注册成功",
-    "emailPlaceholder": "you@example.com",
+    "emailPlaceholder": "输入邮箱地址",
     "passwordPlaceholder": "请输入密码"
   },
   "footer": {

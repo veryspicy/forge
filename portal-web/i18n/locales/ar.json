@@ -395,7 +395,7 @@
     "passwordMinLength": "يجب ألا تقل كلمة المرور عن 6 أحرف",
     "passwordMismatch": "كلمتا المرور غير متطابقتين",
     "registerSuccess": "تم التسجيل بنجاح",
-    "emailPlaceholder": "you@example.com",
+    "emailPlaceholder": "أدخل بريدك الإلكتروني",
     "passwordPlaceholder": "أدخل كلمة المرور"
   },
   "footer": {

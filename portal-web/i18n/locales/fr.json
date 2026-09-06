@@ -395,7 +395,7 @@
     "passwordMinLength": "Le mot de passe doit contenir au moins 6 caractères",
     "passwordMismatch": "Les mots de passe ne correspondent pas",
     "registerSuccess": "Inscription réussie",
-    "emailPlaceholder": "you@example.com",
+    "emailPlaceholder": "Entrez votre e-mail",
     "passwordPlaceholder": "Entrez votre mot de passe"
   },
   "footer": {

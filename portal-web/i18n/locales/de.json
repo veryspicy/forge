@@ -395,7 +395,7 @@
     "passwordMinLength": "Das Passwort muss mindestens 6 Zeichen lang sein",
     "passwordMismatch": "Die Passwörter stimmen nicht überein",
     "registerSuccess": "Registrierung erfolgreich",
-    "emailPlaceholder": "you@example.com",
+    "emailPlaceholder": "E-Mail-Adresse eingeben",
     "passwordPlaceholder": "Passwort eingeben"
   },
   "footer": {
