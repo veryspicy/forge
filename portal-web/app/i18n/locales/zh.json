@@ -434,7 +434,8 @@
     "enterEmail": "输入您的邮箱",
     "subscribe": "订阅",
     "copyright": "© 2026 Forge 版权所有。",
-    "paymentMethods": "Visa · MC · Amex · PayPal"
+    "paymentMethods": "Visa · MC · Amex · PayPal",
+    "followUs": "关注我们"
   },
   "status": {
     "pending": "待付款",
