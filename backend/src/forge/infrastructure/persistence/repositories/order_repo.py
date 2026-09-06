@@ -94,6 +94,11 @@ class SQLAlchemyOrderRepository:
 # ---------------------------------------------------------------------------
 
 _CANCELLABLE_STATUSES = {"pending", "confirmed", "processing"}
+_PAYABLE_STATUSES = {"pending"}
+_CONFIRMABLE_STATUSES = {"shipped"}
+_DELETABLE_STATUSES = {"delivered", "cancelled"}
+# 收货地址仅允许在发货前修改（行业对齐：pending/confirmed/processing 均未发货）
+_EDITABLE_SHIPPING_STATUSES = {"pending", "confirmed", "processing"}
 _FREE_SHIPPING_THRESHOLD = 50
 _FLAT_SHIPPING = 5
 _DEFAULT_CURRENCY = "USD"
@@ -111,7 +116,14 @@ def _order_to_dict(order: ORMOrder) -> dict[str, object]:
         "total": float(order.total),
         "currency": order.currency,
         "status": order.status,
+        "payment_method": order.payment_method,
+        "payment_status": order.payment_status,
         "payment_intent_id": order.payment_intent_id,
+        "paid_at": order.paid_at.isoformat() if order.paid_at else None,
+        "confirmed_at": order.confirmed_at.isoformat() if order.confirmed_at else None,
+        "shipped_at": order.shipped_at.isoformat() if order.shipped_at else None,
+        "delivered_at": order.delivered_at.isoformat() if order.delivered_at else None,
+        "deleted_at": order.deleted_at.isoformat() if order.deleted_at else None,
         "tracking_number": order.tracking_number,
         "shipping_address": order.shipping_address,
         "created_at": order.created_at.isoformat() if order.created_at else None,
@@ -160,11 +172,15 @@ class SQLAlchemyCustomerOrderRepository:
     ) -> dict[str, object]:
         stmt = (
             select(ORMOrder)
-            .where(ORMOrder.user_id == user_id)
+            .where(ORMOrder.user_id == user_id, ORMOrder.deleted_at.is_(None))
             .options(selectinload(ORMOrder.items))
             .order_by(ORMOrder.created_at.desc())
         )
-        count_stmt = select(func.count()).select_from(ORMOrder).where(ORMOrder.user_id == user_id)
+        count_stmt = (
+            select(func.count())
+            .select_from(ORMOrder)
+            .where(ORMOrder.user_id == user_id, ORMOrder.deleted_at.is_(None))
+        )
         if status:
             stmt = stmt.where(ORMOrder.status == status)
             count_stmt = count_stmt.where(ORMOrder.status == status)
@@ -201,6 +217,7 @@ class SQLAlchemyCustomerOrderRepository:
         user_id: UUID,
         lines: list[dict[str, object]],
         shipping_address: dict[str, object] | None,
+        payment_method: str | None = None,
     ) -> ORMOrder:
         """Create an order with server-side price snapshots and inventory deduction.
 
@@ -255,6 +272,8 @@ class SQLAlchemyCustomerOrderRepository:
             total=Decimal("0"),
             currency=_DEFAULT_CURRENCY,
             status="pending",
+            payment_status="unpaid",
+            payment_method=payment_method or None,
             shipping_address=shipping_address,
             created_at=now,
             updated_at=now,
@@ -329,6 +348,118 @@ class SQLAlchemyCustomerOrderRepository:
                     if product is not None and product.inventory is not None:
                         product.inventory = cast(Any, product.inventory + i.quantity)
                 await db.flush()
+        return order
+
+    @staticmethod
+    async def mark_paid(
+        db: AsyncSession,
+        order: ORMOrder,
+        payment_method: str,
+        payment_intent_id: str | None = None,
+    ) -> ORMOrder:
+        """Mark an order paid and move pending -> confirmed (industry: paid=confirmed).
+
+        Caller must hold the row lock (with_for_update) before invoking.
+        """
+        if order.payment_status == "paid":
+            raise APIError(ErrorCode.ORDER_ALREADY_PAID, message="Order has already been paid.")
+        if order.status not in _PAYABLE_STATUSES:
+            raise APIError(
+                ErrorCode.ORDER_NOT_PAYABLE,
+                message=f"Order cannot be paid in state '{order.status}'.",
+            )
+        now = SQLAlchemyCustomerOrderRepository._now()
+        order.payment_status = cast(Any, "paid")
+        order.status = cast(Any, "confirmed")
+        order.payment_method = cast(Any, payment_method)
+        if payment_intent_id:
+            order.payment_intent_id = cast(Any, payment_intent_id)
+        order.paid_at = cast(Any, now)
+        order.confirmed_at = cast(Any, now)
+        order.updated_at = cast(Any, now)
+        await db.flush()
+        return order
+
+    @staticmethod
+    async def confirm_receipt(db: AsyncSession, order: ORMOrder) -> ORMOrder:
+        """Customer confirms receipt: shipped -> delivered (order completed)."""
+        if order.status not in _CONFIRMABLE_STATUSES:
+            raise APIError(
+                ErrorCode.ORDER_NOT_CONFIRMABLE,
+                message=f"Order cannot be confirmed in state '{order.status}'.",
+            )
+        now = SQLAlchemyCustomerOrderRepository._now()
+        order.status = cast(Any, "delivered")
+        order.delivered_at = cast(Any, now)
+        order.updated_at = cast(Any, now)
+        await db.flush()
+        return order
+
+    @staticmethod
+    async def mark_shipped(
+        db: AsyncSession,
+        order: ORMOrder,
+        tracking_number: str | None = None,
+        carrier: str | None = None,
+    ) -> ORMOrder:
+        """Admin ships an order: confirmed/processing -> shipped."""
+        if order.status not in {"confirmed", "processing", "pending"}:
+            raise APIError(
+                ErrorCode.ORDER_NOT_CANCELLABLE,
+                message=f"Order cannot be shipped in state '{order.status}'.",
+            )
+        now = SQLAlchemyCustomerOrderRepository._now()
+        order.status = cast(Any, "shipped")
+        order.shipped_at = cast(Any, now)
+        order.updated_at = cast(Any, now)
+        if tracking_number:
+            order.tracking_number = cast(Any, tracking_number)
+        if carrier:
+            review = dict(order.review_status or {})
+            review["carrier"] = carrier
+            order.review_status = cast(Any, review)
+        await db.flush()
+        return order
+
+    @staticmethod
+    async def update_shipping_address(
+        db: AsyncSession,
+        order: ORMOrder,
+        shipping_address: dict[str, object],
+    ) -> ORMOrder:
+        """Update the shipping address of an unshipped order.
+
+        Raises:
+            APIError: ORDER_NOT_EDITABLE when the order is already shipped / cancelled.
+        """
+        if order.status not in _EDITABLE_SHIPPING_STATUSES:
+            raise APIError(
+                ErrorCode.ORDER_NOT_EDITABLE,
+                message=f"Order cannot be edited in state '{order.status}'.",
+            )
+        if not shipping_address:
+            raise APIError(ErrorCode.VALIDATION_ERROR, message="Shipping address cannot be empty.")
+        order.shipping_address = cast(Any, dict(shipping_address))
+        order.updated_at = cast(Any, SQLAlchemyCustomerOrderRepository._now())
+        await db.flush()
+        return order
+
+    @staticmethod
+    async def soft_delete_order(db: AsyncSession, order: ORMOrder) -> ORMOrder:
+        """Soft-delete (archive) an order visible to the customer.
+
+        Industry-aligned rule: only completed (delivered) or cancelled orders
+        may be deleted from the customer's order list.
+        """
+        if order.status not in _DELETABLE_STATUSES:
+            raise APIError(
+                ErrorCode.ORDER_NOT_DELETABLE,
+                message="Only completed or cancelled orders can be deleted.",
+            )
+        now = SQLAlchemyCustomerOrderRepository._now()
+        order.deleted_at = cast(Any, now)
+        order.updated_at = cast(Any, now)
+        await db.flush()
         return order
 
     @staticmethod

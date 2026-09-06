@@ -1,14 +1,19 @@
-"""C-end Orders API - 客户订单（创建/列表/详情/取消/物流占位）。
+"""C-end Orders API - 客户订单（创建/列表/详情/取消/支付/确认收货/删除/评价）。
 
 - 依赖 C 端 JWT（auth.get_current_user），订单严格按当前用户隔离
 - 前端契约（portal-web useApi / stores/order）：
-  GET    /orders                    -> {items, total, page, page_size}（?status= 过滤）
-  POST   /orders                    -> order（body: {items:[{product_id,quantity}], shipping_address, payment_method?}）
-  GET    /orders/{order_number}     -> order detail（含 items）
+  GET    /orders                    -> {items, total, page, page_size}（?status= 过滤，软删不可见）
+  POST   /orders                    -> order（body: {items:[{product_id,quantity}], shipping_address, payment_method}）
+  GET    /orders/{order_number}     -> order detail（含 items 与支付/状态时间线字段）
   POST   /orders/{order_number}/cancel -> order
+  POST   /orders/{order_number}/pay -> order（body: {payment_method, card{...}?, save_card?}；mock 网关确认）
+  POST   /orders/{order_number}/confirm-receipt -> order（shipped -> delivered，订单完结）
+  POST   /orders/{order_number}/shipping-address -> order（仅未发货可修改收货地址）
+  DELETE /orders/{order_number}     -> {deleted: true}（仅 delivered/cancelled 可软删归档）
   GET    /orders/{order_number}/tracking  -> {order_number, status, events}
   GET    /orders/{order_number}/shipments -> [shipment, ...]
-- 支付本期占位：创建订单即 status=pending，真实网关另开阶段
+- 支付状态机：pending(unpaid) -> pay -> confirmed(paid) -> shipped -> delivered(客户确认收货完结)
+- 删除规则（行业对齐）：仅已完结 delivered 或已取消 cancelled 的订单允许从列表归档
 """
 
 from __future__ import annotations
@@ -18,10 +23,12 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from forge.api.errors import APIError, ErrorCode
 from forge.api.v1.auth import get_current_user
+from forge.application.services.payment_gateway import get_payment_gateway
 from forge.infrastructure.persistence.models import ORMOrder, ORMShipment
 from forge.infrastructure.persistence.repositories.order_repo import (
     SQLAlchemyCustomerOrderRepository,
@@ -33,6 +40,7 @@ from forge.main.dependencies import get_db
 router = APIRouter(prefix="/orders", tags=["C-end Orders"])
 
 VALID_ORDER_STATUSES = {"pending", "confirmed", "processing", "shipped", "delivered", "cancelled"}
+VALID_PAYMENT_METHODS = {"card", "paypal"}
 
 
 # ---------------------------------------------------------------------------
@@ -59,6 +67,28 @@ class OrderCancel(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     reason: str | None = Field(default=None, max_length=2000)
+
+
+class CardPay(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    name: str | None = Field(default=None, max_length=200)
+    number: str | None = Field(default=None, max_length=32)
+    expiry: str | None = Field(default=None, max_length=10)
+    cvv: str | None = Field(default=None, max_length=10)
+
+
+class OrderPay(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    payment_method: str = Field(min_length=1, max_length=50)
+    card: CardPay | None = None
+
+
+class OrderShippingAddress(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    shipping_address: dict[str, Any] = Field(min_length=1)
 
 
 # ---------------------------------------------------------------------------
@@ -109,23 +139,52 @@ def _shipment_dict(shipment: ORMShipment) -> dict[str, Any]:
 
 
 def _tracking_events(order: ORMOrder) -> list[dict[str, Any]]:
-    """本期由订单状态推导 timeline；发货后以 shipments 事件为准。"""
-    created_at = order.created_at.isoformat() if order.created_at else None
-    updated_at = order.updated_at.isoformat() if order.updated_at else None
-    events = [
-        {"status": "pending", "label": "Order placed", "time": created_at},
+    """由订单状态与时间线字段推导 events；发货后以 shipments 事件为准。"""
+    events: list[dict[str, Any]] = [
+        {
+            "status": "pending",
+            "label": "Order placed",
+            "time": order.created_at.isoformat() if order.created_at else None,
+        },
     ]
-    if order.status in {"confirmed", "processing", "shipped", "delivered"}:
+    if order.paid_at or order.confirmed_at:
         events.append(
-            {"status": "confirmed", "label": "Order confirmed", "time": updated_at}
+            {
+                "status": "paid",
+                "label": "Payment confirmed",
+                "time": (order.paid_at or order.confirmed_at).isoformat()
+                if (order.paid_at or order.confirmed_at)
+                else None,
+            }
+        )
+    if order.status in {"confirmed", "processing", "shipped", "delivered"} and not order.paid_at:
+        events.append(
+            {
+                "status": "confirmed",
+                "label": "Order confirmed",
+                "time": order.confirmed_at.isoformat() if order.confirmed_at else None,
+            }
         )
     if order.status in {"shipped", "delivered"}:
-        events.append({"status": "shipped", "label": "Order shipped", "time": None})
-    if order.status == "delivered":
-        events.append({"status": "delivered", "label": "Delivered", "time": None})
-    if order.status == "cancelled":
         events.append(
-            {"status": "cancelled", "label": "Order cancelled", "time": updated_at}
+            {
+                "status": "shipped",
+                "label": "Order shipped",
+                "time": order.shipped_at.isoformat() if order.shipped_at else None,
+            }
+        )
+    if order.status == "delivered":
+        events.append(
+            {
+                "status": "delivered",
+                "label": "Delivered",
+                "time": order.delivered_at.isoformat() if order.delivered_at else None,
+            }
+        )
+    if order.status == "cancelled":
+        cancelled_time = order.updated_at.isoformat() if order.updated_at else None
+        events.append(
+            {"status": "cancelled", "label": "Order cancelled", "time": cancelled_time}
         )
     return events
 
@@ -159,7 +218,7 @@ async def create_order(
     user_claims: dict[str, object] = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """创建订单：服务端计价快照 + 扣减库存；支付本期占位。"""
+    """创建订单：服务端计价快照 + 扣减库存；状态 pending(unpaid)，随后经 pay 接口支付。"""
     owner_id = await _current_owner_id(user_claims, db)
     lines: list[dict[str, object]] = [{"product_id": it.product_id, "quantity": it.quantity} for it in payload.items]
     order = await SQLAlchemyCustomerOrderRepository.create_order(
@@ -167,6 +226,7 @@ async def create_order(
         owner_id,
         lines,
         payload.shipping_address,
+        payment_method=payload.payment_method,
     )
     await db.commit()
     await db.refresh(order, attribute_names=["items"])
@@ -198,6 +258,108 @@ async def cancel_order(
     await db.commit()
     await db.refresh(cancelled, attribute_names=["items"])
     return _order_to_dict(cancelled)
+
+
+async def _lock_order_by_number(db: AsyncSession, order_number: str) -> ORMOrder:
+    """行锁重取订单，防止支付/状态流转并发竞态。"""
+    row = (
+        await db.execute(select(ORMOrder).where(ORMOrder.order_number == order_number).with_for_update())
+    ).scalar_one_or_none()
+    if row is None:
+        raise APIError(ErrorCode.ORDER_NOT_FOUND, message="Order does not exist.")
+    return row
+
+
+@router.post("/{order_number}/pay")
+async def pay_order(
+    order_number: str,
+    payload: OrderPay,
+    user_claims: dict[str, object] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """支付订单：mock 网关模拟收单成功后订单置 paid/confirmed。
+
+    - 仅 pending 且未支付订单可支付；幂等：已支付订单直接返回现状
+    - 测试卡：4242 4242 4242 4242 成功；4000 0000 0000 0002 拒绝
+    """
+    owner_id = await _current_owner_id(user_claims, db)
+    order = await _owned_order_or_404(db, owner_id, order_number)
+    if order.payment_status == "paid":
+        return _order_to_dict(order)
+    method = (payload.payment_method or "").lower()
+    if method not in VALID_PAYMENT_METHODS:
+        raise APIError(
+            ErrorCode.PAYMENT_METHOD_UNSUPPORTED,
+            message=f"Payment method '{method}' is not supported.",
+        )
+    gateway = get_payment_gateway()
+    intent = await gateway.create_payment_intent(
+        cast(str, order.order_number),
+        cast(Any, order.total),
+        cast(str, order.currency or "USD"),
+        method,
+    )
+    card = payload.card.model_dump(exclude_none=True) if payload.card else None
+    result = await gateway.confirm(intent.id, card=card)
+    if not result.success:
+        raise APIError(
+            ErrorCode.PAYMENT_DECLINED,
+            message=result.error_message or "Payment was declined.",
+        )
+    locked = await _lock_order_by_number(db, order_number)
+    if locked.user_id != owner_id:
+        raise APIError(ErrorCode.ORDER_NOT_FOUND, message="Order does not exist.")
+    paid = await SQLAlchemyCustomerOrderRepository.mark_paid(db, locked, method, payment_intent_id=intent.id)
+    await db.commit()
+    await db.refresh(paid, attribute_names=["items"])
+    return _order_to_dict(paid)
+
+
+@router.post("/{order_number}/confirm-receipt")
+async def confirm_receipt(
+    order_number: str,
+    user_claims: dict[str, object] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """确认收货：shipped -> delivered，订单完结，此后可评价商品。"""
+    owner_id = await _current_owner_id(user_claims, db)
+    order = await _owned_order_or_404(db, owner_id, order_number)
+    confirmed = await SQLAlchemyCustomerOrderRepository.confirm_receipt(db, order)
+    await db.commit()
+    await db.refresh(confirmed, attribute_names=["items"])
+    return _order_to_dict(confirmed)
+
+
+@router.post("/{order_number}/shipping-address")
+async def update_order_shipping_address(
+    order_number: str,
+    payload: OrderShippingAddress,
+    user_claims: dict[str, object] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """修改收货地址：仅未发货订单（pending/confirmed/processing）允许。"""
+    owner_id = await _current_owner_id(user_claims, db)
+    order = await _owned_order_or_404(db, owner_id, order_number)
+    updated = await SQLAlchemyCustomerOrderRepository.update_shipping_address(
+        db, order, payload.shipping_address
+    )
+    await db.commit()
+    await db.refresh(updated, attribute_names=["items"])
+    return _order_to_dict(updated)
+
+
+@router.delete("/{order_number}")
+async def delete_order(
+    order_number: str,
+    user_claims: dict[str, object] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str]:
+    """删除（归档）订单：仅 delivered/cancelled 允许，软删后客户列表不可见。"""
+    owner_id = await _current_owner_id(user_claims, db)
+    order = await _owned_order_or_404(db, owner_id, order_number)
+    await SQLAlchemyCustomerOrderRepository.soft_delete_order(db, order)
+    await db.commit()
+    return {"deleted": "true", "order_number": order_number}
 
 
 @router.get("/{order_number}/tracking")

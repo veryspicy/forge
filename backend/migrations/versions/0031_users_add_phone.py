@@ -15,7 +15,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "0031_users_add_phone"
-down_revision: str | Sequence[str] | None = "0030_users_id_defaults"
+down_revision: str | Sequence[str] | None = "0030_users_pet_profiles_id_defaults"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

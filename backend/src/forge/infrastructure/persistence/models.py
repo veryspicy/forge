@@ -678,7 +678,14 @@ class ORMOrder(Base):
     total = Column(Numeric(12, 2), nullable=False)
     currency = Column(String(10), nullable=False, default="CNY")
     status = Column(String(50), nullable=False)
+    payment_method = Column(String(50), nullable=True)
+    payment_status = Column(String(20), nullable=False, server_default="unpaid")
     payment_intent_id = Column(String(500), nullable=True)
+    paid_at = Column(DateTime(timezone=False), nullable=True)
+    confirmed_at = Column(DateTime(timezone=False), nullable=True)
+    shipped_at = Column(DateTime(timezone=False), nullable=True)
+    delivered_at = Column(DateTime(timezone=False), nullable=True)
+    deleted_at = Column(DateTime(timezone=False), nullable=True)
     tracking_number = Column(String(500), nullable=True)
     shipping_address = Column(JSONB, nullable=True)
     review_status = Column(JSONB, nullable=True)
@@ -705,6 +712,29 @@ class ORMShipment(Base):
     destination = Column(String(500), nullable=False)
     events = Column(JSONB, nullable=True)
     notes = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+    updated_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+
+
+class ORMProductReview(Base):
+    """商品评价 - 客户对已完结订单(order delivered)内的商品项发表评价。
+
+    - order_item_id 唯一约束：同一订单商品项至多一条评价，防止重复评价刷分
+    - rating 1..5；images 存资源 key/url 列表；admin_reply 供运营后台回复
+    """
+
+    __tablename__ = "product_reviews"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
+    order_id = Column(UUID(as_uuid=True), ForeignKey("orders.id"), nullable=False, index=True)
+    order_item_id = Column(UUID(as_uuid=True), ForeignKey("order_items.id"), nullable=False, unique=True)
+    user_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    product_id = Column(BigInteger, ForeignKey("products.id"), nullable=False, index=True)
+    rating = Column(Integer, nullable=False)
+    title = Column(String(200), nullable=True)
+    content = Column(Text, nullable=True)
+    images = Column(JSONB, nullable=True)
+    admin_reply = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
     updated_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
 
