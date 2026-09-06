@@ -17,26 +17,28 @@ const total = ref(0);
 const pageSize = 20;
 
 const statusOptions = [
-  'PAID',
-  'PROCESSING',
-  'PROCURING',
-  'PROCURE_FAILED',
-  'SHIPPED',
-  'DELIVERED',
-  'CANCELLED',
-  'REFUNDED'
+  'pending',
+  'confirmed',
+  'processing',
+  'procuring',
+  'procure_failed',
+  'shipped',
+  'delivered',
+  'cancelled',
+  'refunded'
 ].map(s => ({ label: s, value: s }));
 
 function statusType(s: string): any {
   const map: Record<string, any> = {
-    PAID: 'info',
-    PROCESSING: 'warning',
-    PROCURING: 'warning',
-    PROCURE_FAILED: 'error',
-    SHIPPED: 'info',
-    DELIVERED: 'success',
-    CANCELLED: 'default',
-    REFUNDED: 'error'
+    pending: 'default',
+    confirmed: 'info',
+    processing: 'warning',
+    procuring: 'warning',
+    procure_failed: 'error',
+    shipped: 'info',
+    delivered: 'success',
+    cancelled: 'default',
+    refunded: 'error'
   };
   return map[s] || 'default';
 }
@@ -66,7 +68,7 @@ const columns: DataTableColumns<any> = [
     render: row =>
       h(
         NButton,
-        { size: 'small', onClick: () => router.push(`/orders/${row.id}`) },
+        { size: 'small', onClick: () => router.push(`/orders/${row.order_number}`) },
         { default: () => t('common.detail') }
       )
   }

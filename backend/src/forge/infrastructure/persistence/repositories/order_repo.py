@@ -8,7 +8,7 @@ from decimal import Decimal
 from typing import Any, cast
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, select
+from sqlalchemy import String, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -24,17 +24,17 @@ class SQLAlchemyOrderRepository:
         db: AsyncSession,
         page: int = 1,
         page_size: int = 20,
+        status: str | None = None,
+        search: str | None = None,
     ) -> dict[str, object]:
-        total_query = select(func.count(ORMOrder.id))
-        total = (await db.execute(total_query)).scalar_one()
-
-        query = (
-            select(ORMOrder)
-            .options(selectinload(ORMOrder.items))
-            .order_by(ORMOrder.created_at.desc())
-            .offset((page - 1) * page_size)
-            .limit(page_size)
-        )
+        filters = _admin_order_filters(status=status, search=search)
+        stmt = select(ORMOrder).options(selectinload(ORMOrder.items))
+        count_stmt = select(func.count(ORMOrder.id))
+        if filters:
+            stmt = stmt.where(*filters)
+            count_stmt = count_stmt.where(*filters)
+        total = int((await db.execute(count_stmt)).scalar_one())
+        query = stmt.order_by(ORMOrder.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
         result = await db.execute(query)
         orders = result.scalars().all()
 
@@ -90,6 +90,27 @@ class SQLAlchemyOrderRepository:
 
 
 # ---------------------------------------------------------------------------
+# Admin order list filters (shared by list + count queries)
+# ---------------------------------------------------------------------------
+
+
+def _admin_order_filters(status: str | None, search: str | None) -> list[Any]:
+    """Build WHERE conditions shared by the admin order list and its count query."""
+    conditions: list[Any] = []
+    if status:
+        conditions.append(ORMOrder.status == status.lower())
+    if search and search.strip():
+        keyword = f"%{search.strip()}%"
+        conditions.append(
+            or_(
+                ORMOrder.order_number.ilike(keyword),
+                ORMOrder.user_id.cast(String).ilike(keyword),
+            )
+        )
+    return conditions
+
+
+# ---------------------------------------------------------------------------
 # C-end commerce (customer orders)
 # ---------------------------------------------------------------------------
 
@@ -99,6 +120,10 @@ _CONFIRMABLE_STATUSES = {"shipped"}
 _DELETABLE_STATUSES = {"delivered", "cancelled"}
 # 收货地址仅允许在发货前修改（行业对齐：pending/confirmed/processing 均未发货）
 _EDITABLE_SHIPPING_STATUSES = {"pending", "confirmed", "processing"}
+# Admin review/procure/refund flow guards (stored statuses are lowercase)
+_ADMIN_REVIEWABLE_STATUSES = {"confirmed"}
+_PROCURABLE_STATUSES = {"processing", "procure_failed"}
+_REFUNDABLE_UNSHIPPED_STATUSES = {"confirmed", "processing", "procuring", "procure_failed"}
 _FREE_SHIPPING_THRESHOLD = 50
 _FLAT_SHIPPING = 5
 _DEFAULT_CURRENCY = "USD"
@@ -125,6 +150,8 @@ def _order_to_dict(order: ORMOrder) -> dict[str, object]:
         "delivered_at": order.delivered_at.isoformat() if order.delivered_at else None,
         "deleted_at": order.deleted_at.isoformat() if order.deleted_at else None,
         "tracking_number": order.tracking_number,
+        "review_status": order.review_status,
+        "procurement_info": order.procurement_info,
         "shipping_address": order.shipping_address,
         "created_at": order.created_at.isoformat() if order.created_at else None,
         "updated_at": order.updated_at.isoformat() if order.updated_at else None,
@@ -161,6 +188,24 @@ class SQLAlchemyCustomerOrderRepository:
             url = first.get("key") or first.get("url")
             return str(url) if url else None
         return str(first) if isinstance(first, str) else None
+
+    @staticmethod
+    async def _restore_inventory(db: AsyncSession, item_rows: list[ORMOrderItem]) -> None:
+        """Add back item quantities to product inventory (cancel / refund flows)."""
+        product_ids = [cast(int, i.product_id) for i in item_rows if i.product_id is not None]
+        if not product_ids:
+            return
+        products = (
+            (await db.execute(select(ORMProduct).where(ORMProduct.id.in_(product_ids)).with_for_update()))
+            .scalars()
+            .all()
+        )
+        product_map = {cast(int, p.id): p for p in products}
+        for i in item_rows:
+            product = product_map.get(cast(int, i.product_id)) if i.product_id is not None else None
+            if product is not None and product.inventory is not None:
+                product.inventory = cast(Any, product.inventory + i.quantity)
+        await db.flush()
 
     @staticmethod
     async def list_by_user(
@@ -315,21 +360,7 @@ class SQLAlchemyCustomerOrderRepository:
         order.review_status = cast(Any, review)
         await db.flush()
 
-        item_rows = order.items
-        if item_rows:
-            product_ids = [cast(int, i.product_id) for i in item_rows if i.product_id is not None]
-            if product_ids:
-                products = (
-                    (await db.execute(select(ORMProduct).where(ORMProduct.id.in_(product_ids)).with_for_update()))
-                    .scalars()
-                    .all()
-                )
-                product_map = {cast(int, p.id): p for p in products}
-                for i in item_rows:
-                    product = product_map.get(cast(int, i.product_id)) if i.product_id is not None else None
-                    if product is not None and product.inventory is not None:
-                        product.inventory = cast(Any, product.inventory + i.quantity)
-                await db.flush()
+        await SQLAlchemyCustomerOrderRepository._restore_inventory(db, order.items)
         return order
 
     @staticmethod
@@ -401,6 +432,96 @@ class SQLAlchemyCustomerOrderRepository:
             review["carrier"] = carrier
             order.review_status = cast(Any, review)
         await db.flush()
+        return order
+
+    @staticmethod
+    async def admin_review_order(
+        db: AsyncSession,
+        order: ORMOrder,
+        approved: bool,
+        reason: str | None = None,
+        reviewed_by: str | None = None,
+    ) -> ORMOrder:
+        """Admin review flow: confirmed -> processing (approved) / cancelled (rejected).
+
+        Rejection restores inventory (same as customer cancel).
+        """
+        if order.status not in _ADMIN_REVIEWABLE_STATUSES:
+            raise APIError(
+                ErrorCode.ORDER_INVALID_STATE,
+                message=f"Order cannot be reviewed in state '{order.status}'.",
+            )
+        now = SQLAlchemyCustomerOrderRepository._now()
+        review = dict(order.review_status or {})
+        review["reviewed_by"] = reviewed_by or "admin"
+        review["approved"] = bool(approved)
+        review["reason"] = reason or ""
+        review["reviewed_at"] = now.isoformat()
+        order.review_status = cast(Any, review)
+        order.status = cast(Any, "processing" if approved else "cancelled")
+        order.updated_at = cast(Any, now)
+        await db.flush()
+        if not approved:
+            await SQLAlchemyCustomerOrderRepository._restore_inventory(db, order.items)
+        return order
+
+    @staticmethod
+    async def admin_procure_order(
+        db: AsyncSession,
+        order: ORMOrder,
+        supplier_id: str,
+        supplier_sku: str | None = None,
+        cost: float | None = None,
+    ) -> ORMOrder:
+        """Admin procurement flow: processing/procure_failed -> procuring."""
+        if order.status not in _PROCURABLE_STATUSES:
+            raise APIError(
+                ErrorCode.ORDER_INVALID_STATE,
+                message=f"Order cannot be pushed to procurement in state '{order.status}'.",
+            )
+        if not supplier_id or not supplier_id.strip():
+            raise APIError(ErrorCode.VALIDATION_ERROR, message="Supplier ID is required.")
+        now = SQLAlchemyCustomerOrderRepository._now()
+        order.procurement_info = cast(
+            Any,
+            {
+                "supplier_id": supplier_id.strip(),
+                "supplier_sku": (supplier_sku or "").strip(),
+                "cost": float(cost) if cost is not None else None,
+                "procured_at": now.isoformat(),
+                "status": "procuring",
+            },
+        )
+        order.status = cast(Any, "procuring")
+        order.updated_at = cast(Any, now)
+        await db.flush()
+        return order
+
+    @staticmethod
+    async def admin_refund_order(
+        db: AsyncSession,
+        order: ORMOrder,
+        reason: str | None = None,
+    ) -> ORMOrder:
+        """Admin full-order refund for unshipped orders (confirmed .. procure_failed).
+
+        Restores inventory and moves the order to the terminal 'refunded' state.
+        """
+        if order.status not in _REFUNDABLE_UNSHIPPED_STATUSES:
+            raise APIError(
+                ErrorCode.ORDER_INVALID_STATE,
+                message=f"Order cannot be refunded in state '{order.status}'.",
+            )
+        now = SQLAlchemyCustomerOrderRepository._now()
+        review = dict(order.review_status or {})
+        review["refunded_by"] = "admin"
+        review["refund_reason"] = reason or ""
+        review["refunded_at"] = now.isoformat()
+        order.review_status = cast(Any, review)
+        order.status = cast(Any, "refunded")
+        order.updated_at = cast(Any, now)
+        await db.flush()
+        await SQLAlchemyCustomerOrderRepository._restore_inventory(db, order.items)
         return order
 
     @staticmethod

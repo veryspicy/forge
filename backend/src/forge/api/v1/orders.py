@@ -39,7 +39,17 @@ from forge.main.dependencies import get_db
 
 router = APIRouter(prefix="/orders", tags=["C-end Orders"])
 
-VALID_ORDER_STATUSES = {"pending", "confirmed", "processing", "shipped", "delivered", "cancelled"}
+VALID_ORDER_STATUSES = {
+    "pending",
+    "confirmed",
+    "processing",
+    "procuring",
+    "procure_failed",
+    "shipped",
+    "delivered",
+    "cancelled",
+    "refunded",
+}
 VALID_PAYMENT_METHODS = {"card", "paypal"}
 
 

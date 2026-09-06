@@ -96,6 +96,7 @@ class ErrorCode(StrEnum):
     ORDER_NOT_EDITABLE = "ORDER_NOT_EDITABLE"
     ORDER_NOT_DELETABLE = "ORDER_NOT_DELETABLE"
     ORDER_ALREADY_PAID = "ORDER_ALREADY_PAID"
+    ORDER_INVALID_STATE = "ORDER_INVALID_STATE"
     INSUFFICIENT_STOCK = "INSUFFICIENT_STOCK"
     PRODUCT_UNAVAILABLE = "PRODUCT_UNAVAILABLE"
     PAYMENT_METHOD_UNSUPPORTED = "PAYMENT_METHOD_UNSUPPORTED"
@@ -191,6 +192,9 @@ _REGISTRY: dict[ErrorCode, ErrorSpec] = {
     ),
     ErrorCode.ORDER_NOT_DELETABLE: ErrorSpec(
         ErrorType.CONFLICT_ERROR, 409, "Only completed or cancelled orders can be deleted."
+    ),
+    ErrorCode.ORDER_INVALID_STATE: ErrorSpec(
+        ErrorType.CONFLICT_ERROR, 409, "Order cannot transition in its current state."
     ),
     ErrorCode.PAYMENT_METHOD_UNSUPPORTED: ErrorSpec(
         ErrorType.VALIDATION_ERROR, 400, "Payment method is not supported."

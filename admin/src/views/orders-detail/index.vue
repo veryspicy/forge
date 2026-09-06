@@ -39,16 +39,23 @@ const refundReason = ref('');
 const actionError = ref('');
 const actionLoading = ref(false);
 
+const REFUNDABLE_STATUSES = ['confirmed', 'processing', 'procuring', 'procure_failed'];
+
+function isRefundable(s: string): boolean {
+  return REFUNDABLE_STATUSES.includes(s);
+}
+
 function statusType(s: string): any {
   const map: Record<string, any> = {
-    PAID: 'info',
-    PROCESSING: 'warning',
-    PROCURING: 'warning',
-    PROCURE_FAILED: 'error',
-    SHIPPED: 'info',
-    DELIVERED: 'success',
-    CANCELLED: 'default',
-    REFUNDED: 'error'
+    pending: 'default',
+    confirmed: 'info',
+    processing: 'warning',
+    procuring: 'warning',
+    procure_failed: 'error',
+    shipped: 'info',
+    delivered: 'success',
+    cancelled: 'default',
+    refunded: 'error'
   };
   return map[s] || 'default';
 }
@@ -182,20 +189,22 @@ onMounted(loadOrder);
         </div>
 
         <NSpace class="mb-4 flex-wrap">
-          <NButton v-if="order.status === 'PAID'" type="success" @click="openReview(true)">
+          <NButton v-if="order.status === 'confirmed'" type="success" @click="openReview(true)">
             {{ $t('page.ordersDetail.approve') }}
           </NButton>
-          <NButton v-if="order.status === 'PAID'" type="error" @click="openReview(false)">
+          <NButton v-if="order.status === 'confirmed'" type="error" @click="openReview(false)">
             {{ $t('page.ordersDetail.reject') }}
           </NButton>
-          <NButton v-if="order.status === 'PROCESSING'" type="primary" @click="openProcure()">
+          <NButton v-if="order.status === 'processing'" type="primary" @click="openProcure()">
             {{ $t('page.ordersDetail.pushToProcurement') }}
           </NButton>
-          <NButton v-if="order.status === 'PROCURE_FAILED'" type="error" @click="openProcure()">
+          <NButton v-if="order.status === 'procure_failed'" type="error" @click="openProcure()">
             {{ $t('page.ordersDetail.retryProcurement') }}
           </NButton>
-          <NButton @click="openRefund()">{{ $t('page.ordersDetail.refund') }}</NButton>
-          <NButton v-if="order.status === 'PROCURING'" type="primary" @click="openShip()">
+          <NButton v-if="isRefundable(order.status)" type="error" @click="openRefund()">
+            {{ $t('page.ordersDetail.refund') }}
+          </NButton>
+          <NButton v-if="order.status === 'procuring'" type="primary" @click="openShip()">
             {{ $t('page.ordersDetail.ship') }}
           </NButton>
         </NSpace>
