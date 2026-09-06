@@ -1528,7 +1528,7 @@ function removeTranslation(k: string) {
               label="平台开关与链接"
               name="social"
               type="object[]"
-              range="facebook / x / instagram / youtube / tiktok / linkedin"
+              range="facebook / x / instagram / youtube / tiktok / linkedin / pinterest"
               desc="开启后，C 端页脚将显示对应平台图标，点击跳转到所填 URL（需以 http(s):// 开头）。"
             />
             <div

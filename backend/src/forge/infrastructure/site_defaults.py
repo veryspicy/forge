@@ -110,6 +110,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
             {"platform": "youtube", "enabled": False, "url": ""},
             {"platform": "tiktok", "enabled": False, "url": ""},
             {"platform": "linkedin", "enabled": False, "url": ""},
+            {"platform": "pinterest", "enabled": False, "url": ""},
         ],
         "columns": ["shop", "support", "about", "legal"],
         "linkGroups": [

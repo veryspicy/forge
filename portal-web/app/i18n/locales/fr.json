@@ -424,7 +424,8 @@
     "enterEmail": "Entrez votre e-mail",
     "subscribe": "S'abonner",
     "copyright": "© 2026 Forge. Tous droits réservés.",
-    "paymentMethods": "Visa · MC · Amex · PayPal"
+    "paymentMethods": "Visa · MC · Amex · PayPal",
+    "followUs": "Suivez-nous"
   },
   "status": {
     "pending": "En attente",
