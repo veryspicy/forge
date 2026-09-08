@@ -1,5 +1,4 @@
 ﻿// Forge — API composable
-import type { UseFetchOptions } from "nuxt/app";
 import { useAuthStore } from "~/stores/auth";
 
 export function useApi() {
@@ -10,10 +9,10 @@ export function useApi() {
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
-  async function authFetch(url: string, opts: any = {}) {
+  async function authFetch<T = any>(url: string, opts: any = {}): Promise<T> {
     const headers = { ...getAuthHeaders(), ...(opts.headers || {}) };
     try {
-      return await $fetch(url, { ...opts, headers });
+      return (await $fetch(url, { ...opts, headers })) as T;
     } catch (err: any) {
       const status = err?.response?.status;
       // 会话失效（401/403）：清除 token 并回登录页，避免流程卡死
@@ -104,7 +103,7 @@ export function useApi() {
     });
   };
 
-  // Order detail / cancel / tracking
+  // Order detail / cancel / pay / receipt / delete / tracking
   const fetchOrderDetail = async (orderNumber: string) => {
     return authFetch(`${API_BASE}/orders/${orderNumber}`);
   };
@@ -114,6 +113,63 @@ export function useApi() {
       method: "POST",
       body: { reason },
     });
+  };
+
+  const payOrder = async (orderNumber: string, data: { payment_method: string; card?: Record<string, string> }) => {
+    return authFetch(`${API_BASE}/orders/${orderNumber}/pay`, {
+      method: "POST",
+      body: data,
+    });
+  };
+
+  const confirmReceipt = async (orderNumber: string) => {
+    return authFetch(`${API_BASE}/orders/${orderNumber}/confirm-receipt`, {
+      method: "POST",
+    });
+  };
+
+  const updateShippingAddress = async (orderNumber: string, shippingAddress: Record<string, any>) => {
+    return authFetch(`${API_BASE}/orders/${orderNumber}/shipping-address`, {
+      method: "POST",
+      body: { shipping_address: shippingAddress },
+    });
+  };
+
+  const deleteOrder = async (orderNumber: string) => {
+    return authFetch(`${API_BASE}/orders/${orderNumber}`, {
+      method: "DELETE",
+    });
+  };
+
+  // Product reviews
+  const fetchMyReviews = async (params?: Record<string, any>) => {
+    const query = params ? "?" + new URLSearchParams(params).toString() : "";
+    return authFetch(`${API_BASE}/reviews/mine${query}`);
+  };
+
+  const submitReview = async (data: {
+    order_number: string;
+    order_item_id: string;
+    rating: number;
+    title?: string;
+    content?: string;
+    images?: string[];
+  }) => {
+    return authFetch(`${API_BASE}/reviews`, {
+      method: "POST",
+      body: data,
+    });
+  };
+
+  const deleteMyReview = async (reviewId: string) => {
+    return authFetch(`${API_BASE}/reviews/${reviewId}`, {
+      method: "DELETE",
+    });
+  };
+
+  const fetchProductReviews = async (productId: string | number, params?: Record<string, any>) => {
+    const query = params ? "?" + new URLSearchParams(params).toString() : "";
+    return authFetch(`${API_BASE}/products/${productId}/reviews${query}`);
   };
 
   const fetchTracking = async (orderNumber: string) => {
@@ -190,8 +246,16 @@ export function useApi() {
     createOrder,
     fetchOrderDetail,
     cancelOrder,
+    payOrder,
+    confirmReceipt,
+    updateShippingAddress,
+    deleteOrder,
     fetchTracking,
     fetchShipments,
+    fetchMyReviews,
+    submitReview,
+    deleteMyReview,
+    fetchProductReviews,
     fetchRegions,
     aiChat,
     fetchRecommendations,

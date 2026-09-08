@@ -178,6 +178,60 @@
         </div>
       </div>
 
+      <!-- Customer Reviews -->
+      <section class="mt-16">
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">{{ $t('reviews.productTitle') }}</h2>
+        <div v-if="reviewsLoading" class="text-sm text-gray-500 py-4">{{ $t('common.loading') }}</div>
+        <template v-else-if="productReviews.length > 0">
+          <div v-if="reviewSummary" class="flex items-center gap-4 bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+            <div class="text-center">
+              <div class="text-3xl font-bold text-gray-900">{{ reviewSummary.average_rating }}</div>
+              <div class="text-yellow-400 text-sm mt-1">
+                <span v-for="s in 5" :key="s" :class="s <= Math.round(reviewSummary.average_rating) ? '' : 'opacity-30'">★</span>
+              </div>
+            </div>
+            <div class="text-sm text-gray-600">
+              <p>{{ $t('reviews.avgLabel') }} · {{ $t('reviews.totalLabel', { count: reviewSummary.review_count }) }}</p>
+              <div class="mt-2 space-y-1">
+                <div
+                  v-for="star in [5, 4, 3, 2, 1]"
+                  :key="star"
+                  class="flex items-center gap-2"
+                >
+                  <span class="w-8 text-gray-500">{{ star }}★</span>
+                  <div class="flex-1 h-2 bg-gray-200 rounded overflow-hidden">
+                    <div
+                      class="h-full bg-yellow-400"
+                      :style="{ width: (reviewSummary.review_count ? (reviewSummary.distribution?.[star] || 0) / reviewSummary.review_count * 100 : 0) + '%' }"
+                    ></div>
+                  </div>
+                  <span class="w-6 text-xs text-gray-400 text-right">{{ reviewSummary.distribution?.[star] || 0 }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <ul class="space-y-4">
+            <li
+              v-for="rv in productReviews"
+              :key="rv.id"
+              class="border border-gray-200 rounded-lg p-4"
+            >
+              <div class="flex items-center justify-between mb-2">
+                <div class="text-yellow-400 text-sm">
+                  <span v-for="s in 5" :key="s" :class="s <= rv.rating ? '' : 'opacity-30'">★</span>
+                </div>
+                <span class="text-xs text-gray-400">{{ formatReviewDate(rv.created_at) }}</span>
+              </div>
+              <p v-if="rv.title" class="font-medium text-gray-900">{{ rv.title }}</p>
+              <p v-if="rv.content" class="text-sm text-gray-600 mt-1">{{ rv.content }}</p>
+            </li>
+          </ul>
+        </template>
+        <div v-else class="border border-dashed border-gray-300 rounded-lg p-8 text-center text-sm text-gray-500">
+          {{ $t('reviews.empty') }}
+        </div>
+      </section>
+
       <!-- Related Products -->
       <section v-if="relatedProducts.length > 0" class="mt-16">
         <h2 class="text-2xl font-bold text-gray-900 mb-6">{{ $t('products.relatedTitle') }}</h2>
@@ -199,6 +253,7 @@
 import { useProductStore } from '~/stores/product'
 import { useCartStore } from '~/stores/cart'
 import { useCurrency } from '~/composables/useCurrency'
+import { useApi } from '~/composables/useApi'
 import ProductCard from '~/components/products/ProductCard.vue'
 
 const localePath = useLocalePath()
@@ -206,6 +261,7 @@ const localePath = useLocalePath()
 const route = useRoute()
 const productStore = useProductStore()
 const cartStore = useCartStore()
+const { fetchProductReviews } = useApi()
 const { t } = useI18n()
 const { formatPrice } = useCurrency()
 
@@ -214,6 +270,14 @@ const activeImage = ref('')
 const quantity = ref(1)
 const selectedVariant = ref<string | null>(null)
 const relatedProducts = ref<any[]>([])
+const productReviews = ref<any[]>([])
+const reviewsLoading = ref(false)
+const reviewSummary = ref<any>(null)
+
+function formatReviewDate(value: string | null) {
+  if (!value) return ''
+  return new Date(value).toLocaleDateString()
+}
 
 const isInStock = computed(() => {
   const inv = product.value?.inventory
@@ -266,6 +330,19 @@ watchEffect(() => {
 onMounted(async () => {
   if (route.params.id) {
     await productStore.loadProduct(route.params.id as string)
+  }
+  if (product.value) {
+    reviewsLoading.value = true
+    try {
+      const res = await fetchProductReviews(product.value.id)
+      productReviews.value = res?.items || []
+      reviewSummary.value = res?.summary || null
+    } catch {
+      productReviews.value = []
+      reviewSummary.value = null
+    } finally {
+      reviewsLoading.value = false
+    }
   }
   if (productStore.products.length === 0) {
     await productStore.loadProducts({ page_size: 4 } as any)

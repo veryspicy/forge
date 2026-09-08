@@ -97,6 +97,7 @@ const password = ref('')
 const confirmPassword = ref('')
 const loading = ref(false)
 const errorMsg = ref('')
+const { toMessage } = useApiError()
 
 function validateForm(): string | null {
   if (password.value.length < 6) {
@@ -129,7 +130,7 @@ async function handleRegister() {
     await register({ email: email.value, password: password.value, name: name.value })
     await navigateTo(localePath('/'))
   } catch (err: any) {
-    errorMsg.value = useApiError().toMessage(err)
+    errorMsg.value = toMessage(err)
   } finally {
     loading.value = false
   }

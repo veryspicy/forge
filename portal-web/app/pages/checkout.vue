@@ -77,6 +77,7 @@
               <span class="text-sm font-medium text-gray-900">{{ $t('checkout.paypal') }}</span>
             </label>
           </div>
+          <p class="mt-4 text-xs text-gray-500">{{ $t('checkout.payAfterOrderNote') }}</p>
         </div>
       </div>
 
@@ -112,7 +113,7 @@
           :disabled="submitting"
           @click="placeOrder"
         >
-          {{ submitting ? 'Placing Order...' : $t('checkout.placeOrder') }}
+          {{ submitting ? $t('checkout.placingOrder') : $t('checkout.placeOrder') }}
         </button>
         <p v-if="error" class="mt-3 text-sm text-red-600 text-center">{{ error }}</p>
       </div>
@@ -133,6 +134,8 @@ definePageMeta({
 const cartStore = useCartStore()
 const { formatPrice } = useCurrency()
 const { createOrder } = useApi()
+const { t } = useI18n()
+const { toMessage } = useApiError()
 const error = ref('')
 const submitting = ref(false)
 const router = useRouter()
@@ -154,7 +157,7 @@ const form = reactive({
 async function placeOrder() {
   error.value = ''
   if (!cartStore.items.length) {
-    error.value = 'Cart is empty'
+    error.value = t('cart.emptyTitle')
     return
   }
   submitting.value = true
@@ -165,6 +168,7 @@ async function placeOrder() {
     }))
     const order = await createOrder({
       items,
+      payment_method: form.payment,
       shipping_address: {
         name: `${form.firstName} ${form.lastName}`.trim(),
         line1: form.address,
@@ -179,7 +183,7 @@ async function placeOrder() {
     cartStore.clearCart()
     router.push(`/orders/${order.order_number || order.id}`)
   } catch (err: any) {
-    error.value = err?.data?.detail || err?.message || 'Failed to place order'
+    error.value = toMessage(err)
   } finally {
     submitting.value = false
   }
