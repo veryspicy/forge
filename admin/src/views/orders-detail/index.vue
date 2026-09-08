@@ -32,8 +32,7 @@ const procureSupplierId = ref('');
 const procureSku = ref('');
 const procureCost = ref(0);
 const showShip = ref(false);
-const shipTracking = ref('');
-const shipCarrier = ref('');
+const shipPackages = ref<Array<{ carrier: string; tracking_number: string }>>([]);
 const showRefund = ref(false);
 const refundReason = ref('');
 const actionError = ref('');
@@ -130,10 +129,17 @@ function openProcure() {
   showProcure.value = true;
 }
 function openShip() {
-  shipTracking.value = '';
-  shipCarrier.value = '';
+  shipPackages.value = [{ carrier: '', tracking_number: '' }];
   actionError.value = '';
   showShip.value = true;
+}
+
+function addShipPackage() {
+  shipPackages.value.push({ carrier: '', tracking_number: '' });
+}
+
+function removeShipPackage(index: number) {
+  shipPackages.value.splice(index, 1);
 }
 function openRefund() {
   refundReason.value = '';
@@ -181,10 +187,14 @@ async function doShip() {
   actionLoading.value = true;
   actionError.value = '';
   try {
-    await post(`/api/admin/v1/orders/${route.params.id}/ship`, {
-      tracking_number: shipTracking.value,
-      carrier: shipCarrier.value
-    });
+    const packages = shipPackages.value
+      .map(pkg => ({ carrier: pkg.carrier.trim(), tracking_number: pkg.tracking_number.trim() }))
+      .filter(pkg => pkg.tracking_number && pkg.carrier);
+    if (!packages.length) {
+      actionError.value = t('page.ordersDetail.shipRequirePackage');
+      return;
+    }
+    await post(`/api/admin/v1/orders/${route.params.id}/ship`, { packages });
     showShip.value = false;
     await loadOrder();
   } catch (e: any) {
@@ -516,12 +526,35 @@ onMounted(loadOrder);
     </NModal>
 
     <!-- Ship Modal -->
-    <NModal v-model:show="showShip" preset="card" :title="$t('page.ordersDetail.shipOrder')" style="width: 440px">
+    <NModal v-model:show="showShip" preset="card" :title="$t('page.ordersDetail.shipOrder')" style="width: 520px">
       <div class="flex flex-col gap-3">
-        <NFormItem :label="$t('page.shipments.trackingNumber')" required>
-          <NInput v-model:value="shipTracking" />
-        </NFormItem>
-        <NFormItem :label="$t('page.shipments.carrier')"><NInput v-model:value="shipCarrier" /></NFormItem>
+        <div
+          v-for="(pkg, index) in shipPackages"
+          :key="index"
+          class="border border-dashed rounded p-3 flex flex-col gap-2"
+        >
+          <div class="flex items-center justify-between text-xs text-[var(--n-text-color-3)]">
+            <span>{{ $t('page.ordersDetail.packageNo', { no: index + 1 }) }}</span>
+            <NButton
+              v-if="shipPackages.length > 1"
+              size="tiny"
+              quaternary
+              type="error"
+              @click="removeShipPackage(index)"
+            >
+              {{ $t('page.ordersDetail.removePackage') }}
+            </NButton>
+          </div>
+          <NFormItem :label="$t('page.shipments.trackingNumber')" required :show-feedback="false">
+            <NInput v-model:value="pkg.tracking_number" :placeholder="$t('page.ordersDetail.trackingPlaceholder')" />
+          </NFormItem>
+          <NFormItem :label="$t('page.shipments.carrier')" :show-feedback="false">
+            <NInput v-model:value="pkg.carrier" placeholder="DHL / UPS / FedEx / SF" />
+          </NFormItem>
+        </div>
+        <NButton size="small" dashed block @click="addShipPackage">
+          {{ $t('page.ordersDetail.addPackage') }}
+        </NButton>
         <div v-if="actionError" class="text-red-500 text-sm">{{ actionError }}</div>
       </div>
       <template #footer>

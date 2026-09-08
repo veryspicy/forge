@@ -117,6 +117,27 @@ class TestAdminOrdersAPI:
         assert mocked.await_args.kwargs["status"] == "confirmed"
         assert mocked.await_args.kwargs["search"] == "abc"
 
+    def test_export_orders_returns_csv_with_filter(self, test_client):
+        from forge.infrastructure.persistence.repositories.order_repo import SQLAlchemyOrderRepository
+
+        _setup_auth(test_client)
+        with patch.object(
+            SQLAlchemyOrderRepository,
+            "list_all_orders",
+            new_callable=AsyncMock,
+            return_value=[_FakeOrder(status="shipped")],
+        ) as mocked:
+            resp = test_client.get("/api/admin/v1/orders/export?status=SHIPPED")
+        test_client.app.dependency_overrides.clear()
+        assert resp.status_code == 200
+        assert resp.headers["content-type"].startswith("text/csv")
+        assert 'attachment; filename="orders_' in resp.headers["content-disposition"]
+        body = resp.content.decode("utf-8")
+        assert body.startswith("\ufeff")
+        assert "order_number" in body
+        assert "FG-TEST-0001" in body
+        assert mocked.await_args.kwargs["status"] == "shipped"
+
     def test_review_approve_moves_confirmed_to_processing(self, test_client):
         order = _FakeOrder(status="confirmed")
 
@@ -263,6 +284,94 @@ class TestAdminOrdersAPI:
         finally:
             test_client.app.dependency_overrides.clear()
         assert resp.status_code == 409
+
+    def test_ship_multipackage_moves_order_to_shipped(self, test_client):
+        from forge.api.admin.v1.orders import ORMShipment
+        from forge.infrastructure.persistence.repositories.order_repo import SQLAlchemyCustomerOrderRepository
+
+        order = _FakeOrder(status="procuring")
+        db = _fake_db_for_order(order)
+        db.add = MagicMock()
+
+        async def _fake_get_db():
+            yield db
+
+        _setup_auth(test_client)
+        test_client.app.dependency_overrides[dependencies.get_db] = _fake_get_db
+        try:
+            with patch.object(
+                SQLAlchemyCustomerOrderRepository,
+                "mark_shipped",
+                new_callable=AsyncMock,
+            ) as mocked:
+
+                async def _mark_shipped(db, order, tracking_number=None, carrier=None):
+                    order.status = "shipped"
+                    order.tracking_number = tracking_number
+                    return order
+
+                mocked.side_effect = _mark_shipped
+                resp = test_client.post(
+                    "/api/admin/v1/orders/FG-TEST-0001/ship",
+                    json={
+                        "packages": [
+                            {"carrier": "DHL", "tracking_number": "TRK-1"},
+                            {"carrier": "DHL", "tracking_number": "TRK-2"},
+                        ]
+                    },
+                )
+        finally:
+            test_client.app.dependency_overrides.clear()
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "shipped"
+        mocked.assert_awaited_once()
+        added = [call.args[0] for call in db.add.call_args_list]
+        assert len(added) == 2
+        assert all(isinstance(s, ORMShipment) for s in added)
+        assert [s.tracking_number for s in added] == ["TRK-1", "TRK-2"]
+
+    def test_ship_append_package_keeps_shipped_state(self, test_client):
+        from forge.infrastructure.persistence.repositories.order_repo import SQLAlchemyCustomerOrderRepository
+
+        order = _FakeOrder(status="shipped")
+        db = _fake_db_for_order(order)
+        db.add = MagicMock()
+
+        async def _fake_get_db():
+            yield db
+
+        _setup_auth(test_client)
+        test_client.app.dependency_overrides[dependencies.get_db] = _fake_get_db
+        try:
+            with patch.object(
+                SQLAlchemyCustomerOrderRepository,
+                "mark_shipped",
+                new_callable=AsyncMock,
+            ) as mocked:
+                resp = test_client.post(
+                    "/api/admin/v1/orders/FG-TEST-0001/ship",
+                    json={"packages": [{"carrier": "UPS", "tracking_number": "TRK-3"}]},
+                )
+        finally:
+            test_client.app.dependency_overrides.clear()
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "shipped"
+        mocked.assert_not_awaited()
+        assert db.add.call_count == 1
+
+    def test_ship_requires_packages(self, test_client):
+        order = _FakeOrder(status="confirmed")
+
+        async def _fake_get_db():
+            yield _fake_db_for_order(order)
+
+        _setup_auth(test_client)
+        test_client.app.dependency_overrides[dependencies.get_db] = _fake_get_db
+        try:
+            resp = test_client.post("/api/admin/v1/orders/FG-TEST-0001/ship", json={"tracking_number": "OLD"})
+        finally:
+            test_client.app.dependency_overrides.clear()
+        assert resp.status_code == 422
 
     def test_detail_returns_shipments_and_timeline(self, test_client):
         from forge.infrastructure.persistence.repositories.order_repo import SQLAlchemyCustomerOrderRepository

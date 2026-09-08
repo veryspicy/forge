@@ -465,7 +465,9 @@ const local: App.I18n.Schema = {
       noOrders: '暂无订单',
       orderNumber: '订单编号',
       total: '总计',
-      date: '日期'
+      date: '日期',
+      export: '导出 CSV',
+      exportFailed: '导出失败'
     },
     ordersDetail: {
       approve: '审核通过',
@@ -526,7 +528,12 @@ const local: App.I18n.Schema = {
       origin: '发货地',
       destination: '目的地',
       shipmentStatus: '运单状态',
-      shipmentEvents: '物流轨迹'
+      shipmentEvents: '物流轨迹',
+      packageNo: '包裹 {no}',
+      addPackage: '添加包裹',
+      removePackage: '移除包裹',
+      trackingPlaceholder: '输入运单号',
+      shipRequirePackage: '请至少填写一个包裹的运单号与承运商'
     },
     aiProbe: {
       noMessages: '暂无消息',

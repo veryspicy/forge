@@ -2,12 +2,14 @@
 import { ref, onMounted, h } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
-import { NButton, NDataTable, NInput, NPagination, NSelect, NTag } from 'naive-ui';
+import { NButton, NDataTable, NInput, NPagination, NSelect, NTag, useMessage } from 'naive-ui';
 import { get } from '@/service/api/helper';
+import { localStg } from '@/utils/storage';
 import type { DataTableColumns } from 'naive-ui';
 
 const router = useRouter();
 const { t } = useI18n();
+const message = useMessage();
 const loading = ref(false);
 const search = ref('');
 const statusFilter = ref<string | null>(null);
@@ -93,6 +95,28 @@ function goPage(p: number) {
   fetch();
 }
 
+async function exportCsv() {
+  try {
+    const params = new URLSearchParams();
+    if (search.value) params.set('search', search.value);
+    if (statusFilter.value) params.set('status', statusFilter.value);
+    const token = localStg.get('token');
+    const res = await window.fetch(`/api/admin/v1/orders/export?${params.toString()}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
+    if (!res.ok) throw new Error('export failed');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `orders_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch {
+    message.error(t('page.orders.exportFailed'));
+  }
+}
+
 onMounted(fetch);
 </script>
 
@@ -108,6 +132,7 @@ onMounted(fetch);
         style="width: 160px"
         @update:value="fetch"
       />
+      <NButton secondary :loading="loading" @click="exportCsv">{{ $t('page.orders.export') }}</NButton>
     </div>
 
     <NDataTable :columns="columns" :data="orders" :loading="loading" :bordered="false" size="small" />

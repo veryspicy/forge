@@ -8,11 +8,14 @@
 
 from __future__ import annotations
 
+import csv
+import io
 from datetime import UTC, datetime
 from typing import Any, cast
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,11 +34,49 @@ from forge.main.rbac import require_permission
 router = APIRouter()
 
 
-class AdminShipRequest(BaseModel):
+class AdminShipPackage(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     carrier: str = Field(min_length=1, max_length=100)
     tracking_number: str = Field(min_length=1, max_length=500)
+
+
+class AdminShipRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    packages: list[AdminShipPackage] = Field(min_length=1, max_length=20)
+
+
+def _new_shipment(order: ORMOrder, pkg: AdminShipPackage) -> ORMShipment:
+    """为订单登记一个运单包裹（mock tracking url，后续接入真实物流商可替换）。"""
+    address = cast(dict[str, Any], order.shipping_address or {})
+    destination = ", ".join(
+        str(x)
+        for x in [
+            address.get("line1"),
+            address.get("city"),
+            address.get("country"),
+        ]
+        if x
+    )
+    return ORMShipment(
+        id=uuid4(),
+        order_id=order.id,
+        supplier_id="MANUAL",
+        tracking_number=pkg.tracking_number,
+        carrier=pkg.carrier,
+        tracking_url=f"https://mock-track.example/{pkg.tracking_number}",
+        status="shipped",
+        origin="CN Warehouse",
+        destination=destination or "N/A",
+        events=[
+            {
+                "status": "shipped",
+                "label": "Order shipped",
+                "time": datetime.now(UTC).isoformat(),
+            }
+        ],
+    )
 
 
 class AdminCancelRequest(BaseModel):
@@ -142,6 +183,62 @@ async def list_orders(
     )
 
 
+@router.get("/export")
+async def export_orders(
+    status: str | None = Query(default=None, alias="status"),
+    search: str | None = Query(default=None, max_length=200),
+    admin: dict[str, object] = Depends(require_permission("orders", "view")),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """导出当前筛选条件下的订单 CSV（UTF-8 BOM，Excel 友好）。"""
+    repo = SQLAlchemyOrderRepository()
+    normalized_status = status.strip().lower() if status and status.strip() else None
+    normalized_search = search.strip() if search and search.strip() else None
+    orders = await repo.list_all_orders(db, status=normalized_status, search=normalized_search)
+
+    columns = [
+        "order_number",
+        "user_id",
+        "status",
+        "currency",
+        "subtotal",
+        "tax",
+        "shipping_cost",
+        "discount",
+        "total",
+        "tracking_number",
+        "item_count",
+        "created_at",
+    ]
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=columns, extrasaction="ignore")
+    writer.writeheader()
+    for o in orders:
+        writer.writerow(
+            {
+                "order_number": o.order_number,
+                "user_id": str(o.user_id),
+                "status": o.status,
+                "currency": o.currency,
+                "subtotal": float(o.subtotal),
+                "tax": float(o.tax),
+                "shipping_cost": float(o.shipping_cost),
+                "discount": float(o.discount),
+                "total": float(o.total),
+                "tracking_number": o.tracking_number or "",
+                "item_count": len(o.items or []),
+                "created_at": o.created_at.isoformat() if o.created_at else "",
+            }
+        )
+    content = "\ufeff" + buffer.getvalue()
+    filename = f"orders_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}.csv"
+    return Response(
+        content=content.encode("utf-8"),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.get("/{order_number}")
 async def get_order_detail(
     order_number: str,
@@ -163,44 +260,22 @@ async def ship_order(
     admin: dict[str, object] = Depends(require_permission("orders", "manage")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """发货：订单置 shipped，同时登记 shipment 运单记录。"""
+    """发货（支持一单多包裹）：为每个包裹登记一条 shipment，订单置 shipped。
+
+    - 未发货订单（pending/confirmed/processing）：置 shipped 并登记全部包裹
+    - 已 shipped 订单：仅追加登记新包裹（分批补发场景），不重复改变订单状态
+    """
     order = await _admin_order_or_404(db, order_number)
-    shipped = await SQLAlchemyCustomerOrderRepository.mark_shipped(
-        db, order, tracking_number=payload.tracking_number, carrier=payload.carrier
-    )
-    # 登记运单记录（mock tracking url，后续接入真实物流商可替换）
-    address = cast(dict[str, Any], order.shipping_address or {})
-    destination = ", ".join(
-        str(x)
-        for x in [
-            address.get("line1"),
-            address.get("city"),
-            address.get("country"),
-        ]
-        if x
-    )
-    shipment = ORMShipment(
-        id=__import__("uuid").uuid4(),
-        order_id=order.id,
-        supplier_id="MANUAL",
-        tracking_number=payload.tracking_number,
-        carrier=payload.carrier,
-        tracking_url=f"https://mock-track.example/{payload.tracking_number}",
-        status="shipped",
-        origin="CN Warehouse",
-        destination=destination or "N/A",
-        events=[
-            {
-                "status": "shipped",
-                "label": "Order shipped",
-                "time": datetime.now(UTC).isoformat(),
-            }
-        ],
-    )
-    db.add(shipment)
+    was_shipped = order.status in {"shipped", "delivered"}
+    if not was_shipped:
+        order = await SQLAlchemyCustomerOrderRepository.mark_shipped(
+            db, order, tracking_number=payload.packages[0].tracking_number, carrier=payload.packages[0].carrier
+        )
+    for pkg in payload.packages:
+        db.add(_new_shipment(order, pkg))
     await db.commit()
-    await db.refresh(shipped, attribute_names=["items"])
-    return _order_to_dict(shipped)
+    await db.refresh(order, attribute_names=["items"])
+    return _order_to_dict(order)
 
 
 @router.post("/{order_number}/cancel")

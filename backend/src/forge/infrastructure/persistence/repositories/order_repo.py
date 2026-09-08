@@ -77,6 +77,20 @@ class SQLAlchemyOrderRepository:
         }
 
     @staticmethod
+    async def list_all_orders(
+        db: AsyncSession,
+        status: str | None = None,
+        search: str | None = None,
+    ) -> list[ORMOrder]:
+        """导出用：返回全部匹配筛选条件的订单（不分页，含 items）。"""
+        filters = _admin_order_filters(status=status, search=search)
+        stmt = select(ORMOrder).options(selectinload(ORMOrder.items)).order_by(ORMOrder.created_at.desc())
+        if filters:
+            stmt = stmt.where(*filters)
+        result = await db.execute(stmt)
+        return list(result.scalars().all())
+
+    @staticmethod
     async def count(db: AsyncSession) -> int:
         result = await db.execute(select(func.count(ORMOrder.id)))
         return result.scalar_one()

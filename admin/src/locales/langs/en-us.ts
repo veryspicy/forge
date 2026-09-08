@@ -470,7 +470,9 @@ const local: App.I18n.Schema = {
       noOrders: 'No orders yet',
       orderNumber: 'Order Number',
       total: 'Total',
-      date: 'Date'
+      date: 'Date',
+      export: 'Export CSV',
+      exportFailed: 'Export failed'
     },
     ordersDetail: {
       backToOrders: 'Back to Orders',
@@ -531,7 +533,12 @@ const local: App.I18n.Schema = {
       origin: 'Origin',
       destination: 'Destination',
       shipmentStatus: 'Shipment Status',
-      shipmentEvents: 'Tracking Events'
+      shipmentEvents: 'Tracking Events',
+      packageNo: 'Package {no}',
+      addPackage: 'Add package',
+      removePackage: 'Remove package',
+      trackingPlaceholder: 'Enter tracking number',
+      shipRequirePackage: 'Fill in tracking number and carrier for at least one package'
     },
     aiProbe: {
       noMessages: 'No messages',
