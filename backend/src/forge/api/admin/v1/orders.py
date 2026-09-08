@@ -49,6 +49,8 @@ class AdminShipRequest(BaseModel):
 
 def _new_shipment(order: ORMOrder, pkg: AdminShipPackage) -> ORMShipment:
     """为订单登记一个运单包裹（mock tracking url，后续接入真实物流商可替换）。"""
+    # ORMShipment 时间列均为 DateTime(timezone=False)，须传 naive UTC
+    now = datetime.now(UTC).replace(tzinfo=None)
     address = cast(dict[str, Any], order.shipping_address or {})
     destination = ", ".join(
         str(x)
@@ -73,9 +75,11 @@ def _new_shipment(order: ORMOrder, pkg: AdminShipPackage) -> ORMShipment:
             {
                 "status": "shipped",
                 "label": "Order shipped",
-                "time": datetime.now(UTC).isoformat(),
+                "time": now.isoformat(),
             }
         ],
+        created_at=now,
+        updated_at=now,
     )
 
 
