@@ -60,6 +60,44 @@ function statusType(s: string): any {
   return map[s] || 'default';
 }
 
+function money(v: any): string {
+  const n = Number(v || 0);
+  return `$${n.toFixed(2)}`;
+}
+
+function fmtTime(v?: string | null): string {
+  if (!v) return '-';
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? v : d.toLocaleString();
+}
+
+function paymentStatusType(s: string): any {
+  const map: Record<string, any> = {
+    paid: 'success',
+    refunded: 'warning',
+    unpaid: 'default',
+    failed: 'error'
+  };
+  return map[s] || 'default';
+}
+
+function timelineType(s: string): any {
+  const map: Record<string, any> = {
+    pending: 'default',
+    paid: 'success',
+    confirmed: 'info',
+    shipped: 'info',
+    delivered: 'success',
+    cancelled: 'default',
+    refunded: 'error'
+  };
+  return map[s] || 'default';
+}
+
+function numberedShipments(shipments: any[]): { s: any; i: number; no: number }[] {
+  return (shipments || []).map((s, i) => ({ s, i, no: i + 1 }));
+}
+
 const itemColumns: DataTableColumns<any> = [
   {
     title: t('page.ordersDetail.productId'),
@@ -70,7 +108,11 @@ const itemColumns: DataTableColumns<any> = [
   { title: t('common.sku'), key: 'sku' },
   { title: t('page.products.price'), key: 'price', render: row => `$${row.price}` },
   { title: t('common.quantity'), key: 'quantity' },
-  { title: t('page.ordersDetail.subtotal'), key: 'subtotal', render: row => `$${row.subtotal}` }
+  {
+    title: t('page.ordersDetail.subtotal'),
+    key: 'subtotal',
+    render: row => money((row.price || 0) * (row.quantity || 0))
+  }
 ];
 
 function openReview(approve: boolean) {
@@ -226,16 +268,36 @@ onMounted(loadOrder);
                 <NTag :type="statusType(order.status)" size="small">{{ order.status }}</NTag>
               </div>
               <div>
-                <span class="text-[var(--n-text-color-3)]">{{ $t('page.orders.total') }}</span>
-                ${{ order.total }}
-              </div>
-              <div>
                 <span class="text-[var(--n-text-color-3)]">{{ $t('page.settings.defaultCurrency') }}</span>
                 {{ order.currency }}
               </div>
               <div>
                 <span class="text-[var(--n-text-color-3)]">{{ $t('common.created') }}</span>
                 {{ order.created_at }}
+              </div>
+            </div>
+          </NCard>
+
+          <!-- Payment Info -->
+          <NCard :title="$t('page.ordersDetail.paymentInfo')" size="small">
+            <div class="flex flex-col gap-2 text-sm">
+              <div>
+                <span class="text-[var(--n-text-color-3)]">{{ $t('page.ordersDetail.paymentMethod') }}</span>
+                {{ order.payment_method || '-' }}
+              </div>
+              <div>
+                <span class="text-[var(--n-text-color-3)]">{{ $t('page.ordersDetail.paymentStatus') }}</span>
+                <NTag :type="paymentStatusType(order.payment_status)" size="small">
+                  {{ order.payment_status || '-' }}
+                </NTag>
+              </div>
+              <div v-if="order.payment_intent_id">
+                <span class="text-[var(--n-text-color-3)]">{{ $t('page.ordersDetail.paymentIntentId') }}</span>
+                {{ order.payment_intent_id }}
+              </div>
+              <div>
+                <span class="text-[var(--n-text-color-3)]">{{ $t('page.ordersDetail.paidAt') }}</span>
+                {{ order.paid_at ? fmtTime(order.paid_at) : $t('page.ordersDetail.notPaid') }}
               </div>
             </div>
           </NCard>
@@ -266,6 +328,32 @@ onMounted(loadOrder);
               <div>
                 <span class="text-[var(--n-text-color-3)]">{{ $t('page.ordersDetail.phone') }}</span>
                 {{ order.shipping_address.phone }}
+              </div>
+            </div>
+          </NCard>
+
+          <!-- Amount Details -->
+          <NCard :title="$t('page.ordersDetail.amountDetails')" size="small">
+            <div class="flex flex-col gap-2 text-sm">
+              <div>
+                <span class="text-[var(--n-text-color-3)]">{{ $t('page.ordersDetail.subtotal') }}</span>
+                {{ money(order.subtotal) }}
+              </div>
+              <div>
+                <span class="text-[var(--n-text-color-3)]">{{ $t('page.ordersDetail.tax') }}</span>
+                {{ money(order.tax) }}
+              </div>
+              <div>
+                <span class="text-[var(--n-text-color-3)]">{{ $t('page.ordersDetail.shippingCost') }}</span>
+                {{ money(order.shipping_cost) }}
+              </div>
+              <div>
+                <span class="text-[var(--n-text-color-3)]">{{ $t('page.ordersDetail.discount') }}</span>
+                -{{ money(order.discount) }}
+              </div>
+              <div class="border-t pt-2 font-semibold">
+                <span class="text-[var(--n-text-color-3)]">{{ $t('page.orders.total') }}</span>
+                {{ money(order.total) }}
               </div>
             </div>
           </NCard>
@@ -311,14 +399,72 @@ onMounted(loadOrder);
             </div>
           </NCard>
 
-          <!-- Tracking -->
-          <NCard v-if="order.tracking_number" :title="$t('page.ordersDetail.shipping')" size="small">
-            <div class="flex flex-col gap-2 text-sm">
-              <div>
-                <span class="text-[var(--n-text-color-3)]">{{ $t('page.shipments.trackingNumber') }}</span>
-                {{ order.tracking_number }}
+          <!-- Shipments -->
+          <NCard
+            v-if="(order.shipments && order.shipments.length) || order.tracking_number"
+            :title="$t('page.ordersDetail.shipments')"
+            size="small"
+            class="md:col-span-2"
+          >
+            <template v-if="order.shipments && order.shipments.length">
+              <div
+                v-for="entry in numberedShipments(order.shipments)"
+                :key="entry.s.id || entry.i"
+                class="border rounded p-3 mb-2 flex flex-col gap-2 text-sm"
+              >
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <span class="font-medium">#{{ entry.no }}</span>
+                  <span>
+                    <span class="text-[var(--n-text-color-3)]">{{ $t('page.shipments.carrier') }}</span>
+                    {{ entry.s.carrier || '-' }}
+                  </span>
+                  <span>
+                    <span class="text-[var(--n-text-color-3)]">{{ $t('page.shipments.trackingNumber') }}</span>
+                    {{ entry.s.tracking_number || '-' }}
+                  </span>
+                  <span v-if="entry.s.tracking_url">
+                    <span class="text-[var(--n-text-color-3)]">{{ $t('page.ordersDetail.trackingUrl') }}</span>
+                    <a :href="entry.s.tracking_url" target="_blank" rel="noopener noreferrer" class="text-blue-500">
+                      {{ entry.s.tracking_url }}
+                    </a>
+                  </span>
+                  <NTag :type="statusType(entry.s.status)" size="small">{{ entry.s.status || '-' }}</NTag>
+                </div>
+                <div v-if="entry.s.origin || entry.s.destination" class="text-[var(--n-text-color-3)]">
+                  {{ entry.s.origin || 'N/A' }} → {{ entry.s.destination || 'N/A' }}
+                </div>
+                <div v-if="entry.s.events && entry.s.events.length">
+                  <div class="text-[var(--n-text-color-3)] mb-1">{{ $t('page.ordersDetail.shipmentEvents') }}</div>
+                  <div class="flex flex-col gap-1">
+                    <div v-for="(ev, eidx) in entry.s.events" :key="eidx" class="text-xs">
+                      <span class="text-[var(--n-text-color-3)]">{{ fmtTime(ev.time) }}</span>
+                      <span class="ml-2">{{ ev.label || ev.status || '-' }}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+            </template>
+            <template v-else>
+              <div class="text-sm">
+                <span class="text-[var(--n-text-color-3)]">{{ $t('page.shipments.trackingNumber') }}</span>
+                {{ order.tracking_number || '-' }}
+              </div>
+            </template>
+          </NCard>
+
+          <!-- Timeline -->
+          <NCard :title="$t('page.ordersDetail.timeline')" size="small" class="md:col-span-2">
+            <NTimeline v-if="order.timeline && order.timeline.length">
+              <NTimelineItem
+                v-for="(ev, idx) in order.timeline"
+                :key="idx"
+                :type="timelineType(ev.status)"
+                :time="ev.time ? fmtTime(ev.time) : ''"
+              >
+                <span class="text-sm">{{ t(`page.ordersDetail.event_${ev.status}`) || ev.status }}</span>
+              </NTimelineItem>
+            </NTimeline>
+            <NEmpty v-else :description="$t('common.noData')" />
           </NCard>
         </div>
       </template>

@@ -263,3 +263,55 @@ class TestAdminOrdersAPI:
         finally:
             test_client.app.dependency_overrides.clear()
         assert resp.status_code == 409
+
+    def test_detail_returns_shipments_and_timeline(self, test_client):
+        from forge.infrastructure.persistence.repositories.order_repo import SQLAlchemyCustomerOrderRepository
+
+        order = _FakeOrder(status="shipped")
+        order.shipped_at = datetime.now()
+
+        async def _fake_get_db():
+            yield _fake_db_for_order(order)
+
+        _setup_auth(test_client)
+        test_client.app.dependency_overrides[dependencies.get_db] = _fake_get_db
+        try:
+            with patch.object(
+                SQLAlchemyCustomerOrderRepository,
+                "list_shipments",
+                new_callable=AsyncMock,
+                return_value=[],
+            ):
+                resp = test_client.get("/api/admin/v1/orders/FG-TEST-0001")
+        finally:
+            test_client.app.dependency_overrides.clear()
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["shipments"] == []
+        timeline_statuses = [ev["status"] for ev in body["timeline"]]
+        assert timeline_statuses[0] == "pending"
+        assert "shipped" in timeline_statuses
+
+    def test_detail_timeline_includes_refunded_for_refunded_order(self, test_client):
+        from forge.infrastructure.persistence.repositories.order_repo import SQLAlchemyCustomerOrderRepository
+
+        order = _FakeOrder(status="refunded")
+
+        async def _fake_get_db():
+            yield _fake_db_for_order(order)
+
+        _setup_auth(test_client)
+        test_client.app.dependency_overrides[dependencies.get_db] = _fake_get_db
+        try:
+            with patch.object(
+                SQLAlchemyCustomerOrderRepository,
+                "list_shipments",
+                new_callable=AsyncMock,
+                return_value=[],
+            ):
+                resp = test_client.get("/api/admin/v1/orders/FG-TEST-0001")
+        finally:
+            test_client.app.dependency_overrides.clear()
+        assert resp.status_code == 200
+        statuses = [ev["status"] for ev in resp.json()["timeline"]]
+        assert "refunded" in statuses

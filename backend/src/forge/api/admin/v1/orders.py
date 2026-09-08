@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import Any, cast
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict, Field
@@ -76,6 +77,50 @@ async def _admin_order_or_404(db: AsyncSession, order_number: str) -> ORMOrder:
     return order
 
 
+def _shipment_dict(s: ORMShipment) -> dict[str, Any]:
+    """Admin 视图所需的运单字段（一单多包时每包一条）。"""
+    return {
+        "id": str(s.id),
+        "tracking_number": s.tracking_number,
+        "carrier": s.carrier,
+        "tracking_url": s.tracking_url,
+        "status": s.status,
+        "origin": s.origin,
+        "destination": s.destination,
+        "events": s.events or [],
+        "created_at": s.created_at.isoformat() if s.created_at else None,
+    }
+
+
+def _admin_timeline(order: ORMOrder) -> list[dict[str, Any]]:
+    """订单时间轴：由时间线字段推导关键节点（created/paid/confirmed/shipped/delivered/cancelled/refunded）。
+
+    review / procure 无独立时间戳字段，不作为时间轴节点（状态卡片已展示）。
+    """
+    events: list[dict[str, Any]] = [
+        {
+            "status": "pending",
+            "label": "Order placed",
+            "time": order.created_at.isoformat() if order.created_at else None,
+        }
+    ]
+    if order.paid_at:
+        events.append({"status": "paid", "label": "Payment confirmed", "time": order.paid_at.isoformat()})
+    if order.confirmed_at:
+        events.append({"status": "confirmed", "label": "Order confirmed", "time": order.confirmed_at.isoformat()})
+    if order.shipped_at:
+        events.append({"status": "shipped", "label": "Order shipped", "time": order.shipped_at.isoformat()})
+    if order.delivered_at:
+        events.append({"status": "delivered", "label": "Delivered", "time": order.delivered_at.isoformat()})
+    if order.status == "cancelled":
+        cancelled_time = order.updated_at.isoformat() if order.updated_at else None
+        events.append({"status": "cancelled", "label": "Order cancelled", "time": cancelled_time})
+    if order.status == "refunded":
+        refunded_time = order.updated_at.isoformat() if order.updated_at else None
+        events.append({"status": "refunded", "label": "Refunded", "time": refunded_time})
+    return events
+
+
 @router.get("/")
 async def list_orders(
     page: int = Query(1, ge=1),
@@ -104,7 +149,11 @@ async def get_order_detail(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     order = await _admin_order_or_404(db, order_number)
-    return _order_to_dict(order)
+    data = _order_to_dict(order)
+    shipments = await SQLAlchemyCustomerOrderRepository.list_shipments(db, cast(UUID, order.id))
+    data["shipments"] = [_shipment_dict(s) for s in shipments]
+    data["timeline"] = _admin_timeline(order)
+    return data
 
 
 @router.post("/{order_number}/ship")
