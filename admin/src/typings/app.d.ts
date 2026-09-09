@@ -645,6 +645,7 @@ declare namespace App {
         CUSTOMER_NOT_FOUND: string;
         CUSTOMER_CANNOT_DELETE: string;
         INVALID_ID: string;
+        ORDER_NOT_FOUND: string;
       };
     };
 

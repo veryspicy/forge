@@ -472,7 +472,13 @@ const local: App.I18n.Schema = {
       total: 'Total',
       date: 'Date',
       export: 'Export CSV',
-      exportFailed: 'Export failed'
+      exportFailed: 'Export failed',
+      copyOrderNumber: 'Copy Order No.',
+      copyEmail: 'Copy Email',
+      copySuccess: 'Copied',
+      copyFailed: 'Copy failed',
+      copyEmailEmpty: 'No customer email for this order',
+      actions: 'Actions'
     },
     ordersDetail: {
       backToOrders: 'Back to Orders',
@@ -799,6 +805,7 @@ const local: App.I18n.Schema = {
     MCP_KEY_SCOPES_REQUIRED: 'At least one of read/write scopes is required',
     MCP_KEY_NOT_FOUND: 'API key not found',
     INVALID_ID: 'Invalid id format',
+    ORDER_NOT_FOUND: 'Order not found',
     UNKNOWN_ERROR: 'Operation failed, please try again'
   }
 };

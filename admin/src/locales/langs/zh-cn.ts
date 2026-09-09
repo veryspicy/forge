@@ -467,7 +467,13 @@ const local: App.I18n.Schema = {
       total: '总计',
       date: '日期',
       export: '导出 CSV',
-      exportFailed: '导出失败'
+      exportFailed: '导出失败',
+      copyOrderNumber: '复制订单号',
+      copyEmail: '复制邮箱',
+      copySuccess: '复制成功',
+      copyFailed: '复制失败',
+      copyEmailEmpty: '该订单暂无客户邮箱',
+      actions: '操作'
     },
     ordersDetail: {
       approve: '审核通过',
@@ -794,6 +800,7 @@ const local: App.I18n.Schema = {
     MCP_KEY_SCOPES_REQUIRED: '至少需要 read 或 write 权限',
     MCP_KEY_NOT_FOUND: 'API 密钥不存在',
     INVALID_ID: 'ID 格式无效',
+    ORDER_NOT_FOUND: '订单不存在',
     UNKNOWN_ERROR: '操作失败，请稍后重试'
   }
 };

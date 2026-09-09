@@ -49,7 +49,12 @@ const columns: DataTableColumns<any> = [
   {
     title: t('page.orders.orderNumber'),
     key: 'order_number',
-    render: row => (row.order_number || '').slice(0, 12) + '...'
+    render: row =>
+      h(
+        NButton,
+        { text: true, type: 'primary', size: 'small', onClick: () => router.push(`/orders/${row.order_number}`) },
+        { default: () => row.order_number || '-' }
+      )
   },
   { title: t('common.userId'), key: 'user_id', render: row => (row.user_id || '').slice(0, 8) + '...' },
   { title: t('page.orders.total'), key: 'total', render: row => `$${row.total}` },
@@ -65,16 +70,47 @@ const columns: DataTableColumns<any> = [
     render: row => (row.created_at ? new Date(row.created_at).toLocaleDateString() : '-')
   },
   {
-    title: t('page.suppliers.actions'),
+    title: t('page.orders.actions'),
     key: 'actions',
     render: row =>
-      h(
-        NButton,
-        { size: 'small', onClick: () => router.push(`/orders/${row.order_number}`) },
-        { default: () => t('common.detail') }
-      )
+      h('div', { class: 'flex items-center gap-2' }, [
+        h(
+          NButton,
+          {
+            size: 'small',
+            quaternary: true,
+            type: 'primary',
+            onClick: () => copyText(row.order_number)
+          },
+          { default: () => t('page.orders.copyOrderNumber') }
+        ),
+        h(
+          NButton,
+          {
+            size: 'small',
+            quaternary: true,
+            type: 'primary',
+            onClick: () => copyText(row.email, true)
+          },
+          { default: () => t('page.orders.copyEmail') }
+        )
+      ])
   }
 ];
+
+async function copyText(value: string | undefined | null, isEmail = false) {
+  const text = (value || '').trim();
+  if (!text) {
+    if (isEmail) message.warning(t('page.orders.copyEmailEmpty'));
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    message.success(t('page.orders.copySuccess'));
+  } catch {
+    message.error(t('page.orders.copyFailed'));
+  }
+}
 
 async function fetch() {
   loading.value = true;

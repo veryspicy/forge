@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from forge.api.errors import APIError, ErrorCode
-from forge.infrastructure.persistence.models import ORMOrder, ORMOrderItem, ORMProduct, ORMShipment
+from forge.infrastructure.persistence.models import ORMOrder, ORMOrderItem, ORMProduct, ORMShipment, ORMUser
 
 
 class SQLAlchemyOrderRepository:
@@ -38,12 +38,22 @@ class SQLAlchemyOrderRepository:
         result = await db.execute(query)
         orders = result.scalars().all()
 
+        # 批量带出客户邮箱，供后台列表"复制邮箱"等客服快捷操作使用
+        user_ids = {cast(UUID, o.user_id) for o in orders if o.user_id is not None}
+        email_by_user: dict[UUID, str] = {}
+        if user_ids:
+            user_rows = (
+                await db.execute(select(ORMUser.id, ORMUser.email).where(ORMUser.id.in_(user_ids)))
+            ).all()
+            email_by_user = {row.id: row.email for row in user_rows}
+
         return {
             "items": [
                 {
                     "id": str(o.id),
                     "order_number": o.order_number,
                     "user_id": str(o.user_id),
+                    "email": email_by_user.get(cast(UUID, o.user_id), "") if o.user_id is not None else "",
                     "subtotal": float(o.subtotal),
                     "tax": float(o.tax),
                     "shipping_cost": float(o.shipping_cost),
