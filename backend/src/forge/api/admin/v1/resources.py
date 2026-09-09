@@ -4,7 +4,8 @@
 原则：
 - 文件统一上传 MinIO 并登记 resource 表（软删，不物理删 MinIO 对象）
 - 站点隔离：默认写入/读取 active profile 的 site_id；super_admin 可传 site_id 查看全部
-- 有 resource_ref 引用的资源禁止删除
+- 被引用资源软删前由前端提示引用位置供取舍（软删不影响引用处展示）；
+  彻底删除默认拒绝仍被引用的资源，前端展示引用清单后 force 二次确认放行
 """
 
 from __future__ import annotations
@@ -13,7 +14,9 @@ import contextlib
 import hashlib
 import logging
 import uuid
+from collections.abc import Sequence
 from io import BytesIO
+from typing import TypedDict, cast
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel
@@ -476,7 +479,8 @@ async def check_resource_names(
 # 回收站
 # ---------------------------------------------------------------------------
 class TrashPayload(BaseModel):
-    ids: list[str]
+    ids: list[str] = []
+    force: bool = False
 
 
 class TrashListResponse(BaseModel):
@@ -513,7 +517,30 @@ async def list_trash(
         .scalars()
         .all()
     )
-    return {"items": [_serialize(r) for r in rows], "total": total}
+    # 附带引用摘要，供彻底删除前展示引用位置
+    ref_map: dict[str, list[dict[str, str]]] = {}
+    if rows:
+        ref_rows = (
+            (
+                await db.execute(
+                    select(ORMResourceRef).where(ORMResourceRef.resource_id.in_([r.id for r in rows]))
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for rr in ref_rows:
+            ref_map.setdefault(str(rr.resource_id), []).append(
+                {"ref_type": str(rr.ref_type), "ref_id": str(rr.ref_id), "ref_label": str(rr.ref_label)}
+            )
+    items: list[dict[str, object]] = []
+    for r in rows:
+        item = _serialize(r)
+        refs = ref_map.get(str(r.id), [])
+        item["ref_count"] = len(refs)
+        item["refs"] = refs
+        items.append(item)
+    return {"items": items, "total": total}
 
 
 @router.post("/trash/restore")
@@ -563,6 +590,8 @@ async def purge_resources(
     """彻底删除回收站资源（单/批量）：物理删 MinIO 对象（含缩略图）+ 删 DB 行 + 清关联。
 
     高风险操作：前端必须二次确认后调用。
+    引用门禁：默认（force=false）仍被引用的资源拒绝彻底删除并返回引用清单，
+    由前端展示引用位置；用户确认可接受裂图后携带 force=true 重调放行。
     """
     if not admin:
         raise HTTPException(status_code=401, detail="未登录")
@@ -571,6 +600,7 @@ async def purge_resources(
 
     purged = 0
     skipped: list[str] = []
+    referenced: list[dict[str, object]] = []
     for raw_id in payload.ids or []:
         try:
             rid = uuid.UUID(raw_id)
@@ -589,6 +619,19 @@ async def purge_resources(
             skipped.append(raw_id)
             continue
 
+        # 引用门禁：软删后被引用仍可能残留（用户未解除引用即软删）
+        refs = await _load_refs(db, rid)
+        if refs and not payload.force:
+            referenced.append(
+                {
+                    "resource_id": str(rid),
+                    "name": res.name,
+                    "ref_count": len(refs),
+                    "refs": _serialize_refs(refs),
+                }
+            )
+            continue
+
         # 物理删除 MinIO 对象与缩略图
         if res.object_key:
             minio.remove_object(res.object_key)  # type: ignore[arg-type]
@@ -601,7 +644,7 @@ async def purge_resources(
         await db.delete(res)
         purged += 1
     await db.commit()
-    return {"data": {"purged": purged, "skipped": skipped}}
+    return {"data": {"purged": purged, "skipped": skipped, "referenced": referenced}}
 
 
 @router.delete("/trash/empty")
@@ -609,14 +652,36 @@ async def empty_trash(
     admin: dict[str, object] = Depends(require_permission("resources", "manage")),
     db: AsyncSession = Depends(get_db),
     minio: MinioService = Depends(get_minio_service),
+    payload: TrashPayload | None = None,
 ) -> dict[str, object]:
-    """清空回收站：彻底删除所有软删资源。高风险操作，前端必须二次确认。"""
+    """清空回收站：彻底删除所有软删资源。高风险操作，前端必须二次确认后调用。
+
+    引用门禁：默认（force=false）若回收站仍含被引用资源，不执行清空并返回引用清单；
+    前端展示清单并确认可接受裂图后，携带 force=true 再次调用放行。
+    """
     if not admin:
         raise HTTPException(status_code=401, detail="未登录")
     if admin.get("role") not in ("super_admin", "admin"):
         raise HTTPException(status_code=403, detail="无彻底删除权限")
 
+    force = bool(payload.force) if payload is not None else False
     rows = (await db.execute(select(ORMResource).where(ORMResource.deleted_at.isnot(None)))).scalars().all()
+    referenced: list[dict[str, object]] = []
+    if not force:
+        for res in rows:
+            refs = await _load_refs(db, cast(uuid.UUID, res.id))
+            if refs:
+                referenced.append(
+                    {
+                        "resource_id": str(res.id),
+                        "name": res.name,
+                        "ref_count": len(refs),
+                        "refs": _serialize_refs(refs),
+                    }
+                )
+        if referenced:
+            return {"data": {"purged": 0, "referenced": referenced, "blocked": True}}
+
     purged = 0
     for res in rows:
         if res.object_key:
@@ -629,7 +694,7 @@ async def empty_trash(
         await db.delete(res)
         purged += 1
     await db.commit()
-    return {"data": {"purged": purged}}
+    return {"data": {"purged": purged, "referenced": [], "blocked": False}}
 
 
 def _thumb_object_key(res: ORMResource) -> str:
@@ -975,25 +1040,39 @@ async def set_resource_tags(
 # ---------------------------------------------------------------------------
 # 软删（单个 / 批量）
 # ---------------------------------------------------------------------------
-async def _soft_delete(db: AsyncSession, resource_id: uuid.UUID) -> bool:
+class SoftDeleteResult(TypedDict):
+    ref_count: int
+    refs: list[dict[str, str]]
+
+
+def _serialize_refs(refs: Sequence[ORMResourceRef]) -> list[dict[str, str]]:
+    """引用摘要（ref_type / ref_id / ref_label 快照，供前端展示引用位置）。"""
+    return [
+        {"ref_type": str(r.ref_type), "ref_id": str(r.ref_id), "ref_label": str(r.ref_label)} for r in refs
+    ]
+
+
+async def _load_refs(db: AsyncSession, resource_id: uuid.UUID) -> Sequence[ORMResourceRef]:
+    return (
+        (await db.execute(select(ORMResourceRef).where(ORMResourceRef.resource_id == resource_id))).scalars().all()
+    )
+
+
+async def _soft_delete(db: AsyncSession, resource_id: uuid.UUID) -> SoftDeleteResult | None:
+    """软删单个资源。
+
+    被引用资源不再硬拦截：软删仅置 deleted_at，MinIO 对象与 URL 仍有效，
+    引用处不受影响；删除前由前端展示引用位置供用户取舍。
+    返回引用摘要；None 表示资源不存在或已在回收站。
+    """
     res = (await db.execute(select(ORMResource).where(ORMResource.id == resource_id))).scalar_one_or_none()
     if res is None or res.deleted_at is not None:
-        return False
+        return None
 
-    ref_count = (
-        await db.execute(
-            select(func.count()).select_from(ORMResourceRef).where(ORMResourceRef.resource_id == resource_id)
-        )
-    ).scalar_one()
-    if ref_count > 0:
-        raise HTTPException(
-            status_code=409,
-            detail=f"资源存在 {ref_count} 处引用，禁止删除",
-        )
-
+    refs = await _load_refs(db, resource_id)
     res.deleted_at = func.now()
     await db.flush()
-    return True
+    return {"ref_count": len(refs), "refs": _serialize_refs(refs)}
 
 
 class BatchDeletePayload(BaseModel):
@@ -1017,10 +1096,16 @@ async def delete_resource(
         raise HTTPException(status_code=400, detail="无效的资源 ID") from None
 
     ok = await _soft_delete(db, rid)
-    if not ok:
+    if ok is None:
         raise HTTPException(status_code=404, detail="资源不存在或已删除")
     await db.commit()
-    return {"data": {"deleted": 1}}
+    return {
+        "data": {
+            "deleted": 1,
+            "ref_count": ok["ref_count"],
+            "refs": ok["refs"],
+        }
+    }
 
 
 @router.delete("")
@@ -1037,18 +1122,25 @@ async def batch_delete_resources(
 
     deleted = 0
     skipped: list[str] = []
+    referenced_deleted: list[dict[str, object]] = []
     for raw_id in payload.ids or []:
         try:
             rid = uuid.UUID(raw_id)
         except ValueError:
             skipped.append(raw_id)
             continue
-        try:
-            if await _soft_delete(db, rid):
-                deleted += 1
-            else:
-                skipped.append(raw_id)
-        except HTTPException:
+        info = await _soft_delete(db, rid)
+        if info is None:
             skipped.append(raw_id)
+            continue
+        deleted += 1
+        if info["ref_count"] > 0:
+            referenced_deleted.append(
+                {
+                    "resource_id": str(rid),
+                    "ref_count": info["ref_count"],
+                    "refs": info["refs"],
+                }
+            )
     await db.commit()
-    return {"data": {"deleted": deleted, "skipped": skipped}}
+    return {"data": {"deleted": deleted, "skipped": skipped, "referenced_deleted": referenced_deleted}}
