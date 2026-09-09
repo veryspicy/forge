@@ -324,6 +324,7 @@
           </div>
 
           <div v-if="payForm.method === 'card'" class="space-y-3 mb-4">
+            <p class="text-xs text-amber-600">{{ $t('checkout.testCardHint') }}</p>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('checkout.cardName') }}</label>
               <input

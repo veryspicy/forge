@@ -275,6 +275,7 @@
     "cardCvv": "CVV",
     "paymentNote": "Sicher verschlüsselt. Sandbox-Zahlungsgateway – keine echte Abbuchung. Bezahlen Sie auf der Bestellseite.",
     "invalidCard": "Bitte überprüfen Sie die eingegebenen Kartendaten.",
+    "testCardHint": "Demo akzeptiert nur die Testkarte 4242 4242 4242 4242; andere Karten werden abgelehnt",
     "payNow": "Bestellen & bezahlen",
     "payAfterOrderNote": "Nach der Bestellung zahlen Sie auf der Bestellseite (Sandbox, keine echte Belastung)."
   },
@@ -465,6 +466,9 @@
     "MCP_KEY_SCOPES_REQUIRED": "Mindestens einer der Bereiche read/write ist erforderlich",
     "MCP_KEY_NOT_FOUND": "API-Schlüssel nicht gefunden",
     "INVALID_ID": "Ungültiges ID-Format",
+    "PAYMENT_DECLINED": "Zahlung abgelehnt, bitte versuchen Sie es mit einer anderen Karte",
+    "PAYMENT_METHOD_UNSUPPORTED": "Zahlungsmethode wird nicht unterstützt",
+    "PAYMENT_GATEWAY_ERROR": "Zahlungsdienst vorübergehend nicht verfügbar, bitte später erneut versuchen",
     "UNKNOWN_ERROR": "Vorgang fehlgeschlagen, bitte erneut versuchen"
   },
   "hero": {

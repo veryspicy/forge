@@ -275,6 +275,7 @@
     "cardCvv": "CVV",
     "paymentNote": "Chiffré et sécurisé. Passerelle sandbox — aucun débit réel. Payez sur la page de commande.",
     "invalidCard": "Veuillez vérifier les informations de carte saisies.",
+    "testCardHint": "En démo, seule la carte de test 4242 4242 4242 4242 est acceptée ; les autres cartes sont refusées",
     "payNow": "Commander et payer",
     "payAfterOrderNote": "Après la commande, effectuez le paiement sur la page de commande (passerelle sandbox, aucun débit réel)."
   },
@@ -465,6 +466,9 @@
     "MCP_KEY_SCOPES_REQUIRED": "Au moins une portée read/write est requise",
     "MCP_KEY_NOT_FOUND": "Clé API introuvable",
     "INVALID_ID": "Format d'identifiant invalide",
+    "PAYMENT_DECLINED": "Paiement refusé, veuillez réessayer avec une autre carte",
+    "PAYMENT_METHOD_UNSUPPORTED": "Mode de paiement non pris en charge",
+    "PAYMENT_GATEWAY_ERROR": "Service de paiement temporairement indisponible, veuillez réessayer plus tard",
     "UNKNOWN_ERROR": "Échec de l'opération, veuillez réessayer"
   },
   "hero": {
