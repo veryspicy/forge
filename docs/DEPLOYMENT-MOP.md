@@ -70,7 +70,7 @@ pip install -e ".[dev]"
 alembic upgrade head
 ```
 
-> 若 `alembic upgrade head` 报错，说明 migration 目录可能尚未初始化。此时直接依赖 SQLAlchemy `create_all` 自动建表即可。
+> 若 `alembic upgrade head` 报错，**不要**使用 SQLAlchemy `create_all` 兜底（models.py 仅做 ORM 映射、不会建表）。请按 [DB-INITIALIZATION.md](DB-INITIALIZATION.md) 排查：空库需先执行扩展初始化 SQL，版本表与 admin_users 已由迁移链自举，`create_all` 一律无效。
 
 ---
 
