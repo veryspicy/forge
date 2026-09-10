@@ -179,6 +179,10 @@ const form = ref({
   cost: 0,
   inventory: 0,
   is_ai_generated: false,
+  // 履约模式：self=自采购 / dropship=一件代发（必须绑定供应商）
+  fulfillment_mode: 'self' as 'self' | 'dropship',
+  supplier_id: '' as string,
+  supplier_sku: '',
   tags: [] as string[],
   region_availability: [] as string[],
   name_translations: {} as Record<string, string>,
@@ -254,6 +258,25 @@ async function loadCatalogOptions() {
   }
 }
 
+const fulfillmentOptions = [
+  { label: '自采购（本地库存）', value: 'self' },
+  { label: '一件代发（供应商直发）', value: 'dropship' }
+];
+
+const supplierOptions = ref<{ label: string; value: string }[]>([]);
+
+async function loadSuppliers() {
+  try {
+    const res = await get('/api/admin/v1/suppliers/', { params: { page: 1, page_size: 200 } });
+    const list = (res.data?.items || res.data || []) as any[];
+    supplierOptions.value = list
+      .filter((s: any) => s.is_active !== false)
+      .map((s: any) => ({ label: String(s.name || s.id), value: String(s.id) }));
+  } catch {
+    /* 供应商选项加载失败不阻塞表单 */
+  }
+}
+
 const statusOptions = [
   { label: 'Active', value: 'active' },
   { label: 'Draft', value: 'draft' },
@@ -275,6 +298,7 @@ function updateRegions() {
 
 onMounted(async () => {
   loadCatalogOptions();
+  loadSuppliers();
   if (!isEdit.value) return;
   try {
     const res = await get(`/api/admin/v1/products/${route.params.id}`);
@@ -292,6 +316,9 @@ onMounted(async () => {
       cost: p.cost || 0,
       inventory: p.inventory || 0,
       is_ai_generated: p.is_ai_generated || false,
+      fulfillment_mode: (p.fulfillment_mode || 'self') as 'self' | 'dropship',
+      supplier_id: p.supplier_id || '',
+      supplier_sku: p.supplier_sku || '',
       tags: p.tags || [],
       region_availability: p.region_availability || [],
       name_translations: p.name_translations || {},
@@ -370,6 +397,18 @@ async function removeImage(idx: number) {
   images.value.splice(idx, 1);
 }
 
+/** 组装保存载荷：代发必须绑定供应商；自采购清空供应商字段 */
+function buildPayload(): Record<string, any> {
+  const payload: Record<string, any> = { ...form.value };
+  if (payload.fulfillment_mode === 'dropship') {
+    if (!payload.supplier_id) throw new Error('一件代发商品必须绑定供应商');
+  } else {
+    payload.supplier_id = null;
+    payload.supplier_sku = '';
+  }
+  return payload;
+}
+
 async function save() {
   saving.value = true;
   error.value = '';
@@ -377,11 +416,12 @@ async function save() {
   syncLang('desc');
   syncLang('ai');
   try {
+    const payload = buildPayload();
     if (isEdit.value) {
-      await patch(`/api/admin/v1/products/${route.params.id}`, form.value);
+      await patch(`/api/admin/v1/products/${route.params.id}`, payload);
       await syncProductRefs(String(route.params.id));
     } else {
-      const res = await post('/api/admin/v1/products/', form.value);
+      const res = await post('/api/admin/v1/products/', payload);
       const newId = res.data?.data?.id ?? res.data?.id;
       for (const file of pendingFiles.value) {
         const formData = new FormData();
@@ -402,7 +442,7 @@ async function save() {
     }
     router.push('/products');
   } catch (e: any) {
-    error.value = e.response?.data?.detail || t('common.saveFailed');
+    error.value = e.response?.data?.detail || e.message || t('common.saveFailed');
   } finally {
     saving.value = false;
   }
@@ -547,6 +587,27 @@ async function reloadVariants() {
           <NGi span="1">
             <NFormItem :label="$t('page.products.category')">
               <NSelect v-model:value="form.category" :options="categoryOptions" />
+            </NFormItem>
+          </NGi>
+          <NGi span="1">
+            <NFormItem label="履约模式">
+              <NSelect v-model:value="form.fulfillment_mode" :options="fulfillmentOptions" />
+            </NFormItem>
+          </NGi>
+          <NGi v-if="form.fulfillment_mode === 'dropship'" span="1">
+            <NFormItem label="供应商" required>
+              <NSelect
+                v-model:value="form.supplier_id"
+                :options="supplierOptions"
+                placeholder="选择供应商"
+                clearable
+                filterable
+              />
+            </NFormItem>
+          </NGi>
+          <NGi v-if="form.fulfillment_mode === 'dropship'" span="1">
+            <NFormItem label="供应商 SKU">
+              <NInput v-model:value="form.supplier_sku" placeholder="供应商侧货号（可选）" />
             </NFormItem>
           </NGi>
           <NGi span="1">

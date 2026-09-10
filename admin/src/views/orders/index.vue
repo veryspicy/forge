@@ -2,7 +2,19 @@
 import { ref, onMounted, h } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
-import { NButton, NDataTable, NInput, NPagination, NSelect, NTag, useMessage } from 'naive-ui';
+import {
+  NButton,
+  NCard,
+  NDataTable,
+  NDrawer,
+  NDrawerContent,
+  NEmpty,
+  NInput,
+  NPagination,
+  NSelect,
+  NTag,
+  useMessage
+} from 'naive-ui';
 import { get } from '@/service/api/helper';
 import { localStg } from '@/utils/storage';
 import type { DataTableColumns } from 'naive-ui';
@@ -153,6 +165,61 @@ async function exportCsv() {
   }
 }
 
+/* ===== 待采购清单（一件代发行，按供应商聚合） ===== */
+const showPurchase = ref(false);
+const purchaseLoading = ref(false);
+const purchaseGroups = ref<any[]>([]);
+
+const purchaseColumns: DataTableColumns<any> = [
+  { title: t('page.orders.orderNumber'), key: 'order_number' },
+  { title: t('common.name'), key: 'name' },
+  { title: '供应商 SKU', key: 'supplier_sku', render: row => row.supplier_sku || '-' },
+  { title: t('common.sku'), key: 'sku' },
+  { title: t('common.quantity'), key: 'quantity' },
+  { title: '收货地', key: 'destination' },
+  {
+    title: t('page.orders.date'),
+    key: 'created_at',
+    render: row => (row.created_at ? new Date(row.created_at).toLocaleDateString() : '-')
+  }
+];
+
+async function loadPurchaseList() {
+  purchaseLoading.value = true;
+  try {
+    const res = await get('/api/admin/v1/orders/purchase-list');
+    purchaseGroups.value = res.data?.groups || [];
+  } catch {
+    message.error('待采购清单加载失败');
+  } finally {
+    purchaseLoading.value = false;
+  }
+}
+
+function openPurchaseList() {
+  showPurchase.value = true;
+  loadPurchaseList();
+}
+
+async function exportPurchaseList() {
+  try {
+    const token = localStg.get('token');
+    const res = await window.fetch('/api/admin/v1/orders/purchase-list/export', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
+    if (!res.ok) throw new Error('export failed');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `purchase_list_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch {
+    message.error('待采购清单导出失败');
+  }
+}
+
 onMounted(fetch);
 </script>
 
@@ -169,6 +236,7 @@ onMounted(fetch);
         @update:value="fetch"
       />
       <NButton secondary :loading="loading" @click="exportCsv">{{ $t('page.orders.export') }}</NButton>
+      <NButton secondary type="primary" @click="openPurchaseList">待采购清单</NButton>
     </div>
 
     <NDataTable :columns="columns" :data="orders" :loading="loading" :bordered="false" size="small" />
@@ -176,5 +244,24 @@ onMounted(fetch);
     <div v-if="total > pageSize" class="flex justify-center">
       <NPagination :page="page" :page-size="pageSize" :item-count="total" @update:page="goPage" />
     </div>
+
+    <NDrawer v-model:show="showPurchase" :width="920" placement="right">
+      <NDrawerContent title="待采购清单（代发行）" closable>
+        <div class="mb-3 flex justify-end">
+          <NButton size="small" secondary :loading="purchaseLoading" @click="exportPurchaseList">导出 CSV</NButton>
+        </div>
+        <div v-if="purchaseGroups.length" class="flex flex-col gap-3">
+          <NCard
+            v-for="g in purchaseGroups"
+            :key="g.supplier_id || 'UNASSIGNED'"
+            size="small"
+            :title="`${g.supplier_name || '未指定供应商'}（${g.item_count} 项 / ${g.total_quantity} 件）`"
+          >
+            <NDataTable :columns="purchaseColumns" :data="g.items" :bordered="false" size="small" />
+          </NCard>
+        </div>
+        <NEmpty v-else description="当前没有待采购的代发行" />
+      </NDrawerContent>
+    </NDrawer>
   </div>
 </template>

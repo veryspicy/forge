@@ -32,7 +32,7 @@ const procureSupplierId = ref('');
 const procureSku = ref('');
 const procureCost = ref(0);
 const showShip = ref(false);
-const shipPackages = ref<Array<{ carrier: string; tracking_number: string }>>([]);
+const shipPackages = ref<Array<{ carrier: string; tracking_number: string; supplier_id: string }>>([]);
 const showRefund = ref(false);
 const refundReason = ref('');
 const actionError = ref('');
@@ -111,6 +111,16 @@ const itemColumns: DataTableColumns<any> = [
     title: t('page.ordersDetail.subtotal'),
     key: 'subtotal',
     render: row => money((row.price || 0) * (row.quantity || 0))
+  },
+  {
+    title: '履约方式',
+    key: 'fulfillment_mode',
+    render: row => (row.fulfillment_mode === 'dropship' ? '一件代发' : '自采购')
+  },
+  {
+    title: '供应商',
+    key: 'supplier_id',
+    render: row => (row.fulfillment_mode === 'dropship' ? row.supplier_sku || row.supplier_id || '-' : '-')
   }
 ];
 
@@ -129,13 +139,13 @@ function openProcure() {
   showProcure.value = true;
 }
 function openShip() {
-  shipPackages.value = [{ carrier: '', tracking_number: '' }];
+  shipPackages.value = [{ carrier: '', tracking_number: '', supplier_id: '' }];
   actionError.value = '';
   showShip.value = true;
 }
 
 function addShipPackage() {
-  shipPackages.value.push({ carrier: '', tracking_number: '' });
+  shipPackages.value.push({ carrier: '', tracking_number: '', supplier_id: '' });
 }
 
 function removeShipPackage(index: number) {
@@ -188,7 +198,11 @@ async function doShip() {
   actionError.value = '';
   try {
     const packages = shipPackages.value
-      .map(pkg => ({ carrier: pkg.carrier.trim(), tracking_number: pkg.tracking_number.trim() }))
+      .map(pkg => ({
+        carrier: pkg.carrier.trim(),
+        tracking_number: pkg.tracking_number.trim(),
+        supplier_id: (pkg.supplier_id || '').trim() || null
+      }))
       .filter(pkg => pkg.tracking_number && pkg.carrier);
     if (!packages.length) {
       actionError.value = t('page.ordersDetail.shipRequirePackage');
@@ -395,6 +409,14 @@ onMounted(loadOrder);
           <NCard v-if="order.procurement_info" :title="$t('page.ordersDetail.procurementInfo')" size="small">
             <div class="flex flex-col gap-2 text-sm">
               <div>
+                <span class="text-[var(--n-text-color-3)]">采购状态</span>
+                {{ order.procurement_info.status || 'requested' }}
+              </div>
+              <div v-if="order.procurement_info.requested_at || order.procurement_info.procured_at">
+                <span class="text-[var(--n-text-color-3)]">推送时间</span>
+                {{ fmtTime(order.procurement_info.requested_at || order.procurement_info.procured_at) }}
+              </div>
+              <div>
                 <span class="text-[var(--n-text-color-3)]">{{ $t('page.ordersDetail.supplier') }}</span>
                 {{ order.procurement_info.supplier_id }}
               </div>
@@ -550,6 +572,9 @@ onMounted(loadOrder);
           </NFormItem>
           <NFormItem :label="$t('page.shipments.carrier')" :show-feedback="false">
             <NInput v-model:value="pkg.carrier" placeholder="DHL / UPS / FedEx / SF" />
+          </NFormItem>
+          <NFormItem label="供应商 ID（代发包裹选填）" :show-feedback="false">
+            <NInput v-model:value="pkg.supplier_id" placeholder="留空表示自发货包裹" />
           </NFormItem>
         </div>
         <NButton size="small" dashed block @click="addShipPackage">

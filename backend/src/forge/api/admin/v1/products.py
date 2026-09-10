@@ -7,7 +7,7 @@ import csv
 import io
 import uuid
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from fastapi import (
     APIRouter,
@@ -69,6 +69,8 @@ class ProductCreate(BaseModel):
     region_availability: list[str] | None = None
     supplier_id: str | None = None
     supplier_sku: str | None = None
+    # 履约模式：self=自采购 / dropship=一件代发（dropship 必须绑定供应商）
+    fulfillment_mode: str | None = "self"
     images: list[dict[str, Any]] | None = None
     seo_title: str | None = None
     seo_description: str | None = None
@@ -98,6 +100,8 @@ class ProductUpdate(BaseModel):
     region_availability: list[str] | None = None
     supplier_id: str | None = None
     supplier_sku: str | None = None
+    # 履约模式：self / dropship
+    fulfillment_mode: str | None = None
     images: list[dict[str, Any]] | None = None
     seo_title: str | None = None
     seo_description: str | None = None
@@ -174,6 +178,23 @@ async def _get_product_or_404(db: AsyncSession, raw_id: str) -> ORMProduct:
     return product
 
 
+VALID_FULFILLMENT_MODES = {"self", "dropship"}
+
+
+def _validate_fulfillment(data: dict[str, Any], existing_supplier_id: uuid.UUID | None = None) -> None:
+    """履约模式校验：取值合法，且 dropship 必须绑定供应商（PLAN-DUAL-FULFILLMENT D1）。"""
+    mode = data.get("fulfillment_mode")
+    if mode is None:
+        return
+    if mode not in VALID_FULFILLMENT_MODES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"fulfillment_mode 必须为 {sorted(VALID_FULFILLMENT_MODES)} 之一",
+        )
+    if mode == "dropship" and not (data.get("supplier_id") or existing_supplier_id):
+        raise HTTPException(status_code=400, detail="一件代发（dropship）商品必须绑定供应商")
+
+
 def _clean_payload(data: dict[str, Any]) -> dict[str, Any]:
     """剔除 None 值字段，避免覆盖已有数据。"""
     return {k: v for k, v in data.items() if v is not None}
@@ -222,6 +243,7 @@ async def create_product(
         data["images"] = ProductService.normalize_images(data["images"])
     if data.get("supplier_id"):
         data["supplier_id"] = _coerce_uuid(data["supplier_id"], "supplier_id")
+    _validate_fulfillment(data)
 
     try:
         product = await ProductService.create_product(db, data)
@@ -293,6 +315,8 @@ EXPORT_COLUMNS = [
     "tags",
     "breed_groups",
     "region_availability",
+    "fulfillment_mode",
+    "supplier_id",
     "supplier_sku",
 ]
 REQUIRED_IMPORT_COLUMNS = ("sku", "name", "category", "price")
@@ -393,6 +417,21 @@ def _parse_product_row(raw: dict[str, str]) -> tuple[dict[str, Any], list[str]]:
     supplier_sku = (raw.get("supplier_sku") or "").strip()
     if supplier_sku:
         data["supplier_sku"] = supplier_sku
+
+    fulfillment_mode = (raw.get("fulfillment_mode") or "").strip() or "self"
+    if fulfillment_mode not in VALID_FULFILLMENT_MODES:
+        errors.append(f"fulfillment_mode 必须为 {sorted(VALID_FULFILLMENT_MODES)} 之一")
+    else:
+        data["fulfillment_mode"] = fulfillment_mode
+
+    supplier_id = (raw.get("supplier_id") or "").strip()
+    if supplier_id:
+        try:
+            data["supplier_id"] = uuid.UUID(supplier_id)
+        except ValueError:
+            errors.append("supplier_id 格式错误")
+    if fulfillment_mode == "dropship" and not data.get("supplier_id"):
+        errors.append("一件代发（dropship）商品必须提供 supplier_id")
 
     return data, errors
 
@@ -547,6 +586,7 @@ async def update_product(
         data["images"] = ProductService.normalize_images(data["images"])
     if data.get("supplier_id"):
         data["supplier_id"] = _coerce_uuid(data["supplier_id"], "supplier_id")
+    _validate_fulfillment(data, existing_supplier_id=cast(uuid.UUID | None, product.supplier_id))
 
     try:
         product = await ProductService.update_product(db, product, data)

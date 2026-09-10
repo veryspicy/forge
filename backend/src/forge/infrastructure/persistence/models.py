@@ -94,6 +94,8 @@ class ORMProduct(Base):
     sort_order = Column(Integer, nullable=False, default=0, server_default="0")
     sales = Column(Integer, nullable=False, default=0, server_default="0")
     audit_status = Column(String(20), nullable=False, default="pending", server_default="pending")
+    # 履约模式：self=自采购（下单扣减本地库存）/ dropship=一件代发（不占本地库存）
+    fulfillment_mode = Column(String(20), nullable=False, default="self", server_default="self", index=True)
     supplier_id = Column(UUID(as_uuid=True), nullable=True, index=True)
     supplier_sku = Column(String(100), nullable=True)
     supplier_product_id = Column(String(128), nullable=True, index=True)
@@ -137,6 +139,7 @@ class ORMProduct(Base):
             "sales": self.sales or 0,
             "audit_status": self.audit_status or "pending",
             "attributes": self.attributes or {},
+            "fulfillment_mode": self.fulfillment_mode or "self",
             "supplier_id": str(self.supplier_id) if self.supplier_id else None,
             "supplier_sku": self.supplier_sku,
             "supplier_product_id": self.supplier_product_id,
@@ -661,6 +664,10 @@ class ORMOrderItem(Base):
     price = Column(Numeric(12, 2), nullable=False)
     quantity = Column(Integer, nullable=False)
     image = Column(String(1000), nullable=True)
+    # 履约快照（下单时固化，商品后续改履约方式不影响历史订单）；supplier_id 不建外键，保留快照语义
+    fulfillment_mode = Column(String(20), nullable=True)
+    supplier_id = Column(UUID(as_uuid=True), nullable=True)
+    supplier_sku = Column(String(255), nullable=True)
 
     order: Mapped[ORMOrder] = relationship("ORMOrder", back_populates="items")
 

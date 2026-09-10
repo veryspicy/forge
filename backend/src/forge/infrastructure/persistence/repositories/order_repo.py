@@ -42,9 +42,7 @@ class SQLAlchemyOrderRepository:
         user_ids = {cast(UUID, o.user_id) for o in orders if o.user_id is not None}
         email_by_user: dict[UUID, str] = {}
         if user_ids:
-            user_rows = (
-                await db.execute(select(ORMUser.id, ORMUser.email).where(ORMUser.id.in_(user_ids)))
-            ).all()
+            user_rows = (await db.execute(select(ORMUser.id, ORMUser.email).where(ORMUser.id.in_(user_ids)))).all()
             email_by_user = {row.id: row.email for row in user_rows}
 
         return {
@@ -101,6 +99,43 @@ class SQLAlchemyOrderRepository:
         return list(result.scalars().all())
 
     @staticmethod
+    async def list_pending_purchases(db: AsyncSession) -> list[dict[str, Any]]:
+        """待采购清单原始行：未发货订单中的代发行，按行输出（分组在 API 层按供应商完成）。"""
+        stmt = (
+            select(ORMOrder)
+            .where(ORMOrder.deleted_at.is_(None), ORMOrder.status.in_(_PURCHASE_PENDING_ORDER_STATUSES))
+            .options(selectinload(ORMOrder.items))
+            .order_by(ORMOrder.created_at.desc())
+        )
+        orders = (await db.execute(stmt)).scalars().all()
+        rows: list[dict[str, Any]] = []
+        for order in orders:
+            address = cast(dict[str, Any], order.shipping_address or {})
+            destination = (
+                ", ".join(str(x) for x in [address.get("line1"), address.get("city"), address.get("country")] if x)
+                or "N/A"
+            )
+            for i in order.items:
+                if (i.fulfillment_mode or _FULFILLMENT_SELF) != _FULFILLMENT_DROPSHIP:
+                    continue
+                rows.append(
+                    {
+                        "order_number": order.order_number,
+                        "order_status": order.status,
+                        "created_at": order.created_at.isoformat() if order.created_at else None,
+                        "supplier_id": str(i.supplier_id) if i.supplier_id else None,
+                        "supplier_sku": i.supplier_sku,
+                        "product_id": int(i.product_id) if i.product_id is not None else None,
+                        "name": i.name,
+                        "sku": i.sku,
+                        "quantity": i.quantity,
+                        "image": i.image,
+                        "destination": destination,
+                    }
+                )
+        return rows
+
+    @staticmethod
     async def count(db: AsyncSession) -> int:
         result = await db.execute(select(func.count(ORMOrder.id)))
         return result.scalar_one()
@@ -151,6 +186,11 @@ _REFUNDABLE_UNSHIPPED_STATUSES = {"confirmed", "processing", "procuring", "procu
 _FREE_SHIPPING_THRESHOLD = 50
 _FLAT_SHIPPING = 5
 _DEFAULT_CURRENCY = "USD"
+# 履约模式（PLAN-DUAL-FULFILLMENT）：self=自采购（占本地库存）；dropship=一件代发（不占本地库存）
+_FULFILLMENT_SELF = "self"
+_FULFILLMENT_DROPSHIP = "dropship"
+# 待采购清单口径：未发货的订单状态（已发货/终态不列入采购）
+_PURCHASE_PENDING_ORDER_STATUSES = {"pending", "confirmed", "processing", "procure_failed"}
 
 
 def _order_to_dict(order: ORMOrder) -> dict[str, object]:
@@ -188,6 +228,10 @@ def _order_to_dict(order: ORMOrder) -> dict[str, object]:
                 "price": float(i.price),
                 "quantity": i.quantity,
                 "image": i.image,
+                # 履约快照（历史行为空，读取侧按 self 解释）
+                "fulfillment_mode": i.fulfillment_mode or _FULFILLMENT_SELF,
+                "supplier_id": str(i.supplier_id) if i.supplier_id else None,
+                "supplier_sku": i.supplier_sku,
             }
             for i in order.items
         ],
@@ -215,8 +259,15 @@ class SQLAlchemyCustomerOrderRepository:
 
     @staticmethod
     async def _restore_inventory(db: AsyncSession, item_rows: list[ORMOrderItem]) -> None:
-        """Add back item quantities to product inventory (cancel / refund flows)."""
-        product_ids = [cast(int, i.product_id) for i in item_rows if i.product_id is not None]
+        """Add back item quantities to product inventory (cancel / refund flows).
+
+        代发行（dropship）下单时未扣减本地库存，回补时同样跳过。
+        """
+        product_ids = [
+            cast(int, i.product_id)
+            for i in item_rows
+            if i.product_id is not None and (i.fulfillment_mode or _FULFILLMENT_SELF) != _FULFILLMENT_DROPSHIP
+        ]
         if not product_ids:
             return
         products = (
@@ -226,6 +277,8 @@ class SQLAlchemyCustomerOrderRepository:
         )
         product_map = {cast(int, p.id): p for p in products}
         for i in item_rows:
+            if (i.fulfillment_mode or _FULFILLMENT_SELF) == _FULFILLMENT_DROPSHIP:
+                continue
             product = product_map.get(cast(int, i.product_id)) if i.product_id is not None else None
             if product is not None and product.inventory is not None:
                 product.inventory = cast(Any, product.inventory + i.quantity)
@@ -311,6 +364,9 @@ class SQLAlchemyCustomerOrderRepository:
                     ErrorCode.PRODUCT_UNAVAILABLE,
                     message=f"Product {pid} is not available for purchase.",
                 )
+            # 一件代发商品不占本地库存：跳过库存校验（PLAN-DUAL-FULFILLMENT D3）
+            if (product.fulfillment_mode or _FULFILLMENT_SELF) == _FULFILLMENT_DROPSHIP:
+                continue
             if product.inventory is not None and product.inventory < quantity:
                 raise APIError(
                     ErrorCode.INSUFFICIENT_STOCK,
@@ -345,6 +401,7 @@ class SQLAlchemyCustomerOrderRepository:
             product = product_map[pid]
             quantity = quantity_map[pid]
             unit_price = Decimal(str(product.price))
+            item_mode = product.fulfillment_mode or _FULFILLMENT_SELF
             item = ORMOrderItem(
                 id=uuid4(),
                 order_id=order.id,
@@ -354,11 +411,16 @@ class SQLAlchemyCustomerOrderRepository:
                 price=unit_price,
                 quantity=quantity,
                 image=SQLAlchemyCustomerOrderRepository._first_image(product),
+                # 履约快照：固化下单时的来源，商品后续改履约方式不影响历史订单
+                fulfillment_mode=item_mode,
+                supplier_id=product.supplier_id if item_mode == _FULFILLMENT_DROPSHIP else None,
+                supplier_sku=product.supplier_sku if item_mode == _FULFILLMENT_DROPSHIP else None,
             )
             db.add(item)
             items.append(item)
             subtotal += unit_price * quantity
-            if product.inventory is not None:
+            # 只有自采购行扣减本地库存；代发行不扣
+            if item_mode != _FULFILLMENT_DROPSHIP and product.inventory is not None:
                 product.inventory = cast(Any, product.inventory - quantity)
 
         shipping_cost = Decimal("0") if subtotal > _FREE_SHIPPING_THRESHOLD else Decimal(str(_FLAT_SHIPPING))
@@ -497,8 +559,13 @@ class SQLAlchemyCustomerOrderRepository:
         supplier_sku: str | None = None,
         cost: float | None = None,
     ) -> ORMOrder:
-        """Admin procurement flow: processing/procure_failed -> procuring."""
-        if order.status not in _PROCURABLE_STATUSES:
+        """Admin procurement flow: 仅登记采购信息，**不再迁移订单主状态**。
+
+        采购是订单的旁支履约动作（对齐 Shopify PO / 聚水潭采购单）：
+        历史实现把主状态置为 procuring，导致 mark_shipped 拒单、订单卡死（无法发货、无撤销入口）。
+        现在只写 procurement_info（status=requested），订单留在 processing 可随时发货。
+        """
+        if order.status not in (_PROCURABLE_STATUSES | {"procuring"}):
             raise APIError(
                 ErrorCode.ORDER_INVALID_STATE,
                 message=f"Order cannot be pushed to procurement in state '{order.status}'.",
@@ -512,11 +579,13 @@ class SQLAlchemyCustomerOrderRepository:
                 "supplier_id": supplier_id.strip(),
                 "supplier_sku": (supplier_sku or "").strip(),
                 "cost": float(cost) if cost is not None else None,
-                "procured_at": now.isoformat(),
-                "status": "procuring",
+                "requested_at": now.isoformat(),
+                "status": "requested",
             },
         )
-        order.status = cast(Any, "procuring")
+        # 历史 procure_failed / procuring 订单复位到 processing，恢复其可发货能力
+        if order.status in {"procure_failed", "procuring"}:
+            order.status = cast(Any, "processing")
         order.updated_at = cast(Any, now)
         await db.flush()
         return order

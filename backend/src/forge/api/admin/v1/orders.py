@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from forge.api.errors import APIError, ErrorCode
-from forge.infrastructure.persistence.models import ORMOrder, ORMShipment
+from forge.infrastructure.persistence.models import ORMOrder, ORMShipment, ORMSupplier
 from forge.infrastructure.persistence.repositories.order_repo import (
     SQLAlchemyCustomerOrderRepository,
     SQLAlchemyOrderRepository,
@@ -39,6 +39,8 @@ class AdminShipPackage(BaseModel):
 
     carrier: str = Field(min_length=1, max_length=100)
     tracking_number: str = Field(min_length=1, max_length=500)
+    # 代发包裹可指定供应商（不传则回落 "MANUAL"）
+    supplier_id: str | None = Field(default=None, max_length=255)
 
 
 class AdminShipRequest(BaseModel):
@@ -64,7 +66,7 @@ def _new_shipment(order: ORMOrder, pkg: AdminShipPackage) -> ORMShipment:
     return ORMShipment(
         id=uuid4(),
         order_id=order.id,
-        supplier_id="MANUAL",
+        supplier_id=(pkg.supplier_id or "").strip() or "MANUAL",
         tracking_number=pkg.tracking_number,
         carrier=pkg.carrier,
         tracking_url=f"https://mock-track.example/{pkg.tracking_number}",
@@ -243,6 +245,84 @@ async def export_orders(
     )
 
 
+@router.get("/purchase-list")
+async def list_purchase_list(
+    admin: dict[str, object] = Depends(require_permission("orders", "view")),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """待采购清单：未发货订单中的代发行，按供应商聚合。
+
+    不建 PO 实体（PLAN-DUAL-FULFILLMENT D4）；清单仅作采购作业视图，不写订单主状态。
+    """
+    repo = SQLAlchemyOrderRepository()
+    rows = await repo.list_pending_purchases(db)
+    supplier_rows = (await db.execute(select(ORMSupplier))).scalars().all()
+    name_map = {str(s.id): s.name for s in supplier_rows}
+
+    groups: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        key = str(row["supplier_id"] or "UNASSIGNED")
+        group = groups.get(key)
+        if group is None:
+            group = {
+                "supplier_id": row["supplier_id"],
+                "supplier_name": name_map.get(key, "未指定供应商"),
+                "item_count": 0,
+                "total_quantity": 0,
+                "items": [],
+            }
+            groups[key] = group
+        group["items"].append(row)
+        group["item_count"] = int(group["item_count"]) + 1
+        group["total_quantity"] = int(group["total_quantity"]) + int(row["quantity"] or 0)
+
+    return {"groups": list(groups.values()), "row_count": len(rows)}
+
+
+@router.get("/purchase-list/export")
+async def export_purchase_list(
+    admin: dict[str, object] = Depends(require_permission("orders", "view")),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """待采购清单 CSV 导出（UTF-8 BOM，Excel 友好）。"""
+    repo = SQLAlchemyOrderRepository()
+    rows = await repo.list_pending_purchases(db)
+    supplier_rows = (await db.execute(select(ORMSupplier))).scalars().all()
+    name_map = {str(s.id): s.name for s in supplier_rows}
+
+    columns = [
+        "supplier_id",
+        "supplier_name",
+        "order_number",
+        "order_status",
+        "product_id",
+        "name",
+        "sku",
+        "supplier_sku",
+        "quantity",
+        "destination",
+        "created_at",
+    ]
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=columns, extrasaction="ignore")
+    writer.writeheader()
+    for row in rows:
+        writer.writerow(
+            {
+                **row,
+                "supplier_id": row["supplier_id"] or "",
+                "supplier_name": name_map.get(str(row["supplier_id"] or "UNASSIGNED"), "未指定供应商"),
+            }
+        )
+    content = "\ufeff" + buffer.getvalue()
+    filename = f"purchase_list_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}.csv"
+    return Response(
+        content=content.encode("utf-8"),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.get("/{order_number}")
 async def get_order_detail(
     order_number: str,
@@ -324,7 +404,7 @@ async def procure_order(
     admin: dict[str, object] = Depends(require_permission("orders", "manage")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """推送采购：processing/procure_failed -> procuring，登记采购信息。"""
+    """推送采购：仅登记 procurement_info，不迁移订单主状态（订单保持 processing 可随时发货）。"""
     order = await _admin_order_or_404(db, order_number)
     procured = await SQLAlchemyCustomerOrderRepository.admin_procure_order(
         db,
