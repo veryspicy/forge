@@ -26,6 +26,7 @@ from forge.infrastructure.persistence.models import ORMOrder, ORMShipment, ORMSu
 from forge.infrastructure.persistence.repositories.order_repo import (
     SQLAlchemyCustomerOrderRepository,
     SQLAlchemyOrderRepository,
+    _order_fulfillment_mode,
     _order_to_dict,
 )
 from forge.main.dependencies import get_db
@@ -86,9 +87,12 @@ def _new_shipment(order: ORMOrder, pkg: AdminShipPackage) -> ORMShipment:
 
 
 class AdminCancelRequest(BaseModel):
+    """取消订单（履约终止）：refund=None 表示有可退余额时自动同时退款。"""
+
     model_config = ConfigDict(extra="ignore")
 
     reason: str | None = Field(default=None, max_length=2000)
+    refund: bool | None = None
 
 
 class AdminReviewRequest(BaseModel):
@@ -99,18 +103,53 @@ class AdminReviewRequest(BaseModel):
     reviewed_by: str | None = Field(default=None, max_length=100)
 
 
-class AdminProcureRequest(BaseModel):
+class AdminProcureItem(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    supplier_id: str = Field(min_length=1, max_length=255)
+    order_item_id: str = Field(min_length=1, max_length=64)
+    supplier_id: str | None = Field(default=None, max_length=255)
     supplier_sku: str | None = Field(default=None, max_length=255)
     cost: float | None = Field(default=None, ge=0)
 
 
+class AdminProcureRequest(BaseModel):
+    """行级推送采购（仅代发行）：items 为空时对全部未采购代发行执行。"""
+
+    model_config = ConfigDict(extra="ignore")
+
+    items: list[AdminProcureItem] = Field(default_factory=list, max_length=100)
+    # 未在行级指定时使用的默认值
+    supplier_id: str | None = Field(default=None, max_length=255)
+    supplier_sku: str | None = Field(default=None, max_length=255)
+    cost: float | None = Field(default=None, ge=0)
+
+
+class AdminProcureReceiveRequest(BaseModel):
+    """采购入库确认：order_item_ids 为空时对全部在途（requested）行执行。"""
+
+    model_config = ConfigDict(extra="ignore")
+
+    order_item_ids: list[str] = Field(default_factory=list, max_length=100)
+
+
+class AdminRefundItem(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    order_item_id: str = Field(min_length=1, max_length=64)
+    quantity: int = Field(ge=1)
+
+
 class AdminRefundRequest(BaseModel):
+    """行级 / 部分退款：items 为空表示退全部剩余可退数量；不迁移订单履约状态。"""
+
     model_config = ConfigDict(extra="ignore")
 
     reason: str | None = Field(default=None, max_length=2000)
+    items: list[AdminRefundItem] = Field(default_factory=list, max_length=100)
+    # 是否同时退还剩余未退运费
+    refund_shipping: bool = False
+    # 是否把本次退款数量回补本地库存（未发货终止走取消入口，由取消统一回补）
+    restock: bool = False
 
 
 async def _admin_order_or_404(db: AsyncSession, order_number: str) -> ORMOrder:
@@ -206,12 +245,15 @@ async def export_orders(
         "order_number",
         "user_id",
         "status",
+        "payment_status",
+        "fulfillment_mode",
         "currency",
         "subtotal",
         "tax",
         "shipping_cost",
         "discount",
         "total",
+        "refunded_amount",
         "tracking_number",
         "item_count",
         "created_at",
@@ -225,12 +267,15 @@ async def export_orders(
                 "order_number": o.order_number,
                 "user_id": str(o.user_id),
                 "status": o.status,
+                "payment_status": o.payment_status,
+                "fulfillment_mode": _order_fulfillment_mode(o),
                 "currency": o.currency,
                 "subtotal": float(o.subtotal),
                 "tax": float(o.tax),
                 "shipping_cost": float(o.shipping_cost),
                 "discount": float(o.discount),
                 "total": float(o.total),
+                "refunded_amount": float(o.refunded_amount or 0),
                 "tracking_number": o.tracking_number or "",
                 "item_count": len(o.items or []),
                 "created_at": o.created_at.isoformat() if o.created_at else "",
@@ -247,15 +292,18 @@ async def export_orders(
 
 @router.get("/purchase-list")
 async def list_purchase_list(
+    status: str | None = Query(default=None, alias="status"),
     admin: dict[str, object] = Depends(require_permission("orders", "view")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """待采购清单：未发货订单中的代发行，按供应商聚合。
+    """采购作业清单：未发货订单中的代发行，按供应商聚合。
 
-    不建 PO 实体（PLAN-DUAL-FULFILLMENT D4）；清单仅作采购作业视图，不写订单主状态。
+    status: 缺省/`pending` 仅未采购行；`requested` 在途；`received` 已入库；`all` 全部代发行。
+    不建 PO 实体（PLAN-DUAL-FULFILLMENT D4）；采购状态落在商品行，不写订单主状态。
     """
     repo = SQLAlchemyOrderRepository()
-    rows = await repo.list_pending_purchases(db)
+    normalized = status.strip().lower() if status and status.strip() else None
+    rows = await repo.list_pending_purchases(db, status=normalized)
     supplier_rows = (await db.execute(select(ORMSupplier))).scalars().all()
     name_map = {str(s.id): s.name for s in supplier_rows}
 
@@ -281,12 +329,14 @@ async def list_purchase_list(
 
 @router.get("/purchase-list/export")
 async def export_purchase_list(
+    status: str | None = Query(default=None, alias="status"),
     admin: dict[str, object] = Depends(require_permission("orders", "view")),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
-    """待采购清单 CSV 导出（UTF-8 BOM，Excel 友好）。"""
+    """采购作业清单 CSV 导出（UTF-8 BOM，Excel 友好）。"""
     repo = SQLAlchemyOrderRepository()
-    rows = await repo.list_pending_purchases(db)
+    normalized = status.strip().lower() if status and status.strip() else None
+    rows = await repo.list_pending_purchases(db, status=normalized)
     supplier_rows = (await db.execute(select(ORMSupplier))).scalars().all()
     name_map = {str(s.id): s.name for s in supplier_rows}
 
@@ -300,6 +350,9 @@ async def export_purchase_list(
         "sku",
         "supplier_sku",
         "quantity",
+        "procurement_status",
+        "procurement_requested_at",
+        "procurement_cost",
         "destination",
         "created_at",
     ]
@@ -369,8 +422,14 @@ async def admin_cancel_order(
     admin: dict[str, object] = Depends(require_permission("orders", "manage")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
+    """后台取消（履约终止）：未发货订单可取消；已收款订单默认同时全额退款并回补库存。
+
+    取消 = 履约终止（订单 -> cancelled），退款 = 资金动作（payment_status），二者共用同一退款实现。
+    """
     order = await _admin_order_or_404(db, order_number)
-    cancelled = await SQLAlchemyCustomerOrderRepository.cancel_order(db, order, payload.reason)
+    cancelled = await SQLAlchemyCustomerOrderRepository.admin_cancel_order(
+        db, order, reason=payload.reason, refund=payload.refund
+    )
     await db.commit()
     await db.refresh(cancelled, attribute_names=["items"])
     return _order_to_dict(cancelled)
@@ -404,18 +463,48 @@ async def procure_order(
     admin: dict[str, object] = Depends(require_permission("orders", "manage")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """推送采购：仅登记 procurement_info，不迁移订单主状态（订单保持 processing 可随时发货）。"""
+    """行级推送采购（仅代发行）：只写行级采购状态，不迁移订单主状态（订单可随时发货）。"""
     order = await _admin_order_or_404(db, order_number)
-    procured = await SQLAlchemyCustomerOrderRepository.admin_procure_order(
-        db,
-        order,
-        supplier_id=payload.supplier_id,
-        supplier_sku=payload.supplier_sku,
-        cost=payload.cost,
+    repo = SQLAlchemyCustomerOrderRepository
+    if payload.items:
+        for entry in payload.items:
+            await repo.admin_procure_order(
+                db,
+                order,
+                item_ids=[entry.order_item_id],
+                supplier_id=entry.supplier_id or payload.supplier_id,
+                supplier_sku=entry.supplier_sku or payload.supplier_sku,
+                cost=entry.cost if entry.cost is not None else payload.cost,
+            )
+    else:
+        await repo.admin_procure_order(
+            db,
+            order,
+            item_ids=None,
+            supplier_id=payload.supplier_id,
+            supplier_sku=payload.supplier_sku,
+            cost=payload.cost,
+        )
+    await db.commit()
+    await db.refresh(order, attribute_names=["items"])
+    return _order_to_dict(order)
+
+
+@router.post("/{order_number}/procure/receive")
+async def receive_procurement(
+    order_number: str,
+    payload: AdminProcureReceiveRequest,
+    admin: dict[str, object] = Depends(require_permission("orders", "manage")),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """采购到货确认（行级）：requested -> received，不影响订单主状态。"""
+    order = await _admin_order_or_404(db, order_number)
+    received = await SQLAlchemyCustomerOrderRepository.admin_receive_procurement(
+        db, order, item_ids=payload.order_item_ids or None
     )
     await db.commit()
-    await db.refresh(procured, attribute_names=["items"])
-    return _order_to_dict(procured)
+    await db.refresh(received, attribute_names=["items"])
+    return _order_to_dict(received)
 
 
 @router.post("/{order_number}/refund")
@@ -425,12 +514,24 @@ async def refund_order(
     admin: dict[str, object] = Depends(require_permission("orders", "manage")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """整单退款（仅未发货订单）：-> refunded，回补库存。
+    """行级 / 部分退款（行业对齐 Shopify）：items 为空=退全部剩余可退数量。
 
-    已发货/已完成订单的退款（原路退回、退款单）属后续迭代范围。
+    只做资金动作（refunded_amount / payment_status），不改订单履约状态；
+    无论是否发货，只要有已收款项且仍有可退余额即可退款。
     """
     order = await _admin_order_or_404(db, order_number)
-    refunded = await SQLAlchemyCustomerOrderRepository.admin_refund_order(db, order, payload.reason)
+    refunded = await SQLAlchemyCustomerOrderRepository.admin_refund_order(
+        db,
+        order,
+        reason=payload.reason,
+        item_refunds=(
+            [{"order_item_id": i.order_item_id, "quantity": i.quantity} for i in payload.items]
+            if payload.items
+            else None
+        ),
+        refund_shipping=payload.refund_shipping,
+        restock=payload.restock,
+    )
     await db.commit()
     await db.refresh(refunded, attribute_names=["items"])
     return _order_to_dict(refunded)

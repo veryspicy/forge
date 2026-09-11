@@ -59,6 +59,10 @@ class SQLAlchemyOrderRepository:
                     "total": float(o.total),
                     "currency": o.currency,
                     "status": o.status,
+                    "payment_status": o.payment_status,
+                    "refunded_amount": float(_money(o.refunded_amount)),
+                    # 订单级履约模式聚合列：self / dropship / mixed（列表页展示用）
+                    "fulfillment_mode": _order_fulfillment_mode(o),
                     "shipping_address": o.shipping_address,
                     "tracking_number": o.tracking_number,
                     "created_at": o.created_at.isoformat() if o.created_at else None,
@@ -71,6 +75,7 @@ class SQLAlchemyOrderRepository:
                             "price": float(i.price),
                             "quantity": i.quantity,
                             "image": i.image,
+                            "fulfillment_mode": i.fulfillment_mode or _FULFILLMENT_SELF,
                         }
                         for i in o.items
                     ]
@@ -99,8 +104,11 @@ class SQLAlchemyOrderRepository:
         return list(result.scalars().all())
 
     @staticmethod
-    async def list_pending_purchases(db: AsyncSession) -> list[dict[str, Any]]:
-        """待采购清单原始行：未发货订单中的代发行，按行输出（分组在 API 层按供应商完成）。"""
+    async def list_pending_purchases(db: AsyncSession, status: str | None = None) -> list[dict[str, Any]]:
+        """采购作业清单原始行：未发货订单中的代发行，按行输出（分组在 API 层按供应商完成）。
+
+        status: None/'pending' 仅未采购行；'requested'/'received' 按行级采购状态过滤；'all' 全部代发行。
+        """
         stmt = (
             select(ORMOrder)
             .where(ORMOrder.deleted_at.is_(None), ORMOrder.status.in_(_PURCHASE_PENDING_ORDER_STATUSES))
@@ -118,8 +126,14 @@ class SQLAlchemyOrderRepository:
             for i in order.items:
                 if (i.fulfillment_mode or _FULFILLMENT_SELF) != _FULFILLMENT_DROPSHIP:
                     continue
+                row_status = i.procurement_status
+                if status in {"requested", "received"} and row_status != status:
+                    continue
+                if status not in {"all", "requested", "received"} and row_status is not None:
+                    continue
                 rows.append(
                     {
+                        "order_item_id": str(i.id),
                         "order_number": order.order_number,
                         "order_status": order.status,
                         "created_at": order.created_at.isoformat() if order.created_at else None,
@@ -131,6 +145,11 @@ class SQLAlchemyOrderRepository:
                         "quantity": i.quantity,
                         "image": i.image,
                         "destination": destination,
+                        "procurement_status": row_status,
+                        "procurement_requested_at": (
+                            i.procurement_requested_at.isoformat() if i.procurement_requested_at else None
+                        ),
+                        "procurement_cost": float(i.procurement_cost) if i.procurement_cost is not None else None,
                     }
                 )
         return rows
@@ -179,18 +198,88 @@ _CONFIRMABLE_STATUSES = {"shipped"}
 _DELETABLE_STATUSES = {"delivered", "cancelled"}
 # 收货地址仅允许在发货前修改（行业对齐：pending/confirmed/processing 均未发货）
 _EDITABLE_SHIPPING_STATUSES = {"pending", "confirmed", "processing"}
-# Admin review/procure/refund flow guards (stored statuses are lowercase)
+# Admin review flow guard (stored statuses are lowercase)
 _ADMIN_REVIEWABLE_STATUSES = {"confirmed"}
-_PROCURABLE_STATUSES = {"processing", "procure_failed"}
-_REFUNDABLE_UNSHIPPED_STATUSES = {"confirmed", "processing", "procuring", "procure_failed"}
 _FREE_SHIPPING_THRESHOLD = 50
 _FLAT_SHIPPING = 5
 _DEFAULT_CURRENCY = "USD"
 # 履约模式（PLAN-DUAL-FULFILLMENT）：self=自采购（占本地库存）；dropship=一件代发（不占本地库存）
 _FULFILLMENT_SELF = "self"
 _FULFILLMENT_DROPSHIP = "dropship"
+# 后台取消（履约终止）适用状态：未发货即可取消（含历史 procuring / procure_failed 脏状态）
+_ADMIN_CANCELLABLE_STATUSES = {"pending", "confirmed", "processing", "procuring", "procure_failed"}
+# 退款（资金动作）：订单须有已收款项，且未处于取消/退款终态（已发货/已完成同样支持售后退款）
+_REFUNDABLE_PAYMENT_STATUSES = {"paid", "partially_refunded"}
+_REFUND_BLOCKED_ORDER_STATUSES = {"cancelled", "refunded"}
+# 采购（行级旁支动作）适用状态：未发货订单；仅 dropship 行可采购
+_PROCURE_ORDER_STATUSES = {"pending", "confirmed", "processing", "procuring", "procure_failed"}
 # 待采购清单口径：未发货的订单状态（已发货/终态不列入采购）
 _PURCHASE_PENDING_ORDER_STATUSES = {"pending", "confirmed", "processing", "procure_failed"}
+
+_CENTS = Decimal("0.01")
+
+
+def _money(value: Any) -> Decimal:
+    """DB Numeric -> Decimal（None 视为 0），避免浮点误差。"""
+    return Decimal(str(value)) if value is not None else Decimal("0")
+
+
+def _item_line_total(item: ORMOrderItem) -> Decimal:
+    return _money(item.price) * int(item.quantity or 0)
+
+
+def _item_refundable_quantity(item: ORMOrderItem) -> int:
+    """行剩余可退数量（部分退款不阻断同订单其他行发货）。"""
+    return max(int(item.quantity or 0) - int(item.refunded_quantity or 0), 0)
+
+
+def _order_refundable_amount(order: ORMOrder) -> Decimal:
+    """订单剩余可退金额（商品 + 税 + 运费累计上限校验）。"""
+    return max(_money(order.total) - _money(order.refunded_amount), Decimal("0"))
+
+
+def _refunded_shipping_total(order: ORMOrder) -> Decimal:
+    """累计已退运费（避免重复退运费）。"""
+    total = Decimal("0")
+    for entry in cast(list[Any], order.refunds or []):
+        if isinstance(entry, dict):
+            total += _money(entry.get("shipping_amount"))
+    return total
+
+
+def _restocked_quantity_map(order: ORMOrder) -> dict[str, int]:
+    """各行已通过退款 restock 回补过的数量，取消回补时据此去重。"""
+    out: dict[str, int] = {}
+    for entry in cast(list[Any], order.refunds or []):
+        if not isinstance(entry, dict) or not entry.get("restock"):
+            continue
+        for line in cast(list[Any], entry.get("items") or []):
+            if isinstance(line, dict):
+                key = str(line.get("order_item_id"))
+                out[key] = out.get(key, 0) + int(line.get("quantity") or 0)
+    return out
+
+
+def _order_fulfillment_mode(order: ORMOrder) -> str:
+    """订单级履约模式聚合：全自采购 self / 全代发 dropship / 混合 mixed（历史行按 self 解释）。"""
+    modes = {(i.fulfillment_mode or _FULFILLMENT_SELF) for i in (order.items or [])}
+    if len(modes) > 1:
+        return "mixed"
+    return str(next(iter(modes))) if modes else _FULFILLMENT_SELF
+
+
+def _procurement_summary(order: ORMOrder) -> dict[str, int]:
+    """行级采购汇总：仅统计 dropship 行（self 行不参与采购）。"""
+    total = requested = received = 0
+    for i in order.items or []:
+        if (i.fulfillment_mode or _FULFILLMENT_SELF) != _FULFILLMENT_DROPSHIP:
+            continue
+        total += 1
+        if i.procurement_status == "received":
+            received += 1
+        elif i.procurement_status == "requested":
+            requested += 1
+    return {"total": total, "requested": requested, "received": received, "pending": total - requested - received}
 
 
 def _order_to_dict(order: ORMOrder) -> dict[str, object]:
@@ -216,6 +305,14 @@ def _order_to_dict(order: ORMOrder) -> dict[str, object]:
         "tracking_number": order.tracking_number,
         "review_status": order.review_status,
         "procurement_info": order.procurement_info,
+        # 采购汇总（行级采购派生）：待采 / 在途 / 已入库；订单级不再是采购载体
+        "procurement_summary": _procurement_summary(order),
+        # 资金：累计已退金额、剩余可退余额、退款流水（行级）
+        "refunded_amount": float(_money(order.refunded_amount)),
+        "refundable_amount": float(_order_refundable_amount(order)),
+        "refunds": order.refunds or [],
+        # 订单级履约模式聚合：self / dropship / mixed
+        "fulfillment_mode": _order_fulfillment_mode(order),
         "shipping_address": order.shipping_address,
         "created_at": order.created_at.isoformat() if order.created_at else None,
         "updated_at": order.updated_at.isoformat() if order.updated_at else None,
@@ -232,6 +329,18 @@ def _order_to_dict(order: ORMOrder) -> dict[str, object]:
                 "fulfillment_mode": i.fulfillment_mode or _FULFILLMENT_SELF,
                 "supplier_id": str(i.supplier_id) if i.supplier_id else None,
                 "supplier_sku": i.supplier_sku,
+                # 退款（行级）：已退数量 / 剩余可退数量
+                "refunded_quantity": int(i.refunded_quantity or 0),
+                "refundable_quantity": _item_refundable_quantity(i),
+                # 采购（行级）：None=未采购 / requested=在途 / received=已入库
+                "procurement_status": i.procurement_status,
+                "procurement_requested_at": (
+                    i.procurement_requested_at.isoformat() if i.procurement_requested_at else None
+                ),
+                "procurement_received_at": (
+                    i.procurement_received_at.isoformat() if i.procurement_received_at else None
+                ),
+                "procurement_cost": float(i.procurement_cost) if i.procurement_cost is not None else None,
             }
             for i in order.items
         ],
@@ -258,31 +367,43 @@ class SQLAlchemyCustomerOrderRepository:
         return str(first) if isinstance(first, str) else None
 
     @staticmethod
-    async def _restore_inventory(db: AsyncSession, item_rows: list[ORMOrderItem]) -> None:
-        """Add back item quantities to product inventory (cancel / refund flows).
+    async def _restock_items(db: AsyncSession, pairs: list[tuple[ORMOrderItem, int]]) -> None:
+        """按 (行, 数量) 回补本地库存（取消 / 退款勾选 restock 时调用）。
 
         代发行（dropship）下单时未扣减本地库存，回补时同样跳过。
         """
-        product_ids = [
-            cast(int, i.product_id)
-            for i in item_rows
-            if i.product_id is not None and (i.fulfillment_mode or _FULFILLMENT_SELF) != _FULFILLMENT_DROPSHIP
+        rows = [
+            (item, int(qty))
+            for item, qty in pairs
+            if int(qty) > 0
+            and item.product_id is not None
+            and (item.fulfillment_mode or _FULFILLMENT_SELF) != _FULFILLMENT_DROPSHIP
         ]
-        if not product_ids:
+        if not rows:
             return
+        product_ids = [cast(int, item.product_id) for item, _ in rows]
         products = (
             (await db.execute(select(ORMProduct).where(ORMProduct.id.in_(product_ids)).with_for_update()))
             .scalars()
             .all()
         )
         product_map = {cast(int, p.id): p for p in products}
-        for i in item_rows:
-            if (i.fulfillment_mode or _FULFILLMENT_SELF) == _FULFILLMENT_DROPSHIP:
-                continue
-            product = product_map.get(cast(int, i.product_id)) if i.product_id is not None else None
+        for item, qty in rows:
+            product = product_map.get(cast(int, item.product_id))
             if product is not None and product.inventory is not None:
-                product.inventory = cast(Any, product.inventory + i.quantity)
+                product.inventory = cast(Any, product.inventory + qty)
         await db.flush()
+
+    @staticmethod
+    async def _restore_inventory(db: AsyncSession, order: ORMOrder) -> None:
+        """终止履约（取消 / 审核拒绝）时回补库存。
+
+        按「行数量 - 退款流程中已 restock 回补的数量」回补，避免与退款重复入库；
+        已退款但未回补的货在取消语义下同样退回仓库。
+        """
+        restocked = _restocked_quantity_map(order)
+        pairs = [(i, max(int(i.quantity or 0) - restocked.get(str(i.id), 0), 0)) for i in (order.items or [])]
+        await SQLAlchemyCustomerOrderRepository._restock_items(db, pairs)
 
     @staticmethod
     async def list_by_user(
@@ -446,7 +567,7 @@ class SQLAlchemyCustomerOrderRepository:
         order.review_status = cast(Any, review)
         await db.flush()
 
-        await SQLAlchemyCustomerOrderRepository._restore_inventory(db, order.items)
+        await SQLAlchemyCustomerOrderRepository._restore_inventory(db, order)
         return order
 
     @staticmethod
@@ -548,44 +669,101 @@ class SQLAlchemyCustomerOrderRepository:
         order.updated_at = cast(Any, now)
         await db.flush()
         if not approved:
-            await SQLAlchemyCustomerOrderRepository._restore_inventory(db, order.items)
+            await SQLAlchemyCustomerOrderRepository._restore_inventory(db, order)
         return order
+
+    @staticmethod
+    def _resolve_procure_targets(order: ORMOrder, item_ids: list[str] | None) -> list[ORMOrderItem]:
+        """定位可采购行：仅 dropship 行；未指定 item_ids 时取全部未采购行。"""
+        dropship_rows = [
+            i for i in (order.items or []) if (i.fulfillment_mode or _FULFILLMENT_SELF) == _FULFILLMENT_DROPSHIP
+        ]
+        if not item_ids:
+            return [i for i in dropship_rows if i.procurement_status is None]
+        by_id = {str(i.id): i for i in dropship_rows}
+        targets: list[ORMOrderItem] = []
+        for raw in item_ids:
+            item = by_id.get(str(raw))
+            if item is None:
+                raise APIError(
+                    ErrorCode.VALIDATION_ERROR,
+                    message="Procurement target must be an existing dropship order item.",
+                )
+            if item.procurement_status == "received":
+                raise APIError(ErrorCode.ORDER_INVALID_STATE, message=f"Item '{item.name}' is already received.")
+            targets.append(item)
+        return targets
 
     @staticmethod
     async def admin_procure_order(
         db: AsyncSession,
         order: ORMOrder,
-        supplier_id: str,
+        item_ids: list[str] | None = None,
+        supplier_id: str | None = None,
         supplier_sku: str | None = None,
         cost: float | None = None,
     ) -> ORMOrder:
-        """Admin procurement flow: 仅登记采购信息，**不再迁移订单主状态**。
+        """行级推送采购（仅代发行）：写行级采购状态 requested，**不迁移订单主状态**。
 
         采购是订单的旁支履约动作（对齐 Shopify PO / 聚水潭采购单）：
-        历史实现把主状态置为 procuring，导致 mark_shipped 拒单、订单卡死（无法发货、无撤销入口）。
-        现在只写 procurement_info（status=requested），订单留在 processing 可随时发货。
+        - 载体是商品行而非订单主状态，采购失败/在途都不影响订单发货；
+        - 历史实现把主状态置为 procuring 导致订单卡死，仅保留复位兼容。
         """
-        if order.status not in (_PROCURABLE_STATUSES | {"procuring"}):
+        if order.status not in _PROCURE_ORDER_STATUSES:
             raise APIError(
                 ErrorCode.ORDER_INVALID_STATE,
                 message=f"Order cannot be pushed to procurement in state '{order.status}'.",
             )
-        if not supplier_id or not supplier_id.strip():
-            raise APIError(ErrorCode.VALIDATION_ERROR, message="Supplier ID is required.")
+        targets = SQLAlchemyCustomerOrderRepository._resolve_procure_targets(order, item_ids)
+        if not targets:
+            raise APIError(ErrorCode.VALIDATION_ERROR, message="No purchasable dropship item found.")
+
+        parsed_supplier: UUID | None = None
+        if supplier_id and supplier_id.strip():
+            try:
+                parsed_supplier = UUID(supplier_id.strip())
+            except ValueError as exc:
+                raise APIError(ErrorCode.VALIDATION_ERROR, message="Supplier ID must be a valid UUID.") from exc
+
         now = SQLAlchemyCustomerOrderRepository._now()
-        order.procurement_info = cast(
-            Any,
-            {
-                "supplier_id": supplier_id.strip(),
-                "supplier_sku": (supplier_sku or "").strip(),
-                "cost": float(cost) if cost is not None else None,
-                "requested_at": now.isoformat(),
-                "status": "requested",
-            },
-        )
+        for item in targets:
+            if parsed_supplier is not None:
+                item.supplier_id = cast(Any, parsed_supplier)
+            if supplier_sku and supplier_sku.strip():
+                item.supplier_sku = cast(Any, supplier_sku.strip())
+            if cost is not None:
+                item.procurement_cost = cast(Any, cost)
+            item.procurement_status = cast(Any, "requested")
+            item.procurement_requested_at = cast(Any, now)
         # 历史 procure_failed / procuring 订单复位到 processing，恢复其可发货能力
         if order.status in {"procure_failed", "procuring"}:
             order.status = cast(Any, "processing")
+        order.updated_at = cast(Any, now)
+        await db.flush()
+        return order
+
+    @staticmethod
+    async def admin_receive_procurement(
+        db: AsyncSession,
+        order: ORMOrder,
+        item_ids: list[str] | None = None,
+    ) -> ORMOrder:
+        """行级采购到货确认：requested -> received（仅代发行，不影响订单主状态）。"""
+        targets = [i for i in (order.items or []) if i.procurement_status == "requested"]
+        if item_ids:
+            wanted = {str(x) for x in item_ids}
+            targets = [i for i in targets if str(i.id) in wanted]
+            if len(targets) != len(wanted):
+                raise APIError(
+                    ErrorCode.VALIDATION_ERROR, message="One or more items are not in requested procurement state."
+                )
+        if not targets:
+            raise APIError(ErrorCode.VALIDATION_ERROR, message="No requested procurement item found.")
+
+        now = SQLAlchemyCustomerOrderRepository._now()
+        for item in targets:
+            item.procurement_status = cast(Any, "received")
+            item.procurement_received_at = cast(Any, now)
         order.updated_at = cast(Any, now)
         await db.flush()
         return order
@@ -595,26 +773,147 @@ class SQLAlchemyCustomerOrderRepository:
         db: AsyncSession,
         order: ORMOrder,
         reason: str | None = None,
+        item_refunds: list[dict[str, Any]] | None = None,
+        refund_shipping: bool = False,
+        restock: bool = False,
+        refunded_by: str = "admin",
     ) -> ORMOrder:
-        """Admin full-order refund for unshipped orders (confirmed .. procure_failed).
+        """行级 / 部分退款（行业对齐：Shopify refundCreate）——**只做资金动作，不改订单履约状态**。
 
-        Restores inventory and moves the order to the terminal 'refunded' state.
+        - item_refunds: [{"order_item_id": str, "quantity": int}]，为空表示退全部剩余可退数量
+        - refund_shipping: 是否同时退还剩余未退运费（行业：运费可单独退）
+        - restock: 是否把本次退款数量回补本地库存（默认否；未发货终止走取消入口统一回补）
+        - payment_status: 全退 -> refunded；未退完 -> partially_refunded；不新增订单终态
         """
-        if order.status not in _REFUNDABLE_UNSHIPPED_STATUSES:
+        if order.payment_status not in _REFUNDABLE_PAYMENT_STATUSES:
+            raise APIError(ErrorCode.ORDER_INVALID_STATE, message="Order has no paid amount to refund.")
+        if order.status in _REFUND_BLOCKED_ORDER_STATUSES:
             raise APIError(
                 ErrorCode.ORDER_INVALID_STATE,
                 message=f"Order cannot be refunded in state '{order.status}'.",
             )
+
+        plan: list[tuple[ORMOrderItem, int]] = []
+        if item_refunds:
+            by_id = {str(i.id): i for i in (order.items or [])}
+            for entry in item_refunds:
+                item = by_id.get(str(entry.get("order_item_id")))
+                if item is None:
+                    raise APIError(ErrorCode.VALIDATION_ERROR, message="Refund item does not belong to this order.")
+                quantity = int(entry.get("quantity") or 0)
+                if quantity <= 0:
+                    raise APIError(ErrorCode.VALIDATION_ERROR, message="Refund quantity must be positive.")
+                if quantity > _item_refundable_quantity(item):
+                    raise APIError(
+                        ErrorCode.VALIDATION_ERROR,
+                        message=f"Refund quantity exceeds refundable quantity for '{item.name}'.",
+                    )
+                plan.append((item, quantity))
+        else:
+            plan = [(i, _item_refundable_quantity(i)) for i in (order.items or []) if _item_refundable_quantity(i) > 0]
+        if not plan:
+            raise APIError(ErrorCode.VALIDATION_ERROR, message="Nothing left to refund.")
+
+        goods_amount = sum((_money(i.price) * quantity for i, quantity in plan), Decimal("0"))
+        # 税按退款行小计占订单商品小计的比例分摊（行业：退款同时退还对应税额）
+        tax_amount = Decimal("0")
+        subtotal = _money(order.subtotal)
+        if subtotal > 0 and _money(order.tax) > 0:
+            refunded_base = sum((_item_line_total(i) for i, _ in plan), Decimal("0"))
+            tax_amount = (_money(order.tax) * refunded_base / subtotal).quantize(_CENTS)
+        shipping_amount = Decimal("0")
+        if refund_shipping:
+            shipping_amount = max(_money(order.shipping_cost) - _refunded_shipping_total(order), Decimal("0"))
+        amount = (goods_amount + tax_amount + shipping_amount).quantize(_CENTS)
+        if amount <= 0:
+            raise APIError(ErrorCode.VALIDATION_ERROR, message="Refund amount must be positive.")
+        if amount > _order_refundable_amount(order):
+            raise APIError(ErrorCode.VALIDATION_ERROR, message="Refund amount exceeds refundable balance.")
+
         now = SQLAlchemyCustomerOrderRepository._now()
+        for item, quantity in plan:
+            item.refunded_quantity = cast(Any, int(item.refunded_quantity or 0) + quantity)
+        entry = {
+            "id": str(uuid4()),
+            "amount": float(amount),
+            "goods_amount": float(goods_amount),
+            "tax_amount": float(tax_amount),
+            "shipping_amount": float(shipping_amount),
+            "items": [
+                {
+                    "order_item_id": str(i.id),
+                    "name": i.name,
+                    "quantity": quantity,
+                    "amount": float(_money(i.price) * quantity),
+                }
+                for i, quantity in plan
+            ],
+            "reason": reason or "",
+            "refunded_by": refunded_by,
+            "refunded_at": now.isoformat(),
+            "restock": bool(restock),
+        }
+        order.refunds = cast(Any, [*(order.refunds or []), entry])
+        refunded_total = _money(order.refunded_amount) + amount
+        order.refunded_amount = cast(Any, refunded_total)
+        order.payment_status = cast(
+            Any, "refunded" if refunded_total >= _money(order.total) - _CENTS else "partially_refunded"
+        )
         review = dict(order.review_status or {})
-        review["refunded_by"] = "admin"
+        review["refunded_by"] = refunded_by
         review["refund_reason"] = reason or ""
         review["refunded_at"] = now.isoformat()
         order.review_status = cast(Any, review)
-        order.status = cast(Any, "refunded")
         order.updated_at = cast(Any, now)
         await db.flush()
-        await SQLAlchemyCustomerOrderRepository._restore_inventory(db, order.items)
+        if restock:
+            await SQLAlchemyCustomerOrderRepository._restock_items(db, plan)
+        return order
+
+    @staticmethod
+    async def admin_cancel_order(
+        db: AsyncSession,
+        order: ORMOrder,
+        reason: str | None = None,
+        refund: bool | None = None,
+        restock: bool = True,
+        cancelled_by: str = "admin",
+    ) -> ORMOrder:
+        """后台取消订单（履约终止）：可选择同时退款，是「取消 / 退款」的合并入口。
+
+        - 语义合并：取消不再自带一套独立的退款逻辑，需要退款时复用 admin_refund_order（同一实现），
+          取消自身只保留履约终止 + 库存回补语义，消除与退款的重复实现。
+        - refund=None：有已收款项且仍有可退余额时自动退款（行业：Refund and cancel）
+        - 库存：按「行数量 - 已 restock 数量」回补，已退款未回补的货在取消语义下退回仓库
+        """
+        if order.status not in _ADMIN_CANCELLABLE_STATUSES:
+            raise APIError(
+                ErrorCode.ORDER_NOT_CANCELLABLE,
+                message=f"Order cannot be cancelled in state '{order.status}'.",
+            )
+        has_refundable = order.payment_status in _REFUNDABLE_PAYMENT_STATUSES and _order_refundable_amount(order) > 0
+        should_refund = has_refundable if refund is None else bool(refund)
+        now = SQLAlchemyCustomerOrderRepository._now()
+        if should_refund and has_refundable:
+            await SQLAlchemyCustomerOrderRepository.admin_refund_order(
+                db,
+                order,
+                reason=reason,
+                item_refunds=None,
+                refund_shipping=True,
+                restock=False,
+                refunded_by=cancelled_by,
+            )
+        order.status = cast(Any, "cancelled")
+        review = dict(order.review_status or {})
+        review["cancelled_by"] = cancelled_by
+        review["cancelled_reason"] = reason or ""
+        review["refund_skipped"] = bool(has_refundable and not should_refund)
+        order.review_status = cast(Any, review)
+        order.updated_at = cast(Any, now)
+        await db.flush()
+        if restock:
+            await SQLAlchemyCustomerOrderRepository._restore_inventory(db, order)
         return order
 
     @staticmethod

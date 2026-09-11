@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { h, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import {
   NButton,
   NCard,
+  NCheckbox,
   NDataTable,
   NEmpty,
   NFormItem,
@@ -28,6 +29,7 @@ const reviewApprove = ref(true);
 const reviewReason = ref('');
 const reviewBy = ref('');
 const showProcure = ref(false);
+const procureTargets = ref<any[]>([]);
 const procureSupplierId = ref('');
 const procureSku = ref('');
 const procureCost = ref(0);
@@ -35,13 +37,35 @@ const showShip = ref(false);
 const shipPackages = ref<Array<{ carrier: string; tracking_number: string; supplier_id: string }>>([]);
 const showRefund = ref(false);
 const refundReason = ref('');
+const refundLines = ref<Array<{ id: string; name: string; quantity: number; refundable: number }>>([]);
+const refundShipping = ref(false);
+const refundRestock = ref(false);
+const showCancel = ref(false);
+const cancelReason = ref('');
+const cancelRefund = ref(true);
 const actionError = ref('');
 const actionLoading = ref(false);
 
-const REFUNDABLE_STATUSES = ['confirmed', 'processing', 'procuring', 'procure_failed'];
-
-function isRefundable(s: string): boolean {
-  return REFUNDABLE_STATUSES.includes(s);
+// 退款按资金余额判定，与订单履约状态解耦（行业：Shopify refundCreate，部分退款不阻断剩余行发货）
+function refundableAmount(): number {
+  return Number(order.value?.refundable_amount || 0);
+}
+function canRefund(): boolean {
+  return refundableAmount() > 0.001;
+}
+function canCancel(): boolean {
+  return ['pending', 'confirmed', 'processing'].includes(order.value?.status || '');
+}
+function canShip(): boolean {
+  return ['confirmed', 'processing'].includes(order.value?.status || '');
+}
+function dropshipRows(): any[] {
+  return (order.value?.items || []).filter((i: any) => i.fulfillment_mode === 'dropship');
+}
+function procurementStatusLabel(status?: string | null): string {
+  if (status === 'received') return '已入库';
+  if (status === 'requested') return '采购中';
+  return '未采购';
 }
 
 function statusType(s: string): any {
@@ -74,6 +98,7 @@ function paymentStatusType(s: string): any {
   const map: Record<string, any> = {
     paid: 'success',
     refunded: 'warning',
+    partially_refunded: 'warning',
     unpaid: 'default',
     failed: 'error'
   };
@@ -121,6 +146,46 @@ const itemColumns: DataTableColumns<any> = [
     title: '供应商',
     key: 'supplier_id',
     render: row => (row.fulfillment_mode === 'dropship' ? row.supplier_sku || row.supplier_id || '-' : '-')
+  },
+  {
+    title: '已退/可退',
+    key: 'refunded_quantity',
+    render: row => `${row.refunded_quantity || 0} / ${row.refundable_quantity ?? row.quantity}`
+  },
+  {
+    title: '采购状态',
+    key: 'procurement_status',
+    render: row => {
+      if (row.fulfillment_mode !== 'dropship') return '-';
+      const map: Record<string, { label: string; type: any }> = {
+        received: { label: '已入库', type: 'success' },
+        requested: { label: '采购中', type: 'warning' }
+      };
+      const meta = map[row.procurement_status] || { label: '未采购', type: 'default' };
+      return h(NTag, { size: 'small', type: meta.type }, { default: () => meta.label });
+    }
+  },
+  {
+    title: '采购操作',
+    key: 'procurement_action',
+    render: row => {
+      if (row.fulfillment_mode !== 'dropship') return '-';
+      if (row.procurement_status === 'received') {
+        return h('span', { class: 'text-[var(--n-text-color-3)]' }, '已完成');
+      }
+      if (row.procurement_status === 'requested') {
+        return h(
+          NButton,
+          { size: 'tiny', secondary: true, onClick: () => doReceiveProcurement(row) },
+          { default: () => '确认到货' }
+        );
+      }
+      return h(
+        NButton,
+        { size: 'tiny', secondary: true, type: 'primary', onClick: () => openProcure(row) },
+        { default: () => '推送采购' }
+      );
+    }
   }
 ];
 
@@ -131,10 +196,16 @@ function openReview(approve: boolean) {
   actionError.value = '';
   showReview.value = true;
 }
-function openProcure() {
-  procureSupplierId.value = order.value?.procurement_info?.supplier_id || '';
-  procureSku.value = order.value?.procurement_info?.supplier_sku || '';
-  procureCost.value = order.value?.procurement_info?.cost || 0;
+function openProcure(row?: any) {
+  const pending = dropshipRows().filter((i: any) => i.procurement_status !== 'received');
+  procureTargets.value = row ? [row] : pending;
+  if (!procureTargets.value.length) {
+    actionError.value = '当前没有可推送采购的代发行';
+    return;
+  }
+  procureSupplierId.value = row?.supplier_id || procureTargets.value[0]?.supplier_id || '';
+  procureSku.value = row?.supplier_sku || '';
+  procureCost.value = Number(row?.procurement_cost || 0);
   actionError.value = '';
   showProcure.value = true;
 }
@@ -151,10 +222,32 @@ function addShipPackage() {
 function removeShipPackage(index: number) {
   shipPackages.value.splice(index, 1);
 }
-function openRefund() {
+function openRefund(row?: any) {
+  const rows: any[] = row ? [row] : order.value?.items || [];
+  refundLines.value = rows
+    .map(i => ({
+      id: i.id,
+      name: i.name,
+      quantity: Number(i.refundable_quantity ?? i.quantity) || 0,
+      refundable: Number(i.refundable_quantity ?? i.quantity) || 0
+    }))
+    .filter(line => line.refundable > 0);
+  if (!refundLines.value.length) {
+    actionError.value = '当前没有可退数量的商品行';
+    return;
+  }
   refundReason.value = '';
+  refundShipping.value = false;
+  refundRestock.value = false;
   actionError.value = '';
   showRefund.value = true;
+}
+
+function openCancel() {
+  cancelReason.value = '';
+  cancelRefund.value = true;
+  actionError.value = '';
+  showCancel.value = true;
 }
 
 async function doReview() {
@@ -180,11 +273,32 @@ async function doProcure() {
   actionError.value = '';
   try {
     await post(`/api/admin/v1/orders/${route.params.id}/procure`, {
-      supplier_id: procureSupplierId.value,
-      supplier_sku: procureSku.value,
-      cost: procureCost.value
+      items: procureTargets.value.map((i: any) => ({
+        order_item_id: i.id,
+        supplier_id: procureSupplierId.value || null,
+        supplier_sku: procureSku.value || null,
+        cost: Number(procureCost.value) || null
+      }))
     });
     showProcure.value = false;
+    await loadOrder();
+  } catch (e: any) {
+    actionError.value = e.response?.data?.detail || t('page.ordersDetail.procurementFailed');
+  } finally {
+    actionLoading.value = false;
+  }
+}
+
+async function doReceiveProcurement(row?: any) {
+  actionLoading.value = true;
+  actionError.value = '';
+  try {
+    const ids = row
+      ? [row.id]
+      : dropshipRows()
+          .filter((i: any) => i.procurement_status === 'requested')
+          .map((i: any) => i.id);
+    await post(`/api/admin/v1/orders/${route.params.id}/procure/receive`, { order_item_ids: ids });
     await loadOrder();
   } catch (e: any) {
     actionError.value = e.response?.data?.detail || t('page.ordersDetail.procurementFailed');
@@ -222,11 +336,40 @@ async function doRefund() {
   actionLoading.value = true;
   actionError.value = '';
   try {
-    await post(`/api/admin/v1/orders/${route.params.id}/refund`, { reason: refundReason.value });
+    const items = refundLines.value
+      .filter(line => Number(line.quantity) > 0)
+      .map(line => ({ order_item_id: line.id, quantity: Number(line.quantity) }));
+    if (!items.length) {
+      actionError.value = '请填写退款数量';
+      return;
+    }
+    await post(`/api/admin/v1/orders/${route.params.id}/refund`, {
+      reason: refundReason.value,
+      items,
+      refund_shipping: refundShipping.value,
+      restock: refundRestock.value
+    });
     showRefund.value = false;
     await loadOrder();
   } catch (e: any) {
     actionError.value = e.response?.data?.detail || t('page.ordersDetail.refundFailed');
+  } finally {
+    actionLoading.value = false;
+  }
+}
+
+async function doCancel() {
+  actionLoading.value = true;
+  actionError.value = '';
+  try {
+    await post(`/api/admin/v1/orders/${route.params.id}/cancel`, {
+      reason: cancelReason.value,
+      refund: cancelRefund.value
+    });
+    showCancel.value = false;
+    await loadOrder();
+  } catch (e: any) {
+    actionError.value = e.response?.data?.detail || '取消失败';
   } finally {
     actionLoading.value = false;
   }
@@ -261,18 +404,13 @@ onMounted(loadOrder);
           <NButton v-if="order.status === 'confirmed'" type="error" @click="openReview(false)">
             {{ $t('page.ordersDetail.reject') }}
           </NButton>
-          <NButton v-if="order.status === 'processing'" type="primary" @click="openProcure()">
-            {{ $t('page.ordersDetail.pushToProcurement') }}
-          </NButton>
-          <NButton v-if="order.status === 'procure_failed'" type="error" @click="openProcure()">
-            {{ $t('page.ordersDetail.retryProcurement') }}
-          </NButton>
-          <NButton v-if="isRefundable(order.status)" type="error" @click="openRefund()">
-            {{ $t('page.ordersDetail.refund') }}
-          </NButton>
-          <NButton v-if="order.status === 'procuring'" type="primary" @click="openShip()">
+          <NButton v-if="canShip()" type="primary" @click="openShip()">
             {{ $t('page.ordersDetail.ship') }}
           </NButton>
+          <NButton v-if="canRefund()" type="error" @click="openRefund()">
+            {{ $t('page.ordersDetail.refund') }}
+          </NButton>
+          <NButton v-if="canCancel()" @click="openCancel()">取消订单</NButton>
         </NSpace>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -314,6 +452,14 @@ onMounted(loadOrder);
                 <NTag :type="paymentStatusType(order.payment_status)" size="small">
                   {{ order.payment_status || '-' }}
                 </NTag>
+              </div>
+              <div>
+                <span class="text-[var(--n-text-color-3)]">已退款金额</span>
+                {{ money(order.refunded_amount || 0) }}
+              </div>
+              <div>
+                <span class="text-[var(--n-text-color-3)]">可退款金额</span>
+                {{ money(order.refundable_amount || 0) }}
               </div>
               <div v-if="order.payment_intent_id">
                 <span class="text-[var(--n-text-color-3)]">{{ $t('page.ordersDetail.paymentIntentId') }}</span>
@@ -405,29 +551,42 @@ onMounted(loadOrder);
             </div>
           </NCard>
 
-          <!-- Procurement -->
-          <NCard v-if="order.procurement_info" :title="$t('page.ordersDetail.procurementInfo')" size="small">
+          <!-- Procurement（行级采购单） -->
+          <NCard v-if="dropshipRows().length" :title="$t('page.ordersDetail.procurementInfo')" size="small">
             <div class="flex flex-col gap-2 text-sm">
               <div>
-                <span class="text-[var(--n-text-color-3)]">采购状态</span>
-                {{ order.procurement_info.status || 'requested' }}
+                <span class="text-[var(--n-text-color-3)]">采购汇总</span>
+                采购中 {{ order.procurement_summary?.requested || 0 }} / 已入库
+                {{ order.procurement_summary?.received || 0 }} / 未采购
+                {{ order.procurement_summary?.pending || 0 }}
               </div>
-              <div v-if="order.procurement_info.requested_at || order.procurement_info.procured_at">
-                <span class="text-[var(--n-text-color-3)]">推送时间</span>
-                {{ fmtTime(order.procurement_info.requested_at || order.procurement_info.procured_at) }}
+              <div v-for="row in dropshipRows()" :key="row.id" class="border-t pt-2 flex flex-col gap-1">
+                <div class="font-medium">{{ row.name }}（SKU: {{ row.sku || '-' }}）</div>
+                <div>
+                  <span class="text-[var(--n-text-color-3)]">采购状态</span>
+                  {{ procurementStatusLabel(row.procurement_status) }}
+                </div>
+                <div v-if="row.supplier_id">
+                  <span class="text-[var(--n-text-color-3)]">{{ $t('page.ordersDetail.supplier') }}</span>
+                  {{ row.supplier_id }}
+                </div>
+                <div v-if="row.supplier_sku">
+                  <span class="text-[var(--n-text-color-3)]">{{ $t('common.sku') }}</span>
+                  {{ row.supplier_sku }}
+                </div>
+                <div v-if="row.procurement_cost != null">
+                  <span class="text-[var(--n-text-color-3)]">{{ $t('common.cost') }}</span>
+                  ${{ row.procurement_cost }}
+                </div>
               </div>
-              <div>
-                <span class="text-[var(--n-text-color-3)]">{{ $t('page.ordersDetail.supplier') }}</span>
-                {{ order.procurement_info.supplier_id }}
-              </div>
-              <div>
-                <span class="text-[var(--n-text-color-3)]">{{ $t('common.sku') }}</span>
-                {{ order.procurement_info.supplier_sku }}
-              </div>
-              <div>
-                <span class="text-[var(--n-text-color-3)]">{{ $t('common.cost') }}</span>
-                ${{ order.procurement_info.cost }}
-              </div>
+              <NButton
+                v-if="order.procurement_summary?.requested"
+                size="tiny"
+                secondary
+                @click="doReceiveProcurement()"
+              >
+                全部确认到货
+              </NButton>
             </div>
           </NCard>
 
@@ -522,7 +681,7 @@ onMounted(loadOrder);
       </template>
     </NModal>
 
-    <!-- Procure Modal -->
+    <!-- Procure Modal（行级推送） -->
     <NModal
       v-model:show="showProcure"
       preset="card"
@@ -530,6 +689,12 @@ onMounted(loadOrder);
       style="width: 440px"
     >
       <div class="flex flex-col gap-3">
+        <div class="text-sm">
+          <div>目标商品行（{{ procureTargets.length }}）</div>
+          <div v-for="row in procureTargets" :key="row.id" class="text-[var(--n-text-color-3)]">
+            {{ row.name }} × {{ row.quantity }}
+          </div>
+        </div>
         <NFormItem :label="$t('page.ordersDetail.supplierId')" required>
           <NInput v-model:value="procureSupplierId" />
         </NFormItem>
@@ -590,12 +755,22 @@ onMounted(loadOrder);
       </template>
     </NModal>
 
-    <!-- Refund Modal -->
-    <NModal v-model:show="showRefund" preset="card" :title="$t('page.ordersDetail.refundOrder')" style="width: 440px">
+    <!-- Refund Modal（行级部分退款） -->
+    <NModal v-model:show="showRefund" preset="card" :title="$t('page.ordersDetail.refundOrder')" style="width: 560px">
       <div class="flex flex-col gap-3">
+        <div v-for="line in refundLines" :key="line.id" class="border rounded p-3 flex flex-col gap-2 text-sm">
+          <div class="font-medium">{{ line.name }}</div>
+          <div class="text-[var(--n-text-color-3)]">可退数量 {{ line.refundable }}</div>
+          <NFormItem label="退款数量" :show-feedback="false">
+            <NInputNumber v-model:value="line.quantity" :min="0" :max="line.refundable" style="width: 100%" />
+          </NFormItem>
+        </div>
+        <NCheckbox v-model:checked="refundShipping">同时退还运费</NCheckbox>
+        <NCheckbox v-model:checked="refundRestock">退回商品并回补库存</NCheckbox>
         <NFormItem :label="$t('page.ordersDetail.reason')">
           <NInput v-model:value="refundReason" type="textarea" :rows="2" />
         </NFormItem>
+        <div class="text-sm text-[var(--n-text-color-3)]">本次可退余额 {{ money(refundableAmount()) }}</div>
         <div v-if="actionError" class="text-red-500 text-sm">{{ actionError }}</div>
       </div>
       <template #footer>
@@ -604,6 +779,26 @@ onMounted(loadOrder);
           <NButton type="error" :loading="actionLoading" @click="doRefund">
             {{ $t('page.ordersDetail.confirmRefund') }}
           </NButton>
+        </NSpace>
+      </template>
+    </NModal>
+
+    <!-- Cancel Modal（取消即退款的复合入口） -->
+    <NModal v-model:show="showCancel" preset="card" title="取消订单" style="width: 440px">
+      <div class="flex flex-col gap-3">
+        <div class="text-sm text-[var(--n-text-color-3)]">
+          取消将终止订单履约（回补自采购库存），可按需一并退款。
+        </div>
+        <NFormItem :label="$t('page.ordersDetail.reason')">
+          <NInput v-model:value="cancelReason" type="textarea" :rows="2" />
+        </NFormItem>
+        <NCheckbox v-model:checked="cancelRefund">同时全额退款（当前可退 {{ money(refundableAmount()) }}）</NCheckbox>
+        <div v-if="actionError" class="text-red-500 text-sm">{{ actionError }}</div>
+      </div>
+      <template #footer>
+        <NSpace justify="end">
+          <NButton @click="showCancel = false">{{ $t('common.cancel') }}</NButton>
+          <NButton type="error" :loading="actionLoading" @click="doCancel">确认取消</NButton>
         </NSpace>
       </template>
     </NModal>

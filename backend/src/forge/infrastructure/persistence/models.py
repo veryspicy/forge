@@ -668,6 +668,13 @@ class ORMOrderItem(Base):
     fulfillment_mode = Column(String(20), nullable=True)
     supplier_id = Column(UUID(as_uuid=True), nullable=True)
     supplier_sku = Column(String(255), nullable=True)
+    # 退款（行级）：累计已退数量，配合 orders.refunded_amount 支撑部分/行级退款与幂等校验
+    refunded_quantity = Column(Integer, nullable=False, server_default="0")
+    # 采购（行级）：仅 dropship 行可采购；requested=已推送采购，received=已入库
+    procurement_status = Column(String(20), nullable=True)
+    procurement_requested_at = Column(DateTime(timezone=False), nullable=True)
+    procurement_received_at = Column(DateTime(timezone=False), nullable=True)
+    procurement_cost = Column(Numeric(12, 2), nullable=True)
 
     order: Mapped[ORMOrder] = relationship("ORMOrder", back_populates="items")
 
@@ -697,6 +704,9 @@ class ORMOrder(Base):
     shipping_address = Column(JSONB, nullable=True)
     review_status = Column(JSONB, nullable=True)
     procurement_info = Column(JSONB, nullable=True)
+    # 退款（订单级资金流水）：累计已退金额 + 逐笔退款记录，配合 items.refunded_quantity 支撑行级/部分退款
+    refunded_amount = Column(Numeric(12, 2), nullable=False, server_default="0")
+    refunds = Column(JSONB, nullable=True)
     created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
     updated_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
 

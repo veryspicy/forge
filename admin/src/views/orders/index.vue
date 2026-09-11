@@ -34,8 +34,6 @@ const statusOptions = [
   'pending',
   'confirmed',
   'processing',
-  'procuring',
-  'procure_failed',
   'shipped',
   'delivered',
   'cancelled',
@@ -57,6 +55,12 @@ function statusType(s: string): any {
   return map[s] || 'default';
 }
 
+function fulfillmentModeLabel(mode?: string | null): string {
+  if (mode === 'dropship') return '一件代发';
+  if (mode === 'mixed') return '混合';
+  return '自采购';
+}
+
 const columns: DataTableColumns<any> = [
   {
     title: t('page.orders.orderNumber'),
@@ -74,6 +78,20 @@ const columns: DataTableColumns<any> = [
     title: t('common.status'),
     key: 'status',
     render: row => h(NTag, { type: statusType(row.status), size: 'small' }, { default: () => row.status })
+  },
+  {
+    title: '履约模式',
+    key: 'fulfillment_mode',
+    render: row => fulfillmentModeLabel(row.fulfillment_mode)
+  },
+  {
+    title: '支付/退款',
+    key: 'payment_status',
+    render: row => {
+      const refunded = Number(row.refunded_amount || 0);
+      const suffix = refunded > 0 ? ` / 已退 $${refunded.toFixed(2)}` : '';
+      return `${row.payment_status || '-'}${suffix}`;
+    }
   },
   { title: t('common.items'), key: 'items', render: row => row.items?.length || 0 },
   {
@@ -169,6 +187,19 @@ async function exportCsv() {
 const showPurchase = ref(false);
 const purchaseLoading = ref(false);
 const purchaseGroups = ref<any[]>([]);
+const purchaseStatus = ref<string>('pending');
+const purchaseStatusOptions = [
+  { label: '未采购', value: 'pending' },
+  { label: '采购中', value: 'requested' },
+  { label: '已入库', value: 'received' },
+  { label: '全部', value: 'all' }
+];
+
+function procurementStatusLabel(status?: string | null): string {
+  if (status === 'received') return '已入库';
+  if (status === 'requested') return '采购中';
+  return '未采购';
+}
 
 const purchaseColumns: DataTableColumns<any> = [
   { title: t('page.orders.orderNumber'), key: 'order_number' },
@@ -176,6 +207,16 @@ const purchaseColumns: DataTableColumns<any> = [
   { title: '供应商 SKU', key: 'supplier_sku', render: row => row.supplier_sku || '-' },
   { title: t('common.sku'), key: 'sku' },
   { title: t('common.quantity'), key: 'quantity' },
+  {
+    title: '采购状态',
+    key: 'procurement_status',
+    render: row => procurementStatusLabel(row.procurement_status)
+  },
+  {
+    title: '推送时间',
+    key: 'procurement_requested_at',
+    render: row => (row.procurement_requested_at ? new Date(row.procurement_requested_at).toLocaleString() : '-')
+  },
   { title: '收货地', key: 'destination' },
   {
     title: t('page.orders.date'),
@@ -187,7 +228,9 @@ const purchaseColumns: DataTableColumns<any> = [
 async function loadPurchaseList() {
   purchaseLoading.value = true;
   try {
-    const res = await get('/api/admin/v1/orders/purchase-list');
+    const res = await get('/api/admin/v1/orders/purchase-list', {
+      params: { status: purchaseStatus.value }
+    });
     purchaseGroups.value = res.data?.groups || [];
   } catch {
     message.error('待采购清单加载失败');
@@ -204,7 +247,8 @@ function openPurchaseList() {
 async function exportPurchaseList() {
   try {
     const token = localStg.get('token');
-    const res = await window.fetch('/api/admin/v1/orders/purchase-list/export', {
+    const params = new URLSearchParams({ status: purchaseStatus.value });
+    const res = await window.fetch(`/api/admin/v1/orders/purchase-list/export?${params.toString()}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     });
     if (!res.ok) throw new Error('export failed');
@@ -247,7 +291,13 @@ onMounted(fetch);
 
     <NDrawer v-model:show="showPurchase" :width="920" placement="right">
       <NDrawerContent title="待采购清单（代发行）" closable>
-        <div class="mb-3 flex justify-end">
+        <div class="mb-3 flex items-center justify-between gap-3">
+          <NSelect
+            v-model:value="purchaseStatus"
+            :options="purchaseStatusOptions"
+            style="width: 140px"
+            @update:value="loadPurchaseList"
+          />
           <NButton size="small" secondary :loading="purchaseLoading" @click="exportPurchaseList">导出 CSV</NButton>
         </div>
         <div v-if="purchaseGroups.length" class="flex flex-col gap-3">
