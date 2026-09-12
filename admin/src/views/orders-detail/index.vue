@@ -68,6 +68,41 @@ function procurementStatusLabel(status?: string | null): string {
   return '未采购';
 }
 
+const ORDER_STATUS_LABEL_KEYS: Record<string, string> = {
+  pending: 'statusPending',
+  confirmed: 'statusConfirmed',
+  processing: 'statusProcessing',
+  procuring: 'statusProcuring',
+  procure_failed: 'statusProcureFailed',
+  shipped: 'statusShipped',
+  delivered: 'statusDelivered',
+  cancelled: 'statusCancelled',
+  refunded: 'statusRefunded'
+};
+
+const PAYMENT_STATUS_LABEL_KEYS: Record<string, string> = {
+  unpaid: 'paymentUnpaid',
+  paid: 'paymentPaid',
+  partially_refunded: 'paymentPartiallyRefunded',
+  refunded: 'paymentRefunded',
+  failed: 'paymentFailed'
+};
+
+function localizeStatus(map: Record<string, string>, value?: string | null): string {
+  const key = String(value || '');
+  if (!key) return '-';
+  const i18nKey = map[key];
+  return i18nKey ? t(`page.ordersDetail.${i18nKey}`) : key;
+}
+
+function statusLabel(value?: string | null): string {
+  return localizeStatus(ORDER_STATUS_LABEL_KEYS, value);
+}
+
+function paymentLabel(value?: string | null): string {
+  return localizeStatus(PAYMENT_STATUS_LABEL_KEYS, value);
+}
+
 function statusType(s: string): any {
   const map: Record<string, any> = {
     pending: 'default',
@@ -245,7 +280,7 @@ function openRefund(row?: any) {
 
 function openCancel() {
   cancelReason.value = '';
-  cancelRefund.value = true;
+  cancelRefund.value = canRefund();
   actionError.value = '';
   showCancel.value = true;
 }
@@ -257,7 +292,8 @@ async function doReview() {
     await post(`/api/admin/v1/orders/${route.params.id}/review`, {
       approved: reviewApprove.value,
       reason: reviewReason.value,
-      reviewed_by: reviewBy.value
+      reviewed_by: reviewBy.value,
+      refund: reviewApprove.value ? undefined : canRefund()
     });
     showReview.value = false;
     await loadOrder();
@@ -364,7 +400,7 @@ async function doCancel() {
   try {
     await post(`/api/admin/v1/orders/${route.params.id}/cancel`, {
       reason: cancelReason.value,
-      refund: cancelRefund.value
+      refund: canRefund() && cancelRefund.value
     });
     showCancel.value = false;
     await loadOrder();
@@ -427,7 +463,7 @@ onMounted(loadOrder);
               </div>
               <div>
                 <span class="text-[var(--n-text-color-3)]">{{ $t('common.status') }}</span>
-                <NTag :type="statusType(order.status)" size="small">{{ order.status }}</NTag>
+                <NTag :type="statusType(order.status)" size="small">{{ statusLabel(order.status) }}</NTag>
               </div>
               <div>
                 <span class="text-[var(--n-text-color-3)]">{{ $t('page.settings.defaultCurrency') }}</span>
@@ -450,7 +486,7 @@ onMounted(loadOrder);
               <div>
                 <span class="text-[var(--n-text-color-3)]">{{ $t('page.ordersDetail.paymentStatus') }}</span>
                 <NTag :type="paymentStatusType(order.payment_status)" size="small">
-                  {{ order.payment_status || '-' }}
+                  {{ paymentLabel(order.payment_status) }}
                 </NTag>
               </div>
               <div>
@@ -619,7 +655,7 @@ onMounted(loadOrder);
                       {{ entry.s.tracking_url }}
                     </a>
                   </span>
-                  <NTag :type="statusType(entry.s.status)" size="small">{{ entry.s.status || '-' }}</NTag>
+                  <NTag :type="statusType(entry.s.status)" size="small">{{ statusLabel(entry.s.status) }}</NTag>
                 </div>
                 <div v-if="entry.s.origin || entry.s.destination" class="text-[var(--n-text-color-3)]">
                   {{ entry.s.origin || 'N/A' }} → {{ entry.s.destination || 'N/A' }}
@@ -671,6 +707,13 @@ onMounted(loadOrder);
           <NInput v-model:value="reviewReason" type="textarea" :rows="2" />
         </NFormItem>
         <NFormItem :label="$t('page.ordersDetail.reviewedBy')"><NInput v-model:value="reviewBy" /></NFormItem>
+        <div v-if="!reviewApprove" class="text-sm text-[var(--n-text-color-3)]">
+          {{
+            canRefund()
+              ? $t('page.ordersDetail.rejectRefundHint', { amount: money(refundableAmount()) })
+              : $t('page.ordersDetail.rejectNoRefundHint')
+          }}
+        </div>
         <div v-if="actionError" class="text-red-500 text-sm">{{ actionError }}</div>
       </div>
       <template #footer>
@@ -786,13 +829,16 @@ onMounted(loadOrder);
     <!-- Cancel Modal（取消即退款的复合入口） -->
     <NModal v-model:show="showCancel" preset="card" title="取消订单" style="width: 440px">
       <div class="flex flex-col gap-3">
-        <div class="text-sm text-[var(--n-text-color-3)]">
-          取消将终止订单履约（回补自采购库存），可按需一并退款。
-        </div>
+        <div class="text-sm text-[var(--n-text-color-3)]">取消将终止订单履约（回补自采购库存），可按需一并退款。</div>
         <NFormItem :label="$t('page.ordersDetail.reason')">
           <NInput v-model:value="cancelReason" type="textarea" :rows="2" />
         </NFormItem>
-        <NCheckbox v-model:checked="cancelRefund">同时全额退款（当前可退 {{ money(refundableAmount()) }}）</NCheckbox>
+        <NCheckbox v-if="canRefund()" v-model:checked="cancelRefund">
+          同时全额退款（当前可退 {{ money(refundableAmount()) }}）
+        </NCheckbox>
+        <div v-else class="text-sm text-[var(--n-text-color-3)]">
+          {{ $t('page.ordersDetail.cancelNoRefundHint') }}
+        </div>
         <div v-if="actionError" class="text-red-500 text-sm">{{ actionError }}</div>
       </div>
       <template #footer>

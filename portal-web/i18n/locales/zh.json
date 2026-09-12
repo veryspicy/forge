@@ -205,7 +205,9 @@
     "failedToLoad": "加载商品失败。",
     "browseProducts": "浏览商品",
     "addedToCart": "「{name}」已加入购物车",
-    "noProducts": "暂无商品。"
+    "loginRequired": "请先登录后再加入购物车。",
+    "noProducts": "暂无商品。",
+    "addToCartFailed": "加入购物车失败，请重试。"
   },
   "cart": {
     "title": "购物车",
@@ -278,6 +280,7 @@
     "cardCvv": "CVV",
     "paymentNote": "安全加密传输。模拟支付网关（Sandbox），不会真实扣款。下单后请在订单页完成支付。",
     "invalidCard": "请检查填写的银行卡信息。",
+    "invalidCardNumber": "请输入有效的卡号（13-19 位数字）。",
     "payNow": "下单并去支付",
     "payAfterOrderNote": "下单后将跳转订单详情页完成支付（沙箱网关演示，不会真实扣款）"
   },
@@ -354,6 +357,9 @@
     "deleteConfirmText": "删除后订单将从列表中移除（已完成订单归档），是否继续？",
     "deleting": "删除中...",
     "orderDeleted": "订单已删除",
+    "confirmDelete": "确认删除",
+    "refunded": "已退款",
+    "partiallyRefunded": "部分退款",
     "completed": "已完成",
     "shipmentTracking": "物流信息",
     "trackingStatus": "状态",

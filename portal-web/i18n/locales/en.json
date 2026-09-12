@@ -205,7 +205,9 @@
     "failedToLoad": "Failed to load products.",
     "browseProducts": "Browse Products",
     "addedToCart": "\"{name}\" added to cart",
-    "noProducts": "No products found."
+    "loginRequired": "Please sign in to add items to your cart.",
+    "noProducts": "No products found.",
+    "addToCartFailed": "Add to cart failed, please try again."
   },
   "cart": {
     "title": "Shopping Cart",
@@ -278,6 +280,7 @@
     "cardCvv": "CVV",
     "paymentNote": "Encrypted and secure. Sandbox payment gateway — no real charge. Complete payment on the order page after placing the order.",
     "invalidCard": "Please check the card information you entered.",
+    "invalidCardNumber": "Please enter a valid card number (13-19 digits).",
     "payNow": "Place order & pay",
     "payAfterOrderNote": "After placing the order, complete payment on the order page (sandbox gateway, no real charge)."
   },
@@ -354,6 +357,9 @@
     "deleteConfirmText": "This order will be archived and removed from your list. Continue?",
     "deleting": "Deleting...",
     "orderDeleted": "Order deleted",
+    "confirmDelete": "Delete",
+    "refunded": "Refunded",
+    "partiallyRefunded": "Partially Refunded",
     "completed": "Completed",
     "shipmentTracking": "Shipment Tracking",
     "trackingStatus": "Status",

@@ -30,15 +30,44 @@ const page = ref(1);
 const total = ref(0);
 const pageSize = 20;
 
-const statusOptions = [
-  'pending',
-  'confirmed',
-  'processing',
-  'shipped',
-  'delivered',
-  'cancelled',
-  'refunded'
-].map(s => ({ label: s, value: s }));
+const statusOptions = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'].map(
+  s => ({ label: statusLabel(s), value: s })
+);
+
+const ORDER_STATUS_LABEL_KEYS: Record<string, string> = {
+  pending: 'statusPending',
+  confirmed: 'statusConfirmed',
+  processing: 'statusProcessing',
+  procuring: 'statusProcuring',
+  procure_failed: 'statusProcureFailed',
+  shipped: 'statusShipped',
+  delivered: 'statusDelivered',
+  cancelled: 'statusCancelled',
+  refunded: 'statusRefunded'
+};
+
+const PAYMENT_STATUS_LABEL_KEYS: Record<string, string> = {
+  unpaid: 'paymentUnpaid',
+  paid: 'paymentPaid',
+  partially_refunded: 'paymentPartiallyRefunded',
+  refunded: 'paymentRefunded',
+  failed: 'paymentFailed'
+};
+
+function localizeStatus(map: Record<string, string>, value?: string | null): string {
+  const key = String(value || '');
+  if (!key) return '-';
+  const i18nKey = map[key];
+  return i18nKey ? t(`page.ordersDetail.${i18nKey}`) : key;
+}
+
+function statusLabel(value?: string | null): string {
+  return localizeStatus(ORDER_STATUS_LABEL_KEYS, value);
+}
+
+function paymentLabel(value?: string | null): string {
+  return localizeStatus(PAYMENT_STATUS_LABEL_KEYS, value);
+}
 
 function statusType(s: string): any {
   const map: Record<string, any> = {
@@ -77,7 +106,7 @@ const columns: DataTableColumns<any> = [
   {
     title: t('common.status'),
     key: 'status',
-    render: row => h(NTag, { type: statusType(row.status), size: 'small' }, { default: () => row.status })
+    render: row => h(NTag, { type: statusType(row.status), size: 'small' }, { default: () => statusLabel(row.status) })
   },
   {
     title: '履约模式',
@@ -90,7 +119,7 @@ const columns: DataTableColumns<any> = [
     render: row => {
       const refunded = Number(row.refunded_amount || 0);
       const suffix = refunded > 0 ? ` / 已退 $${refunded.toFixed(2)}` : '';
-      return `${row.payment_status || '-'}${suffix}`;
+      return `${paymentLabel(row.payment_status)}${suffix}`;
     }
   },
   { title: t('common.items'), key: 'items', render: row => row.items?.length || 0 },

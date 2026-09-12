@@ -648,10 +648,15 @@ class SQLAlchemyCustomerOrderRepository:
         approved: bool,
         reason: str | None = None,
         reviewed_by: str | None = None,
+        refund: bool | None = None,
     ) -> ORMOrder:
         """Admin review flow: confirmed -> processing (approved) / cancelled (rejected).
 
-        Rejection restores inventory (same as customer cancel).
+        Rejection restores inventory (same as customer cancel) and, by default,
+        refunds the paid balance in full: refund=None means "auto refund whenever
+        a refundable balance exists", refund=False keeps the money (e.g. penalty).
+        The refund MUST be executed before the order flips to 'cancelled', because
+        the refund path blocks cancelled orders.
         """
         if order.status not in _ADMIN_REVIEWABLE_STATUSES:
             raise APIError(
@@ -659,6 +664,22 @@ class SQLAlchemyCustomerOrderRepository:
                 message=f"Order cannot be reviewed in state '{order.status}'.",
             )
         now = SQLAlchemyCustomerOrderRepository._now()
+        if not approved:
+            has_refundable = (
+                order.payment_status in _REFUNDABLE_PAYMENT_STATUSES
+                and _order_refundable_amount(order) > 0
+            )
+            should_refund = has_refundable if refund is None else bool(refund)
+            if should_refund and has_refundable:
+                await SQLAlchemyCustomerOrderRepository.admin_refund_order(
+                    db,
+                    order,
+                    reason=reason or "Order rejected",
+                    item_refunds=None,
+                    refund_shipping=True,
+                    restock=False,
+                    refunded_by=reviewed_by or "admin",
+                )
         review = dict(order.review_status or {})
         review["reviewed_by"] = reviewed_by or "admin"
         review["approved"] = bool(approved)

@@ -51,7 +51,7 @@
               <button
                 v-if="canDeleteOrder"
                 class="px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50"
-                @click="doDeleteOrder"
+                @click="askDeleteOrder"
               >
                 {{ $t('orders.deleteOrder') }}
               </button>
@@ -336,10 +336,10 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('checkout.cardNumber') }}</label>
               <input
-                v-model.trim="payForm.card.number"
+                v-model="cardNumberText"
                 type="text"
                 inputmode="numeric"
-                maxlength="19"
+                maxlength="23"
                 placeholder="4242 4242 4242 4242"
                 class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
               >
@@ -452,6 +452,36 @@
         </div>
       </div>
     </div>
+
+    <!-- Delete Order Confirm Modal -->
+    <div v-if="showDeleteModal" class="fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
+      <div class="flex min-h-full items-center justify-center p-4 text-center">
+        <div class="fixed inset-0 bg-gray-500/40 backdrop-blur-md transition-opacity" @click="closeDeleteModal" />
+        <div
+          class="relative bg-white/85 backdrop-blur-2xl rounded-2xl shadow-2xl ring-1 ring-white/60 max-w-md w-full text-left"
+        >
+          <div class="px-6 pt-5 pb-4 border-b">
+            <h3 class="text-lg font-semibold text-gray-900">{{ $t('orders.deleteOrder') }}</h3>
+            <p class="text-sm text-gray-500 mt-1">{{ $t('orders.deleteConfirmText') }}</p>
+          </div>
+          <div class="px-6 py-4 border-t flex justify-end gap-3">
+            <button
+              class="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition font-medium"
+              @click="closeDeleteModal"
+            >
+              {{ $t('common.cancel') }}
+            </button>
+            <button
+              class="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              :disabled="deleting"
+              @click="doDeleteOrder"
+            >
+              {{ $t('orders.confirmDelete') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -503,8 +533,12 @@ const canCancel = computed(() => {
 })
 
 const canPay = computed(() => {
-  if (!order.value) return false
-  return (order.value.payment_status === 'unpaid' || (order.value.status || '').toLowerCase() === 'pending') && !order.value.deleted_at
+  if (!order.value || order.value.deleted_at) return false
+  const status = (order.value.status || '').toLowerCase()
+  // 终态订单（已取消/已退款/已完成）一律不可支付，避免「已取消仍可支付」
+  if (['cancelled', 'refunded', 'completed'].includes(status)) return false
+  if (['refunded', 'partially_refunded'].includes(String(order.value.payment_status || ''))) return false
+  return order.value.payment_status === 'unpaid' || status === 'pending'
 })
 
 const canConfirmReceipt = computed(() => {
@@ -513,9 +547,9 @@ const canConfirmReceipt = computed(() => {
 })
 
 const canDeleteOrder = computed(() => {
-  if (!order.value) return false
+  if (!order.value || order.value.deleted_at) return false
   const status = (order.value.status || '').toLowerCase()
-  return (status === 'delivered' || status === 'cancelled') && !order.value.deleted_at
+  return ['delivered', 'cancelled', 'refunded'].includes(status)
 })
 
 const canReview = computed(() => {
@@ -532,12 +566,47 @@ const openPayModal = () => {
   showPayModal.value = true
 }
 
+// 卡号按 4 位分组展示（仅保留数字），避免空格/连字符被判为无效卡号
+function formatCardNumber(value?: string | null): string {
+  const digits = String(value || '').replace(/\D/g, '').slice(0, 19)
+  return digits.replace(/(\d{4})(?=\d)/g, '$1 ')
+}
+
+// Luhn 校验：拦截明显错误的卡号，减少无效支付尝试
+function isValidCardNumber(value?: string | null): boolean {
+  const digits = String(value || '').replace(/\D/g, '')
+  if (digits.length < 13 || digits.length > 19) return false
+  let sum = 0
+  let double = false
+  for (let i = digits.length - 1; i >= 0; i -= 1) {
+    let digit = Number(digits[i])
+    if (double) {
+      digit *= 2
+      if (digit > 9) digit -= 9
+    }
+    sum += digit
+    double = !double
+  }
+  return sum % 10 === 0
+}
+
+const cardNumberText = computed({
+  get: () => formatCardNumber(payForm.value.card.number),
+  set: (value: string) => {
+    payForm.value.card.number = String(value || '').replace(/\D/g, '').slice(0, 19)
+  },
+})
+
 const doPay = async () => {
   cardError.value = ''
   if (payForm.value.method === 'card') {
     const card = payForm.value.card
     if (!card.name || !card.number || !card.expiry || !card.cvv) {
       cardError.value = t('checkout.invalidCard')
+      return
+    }
+    if (!isValidCardNumber(card.number)) {
+      cardError.value = t('checkout.invalidCardNumber')
       return
     }
   }
@@ -570,14 +639,29 @@ const doConfirmReceipt = async () => {
   }
 }
 
+// 删除确认：应用内弹窗（替代原生 confirm）
+const showDeleteModal = ref(false)
+const deleting = ref(false)
+
+const askDeleteOrder = () => {
+  showDeleteModal.value = true
+}
+
+const closeDeleteModal = () => {
+  showDeleteModal.value = false
+}
+
 const doDeleteOrder = async () => {
-  if (!confirm(t('orders.deleteConfirmText') as string)) return
+  deleting.value = true
   try {
     await orderStore.deleteOrder(orderId.value)
     toast.success(t('orders.orderDeleted'))
+    showDeleteModal.value = false
     navigateTo('/orders')
   } catch (err: any) {
     error.value = toMessage(err)
+  } finally {
+    deleting.value = false
   }
 }
 

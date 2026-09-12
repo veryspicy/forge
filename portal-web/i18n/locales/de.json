@@ -202,7 +202,9 @@
     "failedToLoad": "Produkte konnten nicht geladen werden.",
     "browseProducts": "Produkte durchsuchen",
     "addedToCart": "\"{name}\" wurde zum Warenkorb hinzugefügt",
-    "noProducts": "Keine Produkte gefunden, die Ihren Kriterien entsprechen."
+    "loginRequired": "Bitte melden Sie sich an, um Artikel in den Warenkorb zu legen.",
+    "noProducts": "Keine Produkte gefunden, die Ihren Kriterien entsprechen.",
+    "addToCartFailed": "Hinzufügen zum Warenkorb fehlgeschlagen, bitte erneut versuchen."
   },
   "cart": {
     "title": "Warenkorb",
@@ -275,6 +277,7 @@
     "cardCvv": "CVV",
     "paymentNote": "Sicher verschlüsselt. Sandbox-Zahlungsgateway – keine echte Abbuchung. Bezahlen Sie auf der Bestellseite.",
     "invalidCard": "Bitte überprüfen Sie die eingegebenen Kartendaten.",
+    "invalidCardNumber": "Bitte geben Sie eine gültige Kartennummer ein (13-19 Ziffern).",
     "payNow": "Bestellen & bezahlen",
     "payAfterOrderNote": "Nach der Bestellung zahlen Sie auf der Bestellseite (Sandbox, keine echte Belastung)."
   },
@@ -344,6 +347,9 @@
     "deleteConfirmText": "Diese Bestellung wird archiviert und aus Ihrer Liste entfernt. Fortfahren?",
     "deleting": "Wird gelöscht...",
     "orderDeleted": "Bestellung gelöscht",
+    "confirmDelete": "Löschen",
+    "refunded": "Erstattet",
+    "partiallyRefunded": "Teilweise erstattet",
     "completed": "Abgeschlossen",
     "shipmentTracking": "Sendungsverfolgung",
     "trackingStatus": "Status",

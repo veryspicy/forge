@@ -101,6 +101,8 @@ class AdminReviewRequest(BaseModel):
     approved: bool
     reason: str | None = Field(default=None, max_length=2000)
     reviewed_by: str | None = Field(default=None, max_length=100)
+    # 拒绝订单时是否退款：None=有可退余额即自动全额退（默认），False=不退（如违约扣款）
+    refund: bool | None = Field(default=None)
 
 
 class AdminProcureItem(BaseModel):
@@ -442,7 +444,7 @@ async def review_order(
     admin: dict[str, object] = Depends(require_permission("orders", "manage")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """审核：confirmed -> processing（通过）；confirmed -> cancelled（拒绝，回补库存）。"""
+    """审核：confirmed -> processing（通过）；confirmed -> cancelled（拒绝，回补库存并默认全额退款）。"""
     order = await _admin_order_or_404(db, order_number)
     reviewed = await SQLAlchemyCustomerOrderRepository.admin_review_order(
         db,
@@ -450,6 +452,7 @@ async def review_order(
         approved=payload.approved,
         reason=payload.reason,
         reviewed_by=payload.reviewed_by,
+        refund=payload.refund,
     )
     await db.commit()
     await db.refresh(reviewed, attribute_names=["items"])

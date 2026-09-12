@@ -11,10 +11,35 @@ from uuid import UUID
 from forge.main import dependencies
 
 
+class _FakeItem:
+    """Minimal in-memory order line consumed by repo helpers + _order_to_dict.
+
+    Default to a dropship line so procurement / refund flows (both line-level) have
+    something to operate on.
+    """
+
+    def __init__(self, *, fulfillment_mode: str = "dropship") -> None:
+        self.id = UUID("a1b2c3d4-0000-4000-8000-000000000001")
+        self.product_id = 1
+        self.name = "Test Product"
+        self.sku = "SKU-1"
+        self.price = Decimal("10.00")
+        self.quantity = 1
+        self.image = None
+        self.fulfillment_mode = fulfillment_mode
+        self.supplier_id = None
+        self.supplier_sku = None
+        self.refunded_quantity = 0
+        self.procurement_status = None
+        self.procurement_requested_at = None
+        self.procurement_received_at = None
+        self.procurement_cost = None
+
+
 class _FakeOrder:
     """Minimal in-memory order object consumed by repo methods + _order_to_dict."""
 
-    def __init__(self, status: str = "confirmed") -> None:
+    def __init__(self, status: str = "confirmed", items: list[object] | None = None) -> None:
         self.id = UUID("d290f1ee-6c54-4b01-90e6-d701748f0851")
         self.order_number = "FG-TEST-0001"
         self.user_id = UUID("d290f1ee-6c54-4b01-90e6-d701748f0851")
@@ -29,6 +54,8 @@ class _FakeOrder:
         self.payment_method = "card"
         self.payment_intent_id = None
         self.paid_at = datetime.now()
+        self.refunded_amount = Decimal("0.00")
+        self.refunds: list[object] = []
         self.confirmed_at = datetime.now()
         self.shipped_at = None
         self.delivered_at = None
@@ -37,7 +64,7 @@ class _FakeOrder:
         self.review_status: dict[str, object] = {}
         self.procurement_info: dict[str, object] = {}
         self.shipping_address: dict[str, object] = {}
-        self.items: list[object] = []
+        self.items: list[object] = items if items is not None else []
         self.created_at = datetime.now()
         self.updated_at = datetime.now()
 
@@ -156,7 +183,7 @@ class TestAdminOrdersAPI:
         assert body["review_status"]["approved"] is True
 
     def test_review_reject_moves_to_cancelled(self, test_client):
-        order = _FakeOrder(status="confirmed")
+        order = _FakeOrder(status="confirmed", items=[_FakeItem()])
 
         async def _fake_get_db():
             yield _fake_db_for_order(order)
@@ -190,8 +217,8 @@ class TestAdminOrdersAPI:
             test_client.app.dependency_overrides.clear()
         assert resp.status_code == 409
 
-    def test_procure_moves_to_procuring_and_records_info(self, test_client):
-        order = _FakeOrder(status="processing")
+    def test_procure_marks_dropship_item_requested(self, test_client):
+        order = _FakeOrder(status="processing", items=[_FakeItem()])
 
         async def _fake_get_db():
             yield _fake_db_for_order(order)
@@ -201,18 +228,25 @@ class TestAdminOrdersAPI:
         try:
             resp = test_client.post(
                 "/api/admin/v1/orders/FG-TEST-0001/procure",
-                json={"supplier_id": "SUP-1", "supplier_sku": "SKU-A", "cost": 12.5},
+                json={
+                    "supplier_id": "3f2504e0-4f89-11d3-9a0c-0305e82c3301",
+                    "supplier_sku": "SKU-A",
+                    "cost": 12.5,
+                },
             )
         finally:
             test_client.app.dependency_overrides.clear()
         assert resp.status_code == 200
         body = resp.json()
-        assert body["status"] == "procuring"
-        assert body["procurement_info"]["supplier_id"] == "SUP-1"
-        assert body["procurement_info"]["cost"] == 12.5
+        # 采购是行级旁支动作：只写行状态，不迁移订单主状态
+        assert body["status"] == "processing"
+        item = body["items"][0]
+        assert item["procurement_status"] == "requested"
+        assert item["supplier_sku"] == "SKU-A"
+        assert item["procurement_cost"] == 12.5
 
     def test_procure_retry_allowed_from_procure_failed(self, test_client):
-        order = _FakeOrder(status="procure_failed")
+        order = _FakeOrder(status="procure_failed", items=[_FakeItem()])
 
         async def _fake_get_db():
             yield _fake_db_for_order(order)
@@ -220,11 +254,17 @@ class TestAdminOrdersAPI:
         _setup_auth(test_client)
         test_client.app.dependency_overrides[dependencies.get_db] = _fake_get_db
         try:
-            resp = test_client.post("/api/admin/v1/orders/FG-TEST-0001/procure", json={"supplier_id": "SUP-1"})
+            resp = test_client.post(
+                "/api/admin/v1/orders/FG-TEST-0001/procure",
+                json={"supplier_id": "3f2504e0-4f89-11d3-9a0c-0305e82c3301"},
+            )
         finally:
             test_client.app.dependency_overrides.clear()
         assert resp.status_code == 200
-        assert resp.json()["status"] == "procuring"
+        body = resp.json()
+        assert body["items"][0]["procurement_status"] == "requested"
+        # 历史脏状态复位，订单恢复可发货
+        assert body["status"] == "processing"
 
     def test_procure_requires_supplier_id(self, test_client):
         order = _FakeOrder(status="processing")
@@ -254,8 +294,8 @@ class TestAdminOrdersAPI:
             test_client.app.dependency_overrides.clear()
         assert resp.status_code == 409
 
-    def test_refund_moves_unshipped_order_to_refunded(self, test_client):
-        order = _FakeOrder(status="procuring")
+    def test_refund_full_amount_marks_payment_refunded(self, test_client):
+        order = _FakeOrder(status="procuring", items=[_FakeItem()])
 
         async def _fake_get_db():
             yield _fake_db_for_order(order)
@@ -268,11 +308,14 @@ class TestAdminOrdersAPI:
             test_client.app.dependency_overrides.clear()
         assert resp.status_code == 200
         body = resp.json()
-        assert body["status"] == "refunded"
+        # 退款只做资金动作：支付态变化，订单履约状态不变
+        assert body["payment_status"] == "refunded"
+        assert body["refunded_amount"] == 10.0
+        assert body["status"] == "procuring"
         assert body["review_status"]["refund_reason"] == "user request"
 
-    def test_refund_shipped_order_returns_409(self, test_client):
-        order = _FakeOrder(status="shipped")
+    def test_refund_shipped_order_allowed_after_sales(self, test_client):
+        order = _FakeOrder(status="shipped", items=[_FakeItem()])
 
         async def _fake_get_db():
             yield _fake_db_for_order(order)
@@ -280,10 +323,14 @@ class TestAdminOrdersAPI:
         _setup_auth(test_client)
         test_client.app.dependency_overrides[dependencies.get_db] = _fake_get_db
         try:
-            resp = test_client.post("/api/admin/v1/orders/FG-TEST-0001/refund", json={"reason": "nope"})
+            resp = test_client.post("/api/admin/v1/orders/FG-TEST-0001/refund", json={"reason": "after sales"})
         finally:
             test_client.app.dependency_overrides.clear()
-        assert resp.status_code == 409
+        # 已发货订单支持售后退款（阻断仅限 cancelled / refunded）
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["payment_status"] == "refunded"
+        assert body["status"] == "shipped"
 
     def test_ship_multipackage_moves_order_to_shipped(self, test_client):
         from forge.api.admin.v1.orders import ORMShipment
