@@ -205,7 +205,9 @@
     "failedToLoad": "Failed to load products.",
     "browseProducts": "Browse Products",
     "addedToCart": "\"{name}\" added to cart",
-    "noProducts": "No products found."
+    "noProducts": "No products found.",
+    "addToCartFailed": "Add to cart failed, please try again.",
+    "loginRequired": "Please sign in to add items to your cart."
   },
   "cart": {
     "title": "Shopping Cart",
@@ -279,7 +281,8 @@
     "paymentNote": "Encrypted and secure. Sandbox payment gateway — no real charge. Complete payment on the order page after placing the order.",
     "invalidCard": "Please check the card information you entered.",
     "payNow": "Place order & pay",
-    "payAfterOrderNote": "After placing the order, complete payment on the order page (sandbox gateway, no real charge)."
+    "payAfterOrderNote": "After placing the order, complete payment on the order page (sandbox gateway, no real charge).",
+    "invalidCardNumber": "Please enter a valid card number (13-19 digits)."
   },
   "orders": {
     "title": "My Orders",
@@ -359,7 +362,10 @@
     "trackingStatus": "Status",
     "noShipment": "Tracking info not available yet, please check back later",
     "noTrackingEvents": "No tracking events yet",
-    "trackingUpdate": "Update"
+    "trackingUpdate": "Update",
+    "confirmDelete": "Delete",
+    "partiallyRefunded": "Partially Refunded",
+    "refunded": "Refunded"
   },
   "chat": {
     "title": "AI Chat",

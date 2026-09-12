@@ -202,7 +202,9 @@
     "failedToLoad": "Produkte konnten nicht geladen werden.",
     "browseProducts": "Produkte durchsuchen",
     "addedToCart": "\"{name}\" wurde zum Warenkorb hinzugefügt",
-    "noProducts": "Keine Produkte gefunden, die Ihren Kriterien entsprechen."
+    "noProducts": "Keine Produkte gefunden, die Ihren Kriterien entsprechen.",
+    "addToCartFailed": "Hinzufügen zum Warenkorb fehlgeschlagen, bitte erneut versuchen.",
+    "loginRequired": "Bitte melden Sie sich an, um Artikel in den Warenkorb zu legen."
   },
   "cart": {
     "title": "Warenkorb",
@@ -276,7 +278,8 @@
     "paymentNote": "Sicher verschlüsselt. Sandbox-Zahlungsgateway – keine echte Abbuchung. Bezahlen Sie auf der Bestellseite.",
     "invalidCard": "Bitte überprüfen Sie die eingegebenen Kartendaten.",
     "payNow": "Bestellen & bezahlen",
-    "payAfterOrderNote": "Nach der Bestellung zahlen Sie auf der Bestellseite (Sandbox, keine echte Belastung)."
+    "payAfterOrderNote": "Nach der Bestellung zahlen Sie auf der Bestellseite (Sandbox, keine echte Belastung).",
+    "invalidCardNumber": "Bitte geben Sie eine gültige Kartennummer ein (13-19 Ziffern)."
   },
   "orders": {
     "title": "Meine Bestellungen",
@@ -349,7 +352,10 @@
     "trackingStatus": "Status",
     "noShipment": "Versandinformationen noch nicht verfügbar, bitte später erneut prüfen",
     "noTrackingEvents": "Noch keine Sendungsereignisse",
-    "trackingUpdate": "Aktualisierung"
+    "trackingUpdate": "Aktualisierung",
+    "confirmDelete": "Löschen",
+    "partiallyRefunded": "Teilweise erstattet",
+    "refunded": "Erstattet"
   },
   "chat": {
     "title": "KI-Chat",

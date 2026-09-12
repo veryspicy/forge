@@ -202,7 +202,9 @@
     "failedToLoad": "Échec du chargement des produits.",
     "browseProducts": "Parcourir les produits",
     "addedToCart": "\"{name}\" ajouté au panier",
-    "noProducts": "Aucun produit ne correspond à vos critères."
+    "noProducts": "Aucun produit ne correspond à vos critères.",
+    "addToCartFailed": "Échec de l'ajout au panier, veuillez réessayer.",
+    "loginRequired": "Veuillez vous connecter pour ajouter des articles au panier."
   },
   "cart": {
     "title": "Panier",
@@ -276,7 +278,8 @@
     "paymentNote": "Chiffré et sécurisé. Passerelle sandbox — aucun débit réel. Payez sur la page de commande.",
     "invalidCard": "Veuillez vérifier les informations de carte saisies.",
     "payNow": "Commander et payer",
-    "payAfterOrderNote": "Après la commande, effectuez le paiement sur la page de commande (passerelle sandbox, aucun débit réel)."
+    "payAfterOrderNote": "Après la commande, effectuez le paiement sur la page de commande (passerelle sandbox, aucun débit réel).",
+    "invalidCardNumber": "Veuillez saisir un numéro de carte valide (13 à 19 chiffres)."
   },
   "orders": {
     "title": "Mes Commandes",
@@ -349,7 +352,10 @@
     "trackingStatus": "Statut",
     "noShipment": "Informations de suivi pas encore disponibles, veuillez réessayer plus tard",
     "noTrackingEvents": "Aucun événement de suivi",
-    "trackingUpdate": "Mise à jour"
+    "trackingUpdate": "Mise à jour",
+    "confirmDelete": "Supprimer",
+    "partiallyRefunded": "Partiellement remboursé",
+    "refunded": "Remboursé"
   },
   "chat": {
     "title": "Chat IA",
