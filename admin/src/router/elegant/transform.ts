@@ -181,6 +181,7 @@ const routeMap: RouteMap = {
   "products-detail": "/products-detail",
   "products-new": "/products-new",
   "resources": "/resources",
+  "returns": "/returns",
   "roles": "/roles",
   "settings": "/settings",
   "shipments": "/shipments",
