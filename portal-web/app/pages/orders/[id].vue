@@ -49,6 +49,13 @@
                 {{ $t('orders.confirmReceipt') }}
               </button>
               <button
+                v-if="canReturn"
+                class="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                @click="openReturnModal"
+              >
+                {{ $t('returns.requestReturn') }}
+              </button>
+              <button
                 v-if="canDeleteOrder"
                 class="px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50"
                 @click="askDeleteOrder"
@@ -260,7 +267,162 @@
             <p>{{ order.shipping_address.country }}</p>
           </address>
         </div>
+
+        <!-- Returns & Refunds -->
+        <div v-if="myReturns.length > 0" class="bg-white rounded-lg shadow p-6 mt-6">
+          <h2 class="text-lg font-semibold text-gray-900 mb-4">{{ $t('returns.myReturns') }}</h2>
+          <ul class="divide-y divide-gray-200">
+            <li
+              v-for="r in myReturns"
+              :key="r.return_number"
+              class="py-4 flex flex-wrap items-start justify-between gap-3"
+            >
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center flex-wrap gap-2">
+                  <span class="text-sm font-medium text-gray-900">#{{ r.return_number }}</span>
+                  <span :class="['inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium', returnStatusClass(r.status)]">
+                    {{ returnStatusText(r.status) }}
+                  </span>
+                </div>
+                <p class="text-sm text-gray-500 mt-1">{{ $t('returns.reasonLabel') }}: {{ r.reason }}</p>
+                <p class="text-xs text-gray-400 mt-1">
+                  {{ $t('returns.requestedAt') }} {{ formatDateTime(r.requested_at || r.created_at) }}
+                  · {{ (r.items || []).length }} {{ $t('returns.itemsCount') }}
+                </p>
+                <p v-if="r.review_note" class="text-xs text-gray-500 mt-1">{{ r.review_note }}</p>
+              </div>
+              <div class="text-right">
+                <p class="text-sm font-medium text-gray-900">{{ formatPrice(r.refund_amount || 0) }}</p>
+                <button
+                  v-if="canCancelReturn(r)"
+                  class="mt-2 px-3 py-1 rounded-md text-xs font-medium border border-red-300 text-red-700 hover:bg-red-50"
+                  @click="returnCancelTarget = r"
+                >
+                  {{ $t('returns.cancelRequest') }}
+                </button>
+              </div>
+            </li>
+          </ul>
+        </div>
       </template>
+    </div>
+
+    <!-- Return Request Modal -->
+    <div v-if="showReturnModal" class="fixed inset-0 z-50 overflow-y-auto">
+      <div class="flex items-center justify-center min-h-screen px-4 py-8">
+        <div class="fixed inset-0 bg-gray-500/40 backdrop-blur-md transition-opacity" @click="showReturnModal = false"/>
+        <div class="relative bg-white/85 backdrop-blur-2xl rounded-lg max-w-2xl w-full p-6 shadow-2xl ring-1 ring-white/60">
+          <h3 class="text-lg font-medium text-gray-900 mb-1">{{ $t('returns.modalTitle') }}</h3>
+          <p class="text-sm text-gray-500 mb-4">{{ $t('returns.modalHint') }}</p>
+
+          <div v-if="returnError" class="mb-4 bg-red-50 border border-red-200 rounded-md p-3 text-sm text-red-800">
+            {{ returnError }}
+          </div>
+
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">{{ $t('returns.selectItems') }}</label>
+            <p v-if="returnableItems.length === 0" class="text-sm text-gray-500">{{ $t('returns.noReturnableItems') }}</p>
+            <ul v-else class="divide-y divide-gray-200 border border-gray-200 rounded-md">
+              <li v-for="i in returnableItems" :key="i.order_item_id" class="p-3 flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  class="mt-1 h-4 w-4 rounded border-gray-300 text-indigo-600"
+                  :checked="returnForm.selected[String(i.order_item_id)]"
+                  @change="toggleReturnItem(i, ($event.target as HTMLInputElement).checked)"
+                >
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium text-gray-900">{{ i.name }}</p>
+                  <p class="text-xs text-gray-500 mt-0.5">
+                    {{ $t('returns.returnableQty') }}: {{ i.returnable_quantity }} · {{ formatPrice(i.unit_price) }}
+                  </p>
+                </div>
+                <input
+                  v-if="returnForm.selected[String(i.order_item_id)]"
+                  type="number"
+                  min="1"
+                  :max="i.returnable_quantity"
+                  class="w-20 border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  :value="returnForm.quantities[String(i.order_item_id)]"
+                  @input="setReturnQty(i, Number(($event.target as HTMLInputElement).value))"
+                >
+              </li>
+            </ul>
+          </div>
+
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">{{ $t('returns.reason') }}</label>
+            <select
+              v-model="returnForm.reason"
+              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+            >
+              <option value="">{{ $t('returns.reasonPlaceholder') }}</option>
+              <option v-for="r in RETURN_REASONS" :key="r" :value="r">
+                {{ $t(`returns.reason${r.charAt(0).toUpperCase()}${r.slice(1)}`) }}
+              </option>
+            </select>
+          </div>
+
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">{{ $t('returns.note') }}</label>
+            <textarea
+              v-model="returnForm.note"
+              rows="3"
+              :placeholder="$t('returns.notePlaceholder')"
+              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+            />
+          </div>
+
+          <div class="flex items-center justify-between border-t border-gray-200 pt-4">
+            <p class="text-sm text-gray-500">
+              {{ $t('returns.refundEstimate') }}:
+              <span class="font-medium text-gray-900">{{ formatPrice(returnRefundEstimate) }}</span>
+            </p>
+            <div class="flex space-x-3">
+              <button
+                class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                @click="showReturnModal = false"
+              >
+                {{ $t('common.cancel') }}
+              </button>
+              <button
+                :disabled="returnSubmitting"
+                class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
+                @click="doSubmitReturn"
+              >
+                {{ returnSubmitting ? $t('returns.submitting') : $t('returns.submit') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cancel Return Modal -->
+    <div v-if="returnCancelTarget" class="fixed inset-0 z-50 overflow-y-auto">
+      <div class="flex items-center justify-center min-h-screen px-4">
+        <div class="fixed inset-0 bg-gray-500/40 backdrop-blur-md transition-opacity" @click="returnCancelTarget = null"/>
+        <div class="relative bg-white/85 backdrop-blur-2xl rounded-lg max-w-md w-full p-6 shadow-2xl ring-1 ring-white/60">
+          <h3 class="text-lg font-medium text-gray-900 mb-4">{{ $t('returns.cancelModalTitle') }}</h3>
+          <p class="text-sm text-gray-500 mb-6">
+            {{ $t('returns.cancelConfirmText') }}
+          </p>
+          <div class="flex justify-end space-x-3">
+            <button
+              class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+              @click="returnCancelTarget = null"
+            >
+              {{ $t('returns.keepRequest') }}
+            </button>
+            <button
+              :disabled="returnCancelling"
+              class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
+              @click="doCancelReturn"
+            >
+              {{ returnCancelling ? $t('returns.cancelling') : $t('returns.cancelRequest') }}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Cancel Order Modal -->
@@ -498,7 +660,7 @@ definePageMeta({
 
 const route = useRoute()
 const orderStore = useOrderStore()
-const { fetchShipments } = useApi()
+const { fetchShipments, fetchReturnEligibility, createReturn, fetchMyReturns, cancelReturn } = useApi()
 const { toMessage, resolveCode } = useApiError()
 const { toast } = useToast()
 const { t } = useI18n()
@@ -508,6 +670,22 @@ const loading = ref(true)
 const error = ref('')
 const showCancelModal = ref(false)
 const cancelling = ref(false)
+
+// --- 售后服务（退货/退款 RMA） ---
+const returnEligibility = ref<any>(null)
+const myReturns = ref<any[]>([])
+const showReturnModal = ref(false)
+const returnSubmitting = ref(false)
+const returnError = ref('')
+const returnCancelTarget = ref<any>(null)
+const returnCancelling = ref(false)
+const returnForm = ref<{
+  reason: string
+  note: string
+  refund_method: string
+  selected: Record<string, boolean>
+  quantities: Record<string, number>
+}>({ reason: '', note: '', refund_method: 'original', selected: {}, quantities: {} })
 
 // ---- Payment ----
 const showPayModal = ref(false)
@@ -763,6 +941,151 @@ const doCancelOrder = async () => {
   }
 }
 
+// --- Returns: helpers ---
+const RETURN_REASON_TEXT: Record<string, string> = {
+  damaged: 'Damaged or defective',
+  wrongItem: 'Wrong item received',
+  notAsDescribed: 'Not as described',
+  noLongerNeeded: 'No longer needed',
+  other: 'Other',
+}
+const RETURN_REASONS = ['damaged', 'wrongItem', 'notAsDescribed', 'noLongerNeeded', 'other']
+const OPEN_RETURN_STATUSES = ['requested', 'approved', 'received']
+
+const returnableItems = computed(() => {
+  const items = returnEligibility.value?.items || []
+  return items.filter((i: any) => Number(i.returnable_quantity || 0) > 0)
+})
+
+const selectedReturnItems = computed(() =>
+  returnableItems.value.filter((i: any) => returnForm.value.selected[String(i.order_item_id)])
+)
+
+const hasOpenReturn = computed(() =>
+  myReturns.value.some((r: any) => OPEN_RETURN_STATUSES.includes(String(r.status || '').toLowerCase()))
+)
+
+const canReturn = computed(() =>
+  !!returnEligibility.value?.eligible && returnableItems.value.length > 0 && !hasOpenReturn.value
+)
+
+const returnRefundEstimate = computed(() =>
+  selectedReturnItems.value.reduce((sum: number, i: any) => {
+    const qty = Number(returnForm.value.quantities[String(i.order_item_id)] || 0)
+    return sum + Number(i.unit_price || 0) * qty
+  }, 0)
+)
+
+const canCancelReturn = (r: any) => OPEN_RETURN_STATUSES.includes(String(r?.status || '').toLowerCase())
+
+const returnStatusText = (status?: string) => t(`returns.status.${String(status || '').toLowerCase()}`)
+
+const returnStatusClass = (status?: string) => {
+  switch (String(status || '').toLowerCase()) {
+    case 'requested': return 'bg-amber-50 text-amber-700'
+    case 'approved': return 'bg-blue-50 text-blue-700'
+    case 'received': return 'bg-indigo-50 text-indigo-700'
+    case 'refunded': return 'bg-green-50 text-green-700'
+    case 'rejected': return 'bg-red-50 text-red-700'
+    default: return 'bg-gray-100 text-gray-600'
+  }
+}
+
+const clampReturnQty = (item: any, value: number) => {
+  const max = Number(item.returnable_quantity || 0)
+  const qty = Number.isFinite(value) ? Math.floor(value) : max
+  return Math.min(Math.max(qty, 1), Math.max(max, 1))
+}
+
+const toggleReturnItem = (item: any, checked: boolean) => {
+  const key = String(item.order_item_id)
+  returnForm.value.selected[key] = checked
+}
+
+const setReturnQty = (item: any, value: number) => {
+  const key = String(item.order_item_id)
+  returnForm.value.quantities[key] = clampReturnQty(item, value)
+}
+
+const openReturnModal = () => {
+  const selected: Record<string, boolean> = {}
+  const quantities: Record<string, number> = {}
+  returnableItems.value.forEach((i: any) => {
+    const key = String(i.order_item_id)
+    selected[key] = true
+    quantities[key] = Number(i.returnable_quantity || 1)
+  })
+  returnForm.value = { reason: '', note: '', refund_method: 'original', selected, quantities }
+  returnError.value = ''
+  showReturnModal.value = true
+}
+
+const loadReturns = async () => {
+  try {
+    const res: any = await fetchMyReturns({ order_number: orderId.value, page_size: 50 })
+    myReturns.value = res?.items || []
+  } catch {
+    myReturns.value = []
+  }
+}
+
+const loadReturnEligibility = async () => {
+  try {
+    returnEligibility.value = await fetchReturnEligibility(orderId.value)
+  } catch {
+    returnEligibility.value = null
+  }
+}
+
+const doSubmitReturn = async () => {
+  const items = selectedReturnItems.value
+    .map((i: any) => ({
+      order_item_id: String(i.order_item_id),
+      quantity: clampReturnQty(i, Number(returnForm.value.quantities[String(i.order_item_id)] || 0)),
+    }))
+  if (items.length === 0) {
+    returnError.value = t('returns.errors.itemsRequired')
+    return
+  }
+  if (!returnForm.value.reason) {
+    returnError.value = t('returns.errors.reasonRequired')
+    return
+  }
+  returnSubmitting.value = true
+  returnError.value = ''
+  try {
+    await createReturn({
+      order_number: orderId.value,
+      items,
+      reason: RETURN_REASON_TEXT[returnForm.value.reason] || returnForm.value.reason,
+      note: returnForm.value.note || undefined,
+      refund_method: returnForm.value.refund_method,
+    })
+    showReturnModal.value = false
+    toast.success(t('returns.applySuccess'))
+    await Promise.all([loadReturns(), loadReturnEligibility()])
+  } catch (err: any) {
+    returnError.value = toMessage(err)
+  } finally {
+    returnSubmitting.value = false
+  }
+}
+
+const doCancelReturn = async () => {
+  if (!returnCancelTarget.value) return
+  returnCancelling.value = true
+  try {
+    await cancelReturn(String(returnCancelTarget.value.return_number), 'Cancelled by customer')
+    returnCancelTarget.value = null
+    toast.success(t('returns.cancelled'))
+    await Promise.all([loadReturns(), loadReturnEligibility()])
+  } catch (err: any) {
+    toast.error(toMessage(err))
+  } finally {
+    returnCancelling.value = false
+  }
+}
+
 onMounted(async () => {
   try {
     await orderStore.loadOrderDetail(orderId.value)
@@ -774,6 +1097,8 @@ onMounted(async () => {
     } catch {
       shipments.value = []
     }
+    // 售后：可退性 + 已有退货单
+    await Promise.all([loadReturnEligibility(), loadReturns()])
     // 列表页“去支付”跳转时自动唤起支付弹窗
     if (route.query.pay === '1' && canPay.value) {
       openPayModal()
