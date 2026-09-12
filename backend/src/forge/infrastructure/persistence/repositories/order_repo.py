@@ -247,6 +247,29 @@ def _refunded_shipping_total(order: ORMOrder) -> Decimal:
     return total
 
 
+def _refund_amount_breakdown(
+    order: ORMOrder,
+    plan: list[tuple[ORMOrderItem, int]],
+    refund_shipping: bool,
+) -> tuple[Decimal, Decimal, Decimal, Decimal]:
+    """退款金额拆解（商品/税/运费/合计），供 admin_refund_order 与售后申请单预审复用。
+
+    - 税按「退款行小计占订单商品小计」比例分摊（行业：退款同时退还对应税额）
+    - 运费仅在 refund_shipping=True 时退还剩余未退部分（避免重复退运费）
+    """
+    goods_amount = sum((_money(i.price) * quantity for i, quantity in plan), Decimal("0"))
+    tax_amount = Decimal("0")
+    subtotal = _money(order.subtotal)
+    if subtotal > 0 and _money(order.tax) > 0:
+        refunded_base = sum((_item_line_total(i) for i, _ in plan), Decimal("0"))
+        tax_amount = (_money(order.tax) * refunded_base / subtotal).quantize(_CENTS)
+    shipping_amount = Decimal("0")
+    if refund_shipping:
+        shipping_amount = max(_money(order.shipping_cost) - _refunded_shipping_total(order), Decimal("0"))
+    amount = (goods_amount + tax_amount + shipping_amount).quantize(_CENTS)
+    return goods_amount, tax_amount, shipping_amount, amount
+
+
 def _restocked_quantity_map(order: ORMOrder) -> dict[str, int]:
     """各行已通过退款 restock 回补过的数量，取消回补时据此去重。"""
     out: dict[str, int] = {}
@@ -798,12 +821,14 @@ class SQLAlchemyCustomerOrderRepository:
         refund_shipping: bool = False,
         restock: bool = False,
         refunded_by: str = "admin",
+        return_id: str | None = None,
     ) -> ORMOrder:
         """行级 / 部分退款（行业对齐：Shopify refundCreate）——**只做资金动作，不改订单履约状态**。
 
         - item_refunds: [{"order_item_id": str, "quantity": int}]，为空表示退全部剩余可退数量
         - refund_shipping: 是否同时退还剩余未退运费（行业：运费可单独退）
         - restock: 是否把本次退款数量回补本地库存（默认否；未发货终止走取消入口统一回补）
+        - return_id: 售后申请单（RMA）关联，写入退款流水便于回溯
         - payment_status: 全退 -> refunded；未退完 -> partially_refunded；不新增订单终态
         """
         if order.payment_status not in _REFUNDABLE_PAYMENT_STATUSES:
@@ -835,17 +860,7 @@ class SQLAlchemyCustomerOrderRepository:
         if not plan:
             raise APIError(ErrorCode.VALIDATION_ERROR, message="Nothing left to refund.")
 
-        goods_amount = sum((_money(i.price) * quantity for i, quantity in plan), Decimal("0"))
-        # 税按退款行小计占订单商品小计的比例分摊（行业：退款同时退还对应税额）
-        tax_amount = Decimal("0")
-        subtotal = _money(order.subtotal)
-        if subtotal > 0 and _money(order.tax) > 0:
-            refunded_base = sum((_item_line_total(i) for i, _ in plan), Decimal("0"))
-            tax_amount = (_money(order.tax) * refunded_base / subtotal).quantize(_CENTS)
-        shipping_amount = Decimal("0")
-        if refund_shipping:
-            shipping_amount = max(_money(order.shipping_cost) - _refunded_shipping_total(order), Decimal("0"))
-        amount = (goods_amount + tax_amount + shipping_amount).quantize(_CENTS)
+        goods_amount, tax_amount, shipping_amount, amount = _refund_amount_breakdown(order, plan, refund_shipping)
         if amount <= 0:
             raise APIError(ErrorCode.VALIDATION_ERROR, message="Refund amount must be positive.")
         if amount > _order_refundable_amount(order):
@@ -871,6 +886,7 @@ class SQLAlchemyCustomerOrderRepository:
             ],
             "reason": reason or "",
             "refunded_by": refunded_by,
+            "return_id": return_id,
             "refunded_at": now.isoformat(),
             "restock": bool(restock),
         }

@@ -54,6 +54,9 @@ _safe_include("catalog", prefix="/catalog", tags=["Admin - Product Catalog"])
 # Orders
 _safe_include("orders", prefix="/orders", tags=["Admin - Orders"])
 
+# Returns / Refunds（售后 RMA）
+_safe_include("returns", prefix="/returns", tags=["Admin - Returns"])
+
 # Suppliers
 _safe_include("suppliers", prefix="/suppliers", tags=["Admin - Suppliers"])
 
