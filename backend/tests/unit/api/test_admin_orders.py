@@ -97,16 +97,28 @@ class TestAdminOrdersAPI:
 
     def test_list_orders_success(self, test_client):
         from forge.infrastructure.persistence.repositories.order_repo import SQLAlchemyOrderRepository
+        from forge.infrastructure.persistence.repositories.return_repo import SQLAlchemyReturnRepository
 
         _setup_auth(test_client)
-        with patch.object(
-            SQLAlchemyOrderRepository,
-            "list_orders",
-            new_callable=AsyncMock,
-            return_value={"items": [{"id": "o1", "status": "PENDING"}], "total": 1},
-        ):
-            resp = test_client.get("/api/admin/v1/orders/")
-        test_client.app.dependency_overrides.clear()
+        try:
+            with (
+                patch.object(
+                    SQLAlchemyOrderRepository,
+                    "list_orders",
+                    new_callable=AsyncMock,
+                    return_value={"items": [{"id": "o1", "status": "PENDING"}], "total": 1},
+                ),
+                # 列表接口新增售后摘要聚合，单测以空摘要替身隔离 DB 依赖
+                patch.object(
+                    SQLAlchemyReturnRepository,
+                    "summaries_by_order_ids",
+                    new_callable=AsyncMock,
+                    return_value={},
+                ),
+            ):
+                resp = test_client.get("/api/admin/v1/orders/")
+        finally:
+            test_client.app.dependency_overrides.clear()
         assert resp.status_code == 200
         assert resp.json()["total"] == 1
 
@@ -333,6 +345,7 @@ class TestAdminOrdersAPI:
         assert body["status"] == "shipped"
 
     def test_ship_multipackage_moves_order_to_shipped(self, test_client):
+        from forge.api.admin.v1 import orders as orders_api
         from forge.api.admin.v1.orders import ORMShipment
         from forge.infrastructure.persistence.repositories.order_repo import SQLAlchemyCustomerOrderRepository
 
@@ -346,11 +359,20 @@ class TestAdminOrdersAPI:
         _setup_auth(test_client)
         test_client.app.dependency_overrides[dependencies.get_db] = _fake_get_db
         try:
-            with patch.object(
-                SQLAlchemyCustomerOrderRepository,
-                "mark_shipped",
-                new_callable=AsyncMock,
-            ) as mocked:
+            with (
+                patch.object(
+                    SQLAlchemyCustomerOrderRepository,
+                    "mark_shipped",
+                    new_callable=AsyncMock,
+                ) as mocked,
+                # 站点门禁开关关闭：本用例只验证多包裹登记
+                patch.object(
+                    orders_api,
+                    "_require_review_before_ship",
+                    new_callable=AsyncMock,
+                    return_value=False,
+                ),
+            ):
 
                 async def _mark_shipped(db, order, tracking_number=None, carrier=None):
                     order.status = "shipped"
@@ -378,6 +400,7 @@ class TestAdminOrdersAPI:
         assert [s.tracking_number for s in added] == ["TRK-1", "TRK-2"]
 
     def test_ship_append_package_keeps_shipped_state(self, test_client):
+        from forge.api.admin.v1 import orders as orders_api
         from forge.infrastructure.persistence.repositories.order_repo import SQLAlchemyCustomerOrderRepository
 
         order = _FakeOrder(status="shipped")
@@ -390,11 +413,20 @@ class TestAdminOrdersAPI:
         _setup_auth(test_client)
         test_client.app.dependency_overrides[dependencies.get_db] = _fake_get_db
         try:
-            with patch.object(
-                SQLAlchemyCustomerOrderRepository,
-                "mark_shipped",
-                new_callable=AsyncMock,
-            ) as mocked:
+            with (
+                patch.object(
+                    SQLAlchemyCustomerOrderRepository,
+                    "mark_shipped",
+                    new_callable=AsyncMock,
+                ) as mocked,
+                # 站点门禁开关关闭：本用例只验证补发包裹登记
+                patch.object(
+                    orders_api,
+                    "_require_review_before_ship",
+                    new_callable=AsyncMock,
+                    return_value=False,
+                ),
+            ):
                 resp = test_client.post(
                     "/api/admin/v1/orders/FG-TEST-0001/ship",
                     json={"packages": [{"carrier": "UPS", "tracking_number": "TRK-3"}]},
@@ -421,7 +453,9 @@ class TestAdminOrdersAPI:
         assert resp.status_code == 422
 
     def test_detail_returns_shipments_and_timeline(self, test_client):
+        from forge.api.admin.v1 import orders as orders_api
         from forge.infrastructure.persistence.repositories.order_repo import SQLAlchemyCustomerOrderRepository
+        from forge.infrastructure.persistence.repositories.return_repo import SQLAlchemyReturnRepository
 
         order = _FakeOrder(status="shipped")
         order.shipped_at = datetime.now()
@@ -432,11 +466,26 @@ class TestAdminOrdersAPI:
         _setup_auth(test_client)
         test_client.app.dependency_overrides[dependencies.get_db] = _fake_get_db
         try:
-            with patch.object(
-                SQLAlchemyCustomerOrderRepository,
-                "list_shipments",
-                new_callable=AsyncMock,
-                return_value=[],
+            with (
+                patch.object(
+                    SQLAlchemyCustomerOrderRepository,
+                    "list_shipments",
+                    new_callable=AsyncMock,
+                    return_value=[],
+                ),
+                # 详情新增售后区块与站点门禁开关，单测以替身隔离 DB 依赖
+                patch.object(
+                    SQLAlchemyReturnRepository,
+                    "list_by_order",
+                    new_callable=AsyncMock,
+                    return_value=[],
+                ),
+                patch.object(
+                    orders_api,
+                    "_require_review_before_ship",
+                    new_callable=AsyncMock,
+                    return_value=False,
+                ),
             ):
                 resp = test_client.get("/api/admin/v1/orders/FG-TEST-0001")
         finally:
@@ -449,7 +498,9 @@ class TestAdminOrdersAPI:
         assert "shipped" in timeline_statuses
 
     def test_detail_timeline_includes_refunded_for_refunded_order(self, test_client):
+        from forge.api.admin.v1 import orders as orders_api
         from forge.infrastructure.persistence.repositories.order_repo import SQLAlchemyCustomerOrderRepository
+        from forge.infrastructure.persistence.repositories.return_repo import SQLAlchemyReturnRepository
 
         order = _FakeOrder(status="refunded")
 
@@ -459,11 +510,26 @@ class TestAdminOrdersAPI:
         _setup_auth(test_client)
         test_client.app.dependency_overrides[dependencies.get_db] = _fake_get_db
         try:
-            with patch.object(
-                SQLAlchemyCustomerOrderRepository,
-                "list_shipments",
-                new_callable=AsyncMock,
-                return_value=[],
+            with (
+                patch.object(
+                    SQLAlchemyCustomerOrderRepository,
+                    "list_shipments",
+                    new_callable=AsyncMock,
+                    return_value=[],
+                ),
+                # 详情新增售后区块与站点门禁开关，单测以替身隔离 DB 依赖
+                patch.object(
+                    SQLAlchemyReturnRepository,
+                    "list_by_order",
+                    new_callable=AsyncMock,
+                    return_value=[],
+                ),
+                patch.object(
+                    orders_api,
+                    "_require_review_before_ship",
+                    new_callable=AsyncMock,
+                    return_value=False,
+                ),
             ):
                 resp = test_client.get("/api/admin/v1/orders/FG-TEST-0001")
         finally:
