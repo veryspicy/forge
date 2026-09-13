@@ -183,6 +183,8 @@ def _admin_order_filters(status: str | None, search: str | None) -> list[Any]:
             or_(
                 ORMOrder.order_number.ilike(keyword),
                 ORMOrder.user_id.cast(String).ilike(keyword),
+                # 客服高频诉求：按客户邮箱反查订单
+                ORMOrder.user_id.in_(select(ORMUser.id).where(ORMUser.email.ilike(keyword))),
             )
         )
     return conditions
@@ -822,6 +824,7 @@ class SQLAlchemyCustomerOrderRepository:
         restock: bool = False,
         refunded_by: str = "admin",
         return_id: str | None = None,
+        idempotency_key: str | None = None,
     ) -> ORMOrder:
         """行级 / 部分退款（行业对齐：Shopify refundCreate）——**只做资金动作，不改订单履约状态**。
 
@@ -829,8 +832,15 @@ class SQLAlchemyCustomerOrderRepository:
         - refund_shipping: 是否同时退还剩余未退运费（行业：运费可单独退）
         - restock: 是否把本次退款数量回补本地库存（默认否；未发货终止走取消入口统一回补）
         - return_id: 售后申请单（RMA）关联，写入退款流水便于回溯
+        - idempotency_key: 幂等键，同一 key 重复提交直接返回订单，不重复扣款（防双发）
         - payment_status: 全退 -> refunded；未退完 -> partially_refunded；不新增订单终态
         """
+        if idempotency_key:
+            # 幂等短路：退款流水已记录该 key，视为重复提交
+            existing_refunds = cast(list[Any], order.refunds or [])
+            for existing in existing_refunds:
+                if isinstance(existing, dict) and existing.get("idempotency_key") == idempotency_key:
+                    return order
         if order.payment_status not in _REFUNDABLE_PAYMENT_STATUSES:
             raise APIError(ErrorCode.ORDER_INVALID_STATE, message="Order has no paid amount to refund.")
         if order.status in _REFUND_BLOCKED_ORDER_STATUSES:
@@ -887,6 +897,7 @@ class SQLAlchemyCustomerOrderRepository:
             "reason": reason or "",
             "refunded_by": refunded_by,
             "return_id": return_id,
+            "idempotency_key": idempotency_key,
             "refunded_at": now.isoformat(),
             "restock": bool(restock),
         }

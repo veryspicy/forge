@@ -510,7 +510,10 @@ const local: App.I18n.Schema = {
       copySuccess: 'Copied',
       copyFailed: 'Copy failed',
       copyEmailEmpty: 'No customer email for this order',
-      actions: 'Actions'
+      actions: 'Actions',
+      afterSales: 'After-sales',
+      afterSalesPending: '{count} pending',
+      afterSalesNone: '—'
     },
     ordersDetail: {
       backToOrders: 'Back to Orders',
@@ -593,7 +596,15 @@ const local: App.I18n.Schema = {
       paymentFailed: 'Payment failed',
       rejectRefundHint: 'Rejection terminates the order and refunds the paid balance in full (refundable {amount})',
       rejectNoRefundHint: 'No refundable balance; rejection will not issue a refund',
-      cancelNoRefundHint: 'No refundable balance; cancelling will not issue a refund'
+      cancelNoRefundHint: 'No refundable balance; cancelling will not issue a refund',
+      refundOnly: 'Refund only (no return)',
+      refundOnlyHint:
+        'Issues a money-only refund. Order fulfillment state and return records stay untouched. If the customer must ship the goods back, ask them to file a return request (RMA) and refund from there.',
+      afterSalesRecords: 'After-sales',
+      noAfterSales: 'No return requests',
+      viewInReturns: 'Open in Returns',
+      shipBlockedByReview: 'This site requires an approved review before shipping. Approve the order first.',
+      returnOpen: 'Open'
     },
     aiProbe: {
       noMessages: 'No messages',

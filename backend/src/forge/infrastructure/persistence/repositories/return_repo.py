@@ -63,10 +63,12 @@ class SQLAlchemyReturnRepository:
     # ------------------------------------------------------------------
 
     @staticmethod
-    async def _load_order(db: AsyncSession, order_id: UUID) -> ORMOrder:
-        order = await db.scalar(
-            select(ORMOrder).where(ORMOrder.id == order_id).options(selectinload(ORMOrder.items))
-        )
+    async def _load_order(db: AsyncSession, order_id: UUID, *, for_update: bool = False) -> ORMOrder:
+        stmt = select(ORMOrder).where(ORMOrder.id == order_id).options(selectinload(ORMOrder.items))
+        if for_update:
+            # 资金动作前锁定订单行，配合幂等键防止并发重复退款
+            stmt = stmt.with_for_update()
+        order = await db.scalar(stmt)
         if order is None:
             raise APIError(ErrorCode.ORDER_NOT_FOUND, message="Order does not exist.")
         return order
@@ -148,12 +150,69 @@ class SQLAlchemyReturnRepository:
         return rr
 
     @staticmethod
-    async def get_return_request(db: AsyncSession, return_number: str) -> ORMReturnRequest:
-        rr = await db.scalar(
+    async def list_by_order(db: AsyncSession, order_id: UUID) -> list[ORMReturnRequest]:
+        """订单详情用：该订单下全部售后单（含明细），按创建时间倒序。"""
+        rows = await db.scalars(
+            select(ORMReturnRequest)
+            .where(ORMReturnRequest.order_id == order_id)
+            .options(selectinload(ORMReturnRequest.items))
+            .order_by(ORMReturnRequest.created_at.desc())
+        )
+        return list(rows.all())
+
+    @staticmethod
+    async def summaries_by_order_ids(db: AsyncSession, order_ids: list[Any]) -> dict[str, dict[str, Any]]:
+        """订单列表用：批量聚合各订单的售后摘要（总数 / 在途数 / 最近状态 / 已退金额）。
+
+        一次查询覆盖整页订单，避免列表页 N+1。
+        """
+        ids = [oid for oid in order_ids if oid is not None]
+        if not ids:
+            return {}
+        rows = (
+            await db.scalars(
+                select(ORMReturnRequest)
+                .where(ORMReturnRequest.order_id.in_(ids))
+                .order_by(ORMReturnRequest.created_at.desc())
+            )
+        ).all()
+        summaries: dict[str, dict[str, Any]] = {}
+        for rr in rows:
+            key = str(rr.order_id)
+            summary = summaries.get(key)
+            if summary is None:
+                # 倒序首条即最近一张售后单
+                summary = {
+                    "total": 0,
+                    "open": 0,
+                    "latest_status": rr.status,
+                    "latest_return_number": rr.return_number,
+                    "refunded_amount": 0.0,
+                    "last_requested_at": rr.requested_at.isoformat() if rr.requested_at else None,
+                }
+                summaries[key] = summary
+            summary["total"] = int(summary["total"]) + 1
+            if rr.status in OPEN_RETURN_STATUSES:
+                summary["open"] = int(summary["open"]) + 1
+            if rr.status == "refunded":
+                summary["refunded_amount"] = round(
+                    float(summary["refunded_amount"]) + float(_money(rr.refund_amount)), 2
+                )
+        return summaries
+
+    @staticmethod
+    async def get_return_request(
+        db: AsyncSession, return_number: str, *, for_update: bool = False
+    ) -> ORMReturnRequest:
+        stmt = (
             select(ORMReturnRequest)
             .where(ORMReturnRequest.return_number == return_number)
             .options(selectinload(ORMReturnRequest.items))
         )
+        if for_update:
+            # 退款前锁行：两个并发请求只有一个能拿到 approved/received 状态
+            stmt = stmt.with_for_update()
+        rr = await db.scalar(stmt)
         if rr is None:
             raise APIError(ErrorCode.RETURN_NOT_FOUND, message="Return request does not exist.")
         return await SQLAlchemyReturnRepository._attach_order_number(db, rr)
@@ -513,13 +572,14 @@ class SQLAlchemyReturnRepository:
 
         - 金额校验：实算金额须与审核锁定金额一致（容差 1 分），否则要求重新审核
         - restock=True 时按本次退款数量回补库存（委托 order_repo 实现）
+        - 幂等：锁定订单行 + 售后单号作为幂等键，重复提交不产生二次扣款
         """
         if rr.status not in {"approved", "received"}:
             raise APIError(
                 ErrorCode.RETURN_INVALID_STATE,
                 message=f"Return request cannot be refunded in state '{rr.status}'.",
             )
-        order = await SQLAlchemyReturnRepository._load_order(db, cast(UUID, rr.order_id))
+        order = await SQLAlchemyReturnRepository._load_order(db, cast(UUID, rr.order_id), for_update=True)
         plan = SQLAlchemyReturnRepository._plan_for_return(order, rr)
         if not plan:
             raise APIError(
@@ -545,6 +605,7 @@ class SQLAlchemyReturnRepository:
             restock=bool(rr.restock),
             refunded_by=refunded_by,
             return_id=str(rr.id),
+            idempotency_key=f"return:{rr.return_number}",
         )
         refunds = cast(list[Any], order.refunds or [])
         last = refunds[-1] if refunds and isinstance(refunds[-1], dict) else {}

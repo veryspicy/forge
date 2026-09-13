@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import { ref, onMounted, h } from 'vue';
+import { ref, onMounted, h, watch, nextTick } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { useDebounceFn } from '@vueuse/core';
 import {
   NButton,
   NDataTable,
@@ -95,6 +97,35 @@ function refresh() {
   fetchStats();
 }
 
+const route = useRoute();
+const router = useRouter();
+
+const debouncedFetchList = useDebounceFn(() => {
+  page.value = 1;
+  refresh();
+}, 400);
+
+/** 立即查询：清空关键词 / 回车 / 切换状态时调用，取消防抖中挂起的请求 */
+function searchNow() {
+  (debouncedFetchList as any).cancel?.();
+  page.value = 1;
+  refresh();
+}
+
+// 从订单列表带 keyword 跳转进来时，跳过初始化赋值的重复触发
+let skipWatch = false;
+
+// 停止输入 400ms 自动查询；清空关键词立即回到全量
+watch(keyword, value => {
+  if (skipWatch) return;
+  if (!String(value || '').trim()) searchNow();
+  else debouncedFetchList();
+});
+
+function goOrder(row: any) {
+  if (row?.order_number) router.push(`/orders/${row.order_number}`);
+}
+
 const columns: DataTableColumns<any> = [
   { title: t('page.returns.returnNumber'), key: 'return_number', width: 170 },
   { title: t('page.returns.orderNumber'), key: 'order_number', width: 160 },
@@ -121,6 +152,11 @@ const columns: DataTableColumns<any> = [
       h(NSpace, { size: 4 }, {
         default: () => [
           h(NButton, { size: 'tiny', onClick: () => openDetail(row) }, { default: () => t('page.returns.detail') }),
+          h(
+            NButton,
+            { size: 'tiny', quaternary: true, type: 'primary', onClick: () => goOrder(row) },
+            { default: () => t('page.returns.openOrder') }
+          ),
           row.status === 'requested'
             ? h(
                 NButton,
@@ -244,7 +280,18 @@ const itemColumns: DataTableColumns<any> = [
   { title: t('page.returns.quantity'), key: 'quantity' }
 ];
 
-onMounted(refresh);
+onMounted(() => {
+  // 由订单列表跳转进来时带 keyword（订单号），自动定位该订单的售后单
+  const q = route.query.keyword;
+  if (typeof q === 'string' && q.trim()) {
+    skipWatch = true;
+    keyword.value = q.trim();
+    nextTick(() => {
+      skipWatch = false;
+    });
+  }
+  refresh();
+});
 </script>
 
 <template>
@@ -266,9 +313,9 @@ onMounted(refresh);
           :placeholder="t('page.returns.searchPlaceholder')"
           style="width: 280px"
           clearable
-          @keyup.enter="refresh"
+          :input-props="{ autocomplete: 'off' }"
+          @keyup.enter="searchNow"
         />
-        <NButton @click="refresh">查询</NButton>
       </NSpace>
       <span class="text-sm text-[var(--n-text-color-3)]">{{ total }} {{ t('page.returns.list') }}</span>
     </div>
@@ -315,6 +362,11 @@ onMounted(refresh);
           <NDescriptionsItem :label="t('page.returns.reviewNote')">{{ current.review_note || '-' }}</NDescriptionsItem>
           <NDescriptionsItem :label="t('page.returns.note')">{{ current.note || '-' }}</NDescriptionsItem>
         </NDescriptions>
+        <div class="mt-4 flex justify-end">
+          <NButton size="small" secondary type="primary" :disabled="!current?.order_number" @click="goOrder(current)">
+            {{ t('page.returns.openOrder') }}
+          </NButton>
+        </div>
         <div class="mt-4 text-sm font-medium">{{ t('page.returns.items') }}</div>
         <NDataTable
           class="mt-2"

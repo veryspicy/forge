@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { h, onMounted, ref } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import {
   NButton,
   NCard,
@@ -20,6 +20,7 @@ import { get, post } from '@/service/api/helper';
 import type { DataTableColumns } from 'naive-ui';
 
 const route = useRoute();
+const router = useRouter();
 const { t } = useI18n();
 const order = ref<any>(null);
 const loading = ref(true);
@@ -40,6 +41,8 @@ const refundReason = ref('');
 const refundLines = ref<Array<{ id: string; name: string; quantity: number; refundable: number }>>([]);
 const refundShipping = ref(false);
 const refundRestock = ref(false);
+// 退款幂等键：打开退款弹窗时生成，重复提交不会二次扣款
+const refundIdempotencyKey = ref('');
 const showCancel = ref(false);
 const cancelReason = ref('');
 const cancelRefund = ref(true);
@@ -56,8 +59,18 @@ function canRefund(): boolean {
 function canCancel(): boolean {
   return ['pending', 'confirmed', 'processing'].includes(order.value?.status || '');
 }
+/** 站点开启「发货前需审核通过」且订单未审核通过时，禁止发货 */
+function shipBlocked(): boolean {
+  return Boolean(order.value?.require_review_before_ship) && !order.value?.review_approved;
+}
 function canShip(): boolean {
+  if (shipBlocked()) return false;
   return ['confirmed', 'processing'].includes(order.value?.status || '');
+}
+/** 退款幂等键：每次打开退款弹窗生成一次，重复点击提交不会二次扣款 */
+function newRefundIdempotencyKey(): string {
+  const uuid = (window.crypto as any)?.randomUUID?.();
+  return uuid ? `admin-refund:${uuid}` : `admin-refund:${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 function dropshipRows(): any[] {
   return (order.value?.items || []).filter((i: any) => i.fulfillment_mode === 'dropship');
@@ -155,6 +168,48 @@ function timelineType(s: string): any {
 
 function numberedShipments(shipments: any[]): { s: any; i: number; no: number }[] {
   return (shipments || []).map((s, i) => ({ s, i, no: i + 1 }));
+}
+
+/* ===== 售后记录（RMA 交叉引用） ===== */
+const RETURN_STATUS_LABELS: Record<string, string> = {
+  requested: '待审核',
+  approved: '待收货',
+  received: '待退款',
+  refunded: '已退款',
+  rejected: '已驳回',
+  cancelled: '已撤销',
+  closed: '已关闭'
+};
+const RETURN_STATUS_TYPES: Record<string, any> = {
+  requested: 'warning',
+  approved: 'info',
+  received: 'info',
+  refunded: 'success',
+  rejected: 'error',
+  cancelled: 'default',
+  closed: 'default'
+};
+const returnColumns: DataTableColumns<any> = [
+  { title: t('page.returns.returnNumber'), key: 'return_number', width: 160 },
+  {
+    title: t('page.returns.status'),
+    key: 'status',
+    width: 110,
+    render: row =>
+      h(
+        NTag,
+        { size: 'small', type: RETURN_STATUS_TYPES[row.status] || 'default' },
+        { default: () => RETURN_STATUS_LABELS[row.status] || row.status }
+      )
+  },
+  { title: t('page.returns.refundAmount'), key: 'refund_amount', width: 120, render: row => money(row.refund_amount) },
+  { title: t('page.returns.reason'), key: 'reason', render: row => row.reason || '-' },
+  { title: t('page.returns.requestedAt'), key: 'requested_at', width: 170, render: row => fmtTime(row.requested_at) }
+];
+
+/** 跳转售后管理并按本订单号过滤 */
+function goReturns() {
+  if (order.value?.order_number) router.push({ path: '/returns', query: { keyword: order.value.order_number } });
 }
 
 const itemColumns: DataTableColumns<any> = [
@@ -274,6 +329,7 @@ function openRefund(row?: any) {
   refundReason.value = '';
   refundShipping.value = false;
   refundRestock.value = false;
+  refundIdempotencyKey.value = newRefundIdempotencyKey();
   actionError.value = '';
   showRefund.value = true;
 }
@@ -383,7 +439,9 @@ async function doRefund() {
       reason: refundReason.value,
       items,
       refund_shipping: refundShipping.value,
-      restock: refundRestock.value
+      restock: refundRestock.value,
+      // 幂等键随弹窗生成：重复提交/网络重试不会二次扣款
+      idempotency_key: refundIdempotencyKey.value || undefined
     });
     showRefund.value = false;
     await loadOrder();
@@ -444,10 +502,14 @@ onMounted(loadOrder);
             {{ $t('page.ordersDetail.ship') }}
           </NButton>
           <NButton v-if="canRefund()" type="error" @click="openRefund()">
-            {{ $t('page.ordersDetail.refund') }}
+            {{ $t('page.ordersDetail.refundOnly') }}
           </NButton>
           <NButton v-if="canCancel()" @click="openCancel()">取消订单</NButton>
         </NSpace>
+
+        <div v-if="shipBlocked()" class="mb-4 text-sm text-red-500">
+          {{ $t('page.ordersDetail.shipBlockedByReview') }}
+        </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <!-- Order Info -->
@@ -624,6 +686,19 @@ onMounted(loadOrder);
                 全部确认到货
               </NButton>
             </div>
+          </NCard>
+
+          <!-- After-sales (RMA) -->
+          <NCard :title="$t('page.ordersDetail.afterSalesRecords')" size="small" class="md:col-span-2">
+            <template v-if="order.return_requests && order.return_requests.length">
+              <NDataTable :columns="returnColumns" :data="order.return_requests" :bordered="false" size="small" />
+              <div class="mt-3">
+                <NButton size="small" secondary type="primary" @click="goReturns()">
+                  {{ $t('page.ordersDetail.viewInReturns') }}
+                </NButton>
+              </div>
+            </template>
+            <NEmpty v-else :description="$t('page.ordersDetail.noAfterSales')" />
           </NCard>
 
           <!-- Shipments -->
@@ -813,6 +888,7 @@ onMounted(loadOrder);
         <NFormItem :label="$t('page.ordersDetail.reason')">
           <NInput v-model:value="refundReason" type="textarea" :rows="2" />
         </NFormItem>
+        <div class="text-sm text-[var(--n-text-color-3)]">{{ $t('page.ordersDetail.refundOnlyHint') }}</div>
         <div class="text-sm text-[var(--n-text-color-3)]">本次可退余额 {{ money(refundableAmount()) }}</div>
         <div v-if="actionError" class="text-red-500 text-sm">{{ actionError }}</div>
       </div>

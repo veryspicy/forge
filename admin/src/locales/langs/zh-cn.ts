@@ -505,7 +505,10 @@ const local: App.I18n.Schema = {
       copySuccess: '复制成功',
       copyFailed: '复制失败',
       copyEmailEmpty: '该订单暂无客户邮箱',
-      actions: '操作'
+      actions: '操作',
+      afterSales: '售后',
+      afterSalesPending: '{count} 待处理',
+      afterSalesNone: '—'
     },
     ordersDetail: {
       approve: '审核通过',
@@ -588,7 +591,15 @@ const local: App.I18n.Schema = {
       paymentFailed: '支付失败',
       rejectRefundHint: '拒绝将终止订单并自动全额退款（当前可退 {amount}）',
       rejectNoRefundHint: '该订单无可退余额，拒绝后不产生退款',
-      cancelNoRefundHint: '该订单无可退余额，取消后不产生退款'
+      cancelNoRefundHint: '该订单无可退余额，取消后不产生退款',
+      refundOnly: '仅退款（不退货）',
+      refundOnlyHint:
+        '仅执行资金退款，不改变订单履约状态，也不登记退货。需要客户寄回商品请引导其提交售后单（RMA），从售后单发起退货退款。',
+      afterSalesRecords: '售后记录',
+      noAfterSales: '暂无售后记录',
+      viewInReturns: '在售后管理中查看',
+      shipBlockedByReview: '站点已开启「发货前需订单审核通过」，请先审核通过该订单再发货。',
+      returnOpen: '处理中'
     },
     aiProbe: {
       noMessages: '暂无消息',

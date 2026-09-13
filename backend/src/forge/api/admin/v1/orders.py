@@ -29,6 +29,8 @@ from forge.infrastructure.persistence.repositories.order_repo import (
     _order_fulfillment_mode,
     _order_to_dict,
 )
+from forge.infrastructure.persistence.repositories.return_repo import SQLAlchemyReturnRepository
+from forge.infrastructure.persistence.repositories.site_profile_repo import SQLAlchemySiteProfileRepository
 from forge.main.dependencies import get_db
 from forge.main.rbac import require_permission
 
@@ -152,17 +154,37 @@ class AdminRefundRequest(BaseModel):
     refund_shipping: bool = False
     # 是否把本次退款数量回补本地库存（未发货终止走取消入口，由取消统一回补）
     restock: bool = False
+    # 幂等键：前端每次确认退款生成一次，重复提交不会二次扣款
+    idempotency_key: str | None = Field(default=None, max_length=128)
 
 
-async def _admin_order_or_404(db: AsyncSession, order_number: str) -> ORMOrder:
-    order = (
-        await db.execute(
-            select(ORMOrder).where(ORMOrder.order_number == order_number).options(selectinload(ORMOrder.items))
-        )
-    ).scalar_one_or_none()
+async def _admin_order_or_404(db: AsyncSession, order_number: str, *, for_update: bool = False) -> ORMOrder:
+    stmt = select(ORMOrder).where(ORMOrder.order_number == order_number).options(selectinload(ORMOrder.items))
+    if for_update:
+        # 资金动作前锁定订单行，配合幂等键防并发重复退款
+        stmt = stmt.with_for_update()
+    order = (await db.execute(stmt)).scalar_one_or_none()
     if order is None:
         raise APIError(ErrorCode.ORDER_NOT_FOUND, message="Order does not exist.")
     return order
+
+
+async def _require_review_before_ship(db: AsyncSession) -> bool:
+    """站点功能开关：发货前是否必须先审核通过（featureFlags.require_review_before_ship）。"""
+    profile = await SQLAlchemySiteProfileRepository.get_active(db)
+    config = profile.config if profile is not None else None
+    if not isinstance(config, dict):
+        return False
+    flags = config.get("featureFlags") or config.get("feature_flags") or {}
+    if not isinstance(flags, dict):
+        return False
+    return bool(flags.get("require_review_before_ship"))
+
+
+def _review_approved(order: ORMOrder) -> bool:
+    """订单是否已审核通过（review_status.approved）。"""
+    review: dict[str, Any] = order.review_status if isinstance(order.review_status, dict) else {}
+    return bool(review.get("approved"))
 
 
 def _shipment_dict(s: ORMShipment) -> dict[str, Any]:
@@ -221,13 +243,19 @@ async def list_orders(
     repo = SQLAlchemyOrderRepository()
     normalized_status = status.strip().lower() if status and status.strip() else None
     normalized_search = search.strip() if search and search.strip() else None
-    return await repo.list_orders(
+    data = await repo.list_orders(
         db,
         page=page,
         page_size=page_size,
         status=normalized_status,
         search=normalized_search,
     )
+    # 售后角标：批量补齐本页订单的售后摘要，运营无需切页即可看到售后进展
+    items = cast(list[dict[str, Any]], data.get("items") or [])
+    summaries = await SQLAlchemyReturnRepository.summaries_by_order_ids(db, [item.get("id") for item in items])
+    for item in items:
+        item["returns_summary"] = summaries.get(str(item.get("id")))
+    return data
 
 
 @router.get("/export")
@@ -389,6 +417,12 @@ async def get_order_detail(
     shipments = await SQLAlchemyCustomerOrderRepository.list_shipments(db, cast(UUID, order.id))
     data["shipments"] = [_shipment_dict(s) for s in shipments]
     data["timeline"] = _admin_timeline(order)
+    # 售后区块：订单详情内嵌该订单全部 RMA（C 端发起），无需切到售后模块再查一遍
+    return_requests = await SQLAlchemyReturnRepository.list_by_order(db, cast(UUID, order.id))
+    data["return_requests"] = [SQLAlchemyReturnRepository.to_dict(rr) for rr in return_requests]
+    data["review_approved"] = _review_approved(order)
+    # 站点的发货门禁开关下发给前端，用于提前禁用发货按钮
+    data["require_review_before_ship"] = await _require_review_before_ship(db)
     return data
 
 
@@ -405,6 +439,12 @@ async def ship_order(
     - 已 shipped 订单：仅追加登记新包裹（分批补发场景），不重复改变订单状态
     """
     order = await _admin_order_or_404(db, order_number)
+    # 站点门禁：开启「发货前需审核通过」时，未审核订单不予发货
+    if await _require_review_before_ship(db) and not _review_approved(order):
+        raise APIError(
+            ErrorCode.ORDER_INVALID_STATE,
+            message="Order must be approved before shipping (site requires review).",
+        )
     was_shipped = order.status in {"shipped", "delivered"}
     if not was_shipped:
         order = await SQLAlchemyCustomerOrderRepository.mark_shipped(
@@ -522,7 +562,8 @@ async def refund_order(
     只做资金动作（refunded_amount / payment_status），不改订单履约状态；
     无论是否发货，只要有已收款项且仍有可退余额即可退款。
     """
-    order = await _admin_order_or_404(db, order_number)
+    # 锁定订单行，配合幂等键防并发/重复提交造成二次扣款
+    order = await _admin_order_or_404(db, order_number, for_update=True)
     refunded = await SQLAlchemyCustomerOrderRepository.admin_refund_order(
         db,
         order,
@@ -534,6 +575,7 @@ async def refund_order(
         ),
         refund_shipping=payload.refund_shipping,
         restock=payload.restock,
+        idempotency_key=payload.idempotency_key,
     )
     await db.commit()
     await db.refresh(refunded, attribute_names=["items"])

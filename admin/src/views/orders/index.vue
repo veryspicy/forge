@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, h } from 'vue';
+import { ref, onMounted, h, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
+import { useDebounceFn } from '@vueuse/core';
 import {
   NButton,
   NCard,
@@ -122,6 +123,26 @@ const columns: DataTableColumns<any> = [
       return `${paymentLabel(row.payment_status)}${suffix}`;
     }
   },
+  {
+    title: t('page.orders.afterSales'),
+    key: 'returns_summary',
+    render: row => {
+      const summary = row.returns_summary;
+      if (!summary || !summary.total) return t('page.orders.afterSalesNone');
+      const pending = Number(summary.open || 0);
+      const label = `${summary.total}${pending ? ` · ${t('page.orders.afterSalesPending', { count: pending })}` : ''}`;
+      return h(
+        NTag,
+        {
+          size: 'small',
+          type: pending ? 'error' : 'info',
+          style: 'cursor: pointer',
+          onClick: () => router.push({ path: '/returns', query: { keyword: row.order_number } })
+        },
+        { default: () => label }
+      );
+    }
+  },
   { title: t('common.items'), key: 'items', render: row => row.items?.length || 0 },
   {
     title: t('page.orders.date'),
@@ -184,6 +205,24 @@ async function fetch() {
     loading.value = false;
   }
 }
+
+const debouncedFetch = useDebounceFn(() => {
+  page.value = 1;
+  fetch();
+}, 400);
+
+/** 立即搜索：清空关键词 / 回车 / 切换状态时调用，取消防抖中挂起的请求 */
+function resetAndFetch() {
+  (debouncedFetch as any).cancel?.();
+  page.value = 1;
+  fetch();
+}
+
+// 停止输入 400ms 自动搜索；清空关键词立即回到全量列表
+watch(search, value => {
+  if (!String(value || '').trim()) resetAndFetch();
+  else debouncedFetch();
+});
 
 function goPage(p: number) {
   page.value = p;
@@ -297,7 +336,14 @@ onMounted(fetch);
 <template>
   <div class="flex flex-col gap-4">
     <div class="flex items-center gap-3">
-      <NInput v-model:value="search" :placeholder="$t('common.search')" style="width: 220px" @keyup.enter="fetch" />
+      <NInput
+        v-model:value="search"
+        :placeholder="$t('common.search')"
+        style="width: 220px"
+        clearable
+        :input-props="{ autocomplete: 'off' }"
+        @keyup.enter="resetAndFetch"
+      />
       <NSelect
         v-model:value="statusFilter"
         :options="statusOptions"
