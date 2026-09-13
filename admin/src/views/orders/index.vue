@@ -30,10 +30,6 @@ const page = ref(1);
 const total = ref(0);
 const pageSize = 20;
 
-const statusOptions = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'].map(
-  s => ({ label: statusLabel(s), value: s })
-);
-
 const ORDER_STATUS_LABEL_KEYS: Record<string, string> = {
   pending: 'statusPending',
   confirmed: 'statusConfirmed',
@@ -68,6 +64,10 @@ function statusLabel(value?: string | null): string {
 function paymentLabel(value?: string | null): string {
   return localizeStatus(PAYMENT_STATUS_LABEL_KEYS, value);
 }
+
+const statusOptions = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'].map(
+  s => ({ label: statusLabel(s), value: s })
+);
 
 function statusType(s: string): any {
   const map: Record<string, any> = {
