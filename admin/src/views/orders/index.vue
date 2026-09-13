@@ -177,7 +177,7 @@ async function fetch() {
     const params: Record<string, any> = { page: page.value, page_size: pageSize };
     if (search.value) params.search = search.value;
     if (statusFilter.value) params.status = statusFilter.value;
-    const res = await get('/api/admin/v1/orders/', { params });
+    const res = await get('/api/admin/v1/orders/', params);
     orders.value = res.data?.items || [];
     total.value = res.data?.total || 0;
   } finally {
@@ -257,9 +257,7 @@ const purchaseColumns: DataTableColumns<any> = [
 async function loadPurchaseList() {
   purchaseLoading.value = true;
   try {
-    const res = await get('/api/admin/v1/orders/purchase-list', {
-      params: { status: purchaseStatus.value }
-    });
+    const res = await get('/api/admin/v1/orders/purchase-list', { status: purchaseStatus.value });
     purchaseGroups.value = res.data?.groups || [];
   } catch {
     message.error('待采购清单加载失败');

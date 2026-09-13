@@ -73,12 +73,10 @@ async function fetchList() {
   loading.value = true;
   try {
     const res = await get('/api/admin/v1/returns/', {
-      params: {
-        page: page.value,
-        page_size: pageSize.value,
-        status: status.value || undefined,
-        keyword: keyword.value || undefined
-      }
+      page: page.value,
+      page_size: pageSize.value,
+      status: status.value || undefined,
+      keyword: keyword.value || undefined
     });
     rows.value = res.data?.items || [];
     total.value = res.data?.total ?? rows.value.length;

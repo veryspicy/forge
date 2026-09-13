@@ -267,7 +267,7 @@ const supplierOptions = ref<{ label: string; value: string }[]>([]);
 
 async function loadSuppliers() {
   try {
-    const res = await get('/api/admin/v1/suppliers/', { params: { page: 1, page_size: 200 } });
+    const res = await get('/api/admin/v1/suppliers/', { page: 1, page_size: 200 });
     const list = (res.data?.items || res.data || []) as any[];
     supplierOptions.value = list
       .filter((s: any) => s.is_active !== false)
