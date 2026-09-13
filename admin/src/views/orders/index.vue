@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, h, watch } from 'vue';
+import { ref, onMounted, h } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useDebounceFn } from '@vueuse/core';
@@ -218,11 +218,14 @@ function resetAndFetch() {
   fetch();
 }
 
-// 停止输入 400ms 自动搜索；清空关键词立即回到全量列表
-watch(search, value => {
-  if (!String(value || '').trim()) resetAndFetch();
+/**
+ * 输入即触发：停止输入 400ms 自动搜索；清空关键词立即回到全量列表。
+ * 通过 NInput 的 @update:value 直接驱动，避免依赖 watch 时序。
+ */
+function onSearchInput(value: string | null) {
+  if (!String(value ?? '').trim()) resetAndFetch();
   else debouncedFetch();
-});
+}
 
 function goPage(p: number) {
   page.value = p;
@@ -342,6 +345,7 @@ onMounted(fetch);
         style="width: 220px"
         clearable
         :input-props="{ autocomplete: 'off' }"
+        @update:value="onSearchInput"
         @keyup.enter="resetAndFetch"
       />
       <NSelect

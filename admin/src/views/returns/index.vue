@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import { ref, onMounted, h, watch, nextTick } from 'vue';
+import { ref, onMounted, h } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useDebounceFn } from '@vueuse/core';
 import {
@@ -112,15 +112,14 @@ function searchNow() {
   refresh();
 }
 
-// 从订单列表带 keyword 跳转进来时，跳过初始化赋值的重复触发
-let skipWatch = false;
-
-// 停止输入 400ms 自动查询；清空关键词立即回到全量
-watch(keyword, value => {
-  if (skipWatch) return;
-  if (!String(value || '').trim()) searchNow();
+/**
+ * 输入即触发：停止输入 400ms 自动查询；清空关键词立即回到全量。
+ * 通过 NInput 的 @update:value 直接驱动，避免依赖 watch 时序。
+ */
+function onKeywordInput(value: string | null) {
+  if (!String(value ?? '').trim()) searchNow();
   else debouncedFetchList();
-});
+}
 
 function goOrder(row: any) {
   if (row?.order_number) router.push(`/orders/${row.order_number}`);
@@ -284,11 +283,7 @@ onMounted(() => {
   // 由订单列表跳转进来时带 keyword（订单号），自动定位该订单的售后单
   const q = route.query.keyword;
   if (typeof q === 'string' && q.trim()) {
-    skipWatch = true;
     keyword.value = q.trim();
-    nextTick(() => {
-      skipWatch = false;
-    });
   }
   refresh();
 });
@@ -314,6 +309,7 @@ onMounted(() => {
           style="width: 280px"
           clearable
           :input-props="{ autocomplete: 'off' }"
+          @update:value="onKeywordInput"
           @keyup.enter="searchNow"
         />
       </NSpace>
