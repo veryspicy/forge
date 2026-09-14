@@ -94,7 +94,7 @@ async def list_returns(
 async def return_stats(
     admin: dict[str, object] = Depends(require_permission("orders", "view")),
     db: AsyncSession = Depends(get_db),
-) -> dict[str, int]:
+) -> dict[str, float | int]:
     """售后看板：待审 / 待收货 / 待退款 / 已完成等计数。"""
     return await SQLAlchemyReturnRepository.return_stats(db)
 

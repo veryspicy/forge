@@ -7,6 +7,7 @@
   GET    /returns                            -> {items, total, page, page_size}（?status= 过滤）
   GET    /returns/{return_number}            -> return detail
   POST   /returns/{return_number}/cancel     -> return（requested/approved/received 可撤销）
+  POST   /returns/{return_number}/shipment   -> return（approved 后回填寄回承运商+快递单号，供物流追踪）
 - 状态机（与 Admin 端共用 return_repo）：requested -> approved -> received -> refunded
   旁支终态：rejected（驳回）/ cancelled（客户撤销）/ closed（超时关闭）
 - 资金动作不在 C 端触发：审核通过并收到回寄商品后由 Admin 执行退款，金额沿用审核锁定值
@@ -14,6 +15,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 from uuid import UUID
 
@@ -36,6 +38,10 @@ router = APIRouter(prefix="/returns", tags=["C-end Returns"])
 VALID_RETURN_STATUSES = set(OPEN_RETURN_STATUSES) | set(RETURN_TERMINAL_STATUSES)
 VALID_REFUND_METHODS = {"original", "store_credit", "manual"}
 MAX_REASON_LENGTH = 100
+MAX_CARRIER_LENGTH = 100
+MAX_TRACKING_LENGTH = 64
+# 快递单号：字母数字开头，允许字母数字/连字符/下划线/空格（覆盖主流承运商单号格式）
+TRACKING_NUMBER_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9\-_ ]{3,63}$")
 
 
 class ReturnItemCreate(BaseModel):
@@ -59,6 +65,15 @@ class ReturnCancel(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     reason: str | None = Field(default=None, max_length=2000)
+
+
+class ReturnShipmentCreate(BaseModel):
+    """客户寄回物流：承运商 + 快递单号。"""
+
+    model_config = ConfigDict(extra="ignore")
+
+    carrier: str = Field(min_length=1, max_length=MAX_CARRIER_LENGTH)
+    tracking_number: str = Field(min_length=1, max_length=MAX_TRACKING_LENGTH)
 
 
 async def _owned_return(db: AsyncSession, owner_id: UUID, return_number: str) -> Any:
@@ -153,9 +168,29 @@ async def cancel_return(
     """撤销退货申请（退款完成/驳回/关闭后不可撤销）。"""
     owner_id = await _current_owner_id(user_claims, db)
     rr = await _owned_return(db, owner_id, return_number)
-    await SQLAlchemyReturnRepository.cancel_return_request(
-        db, rr, reason=(payload.reason if payload else None)
-    )
+    await SQLAlchemyReturnRepository.cancel_return_request(db, rr, reason=(payload.reason if payload else None))
+    await db.commit()
+    await db.refresh(rr, attribute_names=["items"])
+    return SQLAlchemyReturnRepository.to_dict(rr)
+
+
+@router.post("/{return_number}/shipment")
+async def submit_return_shipment(
+    return_number: str,
+    payload: ReturnShipmentCreate,
+    user_claims: dict[str, object] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """上传退货快递单号（审核通过后寄回）：仅本人、仅 approved、未超期，重复提交覆盖。"""
+    owner_id = await _current_owner_id(user_claims, db)
+    rr = await _owned_return(db, owner_id, return_number)
+    carrier = payload.carrier.strip()
+    tracking_number = payload.tracking_number.strip()
+    if not carrier or not tracking_number:
+        raise APIError(ErrorCode.VALIDATION_ERROR, message="Carrier and tracking number are required.")
+    if not TRACKING_NUMBER_PATTERN.match(tracking_number):
+        raise APIError(ErrorCode.VALIDATION_ERROR, message="Invalid tracking number format.")
+    await SQLAlchemyReturnRepository.submit_return_shipment(db, rr, carrier=carrier, tracking_number=tracking_number)
     await db.commit()
     await db.refresh(rr, attribute_names=["items"])
     return SQLAlchemyReturnRepository.to_dict(rr)

@@ -765,6 +765,10 @@ class ORMReturnRequest(Base):
     reviewed_at = Column(DateTime(timezone=False), nullable=True)
     reviewed_by = Column(String(100), nullable=True)
     review_note = Column(Text, nullable=True)
+    # 客户寄回物流（审核通过后由 C 端回填，供售后单内物流追踪）
+    carrier = Column(String(100), nullable=True)
+    tracking_number = Column(String(500), nullable=True)
+    shipped_at = Column(DateTime(timezone=False), nullable=True)
     received_at = Column(DateTime(timezone=False), nullable=True)
     refunded_at = Column(DateTime(timezone=False), nullable=True)
     refund_id = Column(String(64), nullable=True)

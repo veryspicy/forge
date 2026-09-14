@@ -74,9 +74,7 @@ class SQLAlchemyReturnRepository:
         return order
 
     @staticmethod
-    async def pending_return_quantity_map(
-        db: AsyncSession, order_item_ids: list[UUID]
-    ) -> dict[str, int]:
+    async def pending_return_quantity_map(db: AsyncSession, order_item_ids: list[UUID]) -> dict[str, int]:
         """各订单行被在途退货单占用的数量（requested/approved/received）。"""
         if not order_item_ids:
             return {}
@@ -111,6 +109,9 @@ class SQLAlchemyReturnRepository:
             "reviewed_at": rr.reviewed_at.isoformat() if rr.reviewed_at else None,
             "reviewed_by": rr.reviewed_by,
             "review_note": rr.review_note,
+            "carrier": rr.carrier,
+            "tracking_number": rr.tracking_number,
+            "shipped_at": rr.shipped_at.isoformat() if rr.shipped_at else None,
             "received_at": rr.received_at.isoformat() if rr.received_at else None,
             "refunded_at": rr.refunded_at.isoformat() if rr.refunded_at else None,
             "refund_id": rr.refund_id,
@@ -201,9 +202,7 @@ class SQLAlchemyReturnRepository:
         return summaries
 
     @staticmethod
-    async def get_return_request(
-        db: AsyncSession, return_number: str, *, for_update: bool = False
-    ) -> ORMReturnRequest:
+    async def get_return_request(db: AsyncSession, return_number: str, *, for_update: bool = False) -> ORMReturnRequest:
         stmt = (
             select(ORMReturnRequest)
             .where(ORMReturnRequest.return_number == return_number)
@@ -232,13 +231,9 @@ class SQLAlchemyReturnRepository:
             conditions.append(ORMReturnRequest.status == status)
         if order_number:
             conditions.append(
-                ORMReturnRequest.order_id.in_(
-                    select(ORMOrder.id).where(ORMOrder.order_number == order_number)
-                )
+                ORMReturnRequest.order_id.in_(select(ORMOrder.id).where(ORMOrder.order_number == order_number))
             )
-        total = int(
-            await db.scalar(select(func.count()).select_from(ORMReturnRequest).where(*conditions)) or 0
-        )
+        total = int(await db.scalar(select(func.count()).select_from(ORMReturnRequest).where(*conditions)) or 0)
         rows = (
             await db.scalars(
                 select(ORMReturnRequest)
@@ -251,9 +246,7 @@ class SQLAlchemyReturnRepository:
         ).all()
         numbers = await SQLAlchemyReturnRepository._order_number_map(db, [r.order_id for r in rows])
         return {
-            "items": [
-                SQLAlchemyReturnRepository.to_dict(r, order_number=numbers.get(str(r.order_id))) for r in rows
-            ],
+            "items": [SQLAlchemyReturnRepository.to_dict(r, order_number=numbers.get(str(r.order_id))) for r in rows],
             "total": total,
             "page": page,
             "page_size": page_size,
@@ -278,9 +271,7 @@ class SQLAlchemyReturnRepository:
                 | ORMReturnRequest.reason.ilike(like)
                 | ORMReturnRequest.order_id.in_(select(ORMOrder.id).where(ORMOrder.order_number.ilike(like)))
             )
-        total = int(
-            await db.scalar(select(func.count()).select_from(ORMReturnRequest).where(*conditions)) or 0
-        )
+        total = int(await db.scalar(select(func.count()).select_from(ORMReturnRequest).where(*conditions)) or 0)
         rows = (
             await db.scalars(
                 select(ORMReturnRequest)
@@ -293,9 +284,7 @@ class SQLAlchemyReturnRepository:
         ).all()
         numbers = await SQLAlchemyReturnRepository._order_number_map(db, [r.order_id for r in rows])
         return {
-            "items": [
-                SQLAlchemyReturnRepository.to_dict(r, order_number=numbers.get(str(r.order_id))) for r in rows
-            ],
+            "items": [SQLAlchemyReturnRepository.to_dict(r, order_number=numbers.get(str(r.order_id))) for r in rows],
             "total": total,
             "page": page,
             "page_size": page_size,
@@ -304,9 +293,7 @@ class SQLAlchemyReturnRepository:
     @staticmethod
     async def return_stats(db: AsyncSession) -> dict[str, Any]:
         """售后看板计数：待审 / 待收货 / 待退款 / 已完成 + 已退款金额合计。"""
-        rows = await db.execute(
-            select(ORMReturnRequest.status, func.count()).group_by(ORMReturnRequest.status)
-        )
+        rows = await db.execute(select(ORMReturnRequest.status, func.count()).group_by(ORMReturnRequest.status))
         counts = {str(status): int(total or 0) for status, total in rows.all()}
         refunded_amount = await db.scalar(
             select(func.coalesce(func.sum(ORMReturnRequest.refund_amount), 0)).where(
@@ -354,11 +341,7 @@ class SQLAlchemyReturnRepository:
             "order_status": order.status,
             "payment_status": order.payment_status,
             "eligible": status_ok and paid_ok and remaining > 0,
-            "reason": (
-                None
-                if status_ok and paid_ok
-                else "Order is not eligible for return in its current state."
-            ),
+            "reason": (None if status_ok and paid_ok else "Order is not eligible for return in its current state."),
             "refundable_amount": remaining,
             "days_after_delivery": 0,
             "items": items,
@@ -408,8 +391,7 @@ class SQLAlchemyReturnRepository:
                 raise APIError(
                     ErrorCode.RETURN_QUANTITY_EXCEEDS,
                     message=(
-                        f"Return quantity exceeds returnable quantity for '{item.name}'"
-                        f" ({max(available, 0)} left)."
+                        f"Return quantity exceeds returnable quantity for '{item.name}' ({max(available, 0)} left)."
                     ),
                 )
             plan.append((item, quantity))
@@ -468,6 +450,40 @@ class SQLAlchemyReturnRepository:
         rr.status = cast(Any, "cancelled")
         rr.cancelled_at = cast(Any, now)
         rr.closed_reason = cast(Any, reason or "Cancelled by customer")
+        rr.updated_at = cast(Any, now)
+        await db.flush()
+        return rr
+
+    @staticmethod
+    async def submit_return_shipment(
+        db: AsyncSession,
+        rr: ORMReturnRequest,
+        *,
+        carrier: str,
+        tracking_number: str,
+    ) -> ORMReturnRequest:
+        """客户回填寄回物流：仅 approved（已授权、未收货、未超期）可提交，重复提交覆盖单号。
+
+        仅记录物流信息、不改变状态机：是否到货由 Admin 收货确认（received）决定。
+        """
+        if rr.status != "approved":
+            raise APIError(
+                ErrorCode.RETURN_INVALID_STATE,
+                message=(
+                    f"Shipment info can only be submitted after the return is approved (current state '{rr.status}')."
+                ),
+            )
+        now = SQLAlchemyReturnRepository._now()
+        if rr.deadline_at is not None and rr.deadline_at < now:
+            raise APIError(
+                ErrorCode.RETURN_INVALID_STATE,
+                message="The return shipment deadline has passed.",
+            )
+        rr.carrier = cast(Any, carrier)
+        rr.tracking_number = cast(Any, tracking_number)
+        if rr.shipped_at is None:
+            # 首次寄出时间用于超期判断与时效统计，重复提交不覆盖
+            rr.shipped_at = cast(Any, now)
         rr.updated_at = cast(Any, now)
         await db.flush()
         return rr
@@ -598,9 +614,7 @@ class SQLAlchemyReturnRepository:
             db,
             order,
             reason=f"Return {rr.return_number}: {rr.reason}",
-            item_refunds=[
-                {"order_item_id": str(item.id), "quantity": quantity} for item, quantity in plan
-            ],
+            item_refunds=[{"order_item_id": str(item.id), "quantity": quantity} for item, quantity in plan],
             refund_shipping=bool(rr.refund_shipping),
             restock=bool(rr.restock),
             refunded_by=refunded_by,

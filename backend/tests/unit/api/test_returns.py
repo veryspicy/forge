@@ -48,6 +48,9 @@ class _FakeReturn:
         self.reviewed_at = None
         self.reviewed_by = None
         self.review_note = None
+        self.carrier = None
+        self.tracking_number = None
+        self.shipped_at = None
         self.received_at = None
         self.refunded_at = None
         self.refund_id = None
@@ -280,11 +283,22 @@ class TestAdminReturnsAPI:
             SQLAlchemyReturnRepository,
             "return_stats",
             new_callable=AsyncMock,
-            return_value={"requested": 2, "approved": 1, "received": 0, "refunded": 3, "total": 6},
+            return_value={
+                "requested": 2,
+                "approved": 1,
+                "received": 0,
+                "refunded": 3,
+                "rejected": 0,
+                "cancelled": 0,
+                "closed": 0,
+                "refunded_amount": 29.9,
+                "total": 6,
+            },
         ):
             resp = test_client.get("/api/admin/v1/returns/stats")
         assert resp.status_code == 200
         assert resp.json()["requested"] == 2
+        assert resp.json()["refunded_amount"] == 29.9
 
     def test_review_return(self, test_client, override_auth):
         from forge.infrastructure.persistence.repositories.return_repo import SQLAlchemyReturnRepository
