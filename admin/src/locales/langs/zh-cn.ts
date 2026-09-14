@@ -429,7 +429,7 @@ const local: App.I18n.Schema = {
       reasonNotAsDescribed: '与描述不符',
       reasonNoLongerNeeded: '不需要了',
       reasonOther: '其他',
-      searchPlaceholder: '搜索售后单号 / 订单号 / 原因',
+      searchPlaceholder: '搜索售后单号 / 订单号 / 快递单号 / 承运商 / 原因',
       allStatus: '全部状态',
       deadlineDays: '寄回时限（天）',
       actionDone: '操作成功',

@@ -433,7 +433,7 @@ const local: App.I18n.Schema = {
       reasonNotAsDescribed: 'Not as described',
       reasonNoLongerNeeded: 'No longer needed',
       reasonOther: 'Other',
-      searchPlaceholder: 'Search return no. / order no. / reason',
+      searchPlaceholder: 'Search return no. / order no. / tracking no. / carrier / reason',
       allStatus: 'All status',
       deadlineDays: 'Return window (days)',
       actionDone: 'Done',
