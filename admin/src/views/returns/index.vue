@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import { ref, onMounted, h } from 'vue';
+import { ref, onMounted, h, resolveComponent } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useDebounceFn } from '@vueuse/core';
 import {
@@ -50,12 +50,27 @@ const statusLabels: Record<string, string> = {
 const statusTagTypes: Record<string, 'default' | 'warning' | 'info' | 'success' | 'error'> = {
   requested: 'warning',
   approved: 'info',
-  received: 'info',
+  received: 'warning',
   refunded: 'success',
   rejected: 'error',
   cancelled: 'default',
   closed: 'default'
 };
+
+/** 状态语义图标：审核中/待收货/待退款/已退款/已驳回/已撤销/已关闭 */
+const statusIcons: Record<string, string> = {
+  requested: 'mdi:clipboard-clock-outline',
+  approved: 'mdi:package-variant-closed',
+  received: 'mdi:cash-clock',
+  refunded: 'mdi:cash-check',
+  rejected: 'mdi:close-octagon-outline',
+  cancelled: 'mdi:undo-variant',
+  closed: 'mdi:lock-outline'
+};
+
+function statusIcon(state: string) {
+  return statusIcons[state] || 'mdi:help-circle-outline';
+}
 
 const statusOptions = [
   { label: t('page.returns.allStatus'), value: '' },
@@ -132,13 +147,18 @@ const columns: DataTableColumns<any> = [
   {
     title: t('page.returns.status'),
     key: 'status',
-    width: 110,
-    render: row =>
-      h(
+    width: 130,
+    render: row => {
+      const Icon = resolveComponent('SvgIcon');
+      return h(
         NTag,
         { type: statusTagTypes[row.status] || 'default', size: 'small' },
-        { default: () => statusLabels[row.status] || row.status }
-      )
+        {
+          icon: () => h(Icon, { icon: statusIcon(row.status) }),
+          default: () => statusLabels[row.status] || row.status
+        }
+      );
+    }
   },
   { title: t('page.returns.refundAmount'), key: 'refund_amount', width: 110, render: row => money(row.refund_amount) },
   { title: t('page.returns.reason'), key: 'reason', render: row => returnReasonLabel(row.reason, t) },
@@ -297,7 +317,16 @@ onMounted(() => {
 <template>
   <div class="flex flex-col gap-4">
     <div class="flex items-center gap-3 flex-wrap">
-      <NTag v-for="(label, key) in statusLabels" :key="key" size="small" :bordered="false">
+      <NTag
+        v-for="(label, key) in statusLabels"
+        :key="key"
+        size="small"
+        :type="statusTagTypes[key] || 'default'"
+        :bordered="false"
+      >
+        <template #icon>
+          <SvgIcon :icon="statusIcon(key)" />
+        </template>
         {{ label }}：{{ stats[key] ?? 0 }}
       </NTag>
       <span class="text-sm text-[var(--n-text-color-3)]">
@@ -360,6 +389,11 @@ onMounted(() => {
           <NDescriptionsItem :label="t('page.returns.refundMethod')">{{ current.refund_method || '-' }}</NDescriptionsItem>
           <NDescriptionsItem :label="t('page.returns.requestedAt')">{{ fmt(current.requested_at) }}</NDescriptionsItem>
           <NDescriptionsItem :label="t('page.returns.deadline')">{{ fmt(current.deadline_at) }}</NDescriptionsItem>
+          <NDescriptionsItem :label="t('page.returns.carrier')">{{ current.carrier || '-' }}</NDescriptionsItem>
+          <NDescriptionsItem :label="t('page.returns.trackingNumber')">
+            {{ current.tracking_number || '-' }}
+          </NDescriptionsItem>
+          <NDescriptionsItem :label="t('page.returns.shippedAt')">{{ fmt(current.shipped_at) }}</NDescriptionsItem>
           <NDescriptionsItem :label="t('page.returns.reviewNote')">{{ current.review_note || '-' }}</NDescriptionsItem>
           <NDescriptionsItem :label="t('page.returns.note')">{{ current.note || '-' }}</NDescriptionsItem>
         </NDescriptions>
