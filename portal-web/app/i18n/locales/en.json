@@ -556,9 +556,24 @@
       "cancelled": "Cancelled",
       "closed": "Closed"
     },
+    "shipBackTracking": "Return Shipment",
+    "shippedAt": "Shipped on",
+    "refundAfterReceive": "Refund is issued after we receive the item",
+    "trackingRequired": "Please upload the return tracking number for this request.",
+    "submitTracking": "Add Tracking Number",
+    "updateTracking": "Update Tracking",
+    "shipmentModalTitle": "Return Shipment",
+    "shipmentModalHint": "Enter the carrier and tracking number of the parcel you sent back.",
+    "carrier": "Carrier",
+    "carrierPlaceholder": "e.g. DHL, USPS, SF Express",
+    "trackingNumber": "Tracking number",
+    "trackingNumberPlaceholder": "e.g. 1234567890",
+    "trackingHint": "Letters, numbers, dash, underscore or space, 4-64 characters.",
+    "shipmentSubmitted": "Tracking number submitted",
     "errors": {
       "reasonRequired": "Please select a reason",
-      "itemsRequired": "Please select at least one item"
+      "itemsRequired": "Please select at least one item",
+      "shipmentRequired": "Carrier and tracking number are required"
     }
   }
 }

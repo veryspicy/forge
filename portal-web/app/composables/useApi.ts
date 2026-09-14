@@ -266,6 +266,17 @@ export function useApi() {
     });
   };
 
+  // 客户回填寄回物流单号（审核通过后），用于售后单内物流追踪
+  const submitReturnShipment = async (
+    returnNumber: string,
+    data: { carrier: string; tracking_number: string },
+  ) => {
+    return authFetch(`${API_BASE}/returns/${returnNumber}/shipment`, {
+      method: "POST",
+      body: data,
+    });
+  };
+
   return {
     fetchProducts,
     fetchProduct,
@@ -303,5 +314,6 @@ export function useApi() {
     createReturn,
     fetchMyReturns,
     cancelReturn,
+    submitReturnShipment,
   };
 }

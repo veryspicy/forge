@@ -556,9 +556,24 @@
       "cancelled": "已撤销",
       "closed": "已关闭"
     },
+    "shipBackTracking": "退货物流",
+    "shippedAt": "寄出时间",
+    "refundAfterReceive": "收到退货后发起退款",
+    "trackingRequired": "请上传该退货申请的寄回快递单号",
+    "submitTracking": "填写快递单号",
+    "updateTracking": "更新快递单号",
+    "shipmentModalTitle": "寄回物流",
+    "shipmentModalHint": "请填写寄回包裹的承运商与快递单号，便于双方追踪。",
+    "carrier": "承运商",
+    "carrierPlaceholder": "如：顺丰、中通、DHL、USPS",
+    "trackingNumber": "快递单号",
+    "trackingNumberPlaceholder": "如 1234567890",
+    "trackingHint": "支持字母、数字及 - _ 空格，4-64 位",
+    "shipmentSubmitted": "快递单号已提交",
     "errors": {
       "reasonRequired": "请选择退货原因",
-      "itemsRequired": "请至少选择一件商品"
+      "itemsRequired": "请至少选择一件商品",
+      "shipmentRequired": "请填写承运商与快递单号"
     }
   }
 }

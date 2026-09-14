@@ -290,9 +290,31 @@
                   · {{ (r.items || []).length }} {{ $t('returns.itemsCount') }}
                 </p>
                 <p v-if="r.review_note" class="text-xs text-gray-500 mt-1">{{ r.review_note }}</p>
+
+                <!-- 寄回物流：客户回填后在此追踪 -->
+                <div v-if="r.tracking_number" class="mt-2 rounded-md bg-gray-50 border border-gray-200 px-3 py-2">
+                  <p class="text-xs text-gray-500">{{ $t('returns.shipBackTracking') }}</p>
+                  <p class="text-xs text-gray-900 mt-0.5">
+                    {{ r.carrier }} · <span class="font-mono">{{ r.tracking_number }}</span>
+                  </p>
+                  <p v-if="r.shipped_at" class="text-xs text-gray-500 mt-0.5">
+                    {{ $t('returns.shippedAt') }} {{ formatDateTime(r.shipped_at) }}
+                  </p>
+                  <p class="text-xs text-gray-400 mt-0.5">{{ formatPrice(r.refund_amount || 0) }} · {{ $t('returns.refundAfterReceive') }}</p>
+                </div>
+                <p v-else-if="canSubmitShipment(r)" class="text-xs text-amber-600 mt-2">
+                  {{ $t('returns.trackingRequired') }}
+                </p>
               </div>
               <div class="text-right">
                 <p class="text-sm font-medium text-gray-900">{{ formatPrice(r.refund_amount || 0) }}</p>
+                <button
+                  v-if="canSubmitShipment(r)"
+                  class="mt-2 px-3 py-1 rounded-md text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+                  @click="openShipmentModal(r)"
+                >
+                  {{ r.tracking_number ? $t('returns.updateTracking') : $t('returns.submitTracking') }}
+                </button>
                 <button
                   v-if="canCancelReturn(r)"
                   class="mt-2 px-3 py-1 rounded-md text-xs font-medium border border-red-300 text-red-700 hover:bg-red-50"
@@ -305,6 +327,60 @@
           </ul>
         </div>
       </template>
+    </div>
+
+    <!-- Return Shipment Modal（寄回快递单号） -->
+    <div v-if="showShipmentModal" class="fixed inset-0 z-50 overflow-y-auto">
+      <div class="flex items-center justify-center min-h-screen px-4 py-8">
+        <div class="fixed inset-0 bg-gray-500/40 backdrop-blur-md transition-opacity" @click="showShipmentModal = false"/>
+        <div class="relative bg-white/85 backdrop-blur-2xl rounded-lg max-w-md w-full p-6 shadow-2xl ring-1 ring-white/60">
+          <h3 class="text-lg font-medium text-gray-900 mb-1">{{ $t('returns.shipmentModalTitle') }}</h3>
+          <p class="text-sm text-gray-500 mb-4">{{ $t('returns.shipmentModalHint') }}</p>
+
+          <div v-if="shipmentError" class="mb-4 bg-red-50 border border-red-200 rounded-md p-3 text-sm text-red-800">
+            {{ shipmentError }}
+          </div>
+
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('returns.carrier') }}</label>
+            <input
+              v-model="shipmentForm.carrier"
+              type="text"
+              maxlength="100"
+              :placeholder="$t('returns.carrierPlaceholder')"
+              class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+            >
+          </div>
+
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('returns.trackingNumber') }}</label>
+            <input
+              v-model="shipmentForm.tracking_number"
+              type="text"
+              maxlength="64"
+              :placeholder="$t('returns.trackingNumberPlaceholder')"
+              class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm font-mono"
+            >
+            <p class="text-xs text-gray-500 mt-1">{{ $t('returns.trackingHint') }}</p>
+          </div>
+
+          <div class="flex justify-end gap-3">
+            <button
+              class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              @click="showShipmentModal = false"
+            >
+              {{ $t('common.cancel') }}
+            </button>
+            <button
+              :disabled="shipmentSubmitting"
+              class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
+              @click="doSubmitShipment"
+            >
+              {{ shipmentSubmitting ? $t('returns.submitting') : $t('returns.submit') }}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Return Request Modal -->
@@ -661,7 +737,7 @@ definePageMeta({
 
 const route = useRoute()
 const orderStore = useOrderStore()
-const { fetchShipments, fetchReturnEligibility, createReturn, fetchMyReturns, cancelReturn } = useApi()
+const { fetchShipments, fetchReturnEligibility, createReturn, fetchMyReturns, cancelReturn, submitReturnShipment } = useApi()
 const { toMessage, resolveCode } = useApiError()
 const { toast } = useToast()
 const { t } = useI18n()
@@ -680,6 +756,12 @@ const returnSubmitting = ref(false)
 const returnError = ref('')
 const returnCancelTarget = ref<any>(null)
 const returnCancelling = ref(false)
+// 退货寄回物流（审核通过后由客户回填快递单号）
+const shipmentTarget = ref<any>(null)
+const showShipmentModal = ref(false)
+const shipmentSubmitting = ref(false)
+const shipmentError = ref('')
+const shipmentForm = ref<{ carrier: string; tracking_number: string }>({ carrier: '', tracking_number: '' })
 const returnForm = ref<{
   reason: string
   note: string
@@ -1077,6 +1159,45 @@ const doCancelReturn = async () => {
     toast.error(toMessage(err))
   } finally {
     returnCancelling.value = false
+  }
+}
+
+// --- Returns: 寄回物流（审核通过后客户回填快递单号） ---
+const canSubmitShipment = (r: any) => String(r?.status || '').toLowerCase() === 'approved'
+
+const openShipmentModal = (r: any) => {
+  shipmentTarget.value = r
+  shipmentForm.value = {
+    carrier: r?.carrier || '',
+    tracking_number: r?.tracking_number || '',
+  }
+  shipmentError.value = ''
+  showShipmentModal.value = true
+}
+
+const doSubmitShipment = async () => {
+  if (!shipmentTarget.value) return
+  const carrier = shipmentForm.value.carrier.trim()
+  const trackingNumber = shipmentForm.value.tracking_number.trim()
+  if (!carrier || !trackingNumber) {
+    shipmentError.value = t('returns.errors.shipmentRequired')
+    return
+  }
+  shipmentSubmitting.value = true
+  shipmentError.value = ''
+  try {
+    await submitReturnShipment(String(shipmentTarget.value.return_number), {
+      carrier,
+      tracking_number: trackingNumber,
+    })
+    showShipmentModal.value = false
+    shipmentTarget.value = null
+    toast.success(t('returns.shipmentSubmitted'))
+    await Promise.all([loadReturns(), loadReturnEligibility()])
+  } catch (err: any) {
+    shipmentError.value = toMessage(err)
+  } finally {
+    shipmentSubmitting.value = false
   }
 }
 
