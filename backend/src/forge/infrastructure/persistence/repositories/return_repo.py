@@ -269,6 +269,8 @@ class SQLAlchemyReturnRepository:
             conditions.append(
                 ORMReturnRequest.return_number.ilike(like)
                 | ORMReturnRequest.reason.ilike(like)
+                | ORMReturnRequest.carrier.ilike(like)
+                | ORMReturnRequest.tracking_number.ilike(like)
                 | ORMReturnRequest.order_id.in_(select(ORMOrder.id).where(ORMOrder.order_number.ilike(like)))
             )
         total = int(await db.scalar(select(func.count()).select_from(ORMReturnRequest).where(*conditions)) or 0)
