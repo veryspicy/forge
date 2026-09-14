@@ -119,6 +119,8 @@ async def review_return(
 ) -> dict[str, Any]:
     """审核退货申请：通过则锁定应退金额与寄回截止时间；驳回则直接终结（不做资金动作）。"""
     rr = await _return_or_404(db, return_number)
+    if not payload.approved and not (payload.note or "").strip():
+        raise APIError(ErrorCode.VALIDATION_ERROR, message="Rejecting a return request requires a reason.")
     await SQLAlchemyReturnRepository.review_return_request(
         db,
         rr,
@@ -143,9 +145,7 @@ async def receive_return(
 ) -> dict[str, Any]:
     """确认收到回寄商品：approved -> received（进入待退款）。"""
     rr = await _return_or_404(db, return_number)
-    await SQLAlchemyReturnRepository.mark_return_received(
-        db, rr, note=(payload.note if payload else None)
-    )
+    await SQLAlchemyReturnRepository.mark_return_received(db, rr, note=(payload.note if payload else None))
     await db.commit()
     await db.refresh(rr, attribute_names=["items"])
     return SQLAlchemyReturnRepository.to_dict(rr)
@@ -177,9 +177,7 @@ async def close_return(
 ) -> dict[str, Any]:
     """关闭售后单（人工终止流程，未退款成功前可用）。"""
     rr = await _return_or_404(db, return_number)
-    await SQLAlchemyReturnRepository.close_return_request(
-        db, rr, reason=(payload.reason if payload else None)
-    )
+    await SQLAlchemyReturnRepository.close_return_request(db, rr, reason=(payload.reason if payload else None))
     await db.commit()
     await db.refresh(rr, attribute_names=["items"])
     return SQLAlchemyReturnRepository.to_dict(rr)

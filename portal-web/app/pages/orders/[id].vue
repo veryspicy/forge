@@ -284,7 +284,7 @@
                     {{ returnStatusText(r.status) }}
                   </span>
                 </div>
-                <p class="text-sm text-gray-500 mt-1">{{ $t('returns.reasonLabel') }}: {{ r.reason }}</p>
+                <p class="text-sm text-gray-500 mt-1">{{ $t('returns.reasonLabel') }}: {{ returnReasonLabel(r.reason, t) }}</p>
                 <p class="text-xs text-gray-400 mt-1">
                   {{ $t('returns.requestedAt') }} {{ formatDateTime(r.requested_at || r.created_at) }}
                   · {{ (r.items || []).length }} {{ $t('returns.itemsCount') }}
@@ -653,6 +653,7 @@ import OrderStatusBadge from '~/components/OrderStatusBadge.vue'
 import { useOrderStore } from '~/stores/order'
 import { useApi } from '~/composables/useApi'
 import { useCurrency } from '~/composables/useCurrency'
+import { RETURN_REASON_CODES, returnReasonLabel } from '~/utils/returnReason'
 
 definePageMeta({
   middleware: 'auth',
@@ -942,14 +943,7 @@ const doCancelOrder = async () => {
 }
 
 // --- Returns: helpers ---
-const RETURN_REASON_TEXT: Record<string, string> = {
-  damaged: 'Damaged or defective',
-  wrongItem: 'Wrong item received',
-  notAsDescribed: 'Not as described',
-  noLongerNeeded: 'No longer needed',
-  other: 'Other',
-}
-const RETURN_REASONS = ['damaged', 'wrongItem', 'notAsDescribed', 'noLongerNeeded', 'other']
+const RETURN_REASONS = RETURN_REASON_CODES
 const OPEN_RETURN_STATUSES = ['requested', 'approved', 'received']
 
 const returnableItems = computed(() => {
@@ -1057,7 +1051,7 @@ const doSubmitReturn = async () => {
     await createReturn({
       order_number: orderId.value,
       items,
-      reason: RETURN_REASON_TEXT[returnForm.value.reason] || returnForm.value.reason,
+      reason: returnForm.value.reason,
       note: returnForm.value.note || undefined,
       refund_method: returnForm.value.refund_method,
     })

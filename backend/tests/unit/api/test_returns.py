@@ -312,6 +312,31 @@ class TestAdminReturnsAPI:
         assert resp.json()["status"] == "approved"
         assert review_mock.await_args.kwargs["approved"] is True
 
+    def test_review_return_reject_requires_note(self, test_client, override_auth):
+        from forge.infrastructure.persistence.repositories.return_repo import SQLAlchemyReturnRepository
+
+        fake_return = _FakeReturn(status="requested")
+        with (
+            patch.object(
+                SQLAlchemyReturnRepository,
+                "get_return_request",
+                new_callable=AsyncMock,
+                return_value=fake_return,
+            ),
+            patch.object(
+                SQLAlchemyReturnRepository,
+                "review_return_request",
+                new_callable=AsyncMock,
+            ) as review_mock,
+        ):
+            resp = test_client.post(
+                "/api/admin/v1/returns/RT-20260912-ABC123/review",
+                json={"approved": False, "note": "  "},
+            )
+        assert resp.status_code == 422, resp.text
+        assert fake_return.status == "requested"
+        review_mock.assert_not_awaited()
+
     def test_refund_return(self, test_client, override_auth):
         from forge.infrastructure.persistence.repositories.return_repo import SQLAlchemyReturnRepository
 

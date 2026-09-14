@@ -215,6 +215,32 @@ class TestAdminOrdersAPI:
         assert body["review_status"]["approved"] is False
         assert body["review_status"]["reason"] == "fraud flag"
 
+    def test_review_reject_requires_reason(self, test_client):
+        from forge.infrastructure.persistence.repositories.order_repo import SQLAlchemyCustomerOrderRepository
+
+        order = _FakeOrder(status="confirmed")
+
+        async def _fake_get_db():
+            yield _fake_db_for_order(order)
+
+        _setup_auth(test_client)
+        test_client.app.dependency_overrides[dependencies.get_db] = _fake_get_db
+        try:
+            with patch.object(
+                SQLAlchemyCustomerOrderRepository,
+                "admin_review_order",
+                new_callable=AsyncMock,
+            ) as review_mock:
+                resp = test_client.post(
+                    "/api/admin/v1/orders/FG-TEST-0001/review",
+                    json={"approved": False, "reason": "   "},
+                )
+        finally:
+            test_client.app.dependency_overrides.clear()
+        assert resp.status_code == 422, resp.text
+        assert order.status == "confirmed"
+        review_mock.assert_not_awaited()
+
     def test_review_invalid_state_returns_409(self, test_client):
         order = _FakeOrder(status="shipped")
 

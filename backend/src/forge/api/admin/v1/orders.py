@@ -486,6 +486,8 @@ async def review_order(
 ) -> dict[str, Any]:
     """审核：confirmed -> processing（通过）；confirmed -> cancelled（拒绝，回补库存并默认全额退款）。"""
     order = await _admin_order_or_404(db, order_number)
+    if not payload.approved and not (payload.reason or "").strip():
+        raise APIError(ErrorCode.VALIDATION_ERROR, message="Rejecting an order requires a reason.")
     reviewed = await SQLAlchemyCustomerOrderRepository.admin_review_order(
         db,
         order,

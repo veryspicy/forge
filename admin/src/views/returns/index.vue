@@ -23,6 +23,7 @@ import {
   NRadio
 } from 'naive-ui';
 import { get, post } from '@/service/api/helper';
+import { returnReasonLabel } from '@/constants/aftersalesReasons';
 import type { DataTableColumns } from 'naive-ui';
 
 const { t } = useI18n();
@@ -140,7 +141,7 @@ const columns: DataTableColumns<any> = [
       )
   },
   { title: t('page.returns.refundAmount'), key: 'refund_amount', width: 110, render: row => money(row.refund_amount) },
-  { title: t('page.returns.reason'), key: 'reason', render: row => row.reason || '-' },
+  { title: t('page.returns.reason'), key: 'reason', render: row => returnReasonLabel(row.reason, t) },
   { title: t('page.returns.requestedAt'), key: 'requested_at', width: 165, render: row => fmt(row.requested_at) },
   { title: t('page.returns.deadline'), key: 'deadline_at', width: 165, render: row => fmt(row.deadline_at) },
   {
@@ -205,6 +206,10 @@ function openReview(row: any) {
 }
 
 async function submitReview() {
+  if (!reviewForm.value.approved && !reviewForm.value.note.trim()) {
+    window.$message?.error(t('page.returns.rejectNoteRequired'));
+    return;
+  }
   submitting.value = true;
   try {
     await post(`/api/admin/v1/returns/${reviewRow.value.return_number}/review`, reviewForm.value);
@@ -350,7 +355,7 @@ onMounted(() => {
           <NDescriptionsItem :label="t('page.returns.status')">
             {{ statusLabels[current.status] || current.status }}
           </NDescriptionsItem>
-          <NDescriptionsItem :label="t('page.returns.reason')">{{ current.reason || '-' }}</NDescriptionsItem>
+          <NDescriptionsItem :label="t('page.returns.reason')">{{ returnReasonLabel(current.reason, t) }}</NDescriptionsItem>
           <NDescriptionsItem :label="t('page.returns.refundAmount')">{{ money(current.refund_amount) }}</NDescriptionsItem>
           <NDescriptionsItem :label="t('page.returns.refundMethod')">{{ current.refund_method || '-' }}</NDescriptionsItem>
           <NDescriptionsItem :label="t('page.returns.requestedAt')">{{ fmt(current.requested_at) }}</NDescriptionsItem>
@@ -392,7 +397,7 @@ onMounted(() => {
         <NFormItem v-if="reviewForm.approved" label="运费">
           <NCheckbox v-model:checked="reviewForm.refund_shipping">退运费</NCheckbox>
         </NFormItem>
-        <NFormItem :label="t('page.returns.reviewNote')">
+        <NFormItem :label="reviewForm.approved ? t('page.returns.reviewNote') : t('page.returns.reviewNote') + ' *'">
           <NInput v-model:value="reviewForm.note" type="textarea" :rows="3" />
         </NFormItem>
       </NForm>

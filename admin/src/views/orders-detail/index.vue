@@ -11,12 +11,21 @@ import {
   NInput,
   NInputNumber,
   NModal,
+  NSelect,
   NSpace,
   NSpin,
   NTag
 } from 'naive-ui';
 import { useI18n } from 'vue-i18n';
 import { get, post } from '@/service/api/helper';
+import {
+  ORDER_CANCEL_REASON_DEFAULT,
+  ORDER_CANCEL_REASON_OPTIONS,
+  ORDER_REFUND_REASON_DEFAULT,
+  ORDER_REFUND_REASON_OPTIONS,
+  ORDER_REJECT_REASON_OPTIONS,
+  returnReasonLabel
+} from '@/constants/aftersalesReasons';
 import type { DataTableColumns } from 'naive-ui';
 
 const route = useRoute();
@@ -48,6 +57,12 @@ const cancelReason = ref('');
 const cancelRefund = ref(true);
 const actionError = ref('');
 const actionLoading = ref(false);
+
+/** 售后动作原因：预设可选 + 允许自定义输入（NSelect tag） */
+const toReasonOptions = (values: string[]) => values.map(value => ({ label: value, value }));
+const rejectReasonOptions = toReasonOptions(ORDER_REJECT_REASON_OPTIONS);
+const refundReasonOptions = toReasonOptions(ORDER_REFUND_REASON_OPTIONS);
+const cancelReasonOptions = toReasonOptions(ORDER_CANCEL_REASON_OPTIONS);
 
 // 退款按资金余额判定，与订单履约状态解耦（行业：Shopify refundCreate，部分退款不阻断剩余行发货）
 function refundableAmount(): number {
@@ -203,7 +218,7 @@ const returnColumns: DataTableColumns<any> = [
       )
   },
   { title: t('page.returns.refundAmount'), key: 'refund_amount', width: 120, render: row => money(row.refund_amount) },
-  { title: t('page.returns.reason'), key: 'reason', render: row => row.reason || '-' },
+  { title: t('page.returns.reason'), key: 'reason', render: row => returnReasonLabel(row.reason, t) },
   { title: t('page.returns.requestedAt'), key: 'requested_at', width: 170, render: row => fmtTime(row.requested_at) }
 ];
 
@@ -326,7 +341,7 @@ function openRefund(row?: any) {
     actionError.value = '当前没有可退数量的商品行';
     return;
   }
-  refundReason.value = '';
+  refundReason.value = ORDER_REFUND_REASON_DEFAULT;
   refundShipping.value = false;
   refundRestock.value = false;
   refundIdempotencyKey.value = newRefundIdempotencyKey();
@@ -335,7 +350,7 @@ function openRefund(row?: any) {
 }
 
 function openCancel() {
-  cancelReason.value = '';
+  cancelReason.value = ORDER_CANCEL_REASON_DEFAULT;
   cancelRefund.value = canRefund();
   actionError.value = '';
   showCancel.value = true;
@@ -345,6 +360,10 @@ async function doReview() {
   actionLoading.value = true;
   actionError.value = '';
   try {
+    if (!reviewApprove.value && !reviewReason.value.trim()) {
+      actionError.value = t('page.ordersDetail.rejectReasonRequired');
+      return;
+    }
     await post(`/api/admin/v1/orders/${route.params.id}/review`, {
       approved: reviewApprove.value,
       reason: reviewReason.value,
@@ -778,8 +797,15 @@ onMounted(loadOrder);
     <!-- Review Modal -->
     <NModal v-model:show="showReview" preset="card" :title="$t('page.ordersDetail.approveOrder')" style="width: 440px">
       <div class="flex flex-col gap-3">
-        <NFormItem :label="$t('page.ordersDetail.reason')">
-          <NInput v-model:value="reviewReason" type="textarea" :rows="2" />
+        <NFormItem :label="reviewApprove ? $t('page.ordersDetail.reason') : $t('page.ordersDetail.reason') + ' *'">
+          <NSelect
+            v-model:value="reviewReason"
+            :options="rejectReasonOptions"
+            filterable
+            tag
+            clearable
+            :placeholder="$t('page.ordersDetail.reasonPlaceholder')"
+          />
         </NFormItem>
         <NFormItem :label="$t('page.ordersDetail.reviewedBy')"><NInput v-model:value="reviewBy" /></NFormItem>
         <div v-if="!reviewApprove" class="text-sm text-[var(--n-text-color-3)]">
@@ -886,7 +912,14 @@ onMounted(loadOrder);
         <NCheckbox v-model:checked="refundShipping">同时退还运费</NCheckbox>
         <NCheckbox v-model:checked="refundRestock">退回商品并回补库存</NCheckbox>
         <NFormItem :label="$t('page.ordersDetail.reason')">
-          <NInput v-model:value="refundReason" type="textarea" :rows="2" />
+          <NSelect
+            v-model:value="refundReason"
+            :options="refundReasonOptions"
+            filterable
+            tag
+            clearable
+            :placeholder="$t('page.ordersDetail.reasonPlaceholder')"
+          />
         </NFormItem>
         <div class="text-sm text-[var(--n-text-color-3)]">{{ $t('page.ordersDetail.refundOnlyHint') }}</div>
         <div class="text-sm text-[var(--n-text-color-3)]">本次可退余额 {{ money(refundableAmount()) }}</div>
@@ -907,7 +940,14 @@ onMounted(loadOrder);
       <div class="flex flex-col gap-3">
         <div class="text-sm text-[var(--n-text-color-3)]">取消将终止订单履约（回补自采购库存），可按需一并退款。</div>
         <NFormItem :label="$t('page.ordersDetail.reason')">
-          <NInput v-model:value="cancelReason" type="textarea" :rows="2" />
+          <NSelect
+            v-model:value="cancelReason"
+            :options="cancelReasonOptions"
+            filterable
+            tag
+            clearable
+            :placeholder="$t('page.ordersDetail.reasonPlaceholder')"
+          />
         </NFormItem>
         <NCheckbox v-if="canRefund()" v-model:checked="cancelRefund">
           同时全额退款（当前可退 {{ money(refundableAmount()) }}）
