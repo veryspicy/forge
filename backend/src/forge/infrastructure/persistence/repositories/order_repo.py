@@ -199,11 +199,7 @@ class SQLAlchemyOrderRepository:
 
         day = func.date(ORMOrder.created_at)
         start_day = today - timedelta(days=trend_days - 1)
-        trend_stmt = (
-            select(day, func.count(ORMOrder.id))
-            .where(alive, ORMOrder.created_at >= start_day)
-            .group_by(day)
-        )
+        trend_stmt = select(day, func.count(ORMOrder.id)).where(alive, ORMOrder.created_at >= start_day).group_by(day)
         counts_by_day = {row[0]: int(row[1]) for row in (await db.execute(trend_stmt)).all()}
 
         dates: list[str] = []
@@ -749,8 +745,7 @@ class SQLAlchemyCustomerOrderRepository:
         now = SQLAlchemyCustomerOrderRepository._now()
         if not approved:
             has_refundable = (
-                order.payment_status in _REFUNDABLE_PAYMENT_STATUSES
-                and _order_refundable_amount(order) > 0
+                order.payment_status in _REFUNDABLE_PAYMENT_STATUSES and _order_refundable_amount(order) > 0
             )
             should_refund = has_refundable if refund is None else bool(refund)
             if should_refund and has_refundable:

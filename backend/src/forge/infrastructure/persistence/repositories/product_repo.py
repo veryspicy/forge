@@ -188,9 +188,7 @@ class SQLAlchemyProductRepository:
     @staticmethod
     async def count_active(db: AsyncSession) -> int:
         """在售商品数（status=active），供仪表盘「活跃商品」卡片使用。"""
-        result = await db.execute(
-            select(func.count(ORMProduct.id)).where(ORMProduct.status == "active")
-        )
+        result = await db.execute(select(func.count(ORMProduct.id)).where(ORMProduct.status == "active"))
         return result.scalar_one()
 
     @staticmethod
