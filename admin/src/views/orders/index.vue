@@ -14,6 +14,7 @@ import {
   NPagination,
   NSelect,
   NTag,
+  NTooltip,
   useMessage
 } from 'naive-ui';
 import { get } from '@/service/api/helper';
@@ -154,7 +155,21 @@ const columns: DataTableColumns<any> = [
     }
   },
   {
-    title: t('page.orders.afterSales'),
+    // 表头带悬浮说明：口径为「售后申请总数（含已驳回/已关闭）+ 进行中数量标红」
+    title: () =>
+      h(
+        NTooltip,
+        { trigger: 'hover', style: 'max-width: 340px' },
+        {
+          trigger: () =>
+            h(
+              'span',
+              { style: 'cursor: help; border-bottom: 1px dashed var(--n-border-color)' },
+              t('page.orders.afterSales')
+            ),
+          default: () => t('page.orders.afterSalesTip')
+        }
+      ),
     key: 'returns_summary',
     render: row => {
       const summary = row.returns_summary;

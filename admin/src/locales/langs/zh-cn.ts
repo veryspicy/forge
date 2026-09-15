@@ -517,7 +517,9 @@ const local: App.I18n.Schema = {
       actions: '操作',
       afterSales: '售后',
       afterSalesPending: '{count} 待处理',
-      afterSalesNone: '—'
+      afterSalesNone: '—',
+      afterSalesTip:
+        '数字 = 该订单的售后申请总数（含已驳回、已关闭）。存在进行中售后（待审核/已通过/已收货）时标红并追加“N 待处理”。点击标签可按订单号跳转退货管理。'
     },
     ordersDetail: {
       approve: '审核通过',

@@ -522,7 +522,9 @@ const local: App.I18n.Schema = {
       actions: 'Actions',
       afterSales: 'After-sales',
       afterSalesPending: '{count} pending',
-      afterSalesNone: '—'
+      afterSalesNone: '—',
+      afterSalesTip:
+        'Number = total after-sales requests for this order (incl. rejected/closed). Shown in red with a pending count when any request is still in progress (requested/approved/received). Click the tag to open Returns filtered by order number.'
     },
     ordersDetail: {
       backToOrders: 'Back to Orders',
