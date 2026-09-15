@@ -631,6 +631,18 @@ podman exec forge-postgres psql -U postgres -d forge -c "SELECT count(*) FROM di
 
 **反例（2026-09-04）**：剥离 AIGC 水印提交时 pre-commit 触发 `uv run`，uv 自动归一化删除了 uv.lock 中重复 dev 依赖声明 12 行，未核查 git status 导致无关 diff 差点进入提交；已 `git restore uv.lock` 还原，未进提交。
 
+### 13.5.6 ORM 时间列契约：NOT NULL 显式赋值 + naive/aware 一致性（强制）
+
+**触发条件**：构造带 `DateTime(timezone=False)` 列的 ORM 插入/更新（如 `ORMShipment`）；或编写涉及时间列的 e2e/迁移脚本。
+
+**执行步骤**：
+
+1. **`server_default` 不代表 DB 列有 default**：ORM 模型 `server_default="now()"` 仅当 DB 表由该模型迁移建立时生效；存量表若由早期 migration 建立且列无 default，INSERT 缺列即 `null value in column ... violates not-null constraint`。凡 NOT NULL 时间列必须显式赋值
+2. **`DateTime(timezone=False)` 列必须传 naive datetime**：`datetime.now(UTC).replace(tzinfo=None)`（或 `datetime.utcnow()`）；禁止传 aware datetime——asyncpg 编码时报 `TypeError: can't subtract offset-naive and offset-aware datetimes`，且 SQLAlchemy/asyncpg 层面报错与业务无关，极难定位
+3. **同一 INSERT 所有时间列保持一致**：aware/naive 混用即使 DB 无约束也会在驱动层崩
+
+**反例（2026-09-09）**：订单多包裹发货 ship 接口 500 两层连环坑——① 只传了业务字段未显式给 `created_at/updated_at`，触发 NOT NULL（`shipments` 表无 default）；② 补 `datetime.now(UTC)`（aware）后触发 naive/aware 混用 TypeError；改为 naive UTC 后通过（commit `b8480fa`，分支 feature/admin-order-management）。
+
 ---
 
 ## 14. 数据与发布安全（强制）

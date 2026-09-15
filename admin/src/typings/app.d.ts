@@ -549,6 +549,7 @@ declare namespace App {
         suppliers: Record<string, string>;
         pricing: Record<string, string>;
         shipments: Record<string, string>;
+        returns: Record<string, string>;
         products: Record<string, string>;
         productsDetail: Record<string, string>;
         orders: Record<string, string>;
@@ -645,6 +646,7 @@ declare namespace App {
         CUSTOMER_NOT_FOUND: string;
         CUSTOMER_CANNOT_DELETE: string;
         INVALID_ID: string;
+        ORDER_NOT_FOUND: string;
       };
     };
 

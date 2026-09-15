@@ -22,6 +22,23 @@ scheduler = AsyncIOScheduler(timezone="Asia/Shanghai")
 _SYNC_JOB_ID = "daily_supplier_sync"
 _SYNC_HOUR = 3  # 每日凌晨 3 点增量同步
 
+_RETURN_EXPIRE_JOB_ID = "daily_return_expire"
+_RETURN_EXPIRE_HOUR = 4  # 每日凌晨 4 点关闭超时未寄回的售后申请单
+
+
+async def _run_daily_return_expire() -> None:
+    """超时关闭：审核通过后超过寄回时限仍未收货的退货申请单 -> closed(expired)。"""
+    from forge.infrastructure.persistence.repositories.return_repo import SQLAlchemyReturnRepository
+
+    async with async_session_factory() as db:
+        try:
+            closed = await SQLAlchemyReturnRepository.expire_overdue_returns(db)
+            await db.commit()
+            logger.info("售后超时关闭完成 closed=%s", closed)
+        except Exception:  # noqa: BLE001 - 定时任务失败不阻塞调度
+            await db.rollback()
+            logger.exception("售后超时关闭失败")
+
 
 async def _run_daily_supplier_sync() -> None:
     """对所有已配置 provider 且启用中的供应商执行增量同步。"""
@@ -61,6 +78,14 @@ def start_scheduler() -> None:
         _run_daily_supplier_sync,
         CronTrigger(hour=_SYNC_HOUR, minute=0),
         id=_SYNC_JOB_ID,
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        _run_daily_return_expire,
+        CronTrigger(hour=_RETURN_EXPIRE_HOUR, minute=0),
+        id=_RETURN_EXPIRE_JOB_ID,
         replace_existing=True,
         max_instances=1,
         coalesce=True,

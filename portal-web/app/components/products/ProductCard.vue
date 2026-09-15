@@ -110,9 +110,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useCartStore } from '~/stores/cart'
+import { useAuthStore } from '~/stores/auth'
 import { useCurrency } from '~/composables/useCurrency'
 
 const localePath = useLocalePath()
+const route = useRoute()
 
 const props = defineProps<{
   product: any
@@ -137,17 +139,28 @@ const inventoryLabel = computed(() => {
   return t('products.inStock')
 })
 
-function addToCart() {
+async function addToCart() {
   const p = props.product
-  cartStore.addItem({
-    product: {
-      id: String(p.id || p.product_id),
-      name: p.name,
-      price: Number(p.price) || 0,
-      image: p.images?.[0] || p.image || '',
-    },
-    quantity: 1,
-  })
-  toast.success(t('products.addedToCart', { name: p.name }))
+  const authStore = useAuthStore()
+  try {
+    await cartStore.addItem({
+      product: {
+        id: String(p.id || p.product_id),
+        name: p.name,
+        price: Number(p.price) || 0,
+        image: p.images?.[0] || p.image || '',
+      },
+      quantity: 1,
+    })
+    toast.success(t('products.addedToCart', { name: p.name }))
+  } catch {
+    // 未登录：明确提示并引导登录；其余失败给可重试提示，不再假装加购成功
+    if (!authStore.isAuthenticated) {
+      toast.error(t('products.loginRequired'))
+      navigateTo(localePath(`/login?redirect=${encodeURIComponent(route.fullPath)}`))
+      return
+    }
+    toast.error(t('products.addToCartFailed'))
+  }
 }
 </script>

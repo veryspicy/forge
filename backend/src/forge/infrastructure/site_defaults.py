@@ -216,6 +216,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "enable_reviews": True,
         "enable_wishlist": False,
         "enable_live_chat": True,
+        # 发货门禁：开启后订单须先审核通过才允许发货（默认关闭，保持既有行为）
+        "require_review_before_ship": False,
         "liveChat": True,
         "reviews": True,
         "wishlist": False,

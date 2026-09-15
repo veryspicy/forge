@@ -178,6 +178,18 @@ const customRoutes = [
           order: 2,
           roles: ['super_admin', 'admin', 'operator']
         }
+      },
+      {
+        name: 'returns',
+        path: '/returns',
+        component: 'layout.base$view.returns',
+        meta: {
+          title: 'Returns',
+          i18nKey: 'route.returns',
+          icon: 'mdi:package-variant-remove',
+          order: 3,
+          roles: ['super_admin', 'admin', 'operator', 'support']
+        }
       }
     ]
   },

@@ -61,19 +61,16 @@ export const useCartStore = defineStore("cart", () => {
   };
 
   const addItem = async (item: { product: CartProduct; quantity: number }) => {
-    try {
-      const result: any = await addToCart({
-        product_id: item.product.id,
-        name: item.product.name,
-        price: item.product.price,
-        quantity: item.quantity,
-        image: item.product.image || "",
-      });
-      // Refresh cart from server to stay in sync
-      await loadCart();
-    } catch {
-      /* ignore */
-    }
+    // 不再静默吞异常：未登录（401）或校验失败必须抛给调用方，避免「加购成功」假象
+    await addToCart({
+      product_id: item.product.id,
+      name: item.product.name,
+      price: item.product.price,
+      quantity: item.quantity,
+      image: item.product.image || "",
+    });
+    // Refresh cart from server to stay in sync
+    await loadCart();
   };
 
   const removeItem = async (productId: string) => {

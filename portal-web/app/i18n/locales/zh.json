@@ -205,7 +205,9 @@
     "failedToLoad": "加载商品失败。",
     "browseProducts": "浏览商品",
     "addedToCart": "「{name}」已加入购物车",
-    "noProducts": "暂无商品。"
+    "noProducts": "暂无商品。",
+    "addToCartFailed": "加入购物车失败，请重试。",
+    "loginRequired": "请先登录后再加入购物车。"
   },
   "cart": {
     "title": "购物车",
@@ -279,7 +281,8 @@
     "paymentNote": "安全加密传输。模拟支付网关（Sandbox），不会真实扣款。下单后请在订单页完成支付。",
     "invalidCard": "请检查填写的银行卡信息。",
     "payNow": "下单并去支付",
-    "payAfterOrderNote": "下单后将跳转订单详情页完成支付（沙箱网关演示，不会真实扣款）"
+    "payAfterOrderNote": "下单后将跳转订单详情页完成支付（沙箱网关演示，不会真实扣款）",
+    "invalidCardNumber": "请输入有效的卡号（13-19 位数字）。"
   },
   "orders": {
     "title": "我的订单",
@@ -359,7 +362,10 @@
     "trackingStatus": "状态",
     "noShipment": "物流信息暂未更新，请稍后查看",
     "noTrackingEvents": "暂无物流动态",
-    "trackingUpdate": "更新"
+    "trackingUpdate": "更新",
+    "confirmDelete": "确认删除",
+    "partiallyRefunded": "部分退款",
+    "refunded": "已退款"
   },
   "chat": {
     "title": "AI 客服",
@@ -502,5 +508,72 @@
     "totalLabel": "共 {count} 条评价",
     "deleteReview": "删除评价",
     "deleted": "评价已删除"
+  },
+  "returns": {
+    "title": "退货与退款",
+    "requestReturn": "申请退货",
+    "notEligible": "当前订单不支持退货申请",
+    "noReturnableItems": "暂无可退商品",
+    "modalTitle": "申请退货",
+    "modalHint": "请选择需要退货的商品与数量，退款将在我们收到退回商品后执行。",
+    "selectItems": "选择商品",
+    "returnableQty": "可退数量",
+    "quantity": "数量",
+    "reason": "退货原因",
+    "reasonPlaceholder": "请选择原因",
+    "reasonDamaged": "商品损坏或有质量问题",
+    "reasonWrongItem": "收到错误商品",
+    "reasonNotAsDescribed": "与描述不符",
+    "reasonNoLongerNeeded": "不需要了",
+    "reasonOther": "其他",
+    "note": "补充说明（选填）",
+    "notePlaceholder": "请补充描述问题",
+    "refundEstimate": "预计退款金额",
+    "submit": "提交申请",
+    "submitting": "提交中...",
+    "submitted": "退货申请已提交",
+    "cancelModalTitle": "撤销退货申请",
+    "cancelConfirmText": "确定撤销该退货申请？之后可以重新提交。",
+    "keepRequest": "保留申请",
+    "cancelRequest": "撤销申请",
+    "cancelling": "撤销中...",
+    "cancelled": "退货申请已撤销",
+    "myReturns": "退货与退款",
+    "noReturns": "暂无退货申请",
+    "returnNumber": "退货单号",
+    "refundAmount": "退款金额",
+    "requestedAt": "申请时间",
+    "itemsCount": "件商品",
+    "reasonLabel": "退货原因",
+    "viewDetail": "查看详情",
+    "applySuccess": "退货申请提交成功",
+    "status": {
+      "requested": "待审核",
+      "approved": "已通过 - 待寄回",
+      "received": "已收货 - 退款中",
+      "refunded": "已退款",
+      "rejected": "已驳回",
+      "cancelled": "已撤销",
+      "closed": "已关闭"
+    },
+    "shipBackTracking": "退货物流",
+    "shippedAt": "寄出时间",
+    "refundAfterReceive": "收到退货后发起退款",
+    "trackingRequired": "请上传该退货申请的寄回快递单号",
+    "submitTracking": "填写快递单号",
+    "updateTracking": "更新快递单号",
+    "shipmentModalTitle": "寄回物流",
+    "shipmentModalHint": "请填写寄回包裹的承运商与快递单号，便于双方追踪。",
+    "carrier": "承运商",
+    "carrierPlaceholder": "如：顺丰、中通、DHL、USPS",
+    "trackingNumber": "快递单号",
+    "trackingNumberPlaceholder": "如 1234567890",
+    "trackingHint": "支持字母、数字及 - _ 空格，4-64 位",
+    "shipmentSubmitted": "快递单号已提交",
+    "errors": {
+      "reasonRequired": "请选择退货原因",
+      "itemsRequired": "请至少选择一件商品",
+      "shipmentRequired": "请填写承运商与快递单号"
+    }
   }
 }

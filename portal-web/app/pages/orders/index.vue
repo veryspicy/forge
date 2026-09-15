@@ -67,7 +67,7 @@
               v-if="canDelete(order.status)"
               class="px-4 py-2 text-sm border border-gray-200 text-gray-500 rounded-lg hover:text-red-600 hover:border-red-200 transition font-medium disabled:opacity-50"
               :disabled="busyId === (order.order_number || order.id)"
-              @click="deleteOrder(order.order_number || order.id)"
+              @click="askDeleteOrder(order.order_number || order.id)"
             >
               {{ busyId === (order.order_number || order.id) ? $t('orders.deleting') : $t('orders.deleteOrder') }}
             </button>
@@ -202,6 +202,36 @@
         </div>
       </div>
     </div>
+
+    <!-- Delete Order Confirm Modal -->
+    <div v-if="showDeleteModal" class="fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
+      <div class="flex min-h-full items-center justify-center p-4 text-center">
+        <div class="fixed inset-0 bg-gray-500/40 backdrop-blur-md transition-opacity" @click="closeDeleteModal" />
+        <div
+          class="relative bg-white/85 backdrop-blur-2xl rounded-2xl shadow-2xl ring-1 ring-white/60 max-w-md w-full text-left"
+        >
+          <div class="px-6 pt-5 pb-4 border-b">
+            <h3 class="text-lg font-semibold text-gray-900">{{ $t('orders.deleteOrder') }}</h3>
+            <p class="text-sm text-gray-500 mt-1">{{ $t('orders.deleteConfirmText') }}</p>
+          </div>
+          <div class="px-6 py-4 border-t flex justify-end gap-3">
+            <button
+              class="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition font-medium"
+              @click="closeDeleteModal"
+            >
+              {{ $t('common.cancel') }}
+            </button>
+            <button
+              class="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              :disabled="busyId === pendingDeleteNo"
+              @click="confirmDeleteOrder"
+            >
+              {{ $t('orders.confirmDelete') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -256,14 +286,16 @@ function canEdit(status: string): boolean {
 }
 
 function canPay(order: any): boolean {
-  return (
-    !order.deleted_at &&
-    (order.payment_status === 'unpaid' || (order.status || '').toLowerCase() === 'pending')
-  )
+  if (order.deleted_at) return false
+  const status = (order.status || '').toLowerCase()
+  // 终态订单（已取消/已退款/已完成）不再提供支付入口
+  if (['cancelled', 'refunded', 'completed'].includes(status)) return false
+  if (['refunded', 'partially_refunded'].includes(String(order.payment_status || ''))) return false
+  return order.payment_status === 'unpaid' || status === 'pending'
 }
 
 function canDelete(status: string): boolean {
-  return status === 'delivered' || status === 'cancelled'
+  return ['delivered', 'cancelled', 'refunded'].includes(status)
 }
 
 // 去支付：跳转详情页并自动唤起支付弹窗（?pay=1）
@@ -285,13 +317,28 @@ async function cancelOrder(orderNo: string | number) {
   }
 }
 
-async function deleteOrder(orderNo: string | number) {
-  const key = String(orderNo)
-  if (!confirm(t('orders.deleteConfirmText') as string)) return
+// 删除确认：应用内弹窗（替代原生 confirm），避免浏览器原生弹窗风格割裂
+const showDeleteModal = ref(false)
+const pendingDeleteNo = ref<string | null>(null)
+
+function askDeleteOrder(orderNo: string | number) {
+  pendingDeleteNo.value = String(orderNo)
+  showDeleteModal.value = true
+}
+
+function closeDeleteModal() {
+  showDeleteModal.value = false
+  pendingDeleteNo.value = null
+}
+
+async function confirmDeleteOrder() {
+  const key = pendingDeleteNo.value
+  if (!key) return
   busyId.value = key
   try {
     await orderStore.deleteOrder(key)
     toast.success(t('orders.orderDeleted'))
+    closeDeleteModal()
   } catch {
     toast.error(t('orders.failedToLoad'))
   } finally {

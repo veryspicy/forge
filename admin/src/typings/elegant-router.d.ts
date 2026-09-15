@@ -35,6 +35,7 @@ declare module "@elegant-router/types" {
     "products-detail": "/products-detail";
     "products-new": "/products-new";
     "resources": "/resources";
+    "returns": "/returns";
     "roles": "/roles";
     "settings": "/settings";
     "shipments": "/shipments";
@@ -90,6 +91,7 @@ declare module "@elegant-router/types" {
     | "products-detail"
     | "products-new"
     | "resources"
+    | "returns"
     | "roles"
     | "settings"
     | "shipments"
@@ -130,6 +132,7 @@ declare module "@elegant-router/types" {
     | "products-new"
     | "products"
     | "resources"
+    | "returns"
     | "roles"
     | "settings"
     | "shipments"

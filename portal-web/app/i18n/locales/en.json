@@ -205,7 +205,9 @@
     "failedToLoad": "Failed to load products.",
     "browseProducts": "Browse Products",
     "addedToCart": "\"{name}\" added to cart",
-    "noProducts": "No products found."
+    "noProducts": "No products found.",
+    "addToCartFailed": "Add to cart failed, please try again.",
+    "loginRequired": "Please sign in to add items to your cart."
   },
   "cart": {
     "title": "Shopping Cart",
@@ -279,7 +281,8 @@
     "paymentNote": "Encrypted and secure. Sandbox payment gateway — no real charge. Complete payment on the order page after placing the order.",
     "invalidCard": "Please check the card information you entered.",
     "payNow": "Place order & pay",
-    "payAfterOrderNote": "After placing the order, complete payment on the order page (sandbox gateway, no real charge)."
+    "payAfterOrderNote": "After placing the order, complete payment on the order page (sandbox gateway, no real charge).",
+    "invalidCardNumber": "Please enter a valid card number (13-19 digits)."
   },
   "orders": {
     "title": "My Orders",
@@ -359,7 +362,10 @@
     "trackingStatus": "Status",
     "noShipment": "Tracking info not available yet, please check back later",
     "noTrackingEvents": "No tracking events yet",
-    "trackingUpdate": "Update"
+    "trackingUpdate": "Update",
+    "confirmDelete": "Delete",
+    "partiallyRefunded": "Partially Refunded",
+    "refunded": "Refunded"
   },
   "chat": {
     "title": "AI Chat",
@@ -502,5 +508,72 @@
     "totalLabel": "{count} reviews",
     "deleteReview": "Delete review",
     "deleted": "Review deleted"
+  },
+  "returns": {
+    "title": "Returns & Refunds",
+    "requestReturn": "Request Return",
+    "notEligible": "This order is not eligible for return right now.",
+    "noReturnableItems": "No items available for return.",
+    "modalTitle": "Request a Return",
+    "modalHint": "Select the items and quantities to return. Refunds are issued after we receive the returned items.",
+    "selectItems": "Select items",
+    "returnableQty": "Returnable",
+    "quantity": "Quantity",
+    "reason": "Reason",
+    "reasonPlaceholder": "Select a reason",
+    "reasonDamaged": "Damaged or defective",
+    "reasonWrongItem": "Wrong item received",
+    "reasonNotAsDescribed": "Not as described",
+    "reasonNoLongerNeeded": "No longer needed",
+    "reasonOther": "Other",
+    "note": "Additional details (optional)",
+    "notePlaceholder": "Tell us more about the issue",
+    "refundEstimate": "Estimated refund",
+    "submit": "Submit Request",
+    "submitting": "Submitting...",
+    "submitted": "Return request submitted",
+    "cancelModalTitle": "Cancel Return Request",
+    "cancelConfirmText": "Cancel this return request? You can submit a new one later.",
+    "keepRequest": "Keep Request",
+    "cancelRequest": "Cancel Request",
+    "cancelling": "Cancelling...",
+    "cancelled": "Return request cancelled",
+    "myReturns": "Returns & Refunds",
+    "noReturns": "No return requests yet",
+    "returnNumber": "Return No.",
+    "refundAmount": "Refund amount",
+    "requestedAt": "Requested on",
+    "itemsCount": "items",
+    "reasonLabel": "Reason",
+    "viewDetail": "Details",
+    "applySuccess": "Return request submitted successfully",
+    "status": {
+      "requested": "Under Review",
+      "approved": "Approved - Awaiting Return",
+      "received": "Item Received - Refunding",
+      "refunded": "Refunded",
+      "rejected": "Rejected",
+      "cancelled": "Cancelled",
+      "closed": "Closed"
+    },
+    "shipBackTracking": "Return Shipment",
+    "shippedAt": "Shipped on",
+    "refundAfterReceive": "Refund is issued after we receive the item",
+    "trackingRequired": "Please upload the return tracking number for this request.",
+    "submitTracking": "Add Tracking Number",
+    "updateTracking": "Update Tracking",
+    "shipmentModalTitle": "Return Shipment",
+    "shipmentModalHint": "Enter the carrier and tracking number of the parcel you sent back.",
+    "carrier": "Carrier",
+    "carrierPlaceholder": "e.g. DHL, USPS, SF Express",
+    "trackingNumber": "Tracking number",
+    "trackingNumberPlaceholder": "e.g. 1234567890",
+    "trackingHint": "Letters, numbers, dash, underscore or space, 4-64 characters.",
+    "shipmentSubmitted": "Tracking number submitted",
+    "errors": {
+      "reasonRequired": "Please select a reason",
+      "itemsRequired": "Please select at least one item",
+      "shipmentRequired": "Carrier and tracking number are required"
+    }
   }
 }
