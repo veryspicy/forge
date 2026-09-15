@@ -40,6 +40,20 @@ function Fail {
     exit 1
 }
 
+function Invoke-Git {
+    # PS 5.1: native command stderr under $ErrorActionPreference='Stop' raises
+    # NativeCommandError and aborts the script (git fetch/push print to stderr).
+    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$GitArgs)
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        & git @GitArgs 2>&1 | Out-Host
+        return $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $prev
+    }
+}
+
 function Get-GitHubToken {
     # Read PAT from git credential manager (same channel git uses)
     $inputLines = "protocol=https`nhost=github.com`n"
@@ -63,17 +77,17 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host '[merge-dev] Gate passed.' -ForegroundColor Green
 
 # ---------- sync & merge ----------
-git fetch origin 2>&1 | Out-Host
+Invoke-Git fetch origin | Out-Null
 $localDev = git rev-parse dev
 $originDev = git rev-parse origin/dev
 if ($localDev -ne $originDev) {
     Write-Host "[merge-dev] Fast-forwarding local dev to origin/dev ($($originDev.Substring(0,7)))..."
-    git checkout dev | Out-Host
-    git merge --ff-only origin/dev 2>&1 | Out-Host
+    Invoke-Git checkout dev | Out-Null
+    Invoke-Git merge --ff-only origin/dev | Out-Null
     if ($LASTEXITCODE -ne 0) { Fail 'Could not fast-forward dev to origin/dev.' }
 }
-git checkout dev | Out-Host
-git merge --no-ff $Branch -m "Merge $Branch into dev" 2>&1 | Out-Host
+Invoke-Git checkout dev | Out-Null
+Invoke-Git merge --no-ff $Branch -m "Merge $Branch into dev" | Out-Null
 if ($LASTEXITCODE -ne 0) {
     Write-Host '[merge-dev] Merge conflicts detected. Resolve manually, do NOT run merge-dev again.' -ForegroundColor Yellow
     Fail 'Merge conflict. See git status.'
@@ -89,7 +103,7 @@ if ($SkipPush) {
 
 # ---------- push ----------
 Write-Host '[merge-dev] Pushing dev to origin...'
-git push origin dev 2>&1 | Out-Host
+Invoke-Git push origin dev | Out-Null
 if ($LASTEXITCODE -ne 0) { Fail 'Push to origin/dev failed.' }
 
 # ---------- CI health check ----------
