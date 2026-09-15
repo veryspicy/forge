@@ -64,7 +64,7 @@ if ($head -and $head -notmatch '^(feature|fix|hotfix)/') {
 }
 
 # ---------- 2. Commit convention ----------
-$commits = git log "$Base..HEAD" --format=%s 2>$null
+$commits = git log "$Base..HEAD" --no-merges --format=%s 2>$null
 if ($commits) {
     $hasCommits = $true
     $bad = @($commits | Where-Object { $_ -notmatch '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]+\))?!?: .+' })
