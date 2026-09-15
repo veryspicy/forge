@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import secrets
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any, cast
 from uuid import UUID, uuid4
@@ -165,6 +165,64 @@ class SQLAlchemyOrderRepository:
         result = await db.execute(stmt)
         rows = result.all()
         return {row[0]: row[1] for row in rows}
+
+    @staticmethod
+    async def dashboard_stats(db: AsyncSession, trend_days: int = 7) -> dict[str, Any]:
+        """仪表盘订单域聚合：总量 / 今日 / 待处理 / 采购异常 / GMV / 近 N 日趋势。
+
+        - 口径统一剔除软删除订单（deleted_at is null），与订单列表默认视图一致；
+        - 日期基准取数据库 current_date，避免应用容器与数据库时区不一致导致跨日错位；
+        - 待处理口径复用下单待处理集合（未进入发货环节的活跃订单）。
+        """
+        alive = ORMOrder.deleted_at.is_(None)
+        today = await db.scalar(select(func.current_date()))
+        if today is None:  # pragma: no cover - current_date 恒有值，仅作类型兜底
+            today = datetime.now(UTC).date()
+
+        paid = ORMOrder.payment_status == "paid"
+        totals = (
+            await db.execute(
+                select(
+                    func.count(ORMOrder.id),
+                    func.coalesce(func.sum(ORMOrder.total).filter(paid), 0),
+                    func.count(ORMOrder.id).filter(ORMOrder.created_at >= today),
+                    func.coalesce(func.sum(ORMOrder.total).filter(paid, ORMOrder.created_at >= today), 0),
+                    func.count(ORMOrder.id).filter(ORMOrder.status.in_(tuple(_PURCHASE_PENDING_ORDER_STATUSES))),
+                    func.count(ORMOrder.id).filter(ORMOrder.status == "procure_failed"),
+                ).where(alive)
+            )
+        ).one()
+        total_orders, total_revenue, today_orders, today_gmv, pending_orders, procurement_errors = totals
+
+        status_stmt = select(ORMOrder.status, func.count(ORMOrder.id)).where(alive).group_by(ORMOrder.status)
+        status_counts = {row[0]: row[1] for row in (await db.execute(status_stmt)).all()}
+
+        day = func.date(ORMOrder.created_at)
+        start_day = today - timedelta(days=trend_days - 1)
+        trend_stmt = (
+            select(day, func.count(ORMOrder.id))
+            .where(alive, ORMOrder.created_at >= start_day)
+            .group_by(day)
+        )
+        counts_by_day = {row[0]: int(row[1]) for row in (await db.execute(trend_stmt)).all()}
+
+        dates: list[str] = []
+        counts: list[int] = []
+        for offset in range(trend_days - 1, -1, -1):
+            current = today - timedelta(days=offset)
+            dates.append(f"{current.month}/{current.day}")
+            counts.append(counts_by_day.get(current, 0))
+
+        return {
+            "total_orders": int(total_orders),
+            "total_revenue": float(total_revenue or 0),
+            "today_orders": int(today_orders),
+            "today_gmv": float(today_gmv or 0),
+            "pending_orders": int(pending_orders),
+            "procurement_errors": int(procurement_errors),
+            "status_counts": status_counts,
+            "order_trend": {"dates": dates, "counts": counts},
+        }
 
 
 # ---------------------------------------------------------------------------
