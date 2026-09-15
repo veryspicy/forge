@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, h } from 'vue';
+import { computed, ref, onMounted, h } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useDebounceFn } from '@vueuse/core';
@@ -18,9 +18,11 @@ import {
 } from 'naive-ui';
 import { get } from '@/service/api/helper';
 import { localStg } from '@/utils/storage';
+import { useAuthStore } from '@/store/modules/auth';
 import type { DataTableColumns } from 'naive-ui';
 
 const router = useRouter();
+const authStore = useAuthStore();
 const { t } = useI18n();
 const message = useMessage();
 const loading = ref(false);
@@ -91,6 +93,21 @@ function fulfillmentModeLabel(mode?: string | null): string {
   return '自采购';
 }
 
+/** 客户管理页仅 super_admin / admin 可进，其他角色不渲染外链，避免跳转被路由守卫拦截 */
+const canOpenCustomer = computed(() => {
+  const roles = authStore.userInfo.roles || [];
+  return roles.includes('super_admin') || roles.includes('admin');
+});
+
+/** 跳转客户管理页并定位到该订单所属客户（列表按邮箱过滤 + 直接打开客户资料抽屉） */
+function openCustomer(row: any) {
+  const query: Record<string, string> = {};
+  if (row.user_id) query.user_id = String(row.user_id);
+  if (row.email) query.email = String(row.email);
+  if (!Object.keys(query).length) return;
+  router.push({ path: '/customers', query });
+}
+
 const columns: DataTableColumns<any> = [
   {
     title: t('page.orders.orderNumber'),
@@ -102,7 +119,20 @@ const columns: DataTableColumns<any> = [
         { default: () => row.order_number || '-' }
       )
   },
-  { title: t('common.userId'), key: 'user_id', render: row => (row.user_id || '').slice(0, 8) + '...' },
+  {
+    title: t('common.userId'),
+    key: 'user_id',
+    render: row => {
+      const uid = String(row.user_id || '');
+      const label = uid ? `${uid.slice(0, 8)}...` : '-';
+      if (!uid || !canOpenCustomer.value) return label;
+      return h(
+        NButton,
+        { text: true, type: 'primary', size: 'small', onClick: () => openCustomer(row) },
+        { default: () => label }
+      );
+    }
+  },
   { title: t('page.orders.total'), key: 'total', render: row => `$${row.total}` },
   {
     title: t('common.status'),
