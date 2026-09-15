@@ -277,7 +277,7 @@ async function calculate() {
     const params: Record<string, any> = { region: calc.value.region, cost_price: calc.value.cost_price };
     if (calc.value.product_id) params.product_id = calc.value.product_id;
     if (calc.value.override_price != null) params.override_price = calc.value.override_price;
-    const res = await get('/api/admin/v1/pricing/calculate', { params });
+    const res = await get('/api/admin/v1/pricing/calculate', params);
     calcResult.value = res.data;
   } catch (e: any) {
     calcResult.value = { error: e.response?.data?.detail || 'Calculation failed' };

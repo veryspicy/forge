@@ -96,6 +96,7 @@ class ErrorCode(StrEnum):
     ORDER_NOT_EDITABLE = "ORDER_NOT_EDITABLE"
     ORDER_NOT_DELETABLE = "ORDER_NOT_DELETABLE"
     ORDER_ALREADY_PAID = "ORDER_ALREADY_PAID"
+    ORDER_INVALID_STATE = "ORDER_INVALID_STATE"
     INSUFFICIENT_STOCK = "INSUFFICIENT_STOCK"
     PRODUCT_UNAVAILABLE = "PRODUCT_UNAVAILABLE"
     PAYMENT_METHOD_UNSUPPORTED = "PAYMENT_METHOD_UNSUPPORTED"
@@ -104,6 +105,14 @@ class ErrorCode(StrEnum):
     REVIEW_NOT_ELIGIBLE = "REVIEW_NOT_ELIGIBLE"
     REVIEW_ALREADY_EXISTS = "REVIEW_ALREADY_EXISTS"
     REVIEW_NOT_FOUND = "REVIEW_NOT_FOUND"
+
+    # C-end returns / refunds (售后：退货申请 RMA)
+    RETURN_NOT_FOUND = "RETURN_NOT_FOUND"
+    RETURN_NOT_ELIGIBLE = "RETURN_NOT_ELIGIBLE"
+    RETURN_QUANTITY_EXCEEDS = "RETURN_QUANTITY_EXCEEDS"
+    RETURN_ALREADY_EXISTS = "RETURN_ALREADY_EXISTS"
+    RETURN_INVALID_STATE = "RETURN_INVALID_STATE"
+    RETURN_NOT_CANCELLABLE = "RETURN_NOT_CANCELLABLE"
 
     # Rate limit / server
     RATE_LIMITED = "RATE_LIMITED"
@@ -192,6 +201,9 @@ _REGISTRY: dict[ErrorCode, ErrorSpec] = {
     ErrorCode.ORDER_NOT_DELETABLE: ErrorSpec(
         ErrorType.CONFLICT_ERROR, 409, "Only completed or cancelled orders can be deleted."
     ),
+    ErrorCode.ORDER_INVALID_STATE: ErrorSpec(
+        ErrorType.CONFLICT_ERROR, 409, "Order cannot transition in its current state."
+    ),
     ErrorCode.PAYMENT_METHOD_UNSUPPORTED: ErrorSpec(
         ErrorType.VALIDATION_ERROR, 400, "Payment method is not supported."
     ),
@@ -202,6 +214,23 @@ _REGISTRY: dict[ErrorCode, ErrorSpec] = {
     ),
     ErrorCode.REVIEW_ALREADY_EXISTS: ErrorSpec(ErrorType.CONFLICT_ERROR, 409, "Review already exists for this item."),
     ErrorCode.REVIEW_NOT_FOUND: ErrorSpec(ErrorType.RESOURCE_ERROR, 404, "Review does not exist."),
+    # C-end returns / refunds (售后：退货申请 RMA)
+    ErrorCode.RETURN_NOT_FOUND: ErrorSpec(ErrorType.RESOURCE_ERROR, 404, "Return request does not exist."),
+    ErrorCode.RETURN_NOT_ELIGIBLE: ErrorSpec(
+        ErrorType.CONFLICT_ERROR, 409, "Order is not eligible for return in its current state."
+    ),
+    ErrorCode.RETURN_QUANTITY_EXCEEDS: ErrorSpec(
+        ErrorType.VALIDATION_ERROR, 422, "Return quantity exceeds the refundable quantity of the item."
+    ),
+    ErrorCode.RETURN_ALREADY_EXISTS: ErrorSpec(
+        ErrorType.CONFLICT_ERROR, 409, "An open return request already exists for one of the items."
+    ),
+    ErrorCode.RETURN_INVALID_STATE: ErrorSpec(
+        ErrorType.CONFLICT_ERROR, 409, "Return request cannot transition in its current state."
+    ),
+    ErrorCode.RETURN_NOT_CANCELLABLE: ErrorSpec(
+        ErrorType.CONFLICT_ERROR, 409, "Return request cannot be cancelled in its current state."
+    ),
     # Rate limit / server
     ErrorCode.RATE_LIMITED: ErrorSpec(ErrorType.RATE_LIMIT_ERROR, 429, "Too many requests, slow down."),
     ErrorCode.SERVER_ERROR: ErrorSpec(ErrorType.SERVER_ERROR, 500, "Internal server error."),

@@ -185,6 +185,24 @@ class SQLAlchemyProductRepository:
         result = await db.execute(select(func.count(ORMProduct.id)))
         return result.scalar_one()
 
+    @staticmethod
+    async def count_active(db: AsyncSession) -> int:
+        """在售商品数（status=active），供仪表盘「活跃商品」卡片使用。"""
+        result = await db.execute(select(func.count(ORMProduct.id)).where(ORMProduct.status == "active"))
+        return result.scalar_one()
+
+    @staticmethod
+    async def category_distribution(db: AsyncSession) -> list[dict[str, Any]]:
+        """商品分类分布（已软删除商品不计入），供仪表盘环形图使用。"""
+        stmt = (
+            select(ORMProduct.category, func.count(ORMProduct.id))
+            .where(ORMProduct.status != "deleted")
+            .group_by(ORMProduct.category)
+            .order_by(func.count(ORMProduct.id).desc())
+        )
+        result = await db.execute(stmt)
+        return [{"name": row[0] or "Uncategorized", "value": row[1]} for row in result.all()]
+
     # ------------------------------------------------------------------
     # 变体（P2-1）
     # ------------------------------------------------------------------

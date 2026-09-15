@@ -49,9 +49,16 @@
                 {{ $t('orders.confirmReceipt') }}
               </button>
               <button
+                v-if="canReturn"
+                class="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                @click="openReturnModal"
+              >
+                {{ $t('returns.requestReturn') }}
+              </button>
+              <button
                 v-if="canDeleteOrder"
                 class="px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50"
-                @click="doDeleteOrder"
+                @click="askDeleteOrder"
               >
                 {{ $t('orders.deleteOrder') }}
               </button>
@@ -260,7 +267,238 @@
             <p>{{ order.shipping_address.country }}</p>
           </address>
         </div>
+
+        <!-- Returns & Refunds -->
+        <div v-if="myReturns.length > 0" class="bg-white rounded-lg shadow p-6 mt-6">
+          <h2 class="text-lg font-semibold text-gray-900 mb-4">{{ $t('returns.myReturns') }}</h2>
+          <ul class="divide-y divide-gray-200">
+            <li
+              v-for="r in myReturns"
+              :key="r.return_number"
+              class="py-4 flex flex-wrap items-start justify-between gap-3"
+            >
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center flex-wrap gap-2">
+                  <span class="text-sm font-medium text-gray-900">#{{ r.return_number }}</span>
+                  <span :class="['inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium', returnStatusClass(r.status)]">
+                    {{ returnStatusText(r.status) }}
+                  </span>
+                </div>
+                <p class="text-sm text-gray-500 mt-1">{{ $t('returns.reasonLabel') }}: {{ returnReasonLabel(r.reason, t) }}</p>
+                <p class="text-xs text-gray-400 mt-1">
+                  {{ $t('returns.requestedAt') }} {{ formatDateTime(r.requested_at || r.created_at) }}
+                  · {{ (r.items || []).length }} {{ $t('returns.itemsCount') }}
+                </p>
+                <p v-if="r.review_note" class="text-xs text-gray-500 mt-1">{{ r.review_note }}</p>
+
+                <!-- 寄回物流：客户回填后在此追踪 -->
+                <div v-if="r.tracking_number" class="mt-2 rounded-md bg-gray-50 border border-gray-200 px-3 py-2">
+                  <p class="text-xs text-gray-500">{{ $t('returns.shipBackTracking') }}</p>
+                  <p class="text-xs text-gray-900 mt-0.5">
+                    {{ r.carrier }} · <span class="font-mono">{{ r.tracking_number }}</span>
+                  </p>
+                  <p v-if="r.shipped_at" class="text-xs text-gray-500 mt-0.5">
+                    {{ $t('returns.shippedAt') }} {{ formatDateTime(r.shipped_at) }}
+                  </p>
+                  <p class="text-xs text-gray-400 mt-0.5">{{ formatPrice(r.refund_amount || 0) }} · {{ $t('returns.refundAfterReceive') }}</p>
+                </div>
+                <p v-else-if="canSubmitShipment(r)" class="text-xs text-amber-600 mt-2">
+                  {{ $t('returns.trackingRequired') }}
+                </p>
+              </div>
+              <div class="text-right">
+                <p class="text-sm font-medium text-gray-900">{{ formatPrice(r.refund_amount || 0) }}</p>
+                <button
+                  v-if="canSubmitShipment(r)"
+                  class="mt-2 px-3 py-1 rounded-md text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+                  @click="openShipmentModal(r)"
+                >
+                  {{ r.tracking_number ? $t('returns.updateTracking') : $t('returns.submitTracking') }}
+                </button>
+                <button
+                  v-if="canCancelReturn(r)"
+                  class="mt-2 px-3 py-1 rounded-md text-xs font-medium border border-red-300 text-red-700 hover:bg-red-50"
+                  @click="returnCancelTarget = r"
+                >
+                  {{ $t('returns.cancelRequest') }}
+                </button>
+              </div>
+            </li>
+          </ul>
+        </div>
       </template>
+    </div>
+
+    <!-- Return Shipment Modal（寄回快递单号） -->
+    <div v-if="showShipmentModal" class="fixed inset-0 z-50 overflow-y-auto">
+      <div class="flex items-center justify-center min-h-screen px-4 py-8">
+        <div class="fixed inset-0 bg-gray-500/40 backdrop-blur-md transition-opacity" @click="showShipmentModal = false"/>
+        <div class="relative bg-white/85 backdrop-blur-2xl rounded-lg max-w-md w-full p-6 shadow-2xl ring-1 ring-white/60">
+          <h3 class="text-lg font-medium text-gray-900 mb-1">{{ $t('returns.shipmentModalTitle') }}</h3>
+          <p class="text-sm text-gray-500 mb-4">{{ $t('returns.shipmentModalHint') }}</p>
+
+          <div v-if="shipmentError" class="mb-4 bg-red-50 border border-red-200 rounded-md p-3 text-sm text-red-800">
+            {{ shipmentError }}
+          </div>
+
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('returns.carrier') }}</label>
+            <input
+              v-model="shipmentForm.carrier"
+              type="text"
+              maxlength="100"
+              :placeholder="$t('returns.carrierPlaceholder')"
+              class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+            >
+          </div>
+
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('returns.trackingNumber') }}</label>
+            <input
+              v-model="shipmentForm.tracking_number"
+              type="text"
+              maxlength="64"
+              :placeholder="$t('returns.trackingNumberPlaceholder')"
+              class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm font-mono"
+            >
+            <p class="text-xs text-gray-500 mt-1">{{ $t('returns.trackingHint') }}</p>
+          </div>
+
+          <div class="flex justify-end gap-3">
+            <button
+              class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              @click="showShipmentModal = false"
+            >
+              {{ $t('common.cancel') }}
+            </button>
+            <button
+              :disabled="shipmentSubmitting"
+              class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
+              @click="doSubmitShipment"
+            >
+              {{ shipmentSubmitting ? $t('returns.submitting') : $t('returns.submit') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Return Request Modal -->
+    <div v-if="showReturnModal" class="fixed inset-0 z-50 overflow-y-auto">
+      <div class="flex items-center justify-center min-h-screen px-4 py-8">
+        <div class="fixed inset-0 bg-gray-500/40 backdrop-blur-md transition-opacity" @click="showReturnModal = false"/>
+        <div class="relative bg-white/85 backdrop-blur-2xl rounded-lg max-w-2xl w-full p-6 shadow-2xl ring-1 ring-white/60">
+          <h3 class="text-lg font-medium text-gray-900 mb-1">{{ $t('returns.modalTitle') }}</h3>
+          <p class="text-sm text-gray-500 mb-4">{{ $t('returns.modalHint') }}</p>
+
+          <div v-if="returnError" class="mb-4 bg-red-50 border border-red-200 rounded-md p-3 text-sm text-red-800">
+            {{ returnError }}
+          </div>
+
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">{{ $t('returns.selectItems') }}</label>
+            <p v-if="returnableItems.length === 0" class="text-sm text-gray-500">{{ $t('returns.noReturnableItems') }}</p>
+            <ul v-else class="divide-y divide-gray-200 border border-gray-200 rounded-md">
+              <li v-for="i in returnableItems" :key="i.order_item_id" class="p-3 flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  class="mt-1 h-4 w-4 rounded border-gray-300 text-indigo-600"
+                  :checked="returnForm.selected[String(i.order_item_id)]"
+                  @change="toggleReturnItem(i, ($event.target as HTMLInputElement).checked)"
+                >
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium text-gray-900">{{ i.name }}</p>
+                  <p class="text-xs text-gray-500 mt-0.5">
+                    {{ $t('returns.returnableQty') }}: {{ i.returnable_quantity }} · {{ formatPrice(i.unit_price) }}
+                  </p>
+                </div>
+                <input
+                  v-if="returnForm.selected[String(i.order_item_id)]"
+                  type="number"
+                  min="1"
+                  :max="i.returnable_quantity"
+                  class="w-20 border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  :value="returnForm.quantities[String(i.order_item_id)]"
+                  @input="setReturnQty(i, Number(($event.target as HTMLInputElement).value))"
+                >
+              </li>
+            </ul>
+          </div>
+
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">{{ $t('returns.reason') }}</label>
+            <select
+              v-model="returnForm.reason"
+              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+            >
+              <option value="">{{ $t('returns.reasonPlaceholder') }}</option>
+              <option v-for="r in RETURN_REASONS" :key="r" :value="r">
+                {{ $t(`returns.reason${r.charAt(0).toUpperCase()}${r.slice(1)}`) }}
+              </option>
+            </select>
+          </div>
+
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">{{ $t('returns.note') }}</label>
+            <textarea
+              v-model="returnForm.note"
+              rows="3"
+              :placeholder="$t('returns.notePlaceholder')"
+              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+            />
+          </div>
+
+          <div class="flex items-center justify-between border-t border-gray-200 pt-4">
+            <p class="text-sm text-gray-500">
+              {{ $t('returns.refundEstimate') }}:
+              <span class="font-medium text-gray-900">{{ formatPrice(returnRefundEstimate) }}</span>
+            </p>
+            <div class="flex space-x-3">
+              <button
+                class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                @click="showReturnModal = false"
+              >
+                {{ $t('common.cancel') }}
+              </button>
+              <button
+                :disabled="returnSubmitting"
+                class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
+                @click="doSubmitReturn"
+              >
+                {{ returnSubmitting ? $t('returns.submitting') : $t('returns.submit') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cancel Return Modal -->
+    <div v-if="returnCancelTarget" class="fixed inset-0 z-50 overflow-y-auto">
+      <div class="flex items-center justify-center min-h-screen px-4">
+        <div class="fixed inset-0 bg-gray-500/40 backdrop-blur-md transition-opacity" @click="returnCancelTarget = null"/>
+        <div class="relative bg-white/85 backdrop-blur-2xl rounded-lg max-w-md w-full p-6 shadow-2xl ring-1 ring-white/60">
+          <h3 class="text-lg font-medium text-gray-900 mb-4">{{ $t('returns.cancelModalTitle') }}</h3>
+          <p class="text-sm text-gray-500 mb-6">
+            {{ $t('returns.cancelConfirmText') }}
+          </p>
+          <div class="flex justify-end space-x-3">
+            <button
+              class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+              @click="returnCancelTarget = null"
+            >
+              {{ $t('returns.keepRequest') }}
+            </button>
+            <button
+              :disabled="returnCancelling"
+              class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
+              @click="doCancelReturn"
+            >
+              {{ returnCancelling ? $t('returns.cancelling') : $t('returns.cancelRequest') }}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Cancel Order Modal -->
@@ -336,10 +574,10 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('checkout.cardNumber') }}</label>
               <input
-                v-model.trim="payForm.card.number"
+                v-model="cardNumberText"
                 type="text"
                 inputmode="numeric"
-                maxlength="19"
+                maxlength="23"
                 placeholder="4242 4242 4242 4242"
                 class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
               >
@@ -452,6 +690,36 @@
         </div>
       </div>
     </div>
+
+    <!-- Delete Order Confirm Modal -->
+    <div v-if="showDeleteModal" class="fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
+      <div class="flex min-h-full items-center justify-center p-4 text-center">
+        <div class="fixed inset-0 bg-gray-500/40 backdrop-blur-md transition-opacity" @click="closeDeleteModal" />
+        <div
+          class="relative bg-white/85 backdrop-blur-2xl rounded-2xl shadow-2xl ring-1 ring-white/60 max-w-md w-full text-left"
+        >
+          <div class="px-6 pt-5 pb-4 border-b">
+            <h3 class="text-lg font-semibold text-gray-900">{{ $t('orders.deleteOrder') }}</h3>
+            <p class="text-sm text-gray-500 mt-1">{{ $t('orders.deleteConfirmText') }}</p>
+          </div>
+          <div class="px-6 py-4 border-t flex justify-end gap-3">
+            <button
+              class="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition font-medium"
+              @click="closeDeleteModal"
+            >
+              {{ $t('common.cancel') }}
+            </button>
+            <button
+              class="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              :disabled="deleting"
+              @click="doDeleteOrder"
+            >
+              {{ $t('orders.confirmDelete') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -461,6 +729,7 @@ import OrderStatusBadge from '~/components/OrderStatusBadge.vue'
 import { useOrderStore } from '~/stores/order'
 import { useApi } from '~/composables/useApi'
 import { useCurrency } from '~/composables/useCurrency'
+import { RETURN_REASON_CODES, returnReasonLabel } from '~/utils/returnReason'
 
 definePageMeta({
   middleware: 'auth',
@@ -468,7 +737,7 @@ definePageMeta({
 
 const route = useRoute()
 const orderStore = useOrderStore()
-const { fetchShipments } = useApi()
+const { fetchShipments, fetchReturnEligibility, createReturn, fetchMyReturns, cancelReturn, submitReturnShipment } = useApi()
 const { toMessage, resolveCode } = useApiError()
 const { toast } = useToast()
 const { t } = useI18n()
@@ -478,6 +747,28 @@ const loading = ref(true)
 const error = ref('')
 const showCancelModal = ref(false)
 const cancelling = ref(false)
+
+// --- 售后服务（退货/退款 RMA） ---
+const returnEligibility = ref<any>(null)
+const myReturns = ref<any[]>([])
+const showReturnModal = ref(false)
+const returnSubmitting = ref(false)
+const returnError = ref('')
+const returnCancelTarget = ref<any>(null)
+const returnCancelling = ref(false)
+// 退货寄回物流（审核通过后由客户回填快递单号）
+const shipmentTarget = ref<any>(null)
+const showShipmentModal = ref(false)
+const shipmentSubmitting = ref(false)
+const shipmentError = ref('')
+const shipmentForm = ref<{ carrier: string; tracking_number: string }>({ carrier: '', tracking_number: '' })
+const returnForm = ref<{
+  reason: string
+  note: string
+  refund_method: string
+  selected: Record<string, boolean>
+  quantities: Record<string, number>
+}>({ reason: '', note: '', refund_method: 'original', selected: {}, quantities: {} })
 
 // ---- Payment ----
 const showPayModal = ref(false)
@@ -503,8 +794,12 @@ const canCancel = computed(() => {
 })
 
 const canPay = computed(() => {
-  if (!order.value) return false
-  return (order.value.payment_status === 'unpaid' || (order.value.status || '').toLowerCase() === 'pending') && !order.value.deleted_at
+  if (!order.value || order.value.deleted_at) return false
+  const status = (order.value.status || '').toLowerCase()
+  // 终态订单（已取消/已退款/已完成）一律不可支付，避免「已取消仍可支付」
+  if (['cancelled', 'refunded', 'completed'].includes(status)) return false
+  if (['refunded', 'partially_refunded'].includes(String(order.value.payment_status || ''))) return false
+  return order.value.payment_status === 'unpaid' || status === 'pending'
 })
 
 const canConfirmReceipt = computed(() => {
@@ -513,9 +808,9 @@ const canConfirmReceipt = computed(() => {
 })
 
 const canDeleteOrder = computed(() => {
-  if (!order.value) return false
+  if (!order.value || order.value.deleted_at) return false
   const status = (order.value.status || '').toLowerCase()
-  return (status === 'delivered' || status === 'cancelled') && !order.value.deleted_at
+  return ['delivered', 'cancelled', 'refunded'].includes(status)
 })
 
 const canReview = computed(() => {
@@ -532,12 +827,47 @@ const openPayModal = () => {
   showPayModal.value = true
 }
 
+// 卡号按 4 位分组展示（仅保留数字），避免空格/连字符被判为无效卡号
+function formatCardNumber(value?: string | null): string {
+  const digits = String(value || '').replace(/\D/g, '').slice(0, 19)
+  return digits.replace(/(\d{4})(?=\d)/g, '$1 ')
+}
+
+// Luhn 校验：拦截明显错误的卡号，减少无效支付尝试
+function isValidCardNumber(value?: string | null): boolean {
+  const digits = String(value || '').replace(/\D/g, '')
+  if (digits.length < 13 || digits.length > 19) return false
+  let sum = 0
+  let double = false
+  for (let i = digits.length - 1; i >= 0; i -= 1) {
+    let digit = Number(digits[i])
+    if (double) {
+      digit *= 2
+      if (digit > 9) digit -= 9
+    }
+    sum += digit
+    double = !double
+  }
+  return sum % 10 === 0
+}
+
+const cardNumberText = computed({
+  get: () => formatCardNumber(payForm.value.card.number),
+  set: (value: string) => {
+    payForm.value.card.number = String(value || '').replace(/\D/g, '').slice(0, 19)
+  },
+})
+
 const doPay = async () => {
   cardError.value = ''
   if (payForm.value.method === 'card') {
     const card = payForm.value.card
     if (!card.name || !card.number || !card.expiry || !card.cvv) {
       cardError.value = t('checkout.invalidCard')
+      return
+    }
+    if (!isValidCardNumber(card.number)) {
+      cardError.value = t('checkout.invalidCardNumber')
       return
     }
   }
@@ -570,14 +900,29 @@ const doConfirmReceipt = async () => {
   }
 }
 
+// 删除确认：应用内弹窗（替代原生 confirm）
+const showDeleteModal = ref(false)
+const deleting = ref(false)
+
+const askDeleteOrder = () => {
+  showDeleteModal.value = true
+}
+
+const closeDeleteModal = () => {
+  showDeleteModal.value = false
+}
+
 const doDeleteOrder = async () => {
-  if (!confirm(t('orders.deleteConfirmText') as string)) return
+  deleting.value = true
   try {
     await orderStore.deleteOrder(orderId.value)
     toast.success(t('orders.orderDeleted'))
+    showDeleteModal.value = false
     navigateTo('/orders')
   } catch (err: any) {
     error.value = toMessage(err)
+  } finally {
+    deleting.value = false
   }
 }
 
@@ -679,6 +1024,183 @@ const doCancelOrder = async () => {
   }
 }
 
+// --- Returns: helpers ---
+const RETURN_REASONS = RETURN_REASON_CODES
+const OPEN_RETURN_STATUSES = ['requested', 'approved', 'received']
+
+const returnableItems = computed(() => {
+  const items = returnEligibility.value?.items || []
+  return items.filter((i: any) => Number(i.returnable_quantity || 0) > 0)
+})
+
+const selectedReturnItems = computed(() =>
+  returnableItems.value.filter((i: any) => returnForm.value.selected[String(i.order_item_id)])
+)
+
+const hasOpenReturn = computed(() =>
+  myReturns.value.some((r: any) => OPEN_RETURN_STATUSES.includes(String(r.status || '').toLowerCase()))
+)
+
+const canReturn = computed(() =>
+  !!returnEligibility.value?.eligible && returnableItems.value.length > 0 && !hasOpenReturn.value
+)
+
+const returnRefundEstimate = computed(() =>
+  selectedReturnItems.value.reduce((sum: number, i: any) => {
+    const qty = Number(returnForm.value.quantities[String(i.order_item_id)] || 0)
+    return sum + Number(i.unit_price || 0) * qty
+  }, 0)
+)
+
+const canCancelReturn = (r: any) => OPEN_RETURN_STATUSES.includes(String(r?.status || '').toLowerCase())
+
+const returnStatusText = (status?: string) => t(`returns.status.${String(status || '').toLowerCase()}`)
+
+const returnStatusClass = (status?: string) => {
+  switch (String(status || '').toLowerCase()) {
+    case 'requested': return 'bg-amber-50 text-amber-700'
+    case 'approved': return 'bg-blue-50 text-blue-700'
+    case 'received': return 'bg-indigo-50 text-indigo-700'
+    case 'refunded': return 'bg-green-50 text-green-700'
+    case 'rejected': return 'bg-red-50 text-red-700'
+    default: return 'bg-gray-100 text-gray-600'
+  }
+}
+
+const clampReturnQty = (item: any, value: number) => {
+  const max = Number(item.returnable_quantity || 0)
+  const qty = Number.isFinite(value) ? Math.floor(value) : max
+  return Math.min(Math.max(qty, 1), Math.max(max, 1))
+}
+
+const toggleReturnItem = (item: any, checked: boolean) => {
+  const key = String(item.order_item_id)
+  returnForm.value.selected[key] = checked
+}
+
+const setReturnQty = (item: any, value: number) => {
+  const key = String(item.order_item_id)
+  returnForm.value.quantities[key] = clampReturnQty(item, value)
+}
+
+const openReturnModal = () => {
+  const selected: Record<string, boolean> = {}
+  const quantities: Record<string, number> = {}
+  returnableItems.value.forEach((i: any) => {
+    const key = String(i.order_item_id)
+    selected[key] = true
+    quantities[key] = Number(i.returnable_quantity || 1)
+  })
+  returnForm.value = { reason: '', note: '', refund_method: 'original', selected, quantities }
+  returnError.value = ''
+  showReturnModal.value = true
+}
+
+const loadReturns = async () => {
+  try {
+    const res: any = await fetchMyReturns({ order_number: orderId.value, page_size: 50 })
+    myReturns.value = res?.items || []
+  } catch {
+    myReturns.value = []
+  }
+}
+
+const loadReturnEligibility = async () => {
+  try {
+    returnEligibility.value = await fetchReturnEligibility(orderId.value)
+  } catch {
+    returnEligibility.value = null
+  }
+}
+
+const doSubmitReturn = async () => {
+  const items = selectedReturnItems.value
+    .map((i: any) => ({
+      order_item_id: String(i.order_item_id),
+      quantity: clampReturnQty(i, Number(returnForm.value.quantities[String(i.order_item_id)] || 0)),
+    }))
+  if (items.length === 0) {
+    returnError.value = t('returns.errors.itemsRequired')
+    return
+  }
+  if (!returnForm.value.reason) {
+    returnError.value = t('returns.errors.reasonRequired')
+    return
+  }
+  returnSubmitting.value = true
+  returnError.value = ''
+  try {
+    await createReturn({
+      order_number: orderId.value,
+      items,
+      reason: returnForm.value.reason,
+      note: returnForm.value.note || undefined,
+      refund_method: returnForm.value.refund_method,
+    })
+    showReturnModal.value = false
+    toast.success(t('returns.applySuccess'))
+    await Promise.all([loadReturns(), loadReturnEligibility()])
+  } catch (err: any) {
+    returnError.value = toMessage(err)
+  } finally {
+    returnSubmitting.value = false
+  }
+}
+
+const doCancelReturn = async () => {
+  if (!returnCancelTarget.value) return
+  returnCancelling.value = true
+  try {
+    await cancelReturn(String(returnCancelTarget.value.return_number), 'Cancelled by customer')
+    returnCancelTarget.value = null
+    toast.success(t('returns.cancelled'))
+    await Promise.all([loadReturns(), loadReturnEligibility()])
+  } catch (err: any) {
+    toast.error(toMessage(err))
+  } finally {
+    returnCancelling.value = false
+  }
+}
+
+// --- Returns: 寄回物流（审核通过后客户回填快递单号） ---
+const canSubmitShipment = (r: any) => String(r?.status || '').toLowerCase() === 'approved'
+
+const openShipmentModal = (r: any) => {
+  shipmentTarget.value = r
+  shipmentForm.value = {
+    carrier: r?.carrier || '',
+    tracking_number: r?.tracking_number || '',
+  }
+  shipmentError.value = ''
+  showShipmentModal.value = true
+}
+
+const doSubmitShipment = async () => {
+  if (!shipmentTarget.value) return
+  const carrier = shipmentForm.value.carrier.trim()
+  const trackingNumber = shipmentForm.value.tracking_number.trim()
+  if (!carrier || !trackingNumber) {
+    shipmentError.value = t('returns.errors.shipmentRequired')
+    return
+  }
+  shipmentSubmitting.value = true
+  shipmentError.value = ''
+  try {
+    await submitReturnShipment(String(shipmentTarget.value.return_number), {
+      carrier,
+      tracking_number: trackingNumber,
+    })
+    showShipmentModal.value = false
+    shipmentTarget.value = null
+    toast.success(t('returns.shipmentSubmitted'))
+    await Promise.all([loadReturns(), loadReturnEligibility()])
+  } catch (err: any) {
+    shipmentError.value = toMessage(err)
+  } finally {
+    shipmentSubmitting.value = false
+  }
+}
+
 onMounted(async () => {
   try {
     await orderStore.loadOrderDetail(orderId.value)
@@ -690,6 +1212,8 @@ onMounted(async () => {
     } catch {
       shipments.value = []
     }
+    // 售后：可退性 + 已有退货单
+    await Promise.all([loadReturnEligibility(), loadReturns()])
     // 列表页“去支付”跳转时自动唤起支付弹窗
     if (route.query.pay === '1' && canPay.value) {
       openPayModal()

@@ -358,6 +358,22 @@ const columns: DataTableColumns<any> = [
   { type: 'selection', width: 40 },
   { title: '编号', key: 'id', width: 80, render: row => h('span', { style: 'color: var(--n-text-color-3)' }, row.id) },
   {
+    title: '履约',
+    key: 'fulfillment_mode',
+    width: 90,
+    render: row =>
+      h(
+        'span',
+        {
+          style:
+            row.fulfillment_mode === 'dropship'
+              ? 'color:#2080f0;font-size:12px'
+              : 'color:var(--n-text-color-3);font-size:12px'
+        },
+        row.fulfillment_mode === 'dropship' ? '一件代发' : '自采购'
+      )
+  },
+  {
     title: t('common.image'),
     key: 'image',
     width: 70,

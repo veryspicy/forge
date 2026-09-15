@@ -19,15 +19,46 @@ const categoryData = ref<{ name: string; value: number }[]>([]);
 
 // ==================== API Calls ====================
 async function fetchDashboard() {
-  const res = await get('/api/admin/v1/dashboard');
-  stats.value = res.data;
+  // request 层已解包 response.data；此处再兜底 { data: ... } 包裹结构
+  const res: any = await get('/api/admin/v1/dashboard/');
+  const payload: Record<string, any> = res?.data ?? res ?? {};
+  stats.value = payload;
+
+  // 图表数据优先取后端聚合结果（单请求），后端未下发时回退到列表接口本地聚合
+  const trend = payload.order_trend;
+  if (trend?.dates?.length) {
+    orderTrend.value = {
+      dates: trend.dates,
+      counts: (trend.counts ?? []).map((n: any) => Number(n) || 0)
+    };
+  } else {
+    await fetchOrdersTrend();
+  }
+
+  const categories = payload.product_categories;
+  if (Array.isArray(categories) && categories.length > 0) {
+    categoryData.value = pickTopCategories(categories);
+  } else {
+    await fetchProductCategories();
+  }
+}
+
+/** 分类分布取 Top5 + Others（与饼图配色位数对齐） */
+function pickTopCategories(entries: { name: string; value: number }[]) {
+  const sorted = [...entries].sort((a, b) => b.value - a.value);
+  const top5 = sorted.slice(0, 5);
+  const others = sorted.slice(5);
+  const result = top5.map(({ name, value }) => ({ name, value }));
+  if (others.length > 0) {
+    result.push({ name: 'Others', value: others.reduce((sum, item) => sum + item.value, 0) });
+  }
+  return result;
 }
 
 async function fetchOrdersTrend() {
   try {
-    const res = await get('/api/admin/v1/orders', { page: 1, page_size: 100 });
-    const orders = res.data?.list || res.data?.data || res.data || [];
-    const arr: any[] = Array.isArray(orders) ? orders : [];
+    const res: any = await get('/api/admin/v1/orders', { page: 1, page_size: 100 });
+    const arr: any[] = Array.isArray(res?.items) ? res.items : [];
 
     const now = new Date();
     const dayMap: Record<string, number> = {};
@@ -60,9 +91,8 @@ async function fetchOrdersTrend() {
 
 async function fetchProductCategories() {
   try {
-    const res = await get('/api/admin/v1/products', { page: 1, page_size: 100 });
-    const products = res.data?.list || res.data?.data || res.data || [];
-    const arr: any[] = Array.isArray(products) ? products : [];
+    const res: any = await get('/api/admin/v1/products', { page: 1, page_size: 100 });
+    const arr: any[] = Array.isArray(res?.items) ? res.items : [];
 
     const catMap: Record<string, number> = {};
     arr.forEach((p: any) => {
@@ -70,15 +100,9 @@ async function fetchProductCategories() {
       catMap[cat] = (catMap[cat] || 0) + 1;
     });
 
-    const entries = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
-    const top5 = entries.slice(0, 5);
-    const others = entries.slice(5);
-    const result = top5.map(([name, value]) => ({ name, value }));
-    if (others.length > 0) {
-      result.push({ name: 'Others', value: others.reduce((sum, [, v]) => sum + v, 0) });
-    }
-
-    categoryData.value = result;
+    categoryData.value = pickTopCategories(
+      Object.entries(catMap).map(([name, value]) => ({ name, value: Number(value) }))
+    );
   } catch {
     categoryData.value = [];
   }
@@ -86,7 +110,7 @@ async function fetchProductCategories() {
 
 onMounted(async () => {
   try {
-    await Promise.all([fetchDashboard(), fetchOrdersTrend(), fetchProductCategories()]);
+    await fetchDashboard();
   } catch (e) {
     console.error('Dashboard load failed', e);
   } finally {

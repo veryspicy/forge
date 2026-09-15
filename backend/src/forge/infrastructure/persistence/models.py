@@ -45,6 +45,8 @@ __all__ = [
     "ORMOrderItem",
     "ORMOrder",
     "ORMShipment",
+    "ORMReturnRequest",
+    "ORMReturnItem",
     "ORMSiteProfile",
     "ORMResource",
     "ORMResourceRef",
@@ -94,6 +96,8 @@ class ORMProduct(Base):
     sort_order = Column(Integer, nullable=False, default=0, server_default="0")
     sales = Column(Integer, nullable=False, default=0, server_default="0")
     audit_status = Column(String(20), nullable=False, default="pending", server_default="pending")
+    # 履约模式：self=自采购（下单扣减本地库存）/ dropship=一件代发（不占本地库存）
+    fulfillment_mode = Column(String(20), nullable=False, default="self", server_default="self", index=True)
     supplier_id = Column(UUID(as_uuid=True), nullable=True, index=True)
     supplier_sku = Column(String(100), nullable=True)
     supplier_product_id = Column(String(128), nullable=True, index=True)
@@ -137,6 +141,7 @@ class ORMProduct(Base):
             "sales": self.sales or 0,
             "audit_status": self.audit_status or "pending",
             "attributes": self.attributes or {},
+            "fulfillment_mode": self.fulfillment_mode or "self",
             "supplier_id": str(self.supplier_id) if self.supplier_id else None,
             "supplier_sku": self.supplier_sku,
             "supplier_product_id": self.supplier_product_id,
@@ -661,6 +666,17 @@ class ORMOrderItem(Base):
     price = Column(Numeric(12, 2), nullable=False)
     quantity = Column(Integer, nullable=False)
     image = Column(String(1000), nullable=True)
+    # 履约快照（下单时固化，商品后续改履约方式不影响历史订单）；supplier_id 不建外键，保留快照语义
+    fulfillment_mode = Column(String(20), nullable=True)
+    supplier_id = Column(UUID(as_uuid=True), nullable=True)
+    supplier_sku = Column(String(255), nullable=True)
+    # 退款（行级）：累计已退数量，配合 orders.refunded_amount 支撑部分/行级退款与幂等校验
+    refunded_quantity = Column(Integer, nullable=False, server_default="0")
+    # 采购（行级）：仅 dropship 行可采购；requested=已推送采购，received=已入库
+    procurement_status = Column(String(20), nullable=True)
+    procurement_requested_at = Column(DateTime(timezone=False), nullable=True)
+    procurement_received_at = Column(DateTime(timezone=False), nullable=True)
+    procurement_cost = Column(Numeric(12, 2), nullable=True)
 
     order: Mapped[ORMOrder] = relationship("ORMOrder", back_populates="items")
 
@@ -690,6 +706,9 @@ class ORMOrder(Base):
     shipping_address = Column(JSONB, nullable=True)
     review_status = Column(JSONB, nullable=True)
     procurement_info = Column(JSONB, nullable=True)
+    # 退款（订单级资金流水）：累计已退金额 + 逐笔退款记录，配合 items.refunded_quantity 支撑行级/部分退款
+    refunded_amount = Column(Numeric(12, 2), nullable=False, server_default="0")
+    refunds = Column(JSONB, nullable=True)
     created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
     updated_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
 
@@ -714,6 +733,70 @@ class ORMShipment(Base):
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
     updated_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+
+
+class ORMReturnRequest(Base):
+    """退货/退款申请单（RMA，行业对齐 Shopify Returns / 有赞退货单）。
+
+    - 流程状态机：requested(待审) -> approved(已通过待寄回) -> received(已收货) -> refunded(已退款)
+      旁支终态：rejected(驳回) / cancelled(客户撤销) / closed(超时关闭)
+    - 资金动作不在此表实现：退款统一委托 order_repo.admin_refund_order，本表仅记录流程状态与关联 refund_id
+    - deadline_at：审核通过后的寄回截止时间；到期未收货由调度任务自动 closed(expired)
+    """
+
+    __tablename__ = "return_requests"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
+    return_number = Column(String(50), nullable=False, unique=True)
+    order_id = Column(UUID(as_uuid=True), ForeignKey("orders.id"), nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    status = Column(String(20), nullable=False, server_default="requested")
+    # 客户侧：原因码 + 备注 + 期望退款方式（original=原路退回）
+    reason = Column(String(100), nullable=False)
+    note = Column(Text, nullable=True)
+    refund_method = Column(String(20), nullable=False, server_default="original")
+    # 审核时锁定的应退金额（商品+税+可选运费），执行退款时按此金额校验
+    refund_amount = Column(Numeric(12, 2), nullable=False, server_default="0")
+    refund_shipping = Column(Boolean, nullable=False, server_default="false")
+    restock = Column(Boolean, nullable=False, server_default="true")
+    # 时间线
+    requested_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+    deadline_at = Column(DateTime(timezone=False), nullable=True)
+    reviewed_at = Column(DateTime(timezone=False), nullable=True)
+    reviewed_by = Column(String(100), nullable=True)
+    review_note = Column(Text, nullable=True)
+    # 客户寄回物流（审核通过后由 C 端回填，供售后单内物流追踪）
+    carrier = Column(String(100), nullable=True)
+    tracking_number = Column(String(500), nullable=True)
+    shipped_at = Column(DateTime(timezone=False), nullable=True)
+    received_at = Column(DateTime(timezone=False), nullable=True)
+    refunded_at = Column(DateTime(timezone=False), nullable=True)
+    refund_id = Column(String(64), nullable=True)
+    cancelled_at = Column(DateTime(timezone=False), nullable=True)
+    closed_reason = Column(String(200), nullable=True)
+    created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+    updated_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+
+    items: Mapped[list[ORMReturnItem]] = relationship(
+        "ORMReturnItem", back_populates="return_request", lazy="selectin", cascade="all, delete-orphan"
+    )
+
+
+class ORMReturnItem(Base):
+    """退货申请行（快照 order_items 的关键字段，避免订单行后续变更影响售后凭证）。"""
+
+    __tablename__ = "return_items"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
+    return_id = Column(UUID(as_uuid=True), ForeignKey("return_requests.id"), nullable=False, index=True)
+    order_item_id = Column(UUID(as_uuid=True), ForeignKey("order_items.id"), nullable=False, index=True)
+    name = Column(String(500), nullable=False)
+    sku = Column(String(100), nullable=False)
+    unit_price = Column(Numeric(12, 2), nullable=False)
+    quantity = Column(Integer, nullable=False)
+    created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+
+    return_request: Mapped[ORMReturnRequest] = relationship("ORMReturnRequest", back_populates="items")
 
 
 class ORMProductReview(Base):

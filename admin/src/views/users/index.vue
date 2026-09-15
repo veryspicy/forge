@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 import {
   NButton,
   NDataTable,
@@ -23,6 +24,7 @@ import { del, get, post, put } from '@/service/api/helper';
 import { useAuthStore } from '@/store/modules/auth';
 
 const authStore = useAuthStore();
+const route = useRoute();
 const { t } = useI18n();
 const message = useMessage();
 
@@ -262,8 +264,12 @@ function onSearch() {
   fetch();
 }
 
+/** 初始化完成前不启用搜索防抖，避免外部入口带参进入时多打一次列表请求 */
+const initialized = ref(false);
+
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
 watch(keyword, () => {
+  if (!initialized.value) return;
   if (searchTimer) clearTimeout(searchTimer);
   searchTimer = setTimeout(onSearch, 400);
 });
@@ -271,7 +277,17 @@ onBeforeUnmount(() => {
   if (searchTimer) clearTimeout(searchTimer);
 });
 
-onMounted(fetch);
+// 支持外部入口带参进入（如订单列表点击用户 ID）：email 用于过滤列表定位该客户，
+// user_id 用于直接打开既有客户资料抽屉，复用同一套详情逻辑，不另做资料展示实现。
+onMounted(async () => {
+  const kw = String(route.query.email || '').trim();
+  if (kw) keyword.value = kw;
+  const uid = String(route.query.user_id || '').trim();
+  await fetch();
+  if (uid) openDetail({ id: uid });
+  await nextTick();
+  initialized.value = true;
+});
 </script>
 
 <template>

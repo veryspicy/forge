@@ -234,6 +234,49 @@ export function useApi() {
     });
   };
 
+  // --- 售后服务（退货/退款 RMA） ---
+  const fetchReturnEligibility = async (orderNumber: string) => {
+    return authFetch(`${API_BASE}/returns/eligibility`, {
+      query: { order_number: orderNumber },
+    });
+  };
+
+  const createReturn = async (data: {
+    order_number: string
+    items: Array<{ order_item_id: string; quantity: number }>
+    reason: string
+    note?: string
+    refund_method?: string
+  }) => {
+    return authFetch(`${API_BASE}/returns`, {
+      method: "POST",
+      body: data,
+    });
+  };
+
+  const fetchMyReturns = async (params?: Record<string, any>) => {
+    const query = params ? "?" + new URLSearchParams(params).toString() : "";
+    return authFetch(`${API_BASE}/returns${query}`);
+  };
+
+  const cancelReturn = async (returnNumber: string, reason?: string) => {
+    return authFetch(`${API_BASE}/returns/${returnNumber}/cancel`, {
+      method: "POST",
+      body: { reason },
+    });
+  };
+
+  // 客户回填寄回物流单号（审核通过后），用于售后单内物流追踪
+  const submitReturnShipment = async (
+    returnNumber: string,
+    data: { carrier: string; tracking_number: string },
+  ) => {
+    return authFetch(`${API_BASE}/returns/${returnNumber}/shipment`, {
+      method: "POST",
+      body: data,
+    });
+  };
+
   return {
     fetchProducts,
     fetchProduct,
@@ -267,5 +310,10 @@ export function useApi() {
     updateCartItem,
     removeCartItem,
     clearCart,
+    fetchReturnEligibility,
+    createReturn,
+    fetchMyReturns,
+    cancelReturn,
+    submitReturnShipment,
   };
 }

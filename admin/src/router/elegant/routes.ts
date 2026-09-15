@@ -127,6 +127,15 @@ export const generatedRoutes: GeneratedRoute[] = [
     }
   },
   {
+    name: 'returns',
+    path: '/returns',
+    component: 'layout.base$view.returns',
+    meta: {
+      title: 'returns',
+      i18nKey: 'route.returns'
+    }
+  },
+  {
     name: 'pricing',
     path: '/pricing',
     component: 'layout.base$view.pricing',

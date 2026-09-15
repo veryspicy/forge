@@ -134,7 +134,7 @@ async function fetch() {
   try {
     const params: Record<string, any> = {};
     if (activeFilter.value !== null) params.is_active = activeFilter.value === 'true';
-    const res = await get('/api/admin/v1/suppliers/', { params });
+    const res = await get('/api/admin/v1/suppliers/', params);
     suppliers.value = res.data?.items || res.data || [];
   } finally {
     loading.value = false;
@@ -330,7 +330,7 @@ const syncLogs = ref<any[]>([]);
 function openLogs(row: any) {
   syncLogs.value = [];
   showLogsDrawer.value = true;
-  get(`/api/admin/v1/supplier-sources/${row.id}/sync-logs`, { params: { limit: 20 } })
+  get(`/api/admin/v1/supplier-sources/${row.id}/sync-logs`, { limit: 20 })
     .then(res => {
       syncLogs.value = res.data?.data || [];
     })

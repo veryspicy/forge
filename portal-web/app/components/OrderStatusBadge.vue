@@ -23,6 +23,8 @@ const statusClass = computed(() => {
     delivered: 'bg-green-100 text-green-800',
     completed: 'bg-green-100 text-green-800',
     cancelled: 'bg-red-100 text-red-800',
+    refunded: 'bg-red-100 text-red-800',
+    partially_refunded: 'bg-orange-100 text-orange-800',
   }
   return map[props.status] || 'bg-gray-100 text-gray-800'
 })
@@ -37,6 +39,8 @@ const statusLabel = computed(() => {
     delivered: t('orders.delivered'),
     completed: t('orders.completed'),
     cancelled: t('orders.cancelled'),
+    refunded: t('orders.refunded'),
+    partially_refunded: t('orders.partiallyRefunded'),
   }
   return map[props.status] || props.status
 })
