@@ -15,7 +15,7 @@ from decimal import Decimal
 from typing import Any, cast
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -173,7 +173,10 @@ class SQLAlchemyReturnRepository:
         rows = (
             await db.scalars(
                 select(ORMReturnRequest)
-                .where(ORMReturnRequest.order_id.in_(ids))
+                .where(
+                    ORMReturnRequest.order_id.in_(ids),
+                    ORMReturnRequest.admin_archived_at.is_(None),
+                )
                 .order_by(ORMReturnRequest.created_at.desc())
             )
         ).all()
@@ -261,7 +264,7 @@ class SQLAlchemyReturnRepository:
         page: int = 1,
         page_size: int = 20,
     ) -> dict[str, Any]:
-        conditions: list[Any] = []
+        conditions: list[Any] = [ORMReturnRequest.admin_archived_at.is_(None)]
         if status:
             conditions.append(ORMReturnRequest.status == status)
         if keyword:
@@ -293,13 +296,50 @@ class SQLAlchemyReturnRepository:
         }
 
     @staticmethod
+    async def archive_return_requests(db: AsyncSession, return_numbers: list[str]) -> dict[str, Any]:
+        """后台归档（软删除）：将指定售后单从 Admin 列表 / 看板口径中隐去。
+
+        - 仅写 return_requests.admin_archived_at，不改流程状态与退款数据，可逆；
+        - 已归档单幂等跳过；超时关闭等调度逻辑不受归档影响。
+        """
+        numbers = [n for n in dict.fromkeys(return_numbers) if n]
+        if not numbers:
+            return {"archived": 0, "skipped": 0, "missing": []}
+        rows = (
+            await db.execute(
+                select(ORMReturnRequest.return_number, ORMReturnRequest.admin_archived_at).where(
+                    ORMReturnRequest.return_number.in_(numbers)
+                )
+            )
+        ).all()
+        archived_at: dict[str, Any] = {str(row[0]): row[1] for row in rows}
+        missing = [n for n in numbers if n not in archived_at]
+        targets = [n for n in numbers if n in archived_at and archived_at[n] is None]
+        if targets:
+            now = SQLAlchemyReturnRepository._now()
+            await db.execute(
+                update(ORMReturnRequest)
+                .where(ORMReturnRequest.return_number.in_(targets), ORMReturnRequest.admin_archived_at.is_(None))
+                .values(admin_archived_at=now, updated_at=now)
+            )
+        return {"archived": len(targets), "skipped": len(numbers) - len(missing) - len(targets), "missing": missing}
+
+    @staticmethod
     async def return_stats(db: AsyncSession) -> dict[str, Any]:
-        """售后看板计数：待审 / 待收货 / 待退款 / 已完成 + 已退款金额合计。"""
-        rows = await db.execute(select(ORMReturnRequest.status, func.count()).group_by(ORMReturnRequest.status))
+        """售后看板计数：待审 / 待收货 / 待退款 / 已完成 + 已退款金额合计。
+
+        口径与后台售后列表一致：归档（admin_archived_at）单不计入看板。
+        """
+        rows = await db.execute(
+            select(ORMReturnRequest.status, func.count())
+            .where(ORMReturnRequest.admin_archived_at.is_(None))
+            .group_by(ORMReturnRequest.status)
+        )
         counts = {str(status): int(total or 0) for status, total in rows.all()}
         refunded_amount = await db.scalar(
             select(func.coalesce(func.sum(ORMReturnRequest.refund_amount), 0)).where(
-                ORMReturnRequest.status == "refunded"
+                ORMReturnRequest.status == "refunded",
+                ORMReturnRequest.admin_archived_at.is_(None),
             )
         )
         return {

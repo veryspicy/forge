@@ -1,12 +1,32 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import { ref, onMounted, h } from 'vue';
-import { NButton, NDataTable, NInput, NModal, NForm, NFormItem, NSelect, NSpace, NTag } from 'naive-ui';
-import { get, post, patch } from '@/service/api/helper';
+import { ref, computed, onMounted, h } from 'vue';
+import {
+  NButton,
+  NDataTable,
+  NInput,
+  NModal,
+  NForm,
+  NFormItem,
+  NPopconfirm,
+  NSelect,
+  NSpace,
+  NTag
+} from 'naive-ui';
+import { get, post, patch, del } from '@/service/api/helper';
+import { useAuthStore } from '@/store/modules/auth';
 import type { DataTableColumns } from 'naive-ui';
 
 const loading = ref(false);
 const shipments = ref<any[]>([]);
+const total = ref(0);
+const page = ref(1);
+const pageSize = ref(20);
+const statusFilter = ref<string | null>(null);
+const keyword = ref('');
+const authStore = useAuthStore();
+const checkedKeys = ref<string[]>([]);
+const archiving = ref(false);
 const showModal = ref(false);
 const editing = ref<any>(null);
 const modalError = ref('');
@@ -34,6 +54,12 @@ function formatDate(s: string) {
   return s ? new Date(s).toLocaleDateString() : '-';
 }
 
+/** 归档（后台删除）入口仅对持有 shipments:archive 的角色渲染；super_admin 走权限通配 '*' */
+const canArchive = computed(() => {
+  const perms = authStore.userInfo.permissions || [];
+  return perms.includes('*') || perms.includes('shipments:archive');
+});
+
 const columns: DataTableColumns<any> = [
   { title: t('page.orders.orderNumber'), key: 'id', render: row => (row.id || '').slice(0, 8) },
   { title: t('page.shipments.orderId'), key: 'order_id', render: row => (row.order_id || '').slice(0, 8) },
@@ -57,18 +83,83 @@ const columns: DataTableColumns<any> = [
   {
     title: t('page.suppliers.actions'),
     key: 'actions',
-    render: row => h(NButton, { size: 'small', onClick: () => openModal(row) }, { default: () => t('common.edit') })
+    render: row =>
+      h(NSpace, { size: 4, align: 'center' }, {
+        default: () => [
+          h(NButton, { size: 'small', onClick: () => openModal(row) }, { default: () => t('common.edit') }),
+          canArchive.value
+            ? h(
+                NPopconfirm,
+                { onPositiveClick: () => archiveShipments([row.id]) },
+                {
+                  trigger: () =>
+                    h(NButton, { size: 'small', quaternary: true, type: 'error' }, { default: () => '删除' }),
+                  default: () => '确认删除该运单？删除后不再出现在列表与看板，可恢复。'
+                }
+              )
+            : null
+        ].filter(Boolean)
+      })
   }
 ];
+
+/** 选择列仅在具备归档权限时出现，无权角色看不到多选与批量入口 */
+const selectionColumn: DataTableColumns<any>[number] = {
+  type: 'selection',
+  disabled: (row: any) => !row.id
+};
+
+const tableColumns = computed(() => (canArchive.value ? [selectionColumn, ...columns] : columns));
+
+function rowKey(row: any) {
+  return String(row?.id || '');
+}
+
+/** 单条走 DELETE，多条走批量归档接口，与订单/售后口径一致 */
+async function archiveShipments(ids: (string | number)[]) {
+  const targets = Array.from(new Set(ids.map(id => String(id || '')).filter(Boolean)));
+  if (!targets.length) return;
+  archiving.value = true;
+  try {
+    const res =
+      targets.length === 1
+        ? await del(`/api/admin/v1/shipments/${encodeURIComponent(targets[0])}`)
+        : await post('/api/admin/v1/shipments/archive', { shipment_ids: targets });
+    const data: any = res.data || {};
+    const archived = Number(data.archived || 0);
+    const skipped = Number(data.skipped || 0);
+    const missing: string[] = data.missing || [];
+    if (!archived && !skipped && !missing.length) window.$message?.info('没有可归档的运单');
+    if (archived) window.$message?.success(`已归档 ${archived} 条运单`);
+    if (skipped) window.$message?.info(`${skipped} 条运单此前已归档`);
+    if (missing.length) window.$message?.warning(`${missing.length} 条运单不存在，已跳过`);
+    checkedKeys.value = [];
+    await fetch();
+  } catch (e: any) {
+    window.$message?.error(e?.response?.data?.message || '归档失败');
+  } finally {
+    archiving.value = false;
+  }
+}
 
 async function fetch() {
   loading.value = true;
   try {
-    const res = await get('/api/admin/v1/shipments/');
-    shipments.value = res.data?.items || res.data || [];
+    const params: Record<string, any> = { page: page.value, page_size: pageSize.value };
+    if (statusFilter.value) params.status = statusFilter.value;
+    if (keyword.value.trim()) params.keyword = keyword.value.trim();
+    const res = await get('/api/admin/v1/shipments/', params);
+    const data: any = res.data || {};
+    shipments.value = data.items || (Array.isArray(data) ? data : []);
+    total.value = Number(data.total ?? shipments.value.length);
   } finally {
     loading.value = false;
   }
+}
+
+function searchNow() {
+  page.value = 1;
+  fetch();
 }
 
 function openModal(s?: any) {
@@ -125,12 +216,64 @@ onMounted(fetch);
 
 <template>
   <div class="flex flex-col gap-4">
-    <div class="flex justify-between items-center">
-      <span class="text-sm text-[var(--n-text-color-3)]">{{ shipments.length }} shipment(s)</span>
-      <NButton type="primary" @click="openModal()">{{ $t('common.add') }}</NButton>
+    <div class="flex justify-between items-center gap-3 flex-wrap">
+      <NSpace>
+        <NSelect
+          v-model:value="statusFilter"
+          :options="statusOptions"
+          placeholder="全部状态"
+          clearable
+          style="width: 160px"
+          @update:value="searchNow"
+        />
+        <NInput
+          v-model:value="keyword"
+          placeholder="运单号 / 承运商 / 订单号"
+          style="width: 240px"
+          clearable
+          @keyup.enter="searchNow"
+        />
+      </NSpace>
+      <NSpace align="center">
+        <span class="text-sm text-[var(--n-text-color-3)]">{{ total }} shipment(s)</span>
+        <NPopconfirm v-if="canArchive" @positive-click="archiveShipments(checkedKeys)">
+          <template #trigger>
+            <NButton type="error" secondary :disabled="!checkedKeys.length" :loading="archiving">
+              批量删除{{ checkedKeys.length ? '（' + checkedKeys.length + '）' : '' }}
+            </NButton>
+          </template>
+          确认删除所选 {{ checkedKeys.length }} 条运单？删除后不再出现在列表与看板，可恢复。
+        </NPopconfirm>
+        <NButton type="primary" @click="openModal()">{{ $t('common.add') }}</NButton>
+      </NSpace>
     </div>
 
-    <NDataTable :columns="columns" :data="shipments" :loading="loading" :bordered="false" size="small" />
+    <NDataTable
+      v-model:checked-row-keys="checkedKeys"
+      :row-key="rowKey"
+      :columns="tableColumns"
+      :data="shipments"
+      :loading="loading"
+      :bordered="false"
+      size="small"
+      :pagination="{
+        page,
+        pageSize,
+        itemCount: total,
+        pageSizes: [20, 50, 100],
+        showSizePicker: true,
+        onChange: (p: number) => {
+          page = p;
+          fetch();
+        },
+        onUpdatePageSize: (s: number) => {
+          pageSize = s;
+          page = 1;
+          fetch();
+        }
+      }"
+      remote
+    />
 
     <NModal
       v-model:show="showModal"

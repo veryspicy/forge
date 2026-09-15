@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import { ref, onMounted, h, resolveComponent } from 'vue';
+import { ref, computed, onMounted, h, resolveComponent } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useDebounceFn } from '@vueuse/core';
 import {
@@ -20,9 +20,11 @@ import {
   NDescriptions,
   NDescriptionsItem,
   NRadioGroup,
-  NRadio
+  NRadio,
+  NPopconfirm
 } from 'naive-ui';
-import { get, post } from '@/service/api/helper';
+import { get, post, del } from '@/service/api/helper';
+import { useAuthStore } from '@/store/modules/auth';
 import { returnReasonLabel } from '@/constants/aftersalesReasons';
 import type { DataTableColumns } from 'naive-ui';
 
@@ -141,6 +143,44 @@ function goOrder(row: any) {
   if (row?.order_number) router.push(`/orders/${row.order_number}`);
 }
 
+const authStore = useAuthStore();
+
+/** 归档（后台删除）入口仅对持有 orders:archive 的角色渲染；super_admin 走权限通配 '*' */
+const canArchive = computed(() => {
+  const perms = authStore.userInfo.permissions || [];
+  return perms.includes('*') || perms.includes('orders:archive');
+});
+
+const checkedKeys = ref<string[]>([]);
+const archiving = ref(false);
+
+/** 单条走 DELETE，多条走批量归档接口，与订单页口径一致 */
+async function archiveReturns(returnNumbers: string[]) {
+  const targets = Array.from(new Set(returnNumbers.map(n => String(n || '')).filter(Boolean)));
+  if (!targets.length) return;
+  archiving.value = true;
+  try {
+    const res =
+      targets.length === 1
+        ? await del(`/api/admin/v1/returns/${encodeURIComponent(targets[0])}`)
+        : await post('/api/admin/v1/returns/archive', { return_numbers: targets });
+    const data: any = res.data || {};
+    const archived = Number(data.archived || 0);
+    const skipped = Number(data.skipped || 0);
+    const missing: string[] = data.missing || [];
+    if (!archived && !skipped && !missing.length) window.$message?.info('没有可归档的售后单');
+    if (archived) window.$message?.success(`已归档 ${archived} 个售后单`);
+    if (skipped) window.$message?.info(`${skipped} 个售后单此前已归档`);
+    if (missing.length) window.$message?.warning(`${missing.length} 个售后单不存在，已跳过`);
+    checkedKeys.value = [];
+    refresh();
+  } catch (e: any) {
+    window.$message?.error(e?.response?.data?.message || '归档失败');
+  } finally {
+    archiving.value = false;
+  }
+}
+
 const columns: DataTableColumns<any> = [
   { title: t('page.returns.returnNumber'), key: 'return_number', width: 170 },
   { title: t('page.returns.orderNumber'), key: 'order_number', width: 160 },
@@ -201,6 +241,20 @@ const columns: DataTableColumns<any> = [
       })
   }
 ];
+
+/** 选择列仅在具备归档权限时出现，无权角色看不到多选与批量入口 */
+const selectionColumn: DataTableColumns<any>[number] = {
+  type: 'selection',
+  disabled: (row: any) => !row.return_number
+};
+
+const tableColumns = computed<DataTableColumns<any>>(() =>
+  canArchive.value ? [selectionColumn, ...columns] : columns
+);
+
+function rowKey(row: any) {
+  return String(row?.return_number || '');
+}
 
 /* ------------------------------- 详情 ------------------------------- */
 
@@ -347,11 +401,21 @@ onMounted(() => {
           @keyup.enter="searchNow"
         />
       </NSpace>
+      <NPopconfirm v-if="canArchive" @positive-click="archiveReturns(checkedKeys)">
+        <template #trigger>
+          <NButton type="error" secondary :disabled="!checkedKeys.length" :loading="archiving">
+            批量删除{{ checkedKeys.length ? '（' + checkedKeys.length + '）' : '' }}
+          </NButton>
+        </template>
+        确认删除所选 {{ checkedKeys.length }} 条售后单？删除后不再出现在列表与看板，可恢复。
+      </NPopconfirm>
       <span class="text-sm text-[var(--n-text-color-3)]">{{ total }} {{ t('page.returns.list') }}</span>
     </div>
 
     <NDataTable
-      :columns="columns"
+      v-model:checked-row-keys="checkedKeys"
+      :row-key="rowKey"
+      :columns="tableColumns"
       :data="rows"
       :loading="loading"
       :bordered="false"

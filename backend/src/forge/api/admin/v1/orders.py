@@ -158,6 +158,14 @@ class AdminRefundRequest(BaseModel):
     idempotency_key: str | None = Field(default=None, max_length=128)
 
 
+class AdminOrderArchiveRequest(BaseModel):
+    """批量归档（软删除）订单入参；单次上限 200，避免一次性误操作过大范围。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    order_numbers: list[str] = Field(default_factory=list, max_length=200)
+
+
 async def _admin_order_or_404(db: AsyncSession, order_number: str, *, for_update: bool = False) -> ORMOrder:
     stmt = select(ORMOrder).where(ORMOrder.order_number == order_number).options(selectinload(ORMOrder.items))
     if for_update:
@@ -256,6 +264,34 @@ async def list_orders(
     for item in items:
         item["returns_summary"] = summaries.get(str(item.get("id")))
     return data
+
+
+@router.post("/archive")
+async def archive_orders(
+    payload: AdminOrderArchiveRequest,
+    admin: dict[str, object] = Depends(require_permission("orders", "archive")),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, object]:
+    """批量归档（软删除）订单：从后台列表 / 看板 / 导出中隐去，不物理删除，可逆。"""
+    numbers = [n.strip() for n in payload.order_numbers if n and n.strip()]
+    if not numbers:
+        raise APIError(ErrorCode.VALIDATION_ERROR, message="order_numbers cannot be empty.")
+    repo = SQLAlchemyOrderRepository()
+    return await repo.archive_orders(db, numbers)
+
+
+@router.delete("/{order_number}")
+async def archive_order(
+    order_number: str,
+    admin: dict[str, object] = Depends(require_permission("orders", "archive")),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, object]:
+    """单条归档（软删除）订单；订单不存在时返回 404，已归档时幂等返回。"""
+    repo = SQLAlchemyOrderRepository()
+    result = await repo.archive_orders(db, [order_number])
+    if result["archived"] == 0 and result["missing"]:
+        raise APIError(ErrorCode.ORDER_NOT_FOUND)
+    return result
 
 
 @router.get("/export")

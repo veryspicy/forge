@@ -12,12 +12,13 @@ import {
   NEmpty,
   NInput,
   NPagination,
+  NPopconfirm,
   NSelect,
   NTag,
   NTooltip,
   useMessage
 } from 'naive-ui';
-import { get } from '@/service/api/helper';
+import { get, post, del } from '@/service/api/helper';
 import { localStg } from '@/utils/storage';
 import { useAuthStore } from '@/store/modules/auth';
 import type { DataTableColumns } from 'naive-ui';
@@ -107,6 +108,42 @@ function openCustomer(row: any) {
   if (row.email) query.email = String(row.email);
   if (!Object.keys(query).length) return;
   router.push({ path: '/customers', query });
+}
+
+/** 归档（后台删除）入口仅对持有 orders:archive 的角色渲染；super_admin 走权限通配 '*' */
+const canArchive = computed(() => {
+  const perms = authStore.userInfo.permissions || [];
+  return perms.includes('*') || perms.includes('orders:archive');
+});
+
+/** 批量归档选中项；行级归档复用同一套请求逻辑（单条走 DELETE，多条走批量接口） */
+const checkedKeys = ref<string[]>([]);
+const archiving = ref(false);
+
+async function archiveOrders(numbers: string[]) {
+  const targets = Array.from(new Set(numbers.map(n => String(n || '')).filter(Boolean)));
+  if (!targets.length) return;
+  archiving.value = true;
+  try {
+    const res =
+      targets.length === 1
+        ? await del(`/api/admin/v1/orders/${encodeURIComponent(targets[0])}`)
+        : await post('/api/admin/v1/orders/archive', { order_numbers: targets });
+    const data: any = res.data || {};
+    const archived = Number(data.archived || 0);
+    const skipped = Number(data.skipped || 0);
+    const missing: string[] = data.missing || [];
+    if (!archived && !skipped && !missing.length) message.info('没有可归档的订单');
+    if (archived) message.success(`已归档 ${archived} 个订单`);
+    if (skipped) message.info(`${skipped} 个订单此前已归档`);
+    if (missing.length) message.warning(`${missing.length} 个订单不存在，已跳过`);
+    checkedKeys.value = [];
+    await fetch();
+  } catch (e: any) {
+    message.error(e?.response?.data?.message || '归档失败');
+  } finally {
+    archiving.value = false;
+  }
 }
 
 const columns: DataTableColumns<any> = [
@@ -218,10 +255,35 @@ const columns: DataTableColumns<any> = [
             onClick: () => copyText(row.email, true)
           },
           { default: () => t('page.orders.copyEmail') }
-        )
+        ),
+        canArchive.value
+          ? h(
+              NPopconfirm,
+              { onPositiveClick: () => archiveOrders([row.order_number]) },
+              {
+                trigger: () =>
+                  h(NButton, { size: 'small', quaternary: true, type: 'error' }, { default: () => '删除' }),
+                default: () => '确认删除该订单？删除后不再出现在列表与看板，可恢复。'
+              }
+            )
+          : null
       ])
   }
 ];
+
+/** 选择列仅在具备归档权限时出现，无权角色看不到多选与批量入口 */
+const selectionColumn: DataTableColumns<any>[number] = {
+  type: 'selection',
+  disabled: (row: any) => !row.order_number
+};
+
+const tableColumns = computed<DataTableColumns<any>>(() =>
+  canArchive.value ? [selectionColumn, ...columns] : columns
+);
+
+function rowKey(row: any) {
+  return String(row?.order_number || '');
+}
 
 async function copyText(value: string | undefined | null, isEmail = false) {
   const text = (value || '').trim();
@@ -403,9 +465,25 @@ onMounted(fetch);
       />
       <NButton secondary :loading="loading" @click="exportCsv">{{ $t('page.orders.export') }}</NButton>
       <NButton secondary type="primary" @click="openPurchaseList">待采购清单</NButton>
+      <NPopconfirm v-if="canArchive" @positive-click="archiveOrders(checkedKeys)">
+        <template #trigger>
+          <NButton type="error" secondary :disabled="!checkedKeys.length" :loading="archiving">
+            批量删除{{ checkedKeys.length ? '（' + checkedKeys.length + '）' : '' }}
+          </NButton>
+        </template>
+        确认删除所选 {{ checkedKeys.length }} 个订单？删除后不再出现在列表与看板，可恢复。
+      </NPopconfirm>
     </div>
 
-    <NDataTable :columns="columns" :data="orders" :loading="loading" :bordered="false" size="small" />
+    <NDataTable
+      v-model:checked-row-keys="checkedKeys"
+      :row-key="rowKey"
+      :columns="tableColumns"
+      :data="orders"
+      :loading="loading"
+      :bordered="false"
+      size="small"
+    />
 
     <div v-if="total > pageSize" class="flex justify-center">
       <NPagination :page="page" :page-size="pageSize" :item-count="total" @update:page="goPage" />

@@ -702,6 +702,8 @@ class ORMOrder(Base):
     shipped_at = Column(DateTime(timezone=False), nullable=True)
     delivered_at = Column(DateTime(timezone=False), nullable=True)
     deleted_at = Column(DateTime(timezone=False), nullable=True)
+    # Admin 归档（后台软删除）：仅影响后台列表/统计口径，与 C 端 deleted_at 相互独立
+    admin_archived_at = Column(DateTime(timezone=False), nullable=True)
     tracking_number = Column(String(500), nullable=True)
     shipping_address = Column(JSONB, nullable=True)
     review_status = Column(JSONB, nullable=True)
@@ -731,6 +733,8 @@ class ORMShipment(Base):
     destination = Column(String(500), nullable=False)
     events = Column(JSONB, nullable=True)
     notes = Column(Text, nullable=True)
+    # Admin 归档（后台软删除）：运单记录不物理删除，归档后从后台列表与统计中隐去
+    admin_archived_at = Column(DateTime(timezone=False), nullable=True)
     created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
     updated_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
 
@@ -774,6 +778,8 @@ class ORMReturnRequest(Base):
     refund_id = Column(String(64), nullable=True)
     cancelled_at = Column(DateTime(timezone=False), nullable=True)
     closed_reason = Column(String(200), nullable=True)
+    # Admin 归档（后台软删除）：售后单保留全量数据，归档后从后台列表与看板统计中隐去
+    admin_archived_at = Column(DateTime(timezone=False), nullable=True)
     created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
     updated_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
 
