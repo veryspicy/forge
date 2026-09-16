@@ -616,7 +616,7 @@ const local: App.I18n.Schema = {
       afterSalesRecords: 'After-sales',
       noAfterSales: 'No return requests',
       viewInReturns: 'Open in Returns',
-      shipBlockedByReview: 'This site requires an approved review before shipping. Approve the order first.',
+      shipBlockedByReview: 'An order must be approved before it can be shipped. Approve the order first.',
       returnOpen: 'Open'
     },
     aiProbe: {

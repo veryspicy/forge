@@ -611,7 +611,7 @@ const local: App.I18n.Schema = {
       afterSalesRecords: '售后记录',
       noAfterSales: '暂无售后记录',
       viewInReturns: '在售后管理中查看',
-      shipBlockedByReview: '站点已开启「发货前需订单审核通过」，请先审核通过该订单再发货。',
+      shipBlockedByReview: '订单需审核通过后才能发货，请先完成审核。',
       returnOpen: '处理中'
     },
     aiProbe: {
