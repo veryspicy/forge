@@ -701,8 +701,8 @@ class SQLAlchemyCustomerOrderRepository:
         tracking_number: str | None = None,
         carrier: str | None = None,
     ) -> ORMOrder:
-        """Admin ships an order: confirmed/processing -> shipped."""
-        if order.status not in {"confirmed", "processing", "pending"}:
+        """Admin ships an order: confirmed/processing -> shipped（pending 未付款不可发货）。"""
+        if order.status not in {"confirmed", "processing"}:
             raise APIError(
                 ErrorCode.ORDER_NOT_CANCELLABLE,
                 message=f"Order cannot be shipped in state '{order.status}'.",
@@ -731,11 +731,9 @@ class SQLAlchemyCustomerOrderRepository:
     ) -> ORMOrder:
         """Admin review flow: confirmed -> processing (approved) / cancelled (rejected).
 
-        Rejection restores inventory (same as customer cancel) and, by default,
-        refunds the paid balance in full: refund=None means "auto refund whenever
-        a refundable balance exists", refund=False keeps the money (e.g. penalty).
-        The refund MUST be executed before the order flips to 'cancelled', because
-        the refund path blocks cancelled orders.
+        拒绝即履约终止，与后台取消语义完全一致，因此复用 ``admin_cancel_order``
+        这一唯一实现（终止 + 回补库存 + 按 refund 决定是否全额退款）；
+        refund=None 表示「有可退余额即自动全额退款」，refund=False 保留款项（如违约扣款）。
         """
         if order.status not in _ADMIN_REVIEWABLE_STATUSES:
             raise APIError(
@@ -743,32 +741,25 @@ class SQLAlchemyCustomerOrderRepository:
                 message=f"Order cannot be reviewed in state '{order.status}'.",
             )
         now = SQLAlchemyCustomerOrderRepository._now()
-        if not approved:
-            has_refundable = (
-                order.payment_status in _REFUNDABLE_PAYMENT_STATUSES and _order_refundable_amount(order) > 0
-            )
-            should_refund = has_refundable if refund is None else bool(refund)
-            if should_refund and has_refundable:
-                await SQLAlchemyCustomerOrderRepository.admin_refund_order(
-                    db,
-                    order,
-                    reason=reason or "Order rejected",
-                    item_refunds=None,
-                    refund_shipping=True,
-                    restock=False,
-                    refunded_by=reviewed_by or "admin",
-                )
+        # 先落审核审计字段：拒绝分支复用取消实现时会保留这里写入的 review 内容
         review = dict(order.review_status or {})
         review["reviewed_by"] = reviewed_by or "admin"
         review["approved"] = bool(approved)
         review["reason"] = reason or ""
         review["reviewed_at"] = now.isoformat()
         order.review_status = cast(Any, review)
-        order.status = cast(Any, "processing" if approved else "cancelled")
+        if not approved:
+            # 拒绝 = 履约终止：复用「取消」唯一实现（终止 + 默认全额退款 + 回补库存）
+            return await SQLAlchemyCustomerOrderRepository.admin_cancel_order(
+                db,
+                order,
+                reason=reason,
+                refund=refund,
+                cancelled_by=reviewed_by or "admin",
+            )
+        order.status = cast(Any, "processing")
         order.updated_at = cast(Any, now)
         await db.flush()
-        if not approved:
-            await SQLAlchemyCustomerOrderRepository._restore_inventory(db, order)
         return order
 
     @staticmethod
