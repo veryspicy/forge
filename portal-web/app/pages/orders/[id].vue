@@ -300,7 +300,7 @@
                   <p v-if="r.shipped_at" class="text-xs text-gray-500 mt-0.5">
                     {{ $t('returns.shippedAt') }} {{ formatDateTime(r.shipped_at) }}
                   </p>
-                  <p class="text-xs text-gray-400 mt-0.5">{{ formatPrice(r.refund_amount || 0) }} · {{ $t('returns.refundAfterReceive') }}</p>
+                  <p v-if="returnRefundNote(r)" class="text-xs text-gray-400 mt-0.5">{{ formatPrice(r.refund_amount || 0) }} · {{ returnRefundNote(r) }}</p>
                 </div>
                 <p v-else-if="canSubmitShipment(r)" class="text-xs text-amber-600 mt-2">
                   {{ $t('returns.trackingRequired') }}
@@ -1055,6 +1055,13 @@ const returnRefundEstimate = computed(() =>
 const canCancelReturn = (r: any) => OPEN_RETURN_STATUSES.includes(String(r?.status || '').toLowerCase())
 
 const returnStatusText = (status?: string) => t(`returns.status.${String(status || '').toLowerCase()}`)
+
+/** 退款时态提示：已退款不再提示“正在安排”，商家已收货显示退款处理中，其余显示收到退货后退款 */
+const returnRefundNote = (r: any) => {
+  const status = String(r?.status || '').toLowerCase()
+  if (status === 'refunded') return ''
+  return status === 'received' ? t('returns.refundProcessing') : t('returns.refundAfterReceive')
+}
 
 const returnStatusClass = (status?: string) => {
   switch (String(status || '').toLowerCase()) {

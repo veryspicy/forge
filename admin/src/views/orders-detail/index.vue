@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { h, onMounted, ref } from 'vue';
+import { computed, h, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   NButton,
@@ -24,13 +24,16 @@ import {
   ORDER_REFUND_REASON_DEFAULT,
   ORDER_REFUND_REASON_OPTIONS,
   ORDER_REJECT_REASON_OPTIONS,
+  orderReasonLabel,
   returnReasonLabel
 } from '@/constants/aftersalesReasons';
+import { useAuthStore } from '@/store/modules/auth';
 import type { DataTableColumns } from 'naive-ui';
 
 const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
+const authStore = useAuthStore();
 const order = ref<any>(null);
 const loading = ref(true);
 
@@ -58,11 +61,11 @@ const cancelRefund = ref(true);
 const actionError = ref('');
 const actionLoading = ref(false);
 
-/** 售后动作原因：预设可选 + 允许自定义输入（NSelect tag） */
-const toReasonOptions = (values: string[]) => values.map(value => ({ label: value, value }));
-const rejectReasonOptions = toReasonOptions(ORDER_REJECT_REASON_OPTIONS);
-const refundReasonOptions = toReasonOptions(ORDER_REFUND_REASON_OPTIONS);
-const cancelReasonOptions = toReasonOptions(ORDER_CANCEL_REASON_OPTIONS);
+/** 售后动作原因：预设可选 + 允许自定义输入（NSelect tag）；选项文案走 i18n，写入值保持英文审计口径 */
+const toReasonOptions = (values: string[]) => values.map(value => ({ label: orderReasonLabel(value, t), value }));
+const rejectReasonOptions = computed(() => toReasonOptions(ORDER_REJECT_REASON_OPTIONS));
+const refundReasonOptions = computed(() => toReasonOptions(ORDER_REFUND_REASON_OPTIONS));
+const cancelReasonOptions = computed(() => toReasonOptions(ORDER_CANCEL_REASON_OPTIONS));
 
 // 退款按资金余额判定，与订单履约状态解耦（行业：Shopify refundCreate，部分退款不阻断剩余行发货）
 function refundableAmount(): number {
@@ -306,7 +309,8 @@ const itemColumns: DataTableColumns<any> = [
 function openReview(approve: boolean) {
   reviewApprove.value = approve;
   reviewReason.value = '';
-  reviewBy.value = '';
+  // 审核人默认当前登录账号，可手工修改（保留审计留痕）
+  reviewBy.value = authStore.userInfo.userName || '';
   actionError.value = '';
   showReview.value = true;
 }
@@ -673,7 +677,7 @@ onMounted(loadOrder);
               </div>
               <div>
                 <span class="text-[var(--n-text-color-3)]">{{ $t('page.ordersDetail.reason') }}</span>
-                {{ order.review_status.reason || '-' }}
+                {{ orderReasonLabel(order.review_status.reason, t) }}
               </div>
             </div>
           </NCard>
@@ -805,9 +809,14 @@ onMounted(loadOrder);
     </NSpin>
 
     <!-- Review Modal -->
-    <NModal v-model:show="showReview" preset="card" :title="$t('page.ordersDetail.approveOrder')" style="width: 440px">
+    <NModal
+      v-model:show="showReview"
+      preset="card"
+      :title="reviewApprove ? $t('page.ordersDetail.approveOrder') : $t('page.ordersDetail.rejectOrder')"
+      style="width: 440px"
+    >
       <div class="flex flex-col gap-3">
-        <NFormItem :label="reviewApprove ? $t('page.ordersDetail.reason') : $t('page.ordersDetail.reason') + ' *'">
+        <NFormItem v-if="!reviewApprove" :label="$t('page.ordersDetail.rejectReason') + ' *'">
           <NSelect
             v-model:value="reviewReason"
             :options="rejectReasonOptions"
