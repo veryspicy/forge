@@ -30,7 +30,6 @@ from forge.infrastructure.persistence.repositories.order_repo import (
     _order_to_dict,
 )
 from forge.infrastructure.persistence.repositories.return_repo import SQLAlchemyReturnRepository
-from forge.infrastructure.persistence.repositories.site_profile_repo import SQLAlchemySiteProfileRepository
 from forge.main.dependencies import get_db
 from forge.main.rbac import require_permission
 
@@ -167,18 +166,6 @@ async def _admin_order_or_404(db: AsyncSession, order_number: str, *, for_update
     if order is None:
         raise APIError(ErrorCode.ORDER_NOT_FOUND, message="Order does not exist.")
     return order
-
-
-async def _require_review_before_ship(db: AsyncSession) -> bool:
-    """站点功能开关：发货前是否必须先审核通过（featureFlags.require_review_before_ship）。"""
-    profile = await SQLAlchemySiteProfileRepository.get_active(db)
-    config = profile.config if profile is not None else None
-    if not isinstance(config, dict):
-        return False
-    flags = config.get("featureFlags") or config.get("feature_flags") or {}
-    if not isinstance(flags, dict):
-        return False
-    return bool(flags.get("require_review_before_ship"))
 
 
 def _review_approved(order: ORMOrder) -> bool:
@@ -421,8 +408,6 @@ async def get_order_detail(
     return_requests = await SQLAlchemyReturnRepository.list_by_order(db, cast(UUID, order.id))
     data["return_requests"] = [SQLAlchemyReturnRepository.to_dict(rr) for rr in return_requests]
     data["review_approved"] = _review_approved(order)
-    # 站点的发货门禁开关下发给前端，用于提前禁用发货按钮
-    data["require_review_before_ship"] = await _require_review_before_ship(db)
     return data
 
 
@@ -435,15 +420,16 @@ async def ship_order(
 ) -> dict[str, Any]:
     """发货（支持一单多包裹）：为每个包裹登记一条 shipment，订单置 shipped。
 
-    - 未发货订单（pending/confirmed/processing）：置 shipped 并登记全部包裹
+    - 未发货订单（confirmed/processing）：置 shipped 并登记全部包裹
     - 已 shipped 订单：仅追加登记新包裹（分批补发场景），不重复改变订单状态
+
+    风控硬门禁：订单须已审核通过，未审核订单一律不可发货（内置，不由站点开关控制）。
     """
     order = await _admin_order_or_404(db, order_number)
-    # 站点门禁：开启「发货前需审核通过」时，未审核订单不予发货
-    if await _require_review_before_ship(db) and not _review_approved(order):
+    if not _review_approved(order):
         raise APIError(
             ErrorCode.ORDER_INVALID_STATE,
-            message="Order must be approved before shipping (site requires review).",
+            message="Order must be approved before shipping.",
         )
     was_shipped = order.status in {"shipped", "delivered"}
     if not was_shipped:
