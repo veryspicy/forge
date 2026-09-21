@@ -33,7 +33,11 @@
               </p>
             </div>
             <div class="flex items-center space-x-3">
-              <OrderStatusBadge :status="order.status" size="lg" />
+              <OrderStatusBadge
+                :status="order.status"
+                :payment-status="order.payment_status"
+                size="lg"
+              />
               <button
                 v-if="canCancel"
                 class="px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50"

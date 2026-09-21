@@ -32,7 +32,7 @@
             <p class="text-sm font-medium text-gray-900 truncate">#{{ order.order_number || order.id }}</p>
             <p class="text-xs text-gray-500 mt-0.5">{{ $t('orders.date') }}: {{ formatDate(order.created_at) }}</p>
           </div>
-          <OrderStatusBadge :status="order.status" />
+          <OrderStatusBadge :status="order.status" :payment-status="order.payment_status" />
         </div>
 
         <!-- Items -->
