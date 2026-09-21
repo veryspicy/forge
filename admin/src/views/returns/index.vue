@@ -207,7 +207,7 @@ const columns: DataTableColumns<any> = [
   {
     title: '操作',
     key: 'actions',
-    width: 240,
+    width: 300,
     render: row =>
       h(NSpace, { size: 4 }, {
         default: () => [
@@ -236,6 +236,17 @@ const columns: DataTableColumns<any> = [
             : null,
           row.status === 'requested' || row.status === 'approved' || row.status === 'received'
             ? h(NButton, { size: 'tiny', onClick: () => doClose(row) }, { default: () => t('page.returns.close') })
+            : null,
+          canArchive.value
+            ? h(
+                NPopconfirm,
+                { onPositiveClick: () => archiveReturns([row.return_number]) },
+                {
+                  trigger: () =>
+                    h(NButton, { size: 'tiny', quaternary: true, type: 'error' }, { default: () => '删除' }),
+                  default: () => '确认删除该售后单？删除后不再出现在列表与看板，可恢复。'
+                }
+              )
             : null
         ].filter(Boolean)
       })
