@@ -554,6 +554,7 @@ declare namespace App {
         productsDetail: Record<string, string>;
         orders: Record<string, string>;
         ordersDetail: Record<string, string>;
+        archive: Record<string, string>;
         aiProbe: Record<string, string>;
         users: Record<string, string>;
         site: Record<string, string>;

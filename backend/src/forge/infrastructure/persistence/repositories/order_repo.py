@@ -8,7 +8,7 @@ from decimal import Decimal
 from typing import Any, cast
 from uuid import UUID, uuid4
 
-from sqlalchemy import String, func, or_, select
+from sqlalchemy import String, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -26,8 +26,9 @@ class SQLAlchemyOrderRepository:
         page_size: int = 20,
         status: str | None = None,
         search: str | None = None,
+        archived: bool = False,
     ) -> dict[str, object]:
-        filters = _admin_order_filters(status=status, search=search)
+        filters = _admin_order_filters(status=status, search=search, archived=archived)
         stmt = select(ORMOrder).options(selectinload(ORMOrder.items))
         count_stmt = select(func.count(ORMOrder.id))
         if filters:
@@ -104,6 +105,62 @@ class SQLAlchemyOrderRepository:
         return list(result.scalars().all())
 
     @staticmethod
+    async def archive_orders(db: AsyncSession, order_numbers: list[str]) -> dict[str, Any]:
+        """后台归档（软删除）：将指定订单从 Admin 列表 / 看板 / 导出口径中隐去。
+
+        - 仅写 orders.admin_archived_at，不触碰 C 端 deleted_at，也不改动订单业务数据，可逆；
+        - 已归档订单幂等跳过（不刷新归档时间）；
+        - 返回 archived / skipped / missing，供前端如实回显。
+        """
+        numbers = [n for n in dict.fromkeys(order_numbers) if n]
+        if not numbers:
+            return {"archived": 0, "skipped": 0, "missing": []}
+        rows = (
+            await db.execute(
+                select(ORMOrder.order_number, ORMOrder.admin_archived_at).where(ORMOrder.order_number.in_(numbers))
+            )
+        ).all()
+        archived_at: dict[str, Any] = {str(row[0]): row[1] for row in rows}
+        missing = [n for n in numbers if n not in archived_at]
+        targets = [n for n in numbers if n in archived_at and archived_at[n] is None]
+        if targets:
+            now = SQLAlchemyCustomerOrderRepository._now()
+            await db.execute(
+                update(ORMOrder)
+                .where(ORMOrder.order_number.in_(targets), ORMOrder.admin_archived_at.is_(None))
+                .values(admin_archived_at=now, updated_at=now)
+            )
+        return {"archived": len(targets), "skipped": len(numbers) - len(missing) - len(targets), "missing": missing}
+
+    @staticmethod
+    async def unarchive_orders(db: AsyncSession, order_numbers: list[str]) -> dict[str, Any]:
+        """取消归档（恢复）：把已归档订单重新纳入 Admin 列表 / 看板 / 导出口径。
+
+        - 仅清空 orders.admin_archived_at，不改动订单业务数据与 C 端 deleted_at；
+        - 未归档订单幂等跳过（不报错）；
+        - 返回 restored / skipped / missing，供前端如实回显。
+        """
+        numbers = [n for n in dict.fromkeys(order_numbers) if n]
+        if not numbers:
+            return {"restored": 0, "skipped": 0, "missing": []}
+        rows = (
+            await db.execute(
+                select(ORMOrder.order_number, ORMOrder.admin_archived_at).where(ORMOrder.order_number.in_(numbers))
+            )
+        ).all()
+        archived_at: dict[str, Any] = {str(row[0]): row[1] for row in rows}
+        missing = [n for n in numbers if n not in archived_at]
+        targets = [n for n in numbers if n in archived_at and archived_at[n] is not None]
+        if targets:
+            now = SQLAlchemyCustomerOrderRepository._now()
+            await db.execute(
+                update(ORMOrder)
+                .where(ORMOrder.order_number.in_(targets), ORMOrder.admin_archived_at.is_not(None))
+                .values(admin_archived_at=None, updated_at=now)
+            )
+        return {"restored": len(targets), "skipped": len(numbers) - len(missing) - len(targets), "missing": missing}
+
+    @staticmethod
     async def list_pending_purchases(db: AsyncSession, status: str | None = None) -> list[dict[str, Any]]:
         """采购作业清单原始行：未发货订单中的代发行，按行输出（分组在 API 层按供应商完成）。
 
@@ -170,11 +227,12 @@ class SQLAlchemyOrderRepository:
     async def dashboard_stats(db: AsyncSession, trend_days: int = 7) -> dict[str, Any]:
         """仪表盘订单域聚合：总量 / 今日 / 待处理 / 采购异常 / GMV / 近 N 日趋势。
 
-        - 口径统一剔除软删除订单（deleted_at is null），与订单列表默认视图一致；
+        - 口径统一剔除软删除订单（deleted_at is null）与后台归档订单（admin_archived_at is null），
+          与订单列表默认视图一致；
         - 日期基准取数据库 current_date，避免应用容器与数据库时区不一致导致跨日错位；
         - 待处理口径复用下单待处理集合（未进入发货环节的活跃订单）。
         """
-        alive = ORMOrder.deleted_at.is_(None)
+        alive = [ORMOrder.deleted_at.is_(None), ORMOrder.admin_archived_at.is_(None)]
         today = await db.scalar(select(func.current_date()))
         if today is None:  # pragma: no cover - current_date 恒有值，仅作类型兜底
             today = datetime.now(UTC).date()
@@ -189,17 +247,17 @@ class SQLAlchemyOrderRepository:
                     func.coalesce(func.sum(ORMOrder.total).filter(paid, ORMOrder.created_at >= today), 0),
                     func.count(ORMOrder.id).filter(ORMOrder.status.in_(tuple(_PURCHASE_PENDING_ORDER_STATUSES))),
                     func.count(ORMOrder.id).filter(ORMOrder.status == "procure_failed"),
-                ).where(alive)
+                ).where(*alive)
             )
         ).one()
         total_orders, total_revenue, today_orders, today_gmv, pending_orders, procurement_errors = totals
 
-        status_stmt = select(ORMOrder.status, func.count(ORMOrder.id)).where(alive).group_by(ORMOrder.status)
+        status_stmt = select(ORMOrder.status, func.count(ORMOrder.id)).where(*alive).group_by(ORMOrder.status)
         status_counts = {row[0]: row[1] for row in (await db.execute(status_stmt)).all()}
 
         day = func.date(ORMOrder.created_at)
         start_day = today - timedelta(days=trend_days - 1)
-        trend_stmt = select(day, func.count(ORMOrder.id)).where(alive, ORMOrder.created_at >= start_day).group_by(day)
+        trend_stmt = select(day, func.count(ORMOrder.id)).where(*alive, ORMOrder.created_at >= start_day).group_by(day)
         counts_by_day = {row[0]: int(row[1]) for row in (await db.execute(trend_stmt)).all()}
 
         dates: list[str] = []
@@ -226,9 +284,15 @@ class SQLAlchemyOrderRepository:
 # ---------------------------------------------------------------------------
 
 
-def _admin_order_filters(status: str | None, search: str | None) -> list[Any]:
-    """Build WHERE conditions shared by the admin order list and its count query."""
-    conditions: list[Any] = []
+def _admin_order_filters(status: str | None, search: str | None, archived: bool = False) -> list[Any]:
+    """Build WHERE conditions shared by the admin order list and its count query.
+
+    归档（admin_archived_at）= 从后台默认列表/导出中隐去，但数据与 C 端链路
+    （deleted_at 口径）保持独立；archived=True 时反转为"只看已归档"，供恢复入口使用。
+    """
+    conditions: list[Any] = [
+        ORMOrder.admin_archived_at.is_not(None) if archived else ORMOrder.admin_archived_at.is_(None)
+    ]
     if status:
         conditions.append(ORMOrder.status == status.lower())
     if search and search.strip():
