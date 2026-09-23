@@ -24,10 +24,11 @@ async def list_shipments(
     page_size: int = Query(20, ge=1, le=100),
     status: str | None = Query(default=None, alias="status"),
     keyword: str | None = Query(default=None, max_length=200),
+    archived: bool = Query(default=False),
     admin: dict[str, object] = Depends(require_permission("shipments", "view")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, object]:
-    """后台运单分页列表（默认剔除已归档），支持状态与关键词（运单号/承运商/订单号）筛选。"""
+    """后台运单分页列表（默认剔除已归档；?archived=true 时只列已归档），支持状态与关键词筛选。"""
     repo = SQLAlchemyAdminShipmentRepository()
     return await repo.list_admin_shipments(
         db,
@@ -35,6 +36,7 @@ async def list_shipments(
         keyword=keyword.strip() if keyword and keyword.strip() else None,
         page=page,
         page_size=page_size,
+        archived=archived,
     )
 
 
@@ -64,3 +66,17 @@ async def archive_shipment(
     if result["archived"] == 0 and result["missing"]:
         raise APIError(ErrorCode.INVALID_ID, message="Shipment does not exist.")
     return result
+
+
+@router.post("/unarchive")
+async def unarchive_shipments(
+    payload: AdminShipmentArchiveRequest,
+    admin: dict[str, object] = Depends(require_permission("shipments", "archive")),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, object]:
+    """批量取消归档（恢复）运单：重新纳入后台列表；单条与批量同口径。"""
+    ids = [s.strip() for s in payload.shipment_ids if s and s.strip()]
+    if not ids:
+        raise APIError(ErrorCode.VALIDATION_ERROR, message="shipment_ids cannot be empty.")
+    repo = SQLAlchemyAdminShipmentRepository()
+    return await repo.unarchive_shipments(db, ids)

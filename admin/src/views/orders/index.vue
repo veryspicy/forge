@@ -90,9 +90,9 @@ function statusType(s: string): any {
 }
 
 function fulfillmentModeLabel(mode?: string | null): string {
-  if (mode === 'dropship') return '一件代发';
-  if (mode === 'mixed') return '混合';
-  return '自采购';
+  if (mode === 'dropship') return t('page.orders.fulfillmentDropship');
+  if (mode === 'mixed') return t('page.orders.fulfillmentMixed');
+  return t('page.orders.fulfillmentSelfPurchase');
 }
 
 /** 客户管理页仅 super_admin / admin 可进，其他角色不渲染外链，避免跳转被路由守卫拦截 */
@@ -116,12 +116,47 @@ const canArchive = computed(() => {
   return perms.includes('*') || perms.includes('orders:archive');
 });
 
-/** 批量归档选中项；行级归档复用同一套请求逻辑（单条走 DELETE，多条走批量接口） */
+/** 列表视图：默认仅看进行中记录；切到「已归档」时列出 admin_archived_at 已置位的记录 */
+const archivedView = ref(false);
+/** NSelect 仅接受字符串值，这里做布尔语义到字符串视图的映射 */
+const viewValue = computed(() => (archivedView.value ? 'archived' : 'active'));
+const viewOptions = computed(() => [
+  { label: t('page.archive.viewActive'), value: 'active' },
+  { label: t('page.archive.viewArchived'), value: 'archived' }
+]);
+
+/** 归档/恢复选中项；行级操作复用同一套请求逻辑（单条走 DELETE，多条走批量接口） */
 const checkedKeys = ref<string[]>([]);
 const archiving = ref(false);
 
+function switchView(value: string) {
+  archivedView.value = value === 'archived';
+  checkedKeys.value = [];
+  page.value = 1;
+  fetch();
+}
+
+function uniq(list: (string | number)[]) {
+  return Array.from(new Set(list.map(v => String(v ?? '')).filter(Boolean)));
+}
+
+/** 归档/恢复结果统一提示（后端返回 archived|restored / skipped / missing） */
+function notifyArchiveResult(data: any, mode: 'archive' | 'restore') {
+  const target = t('page.archive.targetOrder');
+  const count = Number((mode === 'archive' ? data.archived : data.restored) || 0);
+  const skipped = Number(data.skipped || 0);
+  const missing: string[] = data.missing || [];
+  const msg = (key: string, n: number) => t(`page.archive.${key}`, { n, target });
+  if (!count && !skipped && !missing.length) {
+    message.info(t(mode === 'archive' ? 'page.archive.empty' : 'page.archive.restoreEmpty', { target }));
+  }
+  if (count) message.success(msg(mode === 'archive' ? 'done' : 'restoreDone', count));
+  if (skipped) message.info(msg(mode === 'archive' ? 'skipped' : 'restoreSkipped', skipped));
+  if (missing.length) message.warning(msg(mode === 'archive' ? 'missing' : 'restoreMissing', missing.length));
+}
+
 async function archiveOrders(numbers: string[]) {
-  const targets = Array.from(new Set(numbers.map(n => String(n || '')).filter(Boolean)));
+  const targets = uniq(numbers);
   if (!targets.length) return;
   archiving.value = true;
   try {
@@ -129,18 +164,27 @@ async function archiveOrders(numbers: string[]) {
       targets.length === 1
         ? await del(`/api/admin/v1/orders/${encodeURIComponent(targets[0])}`)
         : await post('/api/admin/v1/orders/archive', { order_numbers: targets });
-    const data: any = res.data || {};
-    const archived = Number(data.archived || 0);
-    const skipped = Number(data.skipped || 0);
-    const missing: string[] = data.missing || [];
-    if (!archived && !skipped && !missing.length) message.info('没有可归档的订单');
-    if (archived) message.success(`已归档 ${archived} 个订单`);
-    if (skipped) message.info(`${skipped} 个订单此前已归档`);
-    if (missing.length) message.warning(`${missing.length} 个订单不存在，已跳过`);
+    notifyArchiveResult(res.data || {}, 'archive');
     checkedKeys.value = [];
     await fetch();
   } catch (e: any) {
-    message.error(e?.response?.data?.message || '归档失败');
+    message.error(e?.response?.data?.message || t('page.archive.failed'));
+  } finally {
+    archiving.value = false;
+  }
+}
+
+async function restoreOrders(numbers: string[]) {
+  const targets = uniq(numbers);
+  if (!targets.length) return;
+  archiving.value = true;
+  try {
+    const res = await post('/api/admin/v1/orders/unarchive', { order_numbers: targets });
+    notifyArchiveResult(res.data || {}, 'restore');
+    checkedKeys.value = [];
+    await fetch();
+  } catch (e: any) {
+    message.error(e?.response?.data?.message || t('page.archive.restoreFailed'));
   } finally {
     archiving.value = false;
   }
@@ -178,16 +222,17 @@ const columns: DataTableColumns<any> = [
     render: row => h(NTag, { type: statusType(row.status), size: 'small' }, { default: () => statusLabel(row.status) })
   },
   {
-    title: '履约模式',
+    title: t('page.orders.fulfillmentMode'),
     key: 'fulfillment_mode',
     render: row => fulfillmentModeLabel(row.fulfillment_mode)
   },
   {
-    title: '支付/退款',
+    title: t('page.orders.paymentRefund'),
     key: 'payment_status',
     render: row => {
       const refunded = Number(row.refunded_amount || 0);
-      const suffix = refunded > 0 ? ` / 已退 $${refunded.toFixed(2)}` : '';
+      const suffix =
+        refunded > 0 ? t('page.orders.refundedSuffix', { amount: refunded.toFixed(2) }) : '';
       return `${paymentLabel(row.payment_status)}${suffix}`;
     }
   },
@@ -259,11 +304,21 @@ const columns: DataTableColumns<any> = [
         canArchive.value
           ? h(
               NPopconfirm,
-              { onPositiveClick: () => archiveOrders([row.order_number]) },
+              {
+                onPositiveClick: () =>
+                  archivedView.value ? restoreOrders([row.order_number]) : archiveOrders([row.order_number])
+              },
               {
                 trigger: () =>
-                  h(NButton, { size: 'small', quaternary: true, type: 'error' }, { default: () => '删除' }),
-                default: () => '确认删除该订单？删除后不再出现在列表与看板，可恢复。'
+                  h(
+                    NButton,
+                    { size: 'small', quaternary: true, type: archivedView.value ? 'primary' : 'error' },
+                    { default: () => t(archivedView.value ? 'page.archive.restore' : 'page.archive.action') }
+                  ),
+                default: () =>
+                  t(archivedView.value ? 'page.archive.restoreConfirm' : 'page.archive.confirm', {
+                    target: t('page.archive.targetOrder')
+                  })
               }
             )
           : null
@@ -305,6 +360,7 @@ async function fetch() {
     const params: Record<string, any> = { page: page.value, page_size: pageSize };
     if (search.value) params.search = search.value;
     if (statusFilter.value) params.status = statusFilter.value;
+    if (archivedView.value) params.archived = true;
     const res = await get('/api/admin/v1/orders/', params);
     orders.value = res.data?.items || [];
     total.value = res.data?.total || 0;
@@ -366,36 +422,36 @@ const showPurchase = ref(false);
 const purchaseLoading = ref(false);
 const purchaseGroups = ref<any[]>([]);
 const purchaseStatus = ref<string>('pending');
-const purchaseStatusOptions = [
-  { label: '未采购', value: 'pending' },
-  { label: '采购中', value: 'requested' },
-  { label: '已入库', value: 'received' },
-  { label: '全部', value: 'all' }
-];
+const purchaseStatusOptions = computed(() => [
+  { label: t('page.orders.procurementPending'), value: 'pending' },
+  { label: t('page.orders.procurementRequested'), value: 'requested' },
+  { label: t('page.orders.procurementReceived'), value: 'received' },
+  { label: t('page.orders.procurementAll'), value: 'all' }
+]);
 
 function procurementStatusLabel(status?: string | null): string {
-  if (status === 'received') return '已入库';
-  if (status === 'requested') return '采购中';
-  return '未采购';
+  if (status === 'received') return t('page.orders.procurementReceived');
+  if (status === 'requested') return t('page.orders.procurementRequested');
+  return t('page.orders.procurementPending');
 }
 
 const purchaseColumns: DataTableColumns<any> = [
   { title: t('page.orders.orderNumber'), key: 'order_number' },
   { title: t('common.name'), key: 'name' },
-  { title: '供应商 SKU', key: 'supplier_sku', render: row => row.supplier_sku || '-' },
+  { title: t('page.orders.supplierSku'), key: 'supplier_sku', render: row => row.supplier_sku || '-' },
   { title: t('common.sku'), key: 'sku' },
   { title: t('common.quantity'), key: 'quantity' },
   {
-    title: '采购状态',
+    title: t('page.orders.procurementStatus'),
     key: 'procurement_status',
     render: row => procurementStatusLabel(row.procurement_status)
   },
   {
-    title: '推送时间',
+    title: t('page.orders.procurementRequestedAt'),
     key: 'procurement_requested_at',
     render: row => (row.procurement_requested_at ? new Date(row.procurement_requested_at).toLocaleString() : '-')
   },
-  { title: '收货地', key: 'destination' },
+  { title: t('page.orders.destination'), key: 'destination' },
   {
     title: t('page.orders.date'),
     key: 'created_at',
@@ -403,13 +459,22 @@ const purchaseColumns: DataTableColumns<any> = [
   }
 ];
 
+/** 分组卡标题：供应商名 + 项数/件数（未指定供应商走 i18n 兜底） */
+function purchaseGroupTitle(g: any) {
+  return t('page.orders.supplierSummary', {
+    name: g.supplier_name || t('page.orders.unspecifiedSupplier'),
+    count: g.item_count,
+    qty: g.total_quantity
+  });
+}
+
 async function loadPurchaseList() {
   purchaseLoading.value = true;
   try {
     const res = await get('/api/admin/v1/orders/purchase-list', { status: purchaseStatus.value });
     purchaseGroups.value = res.data?.groups || [];
   } catch {
-    message.error('待采购清单加载失败');
+    message.error(t('page.orders.purchaseLoadFailed'));
   } finally {
     purchaseLoading.value = false;
   }
@@ -436,7 +501,7 @@ async function exportPurchaseList() {
     a.click();
     URL.revokeObjectURL(url);
   } catch {
-    message.error('待采购清单导出失败');
+    message.error(t('page.orders.purchaseExportFailed'));
   }
 }
 
@@ -463,15 +528,39 @@ onMounted(fetch);
         style="width: 160px"
         @update:value="fetch"
       />
-      <NButton secondary :loading="loading" @click="exportCsv">{{ $t('page.orders.export') }}</NButton>
-      <NButton secondary type="primary" @click="openPurchaseList">待采购清单</NButton>
-      <NPopconfirm v-if="canArchive" @positive-click="archiveOrders(checkedKeys)">
+      <NSelect
+        :value="viewValue"
+        :options="viewOptions"
+        style="width: 140px"
+        @update:value="switchView"
+      />
+      <NButton v-if="!archivedView" secondary :loading="loading" @click="exportCsv">
+        {{ $t('page.orders.export') }}
+      </NButton>
+      <NButton secondary type="primary" @click="openPurchaseList">{{ $t('page.orders.purchaseList') }}</NButton>
+      <NPopconfirm
+        v-if="canArchive"
+        @positive-click="archivedView ? restoreOrders(checkedKeys) : archiveOrders(checkedKeys)"
+      >
         <template #trigger>
-          <NButton type="error" secondary :disabled="!checkedKeys.length" :loading="archiving">
-            批量删除{{ checkedKeys.length ? '（' + checkedKeys.length + '）' : '' }}
+          <NButton
+            :type="archivedView ? 'primary' : 'error'"
+            secondary
+            :disabled="!checkedKeys.length"
+            :loading="archiving"
+          >
+            {{ archivedView ? $t('page.archive.restoreBatch') : $t('page.archive.actionBatch')
+            }}{{ checkedKeys.length ? ' (' + checkedKeys.length + ')' : '' }}
           </NButton>
         </template>
-        确认删除所选 {{ checkedKeys.length }} 个订单？删除后不再出现在列表与看板，可恢复。
+        {{
+          archivedView
+            ? $t('page.archive.restoreConfirmBatch', {
+              n: checkedKeys.length,
+              target: $t('page.archive.targetOrder')
+            })
+            : $t('page.archive.confirmBatch', { n: checkedKeys.length, target: $t('page.archive.targetOrder') })
+        }}
       </NPopconfirm>
     </div>
 
@@ -490,7 +579,7 @@ onMounted(fetch);
     </div>
 
     <NDrawer v-model:show="showPurchase" :width="920" placement="right">
-      <NDrawerContent title="待采购清单（代发行）" closable>
+      <NDrawerContent :title="$t('page.orders.purchaseListTitle')" closable>
         <div class="mb-3 flex items-center justify-between gap-3">
           <NSelect
             v-model:value="purchaseStatus"
@@ -498,19 +587,21 @@ onMounted(fetch);
             style="width: 140px"
             @update:value="loadPurchaseList"
           />
-          <NButton size="small" secondary :loading="purchaseLoading" @click="exportPurchaseList">导出 CSV</NButton>
+          <NButton size="small" secondary :loading="purchaseLoading" @click="exportPurchaseList">
+            {{ $t('page.orders.exportPurchase') }}
+          </NButton>
         </div>
         <div v-if="purchaseGroups.length" class="flex flex-col gap-3">
           <NCard
             v-for="g in purchaseGroups"
             :key="g.supplier_id || 'UNASSIGNED'"
             size="small"
-            :title="`${g.supplier_name || '未指定供应商'}（${g.item_count} 项 / ${g.total_quantity} 件）`"
+            :title="purchaseGroupTitle(g)"
           >
             <NDataTable :columns="purchaseColumns" :data="g.items" :bordered="false" size="small" />
           </NCard>
         </div>
-        <NEmpty v-else description="当前没有待采购的代发行" />
+        <NEmpty v-else :description="$t('page.orders.purchaseEmpty')" />
       </NDrawerContent>
     </NDrawer>
   </div>

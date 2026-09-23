@@ -39,15 +39,16 @@ const status = ref<string | null>(null);
 const keyword = ref('');
 const stats = ref<Record<string, number>>({});
 
-const statusLabels: Record<string, string> = {
-  requested: '待审核',
-  approved: '待收货',
-  received: '待退款',
-  refunded: '已退款',
-  rejected: '已驳回',
-  cancelled: '已撤销',
-  closed: '已关闭'
-};
+/** 售后状态文案（随语言切换） */
+const statusLabels = computed<Record<string, string>>(() => ({
+  requested: t('page.returns.statusRequested'),
+  approved: t('page.returns.statusApproved'),
+  received: t('page.returns.statusReceived'),
+  refunded: t('page.returns.statusRefunded'),
+  rejected: t('page.returns.statusRejected'),
+  cancelled: t('page.returns.statusCancelled'),
+  closed: t('page.returns.statusClosed')
+}));
 
 const statusTagTypes: Record<string, 'default' | 'warning' | 'info' | 'success' | 'error'> = {
   requested: 'warning',
@@ -74,10 +75,10 @@ function statusIcon(state: string) {
   return statusIcons[state] || 'mdi:help-circle-outline';
 }
 
-const statusOptions = [
+const statusOptions = computed(() => [
   { label: t('page.returns.allStatus'), value: '' },
-  ...Object.entries(statusLabels).map(([value, label]) => ({ label, value }))
-];
+  ...Object.entries(statusLabels.value).map(([value, label]) => ({ label, value }))
+]);
 
 function money(v: any) {
   return `$${Number(v ?? 0).toFixed(2)}`;
@@ -89,6 +90,15 @@ function fmt(s?: string) {
 
 /* ------------------------------- 列表 ------------------------------- */
 
+/** 列表视图：默认仅看进行中记录；切到「已归档」时列出 admin_archived_at 已置位的记录 */
+const archivedView = ref(false);
+/** NSelect 仅接受字符串值，这里做布尔语义到字符串视图的映射 */
+const viewValue = computed(() => (archivedView.value ? 'archived' : 'active'));
+const viewOptions = computed(() => [
+  { label: t('page.archive.viewActive'), value: 'active' },
+  { label: t('page.archive.viewArchived'), value: 'archived' }
+]);
+
 async function fetchList() {
   loading.value = true;
   try {
@@ -96,7 +106,8 @@ async function fetchList() {
       page: page.value,
       page_size: pageSize.value,
       status: status.value || undefined,
-      keyword: keyword.value || undefined
+      keyword: keyword.value || undefined,
+      archived: archivedView.value || undefined
     });
     rows.value = res.data?.items || [];
     total.value = res.data?.total ?? rows.value.length;
@@ -151,12 +162,40 @@ const canArchive = computed(() => {
   return perms.includes('*') || perms.includes('orders:archive');
 });
 
+/** 归档/恢复选中项；行级操作复用同一套请求逻辑（单条走 DELETE，多条走批量接口） */
 const checkedKeys = ref<string[]>([]);
+
+function switchView(value: string) {
+  archivedView.value = value === 'archived';
+  checkedKeys.value = [];
+  page.value = 1;
+  refresh();
+}
+
 const archiving = ref(false);
+
+function uniq(list: (string | number)[]) {
+  return Array.from(new Set(list.map(v => String(v ?? '')).filter(Boolean)));
+}
+
+/** 归档/恢复结果统一提示（后端返回 archived|restored / skipped / missing） */
+function notifyArchiveResult(data: any, mode: 'archive' | 'restore') {
+  const target = t('page.archive.targetReturn');
+  const count = Number((mode === 'archive' ? data.archived : data.restored) || 0);
+  const skipped = Number(data.skipped || 0);
+  const missing: string[] = data.missing || [];
+  const msg = (key: string, n: number) => t(`page.archive.${key}`, { n, target });
+  if (!count && !skipped && !missing.length) {
+    window.$message?.info(t(mode === 'archive' ? 'page.archive.empty' : 'page.archive.restoreEmpty', { target }));
+  }
+  if (count) window.$message?.success(msg(mode === 'archive' ? 'done' : 'restoreDone', count));
+  if (skipped) window.$message?.info(msg(mode === 'archive' ? 'skipped' : 'restoreSkipped', skipped));
+  if (missing.length) window.$message?.warning(msg(mode === 'archive' ? 'missing' : 'restoreMissing', missing.length));
+}
 
 /** 单条走 DELETE，多条走批量归档接口，与订单页口径一致 */
 async function archiveReturns(returnNumbers: string[]) {
-  const targets = Array.from(new Set(returnNumbers.map(n => String(n || '')).filter(Boolean)));
+  const targets = uniq(returnNumbers);
   if (!targets.length) return;
   archiving.value = true;
   try {
@@ -164,18 +203,28 @@ async function archiveReturns(returnNumbers: string[]) {
       targets.length === 1
         ? await del(`/api/admin/v1/returns/${encodeURIComponent(targets[0])}`)
         : await post('/api/admin/v1/returns/archive', { return_numbers: targets });
-    const data: any = res.data || {};
-    const archived = Number(data.archived || 0);
-    const skipped = Number(data.skipped || 0);
-    const missing: string[] = data.missing || [];
-    if (!archived && !skipped && !missing.length) window.$message?.info('没有可归档的售后单');
-    if (archived) window.$message?.success(`已归档 ${archived} 个售后单`);
-    if (skipped) window.$message?.info(`${skipped} 个售后单此前已归档`);
-    if (missing.length) window.$message?.warning(`${missing.length} 个售后单不存在，已跳过`);
+    notifyArchiveResult(res.data || {}, 'archive');
     checkedKeys.value = [];
     refresh();
   } catch (e: any) {
-    window.$message?.error(e?.response?.data?.message || '归档失败');
+    window.$message?.error(e?.response?.data?.message || t('page.archive.failed'));
+  } finally {
+    archiving.value = false;
+  }
+}
+
+/** 恢复已归档售后单；批量接口幂等，未归档的会被 skipped */
+async function restoreReturns(returnNumbers: string[]) {
+  const targets = uniq(returnNumbers);
+  if (!targets.length) return;
+  archiving.value = true;
+  try {
+    const res = await post('/api/admin/v1/returns/unarchive', { return_numbers: targets });
+    notifyArchiveResult(res.data || {}, 'restore');
+    checkedKeys.value = [];
+    refresh();
+  } catch (e: any) {
+    window.$message?.error(e?.response?.data?.message || t('page.archive.restoreFailed'));
   } finally {
     archiving.value = false;
   }
@@ -195,7 +244,7 @@ const columns: DataTableColumns<any> = [
         { type: statusTagTypes[row.status] || 'default', size: 'small' },
         {
           icon: () => h(Icon, { icon: statusIcon(row.status) }),
-          default: () => statusLabels[row.status] || row.status
+          default: () => statusLabels.value[row.status] || row.status
         }
       );
     }
@@ -205,7 +254,7 @@ const columns: DataTableColumns<any> = [
   { title: t('page.returns.requestedAt'), key: 'requested_at', width: 165, render: row => fmt(row.requested_at) },
   { title: t('page.returns.deadline'), key: 'deadline_at', width: 165, render: row => fmt(row.deadline_at) },
   {
-    title: '操作',
+    title: t('common.action'),
     key: 'actions',
     width: 300,
     render: row =>
@@ -217,34 +266,45 @@ const columns: DataTableColumns<any> = [
             { size: 'tiny', quaternary: true, type: 'primary', onClick: () => goOrder(row) },
             { default: () => t('page.returns.openOrder') }
           ),
-          row.status === 'requested'
+          // 已归档记录只保留查看与恢复入口，不再展示推进流程的操作
+          !archivedView.value && row.status === 'requested'
             ? h(
                 NButton,
                 { size: 'tiny', type: 'primary', onClick: () => openReview(row) },
                 { default: () => t('page.returns.review') }
               )
             : null,
-          row.status === 'approved'
+          !archivedView.value && row.status === 'approved'
             ? h(NButton, { size: 'tiny', onClick: () => doReceive(row) }, { default: () => t('page.returns.receive') })
             : null,
-          row.status === 'received'
+          !archivedView.value && row.status === 'received'
             ? h(
                 NButton,
                 { size: 'tiny', type: 'primary', onClick: () => openRefund(row) },
                 { default: () => t('page.returns.refund') }
               )
             : null,
-          row.status === 'requested' || row.status === 'approved' || row.status === 'received'
+          !archivedView.value && ['requested', 'approved', 'received'].includes(row.status)
             ? h(NButton, { size: 'tiny', onClick: () => doClose(row) }, { default: () => t('page.returns.close') })
             : null,
           canArchive.value
             ? h(
                 NPopconfirm,
-                { onPositiveClick: () => archiveReturns([row.return_number]) },
+                {
+                  onPositiveClick: () =>
+                    archivedView.value ? restoreReturns([row.return_number]) : archiveReturns([row.return_number])
+                },
                 {
                   trigger: () =>
-                    h(NButton, { size: 'tiny', quaternary: true, type: 'error' }, { default: () => '删除' }),
-                  default: () => '确认删除该售后单？删除后不再出现在列表与看板，可恢复。'
+                    h(
+                      NButton,
+                      { size: 'tiny', quaternary: true, type: archivedView.value ? 'primary' : 'error' },
+                      { default: () => t(archivedView.value ? 'page.archive.restore' : 'page.archive.action') }
+                    ),
+                  default: () =>
+                    t(archivedView.value ? 'page.archive.restoreConfirm' : 'page.archive.confirm', {
+                      target: t('page.archive.targetReturn')
+                    })
                 }
               )
             : null
@@ -328,7 +388,7 @@ async function submitRefund() {
     showRefund.value = false;
     refresh();
   } catch (e: any) {
-    window.$message?.error(e.response?.data?.message || 'Refund failed');
+    window.$message?.error(e.response?.data?.message || t('page.returns.refundFailed'));
   } finally {
     submitting.value = false;
   }
@@ -337,9 +397,9 @@ async function submitRefund() {
 function doReceive(row: any) {
   window.$dialog?.warning({
     title: t('page.returns.receive'),
-    content: `${row.return_number}：确认已收到回寄商品？`,
-    positiveText: '确定',
-    negativeText: '取消',
+    content: t('page.returns.receiveConfirm', { no: row.return_number }),
+    positiveText: t('common.confirm'),
+    negativeText: t('common.cancel'),
     onPositiveClick: async () => {
       await post(`/api/admin/v1/returns/${row.return_number}/receive`, {});
       window.$message?.success(t('page.returns.actionDone'));
@@ -351,9 +411,9 @@ function doReceive(row: any) {
 function doClose(row: any) {
   window.$dialog?.warning({
     title: t('page.returns.close'),
-    content: `${row.return_number}：关闭后该售后申请将终止，确定关闭？`,
-    positiveText: '确定',
-    negativeText: '取消',
+    content: t('page.returns.closeConfirm', { no: row.return_number }),
+    positiveText: t('common.confirm'),
+    negativeText: t('common.cancel'),
     onPositiveClick: async () => {
       await post(`/api/admin/v1/returns/${row.return_number}/close`, { reason: 'closed by admin' });
       window.$message?.success(t('page.returns.actionDone'));
@@ -363,8 +423,8 @@ function doClose(row: any) {
 }
 
 const itemColumns: DataTableColumns<any> = [
-  { title: '商品', key: 'name', render: row => row.name || '-' },
-  { title: 'SKU', key: 'sku', render: row => row.sku || '-' },
+  { title: t('page.returns.itemName'), key: 'name', render: row => row.name || '-' },
+  { title: t('common.sku'), key: 'sku', render: row => row.sku || '-' },
   { title: t('page.returns.unitPrice'), key: 'unit_price', render: row => money(row.unit_price) },
   { title: t('page.returns.quantity'), key: 'quantity' }
 ];
@@ -402,6 +462,7 @@ onMounted(() => {
     <div class="flex justify-between items-center gap-3 flex-wrap">
       <NSpace>
         <NSelect v-model:value="status" :options="statusOptions" style="width: 160px" @update:value="refresh" />
+        <NSelect :value="viewValue" :options="viewOptions" style="width: 140px" @update:value="switchView" />
         <NInput
           v-model:value="keyword"
           :placeholder="t('page.returns.searchPlaceholder')"
@@ -412,13 +473,26 @@ onMounted(() => {
           @keyup.enter="searchNow"
         />
       </NSpace>
-      <NPopconfirm v-if="canArchive" @positive-click="archiveReturns(checkedKeys)">
+      <NPopconfirm
+        v-if="canArchive"
+        @positive-click="archivedView ? restoreReturns(checkedKeys) : archiveReturns(checkedKeys)"
+      >
         <template #trigger>
-          <NButton type="error" secondary :disabled="!checkedKeys.length" :loading="archiving">
-            批量删除{{ checkedKeys.length ? '（' + checkedKeys.length + '）' : '' }}
+          <NButton
+            :type="archivedView ? 'primary' : 'error'"
+            secondary
+            :disabled="!checkedKeys.length"
+            :loading="archiving"
+          >
+            {{ archivedView ? t('page.archive.restoreBatch') : t('page.archive.actionBatch')
+            }}{{ checkedKeys.length ? ' (' + checkedKeys.length + ')' : '' }}
           </NButton>
         </template>
-        确认删除所选 {{ checkedKeys.length }} 条售后单？删除后不再出现在列表与看板，可恢复。
+        {{
+          archivedView
+            ? t('page.archive.restoreConfirmBatch', { n: checkedKeys.length, target: t('page.archive.targetReturn') })
+            : t('page.archive.confirmBatch', { n: checkedKeys.length, target: t('page.archive.targetReturn') })
+        }}
       </NPopconfirm>
       <span class="text-sm text-[var(--n-text-color-3)]">{{ total }} {{ t('page.returns.list') }}</span>
     </div>
@@ -500,11 +574,11 @@ onMounted(() => {
         <NFormItem v-if="reviewForm.approved" :label="t('page.returns.deadlineDays')">
           <NInputNumber v-model:value="reviewForm.deadline_days" :min="1" :max="90" />
         </NFormItem>
-        <NFormItem v-if="reviewForm.approved" label="入库">
-          <NCheckbox v-model:checked="reviewForm.restock">商品回库</NCheckbox>
+        <NFormItem v-if="reviewForm.approved" :label="t('page.returns.restock')">
+          <NCheckbox v-model:checked="reviewForm.restock">{{ t('page.returns.restockItem') }}</NCheckbox>
         </NFormItem>
-        <NFormItem v-if="reviewForm.approved" label="运费">
-          <NCheckbox v-model:checked="reviewForm.refund_shipping">退运费</NCheckbox>
+        <NFormItem v-if="reviewForm.approved" :label="t('page.returns.shipping')">
+          <NCheckbox v-model:checked="reviewForm.refund_shipping">{{ t('page.returns.refundShipping') }}</NCheckbox>
         </NFormItem>
         <NFormItem :label="reviewForm.approved ? t('page.returns.reviewNote') : t('page.returns.reviewNote') + ' *'">
           <NInput v-model:value="reviewForm.note" type="textarea" :rows="3" />
@@ -512,8 +586,8 @@ onMounted(() => {
       </NForm>
       <template #footer>
         <NSpace justify="end">
-          <NButton @click="showReview = false">取消</NButton>
-          <NButton type="primary" :loading="submitting" @click="submitReview">提交</NButton>
+          <NButton @click="showReview = false">{{ t('common.cancel') }}</NButton>
+          <NButton type="primary" :loading="submitting" @click="submitReview">{{ t('common.submit') }}</NButton>
         </NSpace>
       </template>
     </NModal>
@@ -526,8 +600,8 @@ onMounted(() => {
       <NInput v-model:value="refundNote" type="textarea" :rows="3" :placeholder="t('page.returns.note')" />
       <template #footer>
         <NSpace justify="end">
-          <NButton @click="showRefund = false">取消</NButton>
-          <NButton type="primary" :loading="submitting" @click="submitRefund">执行退款</NButton>
+          <NButton @click="showRefund = false">{{ t('common.cancel') }}</NButton>
+          <NButton type="primary" :loading="submitting" @click="submitRefund">{{ t('page.returns.refundAction') }}</NButton>
         </NSpace>
       </template>
     </NModal>

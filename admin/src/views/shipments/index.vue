@@ -54,6 +54,21 @@ function formatDate(s: string) {
   return s ? new Date(s).toLocaleDateString() : '-';
 }
 
+/** 列表视图：默认仅看进行中记录；切到「已归档」时列出 admin_archived_at 已置位的记录 */
+const archivedView = ref(false);
+const viewOptions = computed(() => [
+  { label: t('page.archive.viewActive'), value: 'active' },
+  { label: t('page.archive.viewArchived'), value: 'archived' }
+]);
+const viewValue = computed(() => (archivedView.value ? 'archived' : 'active'));
+
+function switchView(value: string) {
+  archivedView.value = value === 'archived';
+  checkedKeys.value = [];
+  page.value = 1;
+  fetch();
+}
+
 /** 归档（后台删除）入口仅对持有 shipments:archive 的角色渲染；super_admin 走权限通配 '*' */
 const canArchive = computed(() => {
   const perms = authStore.userInfo.permissions || [];
@@ -90,11 +105,21 @@ const columns: DataTableColumns<any> = [
           canArchive.value
             ? h(
                 NPopconfirm,
-                { onPositiveClick: () => archiveShipments([row.id]) },
+                {
+                  onPositiveClick: () =>
+                    archivedView.value ? restoreShipments([row.id]) : archiveShipments([row.id])
+                },
                 {
                   trigger: () =>
-                    h(NButton, { size: 'small', quaternary: true, type: 'error' }, { default: () => '删除' }),
-                  default: () => '确认删除该运单？删除后不再出现在列表与看板，可恢复。'
+                    h(
+                      NButton,
+                      { size: 'small', quaternary: true, type: archivedView.value ? 'primary' : 'error' },
+                      { default: () => t(archivedView.value ? 'page.archive.restore' : 'page.archive.action') }
+                    ),
+                  default: () =>
+                    t(archivedView.value ? 'page.archive.restoreConfirm' : 'page.archive.confirm', {
+                      target: t('page.archive.targetShipment')
+                    })
                 }
               )
             : null
@@ -115,9 +140,28 @@ function rowKey(row: any) {
   return String(row?.id || '');
 }
 
+function uniq(list: (string | number)[]) {
+  return Array.from(new Set(list.map(v => String(v ?? '')).filter(Boolean)));
+}
+
+/** 归档/恢复结果统一提示（后端返回 archived|restored / skipped / missing） */
+function notifyArchiveResult(data: any, mode: 'archive' | 'restore') {
+  const target = t('page.archive.targetShipment');
+  const count = Number((mode === 'archive' ? data.archived : data.restored) || 0);
+  const skipped = Number(data.skipped || 0);
+  const missing: string[] = data.missing || [];
+  const msg = (key: string, n: number) => t(`page.archive.${key}`, { n, target });
+  if (!count && !skipped && !missing.length) {
+    window.$message?.info(t(mode === 'archive' ? 'page.archive.empty' : 'page.archive.restoreEmpty', { target }));
+  }
+  if (count) window.$message?.success(msg(mode === 'archive' ? 'done' : 'restoreDone', count));
+  if (skipped) window.$message?.info(msg(mode === 'archive' ? 'skipped' : 'restoreSkipped', skipped));
+  if (missing.length) window.$message?.warning(msg(mode === 'archive' ? 'missing' : 'restoreMissing', missing.length));
+}
+
 /** 单条走 DELETE，多条走批量归档接口，与订单/售后口径一致 */
 async function archiveShipments(ids: (string | number)[]) {
-  const targets = Array.from(new Set(ids.map(id => String(id || '')).filter(Boolean)));
+  const targets = uniq(ids);
   if (!targets.length) return;
   archiving.value = true;
   try {
@@ -125,18 +169,28 @@ async function archiveShipments(ids: (string | number)[]) {
       targets.length === 1
         ? await del(`/api/admin/v1/shipments/${encodeURIComponent(targets[0])}`)
         : await post('/api/admin/v1/shipments/archive', { shipment_ids: targets });
-    const data: any = res.data || {};
-    const archived = Number(data.archived || 0);
-    const skipped = Number(data.skipped || 0);
-    const missing: string[] = data.missing || [];
-    if (!archived && !skipped && !missing.length) window.$message?.info('没有可归档的运单');
-    if (archived) window.$message?.success(`已归档 ${archived} 条运单`);
-    if (skipped) window.$message?.info(`${skipped} 条运单此前已归档`);
-    if (missing.length) window.$message?.warning(`${missing.length} 条运单不存在，已跳过`);
+    notifyArchiveResult(res.data || {}, 'archive');
     checkedKeys.value = [];
     await fetch();
   } catch (e: any) {
-    window.$message?.error(e?.response?.data?.message || '归档失败');
+    window.$message?.error(e?.response?.data?.message || t('page.archive.failed'));
+  } finally {
+    archiving.value = false;
+  }
+}
+
+/** 恢复已归档运单；批量接口幂等，未归档的会被 skipped */
+async function restoreShipments(ids: (string | number)[]) {
+  const targets = uniq(ids);
+  if (!targets.length) return;
+  archiving.value = true;
+  try {
+    const res = await post('/api/admin/v1/shipments/unarchive', { shipment_ids: targets });
+    notifyArchiveResult(res.data || {}, 'restore');
+    checkedKeys.value = [];
+    await fetch();
+  } catch (e: any) {
+    window.$message?.error(e?.response?.data?.message || t('page.archive.restoreFailed'));
   } finally {
     archiving.value = false;
   }
@@ -148,6 +202,7 @@ async function fetch() {
     const params: Record<string, any> = { page: page.value, page_size: pageSize.value };
     if (statusFilter.value) params.status = statusFilter.value;
     if (keyword.value.trim()) params.keyword = keyword.value.trim();
+    if (archivedView.value) params.archived = true;
     const res = await get('/api/admin/v1/shipments/', params);
     const data: any = res.data || {};
     shipments.value = data.items || (Array.isArray(data) ? data : []);
@@ -205,7 +260,7 @@ async function save() {
     showModal.value = false;
     fetch();
   } catch (e: any) {
-    modalError.value = e.response?.data?.detail || 'Save failed';
+    modalError.value = e.response?.data?.detail || t('page.shipments.saveFailed');
   } finally {
     modalLoading.value = false;
   }
@@ -221,30 +276,47 @@ onMounted(fetch);
         <NSelect
           v-model:value="statusFilter"
           :options="statusOptions"
-          placeholder="全部状态"
+          :placeholder="$t('page.shipments.statusAll')"
           clearable
           style="width: 160px"
           @update:value="searchNow"
         />
+        <NSelect :value="viewValue" :options="viewOptions" style="width: 140px" @update:value="switchView" />
         <NInput
           v-model:value="keyword"
-          placeholder="运单号 / 承运商 / 订单号"
+          :placeholder="$t('page.shipments.searchPlaceholder')"
           style="width: 240px"
           clearable
           @keyup.enter="searchNow"
         />
       </NSpace>
       <NSpace align="center">
-        <span class="text-sm text-[var(--n-text-color-3)]">{{ total }} shipment(s)</span>
-        <NPopconfirm v-if="canArchive" @positive-click="archiveShipments(checkedKeys)">
+        <span class="text-sm text-[var(--n-text-color-3)]">{{ $t('page.shipments.totalCount', { n: total }) }}</span>
+        <NPopconfirm
+          v-if="canArchive"
+          @positive-click="archivedView ? restoreShipments(checkedKeys) : archiveShipments(checkedKeys)"
+        >
           <template #trigger>
-            <NButton type="error" secondary :disabled="!checkedKeys.length" :loading="archiving">
-              批量删除{{ checkedKeys.length ? '（' + checkedKeys.length + '）' : '' }}
+            <NButton
+              :type="archivedView ? 'primary' : 'error'"
+              secondary
+              :disabled="!checkedKeys.length"
+              :loading="archiving"
+            >
+              {{ archivedView ? $t('page.archive.restoreBatch') : $t('page.archive.actionBatch')
+              }}{{ checkedKeys.length ? ' (' + checkedKeys.length + ')' : '' }}
             </NButton>
           </template>
-          确认删除所选 {{ checkedKeys.length }} 条运单？删除后不再出现在列表与看板，可恢复。
+          {{
+            archivedView
+              ? $t('page.archive.restoreConfirmBatch', {
+                n: checkedKeys.length,
+                target: $t('page.archive.targetShipment')
+              })
+              : $t('page.archive.confirmBatch', { n: checkedKeys.length, target: $t('page.archive.targetShipment') })
+          }}
         </NPopconfirm>
-        <NButton type="primary" @click="openModal()">{{ $t('common.add') }}</NButton>
+        <NButton v-if="!archivedView" type="primary" @click="openModal()">{{ $t('common.add') }}</NButton>
       </NSpace>
     </div>
 

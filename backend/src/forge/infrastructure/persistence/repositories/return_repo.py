@@ -263,8 +263,13 @@ class SQLAlchemyReturnRepository:
         keyword: str | None = None,
         page: int = 1,
         page_size: int = 20,
+        archived: bool = False,
     ) -> dict[str, Any]:
-        conditions: list[Any] = [ORMReturnRequest.admin_archived_at.is_(None)]
+        conditions: list[Any] = [
+            ORMReturnRequest.admin_archived_at.is_not(None)
+            if archived
+            else ORMReturnRequest.admin_archived_at.is_(None)
+        ]
         if status:
             conditions.append(ORMReturnRequest.status == status)
         if keyword:
@@ -323,6 +328,36 @@ class SQLAlchemyReturnRepository:
                 .values(admin_archived_at=now, updated_at=now)
             )
         return {"archived": len(targets), "skipped": len(numbers) - len(missing) - len(targets), "missing": missing}
+
+    @staticmethod
+    async def unarchive_return_requests(db: AsyncSession, return_numbers: list[str]) -> dict[str, Any]:
+        """取消归档（恢复）：把已归档售后单重新纳入 Admin 列表 / 看板口径。
+
+        - 仅清空 return_requests.admin_archived_at，不改流程状态与退款数据；
+        - 未归档单幂等跳过；
+        - 返回 restored / skipped / missing，供前端如实回显。
+        """
+        numbers = [n for n in dict.fromkeys(return_numbers) if n]
+        if not numbers:
+            return {"restored": 0, "skipped": 0, "missing": []}
+        rows = (
+            await db.execute(
+                select(ORMReturnRequest.return_number, ORMReturnRequest.admin_archived_at).where(
+                    ORMReturnRequest.return_number.in_(numbers)
+                )
+            )
+        ).all()
+        archived_at: dict[str, Any] = {str(row[0]): row[1] for row in rows}
+        missing = [n for n in numbers if n not in archived_at]
+        targets = [n for n in numbers if n in archived_at and archived_at[n] is not None]
+        if targets:
+            now = SQLAlchemyReturnRepository._now()
+            await db.execute(
+                update(ORMReturnRequest)
+                .where(ORMReturnRequest.return_number.in_(targets), ORMReturnRequest.admin_archived_at.is_not(None))
+                .values(admin_archived_at=None, updated_at=now)
+            )
+        return {"restored": len(targets), "skipped": len(numbers) - len(missing) - len(targets), "missing": missing}
 
     @staticmethod
     async def return_stats(db: AsyncSession) -> dict[str, Any]:

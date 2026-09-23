@@ -88,12 +88,13 @@ async def list_returns(
     page_size: int = Query(default=20, ge=1, le=100),
     status_filter: str | None = Query(default=None, alias="status"),
     keyword: str | None = Query(default=None, max_length=100),
+    archived: bool = Query(default=False),
 ) -> dict[str, Any]:
-    """售后申请分页列表（?status= 过滤 + ?keyword= 按单号/原因模糊检索）。"""
+    """售后申请分页列表（?status= 过滤 + ?keyword= 按单号/原因模糊检索 + ?archived= 查看已归档）。"""
     if status_filter and status_filter not in VALID_RETURN_STATUSES:
         raise APIError(ErrorCode.VALIDATION_ERROR, message=f"Invalid return status: {status_filter}")
     result = await SQLAlchemyReturnRepository.list_admin_returns(
-        db, status=status_filter, keyword=keyword, page=page, page_size=page_size
+        db, status=status_filter, keyword=keyword, page=page, page_size=page_size, archived=archived
     )
     return result
 
@@ -122,6 +123,19 @@ async def archive_return(
     if result["archived"] == 0 and result["missing"]:
         raise APIError(ErrorCode.RETURN_NOT_FOUND)
     return result
+
+
+@router.post("/unarchive")
+async def unarchive_returns(
+    payload: AdminReturnArchiveRequest,
+    admin: dict[str, object] = Depends(require_permission("orders", "archive")),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """批量取消归档（恢复）售后单：重新纳入后台列表 / 看板；单条与批量同口径。"""
+    numbers = [n.strip() for n in payload.return_numbers if n and n.strip()]
+    if not numbers:
+        raise APIError(ErrorCode.VALIDATION_ERROR, message="return_numbers cannot be empty.")
+    return await SQLAlchemyReturnRepository.unarchive_return_requests(db, numbers)
 
 
 @router.get("/stats")

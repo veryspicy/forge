@@ -245,6 +245,7 @@ async def list_orders(
     page_size: int = Query(20, ge=1, le=100),
     status: str | None = Query(default=None, alias="status"),
     search: str | None = Query(default=None, max_length=200),
+    archived: bool = Query(default=False),
     admin: dict[str, object] = Depends(require_permission("orders", "view")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, object]:
@@ -257,6 +258,7 @@ async def list_orders(
         page_size=page_size,
         status=normalized_status,
         search=normalized_search,
+        archived=archived,
     )
     # 售后角标：批量补齐本页订单的售后摘要，运营无需切页即可看到售后进展
     items = cast(list[dict[str, Any]], data.get("items") or [])
@@ -292,6 +294,20 @@ async def archive_order(
     if result["archived"] == 0 and result["missing"]:
         raise APIError(ErrorCode.ORDER_NOT_FOUND)
     return result
+
+
+@router.post("/unarchive")
+async def unarchive_orders(
+    payload: AdminOrderArchiveRequest,
+    admin: dict[str, object] = Depends(require_permission("orders", "archive")),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, object]:
+    """批量取消归档（恢复）：把已归档订单重新纳入后台列表 / 看板 / 导出；单条与批量同口径。"""
+    numbers = [n.strip() for n in payload.order_numbers if n and n.strip()]
+    if not numbers:
+        raise APIError(ErrorCode.VALIDATION_ERROR, message="order_numbers cannot be empty.")
+    repo = SQLAlchemyOrderRepository()
+    return await repo.unarchive_orders(db, numbers)
 
 
 @router.get("/export")

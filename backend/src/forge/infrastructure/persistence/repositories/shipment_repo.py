@@ -61,9 +61,12 @@ class SQLAlchemyAdminShipmentRepository:
         keyword: str | None = None,
         page: int = 1,
         page_size: int = 20,
+        archived: bool = False,
     ) -> dict[str, Any]:
-        """后台运单分页列表（默认剔除已归档），支持状态与关键词（单号/承运商/订单号）筛选。"""
-        conditions: list[Any] = [ORMShipment.admin_archived_at.is_(None)]
+        """后台运单分页列表（默认剔除已归档；archived=True 时只列已归档），支持状态与关键词筛选。"""
+        conditions: list[Any] = [
+            ORMShipment.admin_archived_at.is_not(None) if archived else ORMShipment.admin_archived_at.is_(None)
+        ]
         if status:
             conditions.append(ORMShipment.status == status)
         if keyword:
@@ -129,3 +132,37 @@ class SQLAlchemyAdminShipmentRepository:
             )
         missing = invalid + [key for key in parsed if key not in archived_at]
         return {"archived": len(targets), "skipped": len(archived_at) - len(targets), "missing": missing}
+
+    @staticmethod
+    async def unarchive_shipments(db: AsyncSession, shipment_ids: list[str]) -> dict[str, Any]:
+        """取消归档（恢复）：按运单 ID 批量清空 admin_archived_at，返回 restored / skipped / missing。"""
+        requested = list(dict.fromkeys(str(s) for s in shipment_ids if s))
+        if not requested:
+            return {"restored": 0, "skipped": 0, "missing": []}
+        parsed: dict[str, UUID] = {}
+        invalid: list[str] = []
+        for raw in requested:
+            try:
+                uid = UUID(raw)
+            except ValueError:
+                invalid.append(raw)
+                continue
+            parsed[str(uid)] = uid
+        if not parsed:
+            return {"restored": 0, "skipped": 0, "missing": invalid}
+        rows = (
+            await db.execute(
+                select(ORMShipment.id, ORMShipment.admin_archived_at).where(ORMShipment.id.in_(list(parsed.values())))
+            )
+        ).all()
+        archived_at: dict[str, Any] = {str(row[0]): row[1] for row in rows}
+        targets = [parsed[key] for key, at in archived_at.items() if at is not None]
+        if targets:
+            now = SQLAlchemyAdminShipmentRepository._now()
+            await db.execute(
+                update(ORMShipment)
+                .where(ORMShipment.id.in_(targets), ORMShipment.admin_archived_at.is_not(None))
+                .values(admin_archived_at=None, updated_at=now)
+            )
+        missing = invalid + [key for key in parsed if key not in archived_at]
+        return {"restored": len(targets), "skipped": len(archived_at) - len(targets), "missing": missing}
