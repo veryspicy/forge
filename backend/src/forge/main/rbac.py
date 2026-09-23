@@ -27,12 +27,13 @@ ROLE_PERMISSIONS: dict[str, dict[str, list[str]]] = {
     "admin": {
         "dashboard": ["view"],
         "products": ["view", "create", "edit", "delete", "status"],
-        "orders": ["view", "detail", "review", "procure", "logistics", "refund"],
+        # archive：后台归档（软删除）订单/售后单，仅 admin 角色持有（operator/support 不可见）
+        "orders": ["view", "detail", "review", "procure", "logistics", "refund", "archive"],
         "pricing": ["view", "manage"],
         "ai_probe": ["view"],
         "chat_requests": ["view", "manage"],
         "resources": ["view", "upload"],
-        "shipments": ["view", "manage"],
+        "shipments": ["view", "manage", "archive"],
         "suppliers": ["view", "manage"],
         "supplier_sources": ["view", "manage"],
         "settings": ["view", "manage"],
@@ -91,6 +92,7 @@ ACTION_NAMES: dict[str, str] = {
     "procure": "采购",
     "logistics": "物流",
     "refund": "退款",
+    "archive": "归档",
     "manage": "管理",
     "upload": "上传",
 }

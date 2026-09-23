@@ -1,7 +1,8 @@
-"""Unit tests for Admin Shipments API (stub implementation: list only)."""
+"""Unit tests for Admin Shipments API (list + archive)."""
 
 from __future__ import annotations
 
+from unittest.mock import AsyncMock, patch
 from uuid import UUID
 
 from forge.main import dependencies
@@ -9,7 +10,7 @@ from forge.main import dependencies
 
 def _setup_auth(test_client):
     async def _fake_get_db():
-        yield None
+        yield AsyncMock()
 
     async def _fake_admin():
         return {"id": UUID("d290f1ee-6c54-4b01-90e6-d701748f0851"), "role": "super_admin", "roles": ["super_admin"]}
@@ -22,9 +23,17 @@ class TestAdminShipmentsAPI:
     """Test /api/admin/v1/shipments endpoints (stub: list only, empty)."""
 
     def test_list_shipments_success(self, test_client):
+        from forge.infrastructure.persistence.repositories.shipment_repo import SQLAlchemyAdminShipmentRepository
+
         _setup_auth(test_client)
         try:
-            resp = test_client.get("/api/admin/v1/shipments/")
+            with patch.object(
+                SQLAlchemyAdminShipmentRepository,
+                "list_admin_shipments",
+                new_callable=AsyncMock,
+                return_value={"items": [], "total": 0},
+            ):
+                resp = test_client.get("/api/admin/v1/shipments/")
         finally:
             test_client.app.dependency_overrides.clear()
         assert resp.status_code == 200

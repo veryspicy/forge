@@ -64,6 +64,14 @@ class AdminReturnCloseRequest(BaseModel):
     reason: str | None = Field(default=None, max_length=200)
 
 
+class AdminReturnArchiveRequest(BaseModel):
+    """批量归档（软删除）售后单入参；口径与订单归档一致，单次上限 200。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    return_numbers: list[str] = Field(default_factory=list, max_length=200)
+
+
 def _actor(admin: dict[str, object]) -> str:
     return str(admin.get("email") or admin.get("sub") or "admin")
 
@@ -80,14 +88,54 @@ async def list_returns(
     page_size: int = Query(default=20, ge=1, le=100),
     status_filter: str | None = Query(default=None, alias="status"),
     keyword: str | None = Query(default=None, max_length=100),
+    archived: bool = Query(default=False),
 ) -> dict[str, Any]:
-    """售后申请分页列表（?status= 过滤 + ?keyword= 按单号/原因模糊检索）。"""
+    """售后申请分页列表（?status= 过滤 + ?keyword= 按单号/原因模糊检索 + ?archived= 查看已归档）。"""
     if status_filter and status_filter not in VALID_RETURN_STATUSES:
         raise APIError(ErrorCode.VALIDATION_ERROR, message=f"Invalid return status: {status_filter}")
     result = await SQLAlchemyReturnRepository.list_admin_returns(
-        db, status=status_filter, keyword=keyword, page=page, page_size=page_size
+        db, status=status_filter, keyword=keyword, page=page, page_size=page_size, archived=archived
     )
     return result
+
+
+@router.post("/archive")
+async def archive_returns(
+    payload: AdminReturnArchiveRequest,
+    admin: dict[str, object] = Depends(require_permission("orders", "archive")),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """批量归档（软删除）售后单：从后台列表 / 看板中隐去，不改流程状态，可逆。"""
+    numbers = [n.strip() for n in payload.return_numbers if n and n.strip()]
+    if not numbers:
+        raise APIError(ErrorCode.VALIDATION_ERROR, message="return_numbers cannot be empty.")
+    return await SQLAlchemyReturnRepository.archive_return_requests(db, numbers)
+
+
+@router.delete("/{return_number}")
+async def archive_return(
+    return_number: str,
+    admin: dict[str, object] = Depends(require_permission("orders", "archive")),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """单条归档（软删除）售后单；单号不存在时返回 404，已归档时幂等返回。"""
+    result = await SQLAlchemyReturnRepository.archive_return_requests(db, [return_number])
+    if result["archived"] == 0 and result["missing"]:
+        raise APIError(ErrorCode.RETURN_NOT_FOUND)
+    return result
+
+
+@router.post("/unarchive")
+async def unarchive_returns(
+    payload: AdminReturnArchiveRequest,
+    admin: dict[str, object] = Depends(require_permission("orders", "archive")),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """批量取消归档（恢复）售后单：重新纳入后台列表 / 看板；单条与批量同口径。"""
+    numbers = [n.strip() for n in payload.return_numbers if n and n.strip()]
+    if not numbers:
+        raise APIError(ErrorCode.VALIDATION_ERROR, message="return_numbers cannot be empty.")
+    return await SQLAlchemyReturnRepository.unarchive_return_requests(db, numbers)
 
 
 @router.get("/stats")
