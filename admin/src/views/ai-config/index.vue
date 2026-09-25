@@ -35,11 +35,6 @@ interface LLMTestResult {
   reply: string;
 }
 
-interface ModelItem {
-  id: string;
-  owned_by?: string;
-}
-
 const CONFIG_URL = '/api/admin/v1/ai-config';
 
 const loading = ref(true);
@@ -71,6 +66,15 @@ function showMessage(text: string, isError = false) {
   messageError.value = isError;
 }
 
+/**
+ * 解包后端响应：admin 接口统一返回 { data: payload }，
+ * request 封装的 transform 已透出整个响应体，故业务载荷位于 res.data.data。
+ * 兼容裸载荷（res.data 直接为 payload）以避免后端包裹变化时页面再次失效。
+ */
+function unwrap<T>(res: any): T {
+  return (res?.data?.data ?? res?.data ?? res ?? {}) as T;
+}
+
 function buildPayload() {
   return {
     base_url: form.base_url,
@@ -87,7 +91,7 @@ async function loadConfig() {
   loading.value = true;
   try {
     const res = await get<AIConfigView>(`${CONFIG_URL}/config`);
-    const data = res.data ?? ({} as AIConfigView);
+    const data = unwrap<AIConfigView>(res);
     form.base_url = data.base_url ?? '';
     form.model = data.model ?? '';
     form.temperature = data.temperature ?? 0.7;
@@ -127,9 +131,11 @@ async function testConnection() {
   testResult.value = null;
   try {
     const res = await post<LLMTestResult>(`${CONFIG_URL}/test`, buildPayload());
+    const data = unwrap<LLMTestResult>(res);
     testResult.value =
-      res.data ??
-      ({ status: 'fail', latency_ms: 0, detail: 'empty response', models_count: 0, chat_ok: false, reply: '' } as LLMTestResult);
+      data?.status
+        ? data
+        : ({ status: 'fail', latency_ms: 0, detail: 'empty response', models_count: 0, chat_ok: false, reply: '' } as LLMTestResult);
   } catch (e: any) {
     testResult.value = {
       status: 'fail',
@@ -147,15 +153,13 @@ async function testConnection() {
 async function fetchModels() {
   loadingModels.value = true;
   try {
-    const res = await post<{ items: ModelItem[]; count: number }>(`${CONFIG_URL}/models`, buildPayload());
-    const items = res.data?.items ?? [];
-    modelOptions.value = items.map(item => ({
-      label: item.owned_by ? `${item.id} (${item.owned_by})` : item.id,
-      value: item.id
-    }));
-    showMessage(`models: ${res.data?.count ?? items.length}`);
-    if (!form.model && items.length) {
-      form.model = items[0].id;
+    const res = await post<{ models: string[]; count: number }>(`${CONFIG_URL}/models`, buildPayload());
+    const payload = unwrap<{ models: string[]; count: number }>(res);
+    const list = payload?.models ?? [];
+    modelOptions.value = list.map(id => ({ label: id, value: id }));
+    showMessage(`models: ${payload?.count ?? list.length}`);
+    if (!form.model && list.length) {
+      form.model = list[0];
     }
   } catch (e: any) {
     showMessage(e?.response?.data?.detail || e?.message || 'fetch models failed', true);
