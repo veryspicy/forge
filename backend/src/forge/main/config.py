@@ -19,6 +19,13 @@ class Settings(BaseSettings):
     # OpenAI
     openai_api_key: str = "sk-placeholder"
 
+    # LLM（OpenAI 兼容协议）默认值；Admin「AI 配置」页保存后会覆盖此处
+    ai_llm_base_url: str = "https://integrate.api.nvidia.com/v1"
+    ai_llm_api_key: str = ""
+    ai_llm_model: str = "meta/llama-3.3-70b-instruct"
+    ai_llm_temperature: float = 0.7
+    ai_llm_max_tokens: int = 1024
+
     # AI Service
     ai_service_url: str = "http://localhost:8001"
 

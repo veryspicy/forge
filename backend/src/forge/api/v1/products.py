@@ -47,12 +47,39 @@ _PUBLIC_FIELDS = [
     "created_at",
 ]
 
+# 详情页额外字段：SEO 与结构化详情块体积大，仅在单品详情返回
+_PUBLIC_DETAIL_FIELDS = [
+    *_PUBLIC_FIELDS,
+    "description_translations",
+    "seo_title",
+    "seo_description",
+    "seo_keywords",
+    "detail_blocks",
+]
 
-def _public_item(item: dict[str, Any]) -> dict[str, Any]:
-    data = {k: item.get(k) for k in _PUBLIC_FIELDS}
+
+def _public_item(item: dict[str, Any], *, detail: bool = False) -> dict[str, Any]:
+    fields = _PUBLIC_DETAIL_FIELDS if detail else _PUBLIC_FIELDS
+    data = {k: item.get(k) for k in fields}
     # C 端前端约定 images 为 URL 字符串数组（ProductCard 用 images[0] 直接作 src）
-    images = data.get("images") or []
+    images = item.get("images") or []
     data["images"] = [img["url"] for img in images if isinstance(img, dict) and img.get("url")]
+    if detail:
+        # 详情页需要主图 / alt 做 LCP 与 JSON-LD，列表页不返回以省流量
+        data["main_image"] = next(
+            (img["url"] for img in images if isinstance(img, dict) and img.get("is_main") and img.get("url")),
+            data["images"][0] if data["images"] else "",
+        )
+        data["image_details"] = [
+            {
+                "url": img.get("url", ""),
+                "alt": img.get("alt", ""),
+                "is_main": bool(img.get("is_main", False)),
+                "sort": int(img.get("sort", idx)),
+            }
+            for idx, img in enumerate(images)
+            if isinstance(img, dict) and img.get("url")
+        ]
     return data
 
 
@@ -149,4 +176,4 @@ async def get_public_product(
             product = await SQLAlchemyProductRepository.get_by_id(db, pid)
     if product is None or product.status != "active":
         raise HTTPException(status_code=404, detail="Product not found")
-    return _public_item(product.to_dict())
+    return _public_item(product.to_dict(), detail=True)

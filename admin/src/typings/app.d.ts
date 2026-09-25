@@ -556,6 +556,7 @@ declare namespace App {
         ordersDetail: Record<string, string>;
         archive: Record<string, string>;
         aiProbe: Record<string, string>;
+        aiConfig: Record<string, string>;
         users: Record<string, string>;
         site: Record<string, string>;
         settings: Record<string, string>;

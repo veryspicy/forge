@@ -310,6 +310,18 @@ const customRoutes = [
           order: 3,
           roles: ['super_admin', 'admin']
         }
+      },
+      {
+        name: 'ai-config',
+        path: '/ai-config',
+        component: 'layout.base$view.ai-config',
+        meta: {
+          title: 'AI Config',
+          i18nKey: 'route.ai-config',
+          icon: 'mdi:robot-happy',
+          order: 4,
+          roles: ['super_admin', 'admin']
+        }
       }
     ]
   }

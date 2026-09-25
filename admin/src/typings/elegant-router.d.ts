@@ -22,6 +22,7 @@ declare module "@elegant-router/types" {
     "500": "/500";
     "admin-users": "/admin-users";
     "ai-probe": "/ai-probe";
+    "ai-config": "/ai-config";
     "brands": "/brands";
     "categories": "/categories";
     "dashboard": "/dashboard";
@@ -78,6 +79,7 @@ declare module "@elegant-router/types" {
     | "500"
     | "admin-users"
     | "ai-probe"
+    | "ai-config"
     | "brands"
     | "categories"
     | "dashboard"
@@ -121,6 +123,7 @@ declare module "@elegant-router/types" {
     | "login"
     | "admin-users"
     | "ai-probe"
+    | "ai-config"
     | "brands"
     | "categories"
     | "dashboard"

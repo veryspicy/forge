@@ -57,6 +57,29 @@ _COLOR_SHORTCODES: dict[str, str] = {
     "turquoise": "TRQ",
 }
 
+# 商品详情块（PRODUCT-DETAIL-BLOCKS）：结构化详情，避免整段 HTML 富文本
+# （XSS 面、多语言不可复用、结构化数据无法抽取）
+DETAIL_BLOCK_TYPES = (
+    "rich_text",
+    "image",
+    "image_text",
+    "spec_table",
+    "features",
+    "faq",
+    "video",
+)
+MAX_DETAIL_BLOCKS = 50
+# 每种详情块允许的字段，其余键一律丢弃（防前端塞入任意数据）
+DETAIL_BLOCK_FIELDS: dict[str, tuple[str, ...]] = {
+    "rich_text": ("title", "html", "align"),
+    "image": ("title", "images", "caption"),
+    "image_text": ("title", "image", "html", "layout"),
+    "spec_table": ("title", "columns", "rows"),
+    "features": ("title", "items"),
+    "faq": ("title", "items"),
+    "video": ("title", "url", "poster"),
+}
+
 
 class ProductValidationError(ValueError):
     """业务校验失败，携带字段级错误明细。"""
@@ -134,7 +157,13 @@ class ProductService:
 
         payload = dict(data)
         payload["sku"] = sku
-        payload["slug"] = await ProductService._unique_slug(db, ProductService.slugify(str(data["name"])))
+        requested_slug = str(data.get("slug") or "").strip()
+        base_slug = (
+            ProductService.slugify(requested_slug) if requested_slug else ProductService.slugify(str(data["name"]))
+        )
+        payload["slug"] = await ProductService._unique_slug(db, base_slug)
+        if data.get("detail_blocks") is not None:
+            payload["detail_blocks"] = ProductService.normalize_detail_blocks(data["detail_blocks"])
         payload.setdefault("status", "draft")
         payload.setdefault("images", [])
         return await SQLAlchemyProductRepository.create(db, payload)
@@ -154,6 +183,21 @@ class ProductService:
             if existing and existing.id != product.id:
                 raise ProductSkuConflictError(f"SKU 已存在: {new_sku}")
             data["sku"] = new_sku
+
+        if "slug" in data:
+            requested = str(data["slug"] or "").strip()
+            base_slug = (
+                ProductService.slugify(requested)
+                if requested
+                else ProductService.slugify(str(data.get("name") or product.name))
+            )
+            if base_slug != product.slug:
+                data["slug"] = await ProductService._unique_slug(db, base_slug)
+            else:
+                data.pop("slug")
+
+        if data.get("detail_blocks") is not None:
+            data["detail_blocks"] = ProductService.normalize_detail_blocks(data["detail_blocks"])
 
         return await SQLAlchemyProductRepository.update(db, product, data)
 
@@ -181,6 +225,8 @@ class ProductService:
                 "is_main": bool(img.get("is_main", False)),
                 "alt": str(img.get("alt", "")),
             }
+            if img.get("resource_id"):
+                entry["resource_id"] = str(img["resource_id"])
             if entry["is_main"]:
                 if main_seen:
                     entry["is_main"] = False
@@ -190,6 +236,66 @@ class ProductService:
         if not main_seen and cleaned:
             cleaned[0]["is_main"] = True
         return cleaned
+
+    @staticmethod
+    def normalize_detail_blocks(blocks: Any) -> list[dict[str, Any]]:
+        """清洗商品详情块：类型/字段白名单 + 文本去空白，非法输入直接抛业务异常。"""
+        if not isinstance(blocks, list):
+            raise ProductValidationError("详情块格式错误", {"detail_blocks": "detail_blocks 必须是数组"})
+        if len(blocks) > MAX_DETAIL_BLOCKS:
+            raise ProductValidationError(
+                "详情块数量超限",
+                {"detail_blocks": f"最多 {MAX_DETAIL_BLOCKS} 个详情块"},
+            )
+        cleaned: list[dict[str, Any]] = []
+        for idx, block in enumerate(blocks):
+            if not isinstance(block, dict):
+                raise ProductValidationError(
+                    "详情块格式错误",
+                    {"detail_blocks": f"第 {idx + 1} 个详情块必须是对象"},
+                )
+            block_type = str(block.get("type") or "").strip()
+            if block_type not in DETAIL_BLOCK_TYPES:
+                raise ProductValidationError(
+                    "详情块类型不支持",
+                    {"detail_blocks": (f"第 {idx + 1} 个详情块 type 必须为 {list(DETAIL_BLOCK_TYPES)} 之一")},
+                )
+            entry: dict[str, Any] = {"type": block_type}
+            for field in DETAIL_BLOCK_FIELDS[block_type]:
+                if field not in block or block[field] is None:
+                    continue
+                value = block[field]
+                if field in {"items", "rows", "images", "columns"}:
+                    if not isinstance(value, list):
+                        raise ProductValidationError(
+                            "详情块格式错误",
+                            {"detail_blocks": f"第 {idx + 1} 个详情块 {field} 必须是数组"},
+                        )
+                    entry[field] = [ProductService._clean_block_value(item) for item in value]
+                elif isinstance(value, str):
+                    entry[field] = value.strip()
+            cleaned.append(entry)
+        return cleaned
+
+    @staticmethod
+    def _clean_block_value(value: Any) -> Any:
+        """详情块数组元素：对象仅保留浅层标量键，字符串去空白。"""
+        if isinstance(value, dict):
+            item: dict[str, Any] = {}
+            for raw_key, raw_value in value.items():
+                key = str(raw_key).strip()
+                if not key:
+                    continue
+                if isinstance(raw_value, str):
+                    item[key] = raw_value.strip()
+                elif isinstance(raw_value, list):
+                    item[key] = [v.strip() if isinstance(v, str) else v for v in raw_value]
+                elif raw_value is None or isinstance(raw_value, (int, float, bool)):
+                    item[key] = raw_value
+            return item
+        if isinstance(value, str):
+            return value.strip()
+        return value
 
     @staticmethod
     async def add_image(
@@ -224,6 +330,14 @@ class ProductService:
             images.sort(key=lambda i: int(i.get("sort", 0)))
             images[0]["is_main"] = True
         return await SQLAlchemyProductRepository.update_images(db, product, images)
+
+    @staticmethod
+    async def set_images(db: AsyncSession, product: ORMProduct, images: list[dict[str, Any]]) -> ORMProduct:
+        """整组替换图片：一次提交排序 / 主图 / alt 变更（Admin 图片列表拖拽保存）。"""
+        if not isinstance(images, list):
+            raise ProductValidationError("图片格式错误", {"images": "images 必须是数组"})
+        normalized = ProductService.normalize_images(images)
+        return await SQLAlchemyProductRepository.update_images(db, product, normalized)
 
     @staticmethod
     def _validate_base(data: dict[str, Any], partial: bool = False) -> dict[str, str]:
@@ -275,6 +389,13 @@ class ProductService:
 
         if "slug" in data and data["slug"] and len(str(data["slug"])) > 500:
             errors["slug"] = "slug 长度不能超过 500"
+
+        if (
+            "detail_blocks" in data
+            and data["detail_blocks"] is not None
+            and not isinstance(data["detail_blocks"], list)
+        ):
+            errors["detail_blocks"] = "detail_blocks 必须是数组"
 
         for field in ("name_translations", "description_translations", "ai_description_translations"):
             if field in data and data[field] is not None:

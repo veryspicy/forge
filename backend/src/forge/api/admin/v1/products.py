@@ -75,6 +75,10 @@ class ProductCreate(BaseModel):
     seo_title: str | None = None
     seo_description: str | None = None
     seo_keywords: list[str] | None = None
+    # URL slug（留空则按 name 自动生成，唯一）
+    slug: str | None = None
+    # 结构化详情块（PRODUCT-DETAIL-BLOCKS），元素含 type 与各类型专属字段
+    detail_blocks: list[dict[str, Any]] | None = None
     # 商品体系改造（PRODUCT-CATALOG-REFACTOR）目录侧外键
     category_id: int | None = None
     brand_id: int | None = None
@@ -106,6 +110,8 @@ class ProductUpdate(BaseModel):
     seo_title: str | None = None
     seo_description: str | None = None
     seo_keywords: list[str] | None = None
+    slug: str | None = None
+    detail_blocks: list[dict[str, Any]] | None = None
     is_new: bool | None = None
     is_recommend: bool | None = None
     sort_order: int | None = None
@@ -113,6 +119,10 @@ class ProductUpdate(BaseModel):
     category_id: int | None = None
     brand_id: int | None = None
     product_type_id: int | None = None
+
+
+class ProductImagesPayload(BaseModel):
+    images: list[dict[str, Any]]
 
 
 class StatusPayload(BaseModel):
@@ -777,6 +787,30 @@ async def delete_product_image(
     # 删除 MinIO 对象（失败不阻塞 DB 更新）
     with contextlib.suppress(Exception):
         minio.remove_object(key)
+
+    await db.commit()
+    await db.refresh(product)
+    return {"data": _serialize_product(product)}
+
+
+# ---------------------------------------------------------------------------
+# 7.5 图片整组更新（排序 / 主图 / alt 批量保存）
+# ---------------------------------------------------------------------------
+@router.patch("/{product_id}/images")
+async def update_product_images(
+    product_id: str,
+    payload: ProductImagesPayload,
+    admin: dict[str, Any] = Depends(require_permission("products", "edit")),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    if not admin:
+        raise HTTPException(status_code=401, detail="未登录")
+
+    product = await _get_product_or_404(db, product_id)
+    try:
+        product = await ProductService.set_images(db, product, payload.images)
+    except ProductValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
 
     await db.commit()
     await db.refresh(product)

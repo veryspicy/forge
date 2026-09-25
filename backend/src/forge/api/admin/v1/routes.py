@@ -301,6 +301,19 @@ AUTH_ROUTE_TREE = [
                     "roles": ["super_admin", "admin"],
                 },
             },
+            {
+                "id": "ai-config",
+                "name": "ai-config",
+                "path": "/ai-config",
+                "component": "layout.base$view.ai-config",
+                "meta": {
+                    "title": "AI Config",
+                    "i18nKey": "route.ai-config",
+                    "icon": "mdi:brain",
+                    "order": 4,
+                    "roles": ["super_admin", "admin"],
+                },
+            },
         ],
     },
 ]

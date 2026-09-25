@@ -24,6 +24,7 @@ import {
 import { useI18n } from 'vue-i18n';
 import { get, post, patch, del } from '@/service/api/helper';
 import { resourceApi } from '@/service/api/resources';
+import ProductDetailBlocks from './ProductDetailBlocks.vue';
 
 const route = useRoute();
 const { t } = useI18n();
@@ -38,8 +39,9 @@ const tagsString = ref('');
 const regionsString = ref('');
 const statusChange = ref<string | null>(null);
 
-const images = ref<{ key: string; url: string; alt?: string; resourceId?: string }[]>([]);
+const images = ref<{ key: string; url: string; alt?: string; resourceId?: string; isMain?: boolean }[]>([]);
 const pendingFiles = ref<File[]>([]);
+const imagesSaving = ref(false);
 
 /** 从资源管理跳转携带的高亮资源 id（resourceId 匹配的图片加边框高亮） */
 const highlightResource = computed(() => String(route.query.highlight_resource || ''));
@@ -187,7 +189,9 @@ const form = ref({
   region_availability: [] as string[],
   name_translations: {} as Record<string, string>,
   description_translations: {} as Record<string, string>,
-  ai_description_translations: {} as Record<string, string>
+  ai_description_translations: {} as Record<string, string>,
+  /** 结构化详情块（字段受后端 DETAIL_BLOCK_FIELDS 白名单约束） */
+  detail_blocks: [] as Record<string, any>[]
 });
 
 const langOptions = [
@@ -323,17 +327,22 @@ onMounted(async () => {
       region_availability: p.region_availability || [],
       name_translations: p.name_translations || {},
       description_translations: p.description_translations || {},
-      ai_description_translations: p.ai_description_translations || {}
+      ai_description_translations: p.ai_description_translations || {},
+      detail_blocks: (p.detail_blocks || []) as Record<string, any>[]
     };
     loadLang('en');
     tagsString.value = (p.tags || []).join(', ');
     regionsString.value = (p.region_availability || []).join(', ');
-    images.value = (p.images || []).map((i: any) => ({
-      key: i.key || '',
-      url: i.url || '',
-      alt: i.alt || '',
-      resourceId: i.resource_id || ''
-    }));
+    images.value = (p.images || [])
+      .slice()
+      .sort((a: any, b: any) => Number(a.sort ?? 0) - Number(b.sort ?? 0))
+      .map((i: any) => ({
+        key: i.key || '',
+        url: i.url || '',
+        alt: i.alt || '',
+        resourceId: i.resource_id || '',
+        isMain: !!i.is_main
+      }));
     variants.value = p.variants || [];
     seoForm.value = {
       title: p.seo_title || '',
@@ -394,7 +403,60 @@ async function removeImage(idx: number) {
   } else {
     pendingFiles.value.splice(idx, 1);
   }
+  const wasMain = !!images.value[idx]?.isMain;
   images.value.splice(idx, 1);
+  // 主图被删除时由第一张接替（与后端 normalize_images 规则一致）
+  if (wasMain && images.value.length) images.value[0].isMain = true;
+}
+
+/** 调整图片顺序（下次保存图片整组时落库） */
+function moveImage(idx: number, delta: number) {
+  const j = idx + delta;
+  if (j < 0 || j >= images.value.length) return;
+  const arr = images.value;
+  const tmp = arr[idx];
+  arr[idx] = arr[j];
+  arr[j] = tmp;
+}
+
+/** 指定主图：整组唯一 */
+function setMainImage(idx: number) {
+  images.value = images.value.map((img, i) => ({ ...img, isMain: i === idx }));
+}
+
+/** 保存图片整组（排序 / 主图 / alt） */
+async function saveImages() {
+  if (!isEdit.value || !images.value.length) return;
+  imagesSaving.value = true;
+  error.value = '';
+  try {
+    const payload = images.value.map((img, idx) => ({
+      key: img.key,
+      url: img.url,
+      alt: img.alt || '',
+      is_main: !!img.isMain,
+      sort: idx,
+      resource_id: img.resourceId || undefined
+    }));
+    const res = await patch(`/api/admin/v1/products/${route.params.id}/images`, { images: payload });
+    const saved = (res.data?.data?.images || res.data?.images || []) as any[];
+    if (Array.isArray(saved) && saved.length) {
+      images.value = saved
+        .slice()
+        .sort((a: any, b: any) => Number(a.sort ?? 0) - Number(b.sort ?? 0))
+        .map((i: any) => ({
+          key: i.key || '',
+          url: i.url || '',
+          alt: i.alt || '',
+          resourceId: i.resource_id || '',
+          isMain: !!i.is_main
+        }));
+    }
+  } catch (e: any) {
+    error.value = e.response?.data?.detail || '图片保存失败';
+  } finally {
+    imagesSaving.value = false;
+  }
 }
 
 /** 组装保存载荷：代发必须绑定供应商；自采购清空供应商字段 */
@@ -725,24 +787,59 @@ async function reloadVariants() {
             v-for="(img, idx) in images"
             :key="img.key || idx"
             :ref="String(img.resourceId) === highlightResource ? setHighlightEl : undefined"
-            class="relative w-[100px] h-[100px] rounded-md overflow-hidden border border-[var(--n-border-color)] transition-all duration-300"
+            class="relative w-[140px] rounded-md overflow-hidden border border-[var(--n-border-color)] transition-all duration-300"
             :class="String(img.resourceId) === highlightResource ? 'ring-2 ring-green-500 border-green-500' : ''"
           >
-            <NImage :src="img.url" width="100" height="100" style="object-fit: cover" />
-            <NButton class="absolute top-0.5 right-0.5" size="tiny" circle type="error" @click="removeImage(idx)">
-              &times;
-            </NButton>
+            <div class="relative">
+              <NImage :src="img.url" width="140" height="140" style="object-fit: cover" />
+              <NTag v-if="img.isMain" size="tiny" type="success" class="absolute top-0.5 left-0.5">主图</NTag>
+              <NButton class="absolute top-0.5 right-0.5" size="tiny" circle type="error" @click="removeImage(idx)">
+                &times;
+              </NButton>
+            </div>
+            <NInput v-model:value="img.alt" size="tiny" placeholder="alt 文本" class="px-1 py-1" />
+            <NSpace size="small" class="px-1 pb-1" justify="space-between" align="center">
+              <NButton size="tiny" tertiary :disabled="idx === 0" @click="moveImage(idx, -1)">&larr;</NButton>
+              <NButton
+                size="tiny"
+                :type="img.isMain ? 'success' : 'default'"
+                :disabled="!!img.isMain"
+                @click="setMainImage(idx)"
+              >
+                {{ img.isMain ? '主图' : '设主图' }}
+              </NButton>
+              <NButton size="tiny" tertiary :disabled="idx === images.length - 1" @click="moveImage(idx, 1)">
+                &rarr;
+              </NButton>
+            </NSpace>
           </div>
         </div>
-        <NUpload
-          :multiple="true"
-          accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml,image/bmp"
-          :show-file-list="false"
-          :custom-request="handleUpload"
-          :disabled="uploading"
-        >
-          <NButton :loading="uploading">{{ $t('common.uploadImages') }}</NButton>
-        </NUpload>
+        <NSpace size="small" align="center">
+          <NUpload
+            :multiple="true"
+            accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml,image/bmp"
+            :show-file-list="false"
+            :custom-request="handleUpload"
+            :disabled="uploading"
+          >
+            <NButton :loading="uploading">{{ $t('common.uploadImages') }}</NButton>
+          </NUpload>
+          <NButton
+            v-if="isEdit"
+            type="primary"
+            :loading="imagesSaving"
+            :disabled="!images.length"
+            @click="saveImages"
+          >
+            保存图片排序 / 主图 / alt
+          </NButton>
+          <span v-if="isEdit" class="text-xs opacity-60">排序与主图改动需点击保存后生效</span>
+        </NSpace>
+      </NCard>
+
+      <!-- Structured detail blocks -->
+      <NCard title="商品详情块（结构化）" size="small" class="md:col-span-2">
+        <ProductDetailBlocks v-model:value="form.detail_blocks" />
       </NCard>
 
       <!-- Variants (edit only) -->
