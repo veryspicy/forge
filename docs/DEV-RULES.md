@@ -812,7 +812,7 @@ podman exec forge-postgres psql -U postgres -d forge -c "SELECT count(*) FROM di
 
 ---
 
-## 18. Admin 请求层超时兜底（失效连接场景）（强制）
+## 18. Admin 请求层与路由层自愈兜底（失效连接 / 旧产物场景）（强制）
 
 > **背景**：admin 后台服务重启后，旧标签页点击登录出现请求无限挂起（login 请求无响应），新标签页正常。根因是浏览器复用指向旧容器的失效 keep-alive 连接（half-open 连接），服务端静默不响应；仅依赖 axios `timeout` 的自愈逻辑在此场景下 XHR timeout 事件不触发，导致永久挂起。
 
@@ -837,6 +837,26 @@ podman exec forge-postgres psql -U postgres -d forge -c "SELECT count(*) FROM di
 - **禁止**只用新标签页验证——本问题仅在复用旧连接的标签页复现
 
 **反例（2026-08-26）**：admin 重启后旧标签页登录卡死，原代码已配置 XHR timeout(10s) + ECONNABORTED 自动刷新，但复用失效 keep-alive 连接时计时器不触发，请求永久挂起。修复：AbortController + setTimeout(10s) 主动 abort + `staleTimeoutFired` 标记识别，提交 73a2848（分支 fix/admin-stale-connection-reload）。
+
+### 18.4 分支二：旧标签页 chunk 加载失败的自愈（2026-09-27 补）
+
+**触发条件**：admin 重新构建/重建容器后，停留在旧页面的标签页通过路由懒加载请求已被替换的 chunk，动态 import 失败。
+
+**表现**：点菜单/点按钮无反应、路由跳转卡住或白屏；Console 报 `Failed to fetch dynamically imported module` / `Importing a module script failed`；该 chunk 请求可能被 SPA fallback 命中返回 `index.html`（HTML 当 JS 执行必然失败）。
+
+**背景**：admin 已用 `admin-assets-history` 卷持久化历史 assets（见 `docker/docker-compose.yml`），正常情况下重建后旧 chunk 仍可服务；本分支是历史卷缺失/被清理、或产物被替换时的兜底自愈。
+
+**执行步骤**：
+
+1. 自愈入口统一收敛在 `admin/src/service/request/stale-reload.ts`：`reloadOnStaleConnection({ quiet })`，与 §18.2 的失效连接刷新**共用同一个防循环计数**（`forge:stale-reload-count`，上限 3，请求成功即清零）
+2. 识别路径两条，缺一不可：`router.onError` 捕获路由懒加载失败（特征串见 `isChunkLoadError`）；`window.addEventListener('vite:preloadError')` 捕获 Vite 动态 import 失败事件并 `preventDefault()`
+3. chunk 失败走**静默刷新**（`quiet: true`）：不弹 `$message`——此时 message 组件自身可能就在未加载成功的 chunk 内，弹提示会二次抛错
+4. 部署验证：`build --no-cache` + `--force-recreate`，容器产物 grep `stale-reload-count` 或 `vite:preloadError` 确认已打包（§11.2）
+
+**禁止事项**：
+
+- **禁止**为 chunk 失败新开独立计数 key——两类异常共用计数，才能保证同一 tab 的刷新次数不被放大
+- **禁止**在 chunk 失败自愈中直接 `router.push` 原目标，必须先 reload 拉取新产物
 
 ---
 
