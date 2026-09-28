@@ -872,4 +872,42 @@ podman exec forge-postgres psql -U postgres -d forge -c "SELECT count(*) FROM di
 
 ---
 
-*最后更新：2026-09-04*
+## 20. 重建范围纪律与旧产物处置（强制）
+
+> **背景**：本地 podman-compose 环境下，容器常因 `io.podman.compose.config-hash` 标签缺失/不同步，导致"单服务重建"被判定为全量重建——实测 `up -d --force-recreate --no-deps admin` 仍会连带重建 gateway；不带服务名的 `up -d` 更会把整个依赖图重跑一遍。连带重建会更换容器 IP、清空容器内日志，既污染复现实验，也让排查证据丢失。
+
+### 20.1 重建范围纪律
+
+- **禁止**执行不带服务名的全量重建：`podman-compose ... up -d [--force-recreate]`、不带服务名的 `restart`（例外：显式全量重建走 §3.4 `rebuild-service.ps1 -Service all`，且执行前须向用户说明将重建哪些服务）
+- **禁止**把 `--no-deps` 当作"只重建一个服务"的保证：该参数在本环境下不改变连带重建行为（见 §17 踩坑记录），必须按实际结果核对
+- **强制**核对重建范围：重建前记录目标容器 `StartedAt`（`podman ps --format "{{.Names}}|{{.Status}}|{{.StartedAt}}"`），重建后逐个比对；出现非目标容器的 StartedAt 变化（如 gateway 被连带重建）必须**显式告知用户**，不得默认"只重建了某服务"
+- 需要真正精细的单容器重建时，不依赖 compose 的服务过滤：`podman rm -f <容器>` 后用等价方式单独起容器，再核对 StartedAt
+
+### 20.2 重建后必须提示旧标签页处置
+
+admin / portal 重建后，旧标签页持有的是**指向旧容器的失效连接与旧产物 chunk**（§18），必须主动提示用户：
+
+- 关闭旧标签页，或对当前页执行 `Ctrl+Shift+R` 硬刷新（入口 `http://127.0.0.1:8080/`，勿用 localhost——IPv6 会超时）
+- 前后端产物已变化时，禁止只用"新开标签页"验证就宣布问题解决（§18.3）
+- 重建执行完毕后，回复中必须包含"旧标签页需关闭/硬刷新"这一条
+
+### 20.3 网关 access log 必须落盘
+
+- nginx 访问日志**双写**：`/dev/stdout`（`podman logs` 实时看）+ `/var/log/nginx-persist/access.log`（compose 命名卷 `gateway-logs`，容器重建后不丢）
+- 落盘目录**必须**是镜像内无软链接的目录（镜像内 `/var/log/nginx/access.log` 软链到 `/dev/stdout`，直接挂载 `/var/log/nginx` 会让落盘失效）
+- `log_format` 是 **http 上下文**指令，必须写在 `server` 块**之外**；写在 `server` 内会报 `log_format directive is not allowed here`，表现为 gateway 容器 `Exited (1)` 且容器日志里看不到明确 error（**2026-09-28 已踩**）。改完 nginx.conf 先做语法预检再动运行栈：`podman run --rm -v "<仓库>\gateway\nginx.conf:/etc/nginx/conf.d/default.conf:ro" -v docker_gateway-logs:/var/log/nginx-persist nginx:alpine nginx -t`
+- 查看落盘日志：`podman exec forge-gateway tail -n 50 /var/log/nginx-persist/access.log`
+- 日志格式 `forge_main` 含 `rt / uct / urt / ua / us`：判断"请求是否到达网关、是否转发到后端"时必须先看这几个字段，禁止仅凭前端现象推断
+- 卷无自动轮转，排查结束后清空：`podman exec forge-gateway sh -c ': > /var/log/nginx-persist/access.log'`
+
+### 20.4 禁止事项（重申）
+
+- **禁止**重建后不核对 StartedAt 就宣布"只重建了某服务"
+- **禁止**在未查看网关（落盘）访问日志的情况下，对"请求是否到达网关/后端"下结论
+- **禁止**用"环境优化""整理"等中性词掩盖连带重建、日志清空等实际影响，必须直述范围与后果
+
+**反例（2026-09-27）**：为验证 admin 修复执行 `up -d --force-recreate --no-deps admin`，gateway 被连带重建（StartedAt 刷新、access log 随容器丢失），复现实验一度失去网关侧证据。
+
+---
+
+*最后更新：2026-09-28*
