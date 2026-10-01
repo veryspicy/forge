@@ -872,4 +872,35 @@ podman exec forge-postgres psql -U postgres -d forge -c "SELECT count(*) FROM di
 
 ---
 
-*最后更新：2026-09-04*
+## 20. Admin 页面冻结观测（stall watchdog）
+
+> **背景**：2026-09-28 出现「`login` / `me` 返回 200 后浏览器停发全部请求（含 30s 自检）」的冻结指纹，应用侧无死循环，判定为主线程级停转。为在下一次复现时一次性拿到证据链，前端内置冻结观测器，并配套网关日志侧检测脚本。
+
+### 20.1 前端观测器（`admin/src/utils/stall-watchdog.ts`）
+
+- **常驻心跳**：2s 心跳写 `sessionStorage`（`forge:stall-hb`，含当前阶段与最近 6 条阶段历史）；页面启动时若发现上一会话心跳陈旧 > 8s 且非正常退出，判定上一会话冻结并落结构化记录。
+- **阶段打点**：`markPhase(phase, extra)` 记录 app 启动、路由初始化、守卫、登录、请求生命周期、chunk 恢复等关键阶段，并同步刷新心跳（阶段历史仅内存维护 16 条）。
+- **结构化报告**：环形缓冲（12 条）落 `localStorage`（`forge:stall-reports`），跨刷新可回溯冻结现场。
+- **关键过渡**：`beginCriticalTransition` / `endCriticalTransition` 覆盖登录与路由导航（30s TTL 防漏调用悬挂）；自动刷新必须先用 `isCriticalTransitionActive()` 判断，避免刷新打断登录、导航。
+- **阻塞与长任务**：心跳定时器实际延迟 > 3s 判定主线程阻塞（后台节流场景不做判定）；内置 `PerformanceObserver`（longtask）统计，单次 > 1s 的长任务上报（5s 内不重复）。
+- **浏览器内自取**：`window.__forgeStallDump()` 打印报告，`window.__forgeStallReports()` 取报告数组，`window.__forgeStallClear()` 清空，`window.__forgeStallStats()` 查看当前阶段与长任务统计。
+
+### 20.2 网关日志侧检测（`scripts/analyze-admin-stalls.ps1`）
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\analyze-admin-stalls.ps1 -LogPath <gateway access log> -GapSeconds 30
+```
+
+- 按 client IP 聚合访问日志，输出同一客户端**静默间隔 ≥ 阈值**的时间窗（默认 30s），并标注该间隔前最后一条请求及是否为 `index.html` 自检。
+- 判读口径：间隔 ≥30s 且间隔前为自检请求 → 页面自检停发，属主线程冻结指纹；仅 `/api/*` 静默而自检仍持续 → 请求层问题，非冻结。
+- 报告默认写 `temp/admin-stall-gaps-<ts>.txt`（禁止提交）；脚本为 ASCII 文本（§1.5 规则 5），改动脚本本体先过 PowerShell Parser 预检（§1.5 规则 4）。
+
+### 20.3 复现时的取数顺序
+
+1. 冻结发生后先在浏览器控制台执行 `window.__forgeStallDump()` 取前端报告（或事后读 `forge:stall-reports`）。
+2. 取对应时段网关日志，跑 `analyze-admin-stalls.ps1` 定位静默窗口。
+3. 两份证据按时间戳对齐，确认「最后一帧打点 / 停发时刻 / 自检是否消失」三要素后再定根因；禁止仅凭单侧证据宣布结论。
+
+---
+
+*最后更新：2026-10-01*
