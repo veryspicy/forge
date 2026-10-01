@@ -9,6 +9,7 @@ import { SetupStoreId } from '@/enum';
 import { createStaticRoutes, getAuthVueRoutes } from '@/router/routes';
 import { ROOT_ROUTE } from '@/router/routes/builtin';
 import { getRouteName, getRoutePath } from '@/router/elegant/transform';
+import { markPhase } from '@/utils/stall-watchdog';
 import { useAuthStore } from '../auth';
 import { useTabStore } from '../tab';
 import {
@@ -153,6 +154,8 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
   async function initConstantRoute() {
     if (isInitConstantRoute.value) return;
 
+    markPhase('route:init-constant:start', { mode: authRouteMode.value });
+
     const staticRoute = createStaticRoutes();
 
     if (authRouteMode.value === 'static') {
@@ -173,10 +176,14 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
     setIsInitConstantRoute(true);
 
     tabStore.initHomeTab();
+
+    markPhase('route:init-constant:end');
   }
 
   /** Init auth route */
   async function initAuthRoute() {
+    markPhase('route:init-auth:start', { mode: authRouteMode.value });
+
     // check if user info is initialized
     if (!authStore.userInfo.userId) {
       await authStore.initUserInfo();
@@ -189,10 +196,14 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
     }
 
     tabStore.initHomeTab();
+
+    markPhase('route:init-auth:end');
   }
 
   /** Init static auth route */
   function initStaticAuthRoute() {
+    markPhase('route:static-auth:start');
+
     const { authRoutes: staticAuthRoutes } = createStaticRoutes();
 
     if (authStore.isStaticSuper) {
@@ -206,10 +217,14 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
     handleConstantAndAuthRoutes();
 
     setIsInitAuthRoute(true);
+
+    markPhase('route:static-auth:end');
   }
 
   /** Init dynamic auth route */
   async function initDynamicAuthRoute() {
+    markPhase('route:dynamic-auth:start');
+
     const { data, error } = await fetchGetUserRoutes();
 
     if (!error) {
@@ -224,7 +239,10 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
       handleUpdateRootRouteRedirect(home);
 
       setIsInitAuthRoute(true);
+
+      markPhase('route:dynamic-auth:end');
     } else {
+      markPhase('route:dynamic-auth:failed');
       // if fetch user routes failed, reset store
       authStore.resetStore();
     }
@@ -232,19 +250,34 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
 
   /** handle constant and auth routes */
   function handleConstantAndAuthRoutes() {
+    // 登录链路纯静态处理，但规模随路由增长；分步打点用于定位冻结发生在哪一段
+    markPhase('route:handle:start', { constant: constantRoutes.value.length, auth: authRoutes.value.length });
+
     const allRoutes = filterRoutesByDev([...constantRoutes.value, ...authRoutes.value]);
+
+    markPhase('route:filter-done', { total: allRoutes.length });
 
     const sortRoutes = sortRoutesByOrder(allRoutes);
 
+    markPhase('route:sort-done');
+
     const vueRoutes = getAuthVueRoutes(sortRoutes);
+
+    markPhase('route:transform-done', { vueRoutes: vueRoutes.length });
 
     resetVueRoutes();
 
     addRoutesToVueRouter(vueRoutes);
 
+    markPhase('route:add-routes-done');
+
     getGlobalMenus(sortRoutes);
 
+    markPhase('route:menus-done');
+
     getCacheRoutes(vueRoutes);
+
+    markPhase('route:handle:end');
   }
 
   /**

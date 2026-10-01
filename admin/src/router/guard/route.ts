@@ -3,6 +3,7 @@ import type { RouteKey, RoutePath } from '@elegant-router/types';
 import { useAuthStore } from '@/store/modules/auth';
 import { useRouteStore } from '@/store/modules/route';
 import { localStg } from '@/utils/storage';
+import { beginCriticalTransition, endCriticalTransition, markPhase } from '@/utils/stall-watchdog';
 import { getRouteName } from '@/router/elegant/transform';
 
 /**
@@ -12,52 +13,61 @@ import { getRouteName } from '@/router/elegant/transform';
  */
 export function createRouteGuard(router: Router) {
   router.beforeEach(async (to, from) => {
-    const location = await initRoute(to);
+    markPhase('guard:enter', { to: String(to.name ?? ''), from: String(from.name ?? '') });
+    // 路由过渡期间标记关键过渡：自动刷新的前置条件会推迟，避免导航被自动刷新打断
+    beginCriticalTransition('route-nav');
 
-    if (location) {
-      return location;
-    }
+    try {
+      const location = await initRoute(to);
 
-    const authStore = useAuthStore();
-
-    const rootRoute: RouteKey = 'root';
-    const loginRoute: RouteKey = 'login';
-
-    const isLogin = Boolean(localStg.get('token'));
-    const needLogin = !to.meta.constant;
-    const routeRoles = to.meta.roles || [];
-
-    const hasRole = authStore.userInfo.roles.some(role => routeRoles.includes(role));
-    const hasAuth = authStore.isStaticSuper || !routeRoles.length || hasRole;
-
-    // if it is login route when logged in, then switch to the root page
-    if (to.name === loginRoute && isLogin) {
-      return { name: rootRoute };
-    }
-
-    // if the route does not need login, then it is allowed to access directly
-    if (!needLogin) {
-      return handleRouteSwitch(to, from);
-    }
-
-    // the route need login but the user is not logged in, then switch to the login page
-    if (!isLogin) {
-      return { name: loginRoute, query: { redirect: to.fullPath } };
-    }
-
-    // if the user is logged in but does not have authorization,
-    // show a message and stay on current page or redirect to home
-    if (!hasAuth) {
-      window.$message?.warning('您没有权限访问该页面');
-      const rootRouteKey: RouteKey = 'root';
-      if (from.name && from.name !== rootRouteKey) {
-        return false;
+      if (location) {
+        return location;
       }
-      return { name: rootRouteKey };
-    }
 
-    // switch route normally
-    return handleRouteSwitch(to, from);
+      const authStore = useAuthStore();
+
+      const rootRoute: RouteKey = 'root';
+      const loginRoute: RouteKey = 'login';
+
+      const isLogin = Boolean(localStg.get('token'));
+      const needLogin = !to.meta.constant;
+      const routeRoles = to.meta.roles || [];
+
+      const hasRole = authStore.userInfo.roles.some(role => routeRoles.includes(role));
+      const hasAuth = authStore.isStaticSuper || !routeRoles.length || hasRole;
+
+      // if it is login route when logged in, then switch to the root page
+      if (to.name === loginRoute && isLogin) {
+        return { name: rootRoute };
+      }
+
+      // if the route does not need login, then it is allowed to access directly
+      if (!needLogin) {
+        return handleRouteSwitch(to, from);
+      }
+
+      // the route need login but the user is not logged in, then switch to the login page
+      if (!isLogin) {
+        return { name: loginRoute, query: { redirect: to.fullPath } };
+      }
+
+      // if the user is logged in but does not have authorization,
+      // show a message and stay on current page or redirect to home
+      if (!hasAuth) {
+        window.$message?.warning('您没有权限访问该页面');
+        const rootRouteKey: RouteKey = 'root';
+        if (from.name && from.name !== rootRouteKey) {
+          return false;
+        }
+        return { name: rootRouteKey };
+      }
+
+      // switch route normally
+      return handleRouteSwitch(to, from);
+    } finally {
+      markPhase('guard:leave');
+      endCriticalTransition('route-nav');
+    }
   });
 }
 
@@ -71,6 +81,8 @@ async function initRoute(to: RouteLocationNormalized): Promise<RouteLocationRaw 
 
   const notFoundRoute: RouteKey = 'not-found';
   const isNotFoundRoute = to.name === notFoundRoute;
+
+  markPhase('guard:init-route:start', { path: to.fullPath.slice(0, 120), name: String(to.name ?? '') });
 
   // if the constant route is not initialized, then initialize the constant route
   if (!routeStore.isInitConstantRoute) {
@@ -113,7 +125,9 @@ async function initRoute(to: RouteLocationNormalized): Promise<RouteLocationRaw 
 
   if (!routeStore.isInitAuthRoute) {
     // initialize the auth route
+    markPhase('guard:init-auth:start');
     await routeStore.initAuthRoute();
+    markPhase('guard:init-auth:end');
 
     // the route is captured by the "not-found" route because the auth route is not initialized
     // after the auth route is initialized, redirect to the original route
@@ -137,11 +151,15 @@ async function initRoute(to: RouteLocationNormalized): Promise<RouteLocationRaw 
   // the auth route is initialized
   // it is not the "not-found" route, then it is allowed to access
   if (!isNotFoundRoute) {
+    markPhase('guard:init-route:end');
+
     return null;
   }
 
   // it is captured by the "not-found" route, then check whether the route exists
   const exist = await routeStore.getIsAuthRouteExist(to.path as RoutePath);
+
+  markPhase('guard:init-route:end', { exist });
 
   if (exist) {
     window.$message?.warning('您没有权限访问该页面');
