@@ -163,10 +163,13 @@ if ($sorted.Count -eq 0) {
   $limit = [math]::Min($TopN, $sorted.Count)
   for ($i = 0; $i -lt $limit; $i++) {
     $item = $sorted[$i]
-    [void]$lines.Add(
-      "{0,8} | {1} | {2} -> {3} | {4} ({5}) | {6}" -f
-        $item.GapSeconds, $item.Ip, $item.From, $item.To, $item.LastRequest, $item.LastStatus, $item.LastWasSelfCheck
+    # NOTE: the comma list after -f must be wrapped in @(), otherwise it is parsed as
+    # multiple arguments when it sits inside a method-call argument list (PS 5.1).
+    $rowArgs = @(
+      $item.GapSeconds, $item.Ip, $item.From, $item.To,
+      $item.LastRequest, $item.LastStatus, $item.LastWasSelfCheck
     )
+    [void]$lines.Add(("{0,8} | {1} | {2} -> {3} | {4} ({5}) | {6}" -f $rowArgs))
   }
   [void]$lines.Add('')
   [void]$lines.Add('How to read:')
