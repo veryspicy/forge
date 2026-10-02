@@ -371,11 +371,11 @@ class TestAdminOrdersAPI:
         assert body["status"] == "shipped"
 
     def test_ship_multipackage_moves_order_to_shipped(self, test_client):
-        from forge.api.admin.v1 import orders as orders_api
         from forge.api.admin.v1.orders import ORMShipment
         from forge.infrastructure.persistence.repositories.order_repo import SQLAlchemyCustomerOrderRepository
 
         order = _FakeOrder(status="procuring")
+        order.review_status = {"approved": True}  # 已审核通过：本用例只验证多包裹登记
         db = _fake_db_for_order(order)
         db.add = MagicMock()
 
@@ -385,20 +385,11 @@ class TestAdminOrdersAPI:
         _setup_auth(test_client)
         test_client.app.dependency_overrides[dependencies.get_db] = _fake_get_db
         try:
-            with (
-                patch.object(
-                    SQLAlchemyCustomerOrderRepository,
-                    "mark_shipped",
-                    new_callable=AsyncMock,
-                ) as mocked,
-                # 站点门禁开关关闭：本用例只验证多包裹登记
-                patch.object(
-                    orders_api,
-                    "_require_review_before_ship",
-                    new_callable=AsyncMock,
-                    return_value=False,
-                ),
-            ):
+            with patch.object(
+                SQLAlchemyCustomerOrderRepository,
+                "mark_shipped",
+                new_callable=AsyncMock,
+            ) as mocked:
 
                 async def _mark_shipped(db, order, tracking_number=None, carrier=None):
                     order.status = "shipped"
@@ -426,10 +417,10 @@ class TestAdminOrdersAPI:
         assert [s.tracking_number for s in added] == ["TRK-1", "TRK-2"]
 
     def test_ship_append_package_keeps_shipped_state(self, test_client):
-        from forge.api.admin.v1 import orders as orders_api
         from forge.infrastructure.persistence.repositories.order_repo import SQLAlchemyCustomerOrderRepository
 
         order = _FakeOrder(status="shipped")
+        order.review_status = {"approved": True}  # 已审核通过：本用例只验证补发包裹登记
         db = _fake_db_for_order(order)
         db.add = MagicMock()
 
@@ -439,20 +430,11 @@ class TestAdminOrdersAPI:
         _setup_auth(test_client)
         test_client.app.dependency_overrides[dependencies.get_db] = _fake_get_db
         try:
-            with (
-                patch.object(
-                    SQLAlchemyCustomerOrderRepository,
-                    "mark_shipped",
-                    new_callable=AsyncMock,
-                ) as mocked,
-                # 站点门禁开关关闭：本用例只验证补发包裹登记
-                patch.object(
-                    orders_api,
-                    "_require_review_before_ship",
-                    new_callable=AsyncMock,
-                    return_value=False,
-                ),
-            ):
+            with patch.object(
+                SQLAlchemyCustomerOrderRepository,
+                "mark_shipped",
+                new_callable=AsyncMock,
+            ) as mocked:
                 resp = test_client.post(
                     "/api/admin/v1/orders/FG-TEST-0001/ship",
                     json={"packages": [{"carrier": "UPS", "tracking_number": "TRK-3"}]},
@@ -463,6 +445,34 @@ class TestAdminOrdersAPI:
         assert resp.json()["status"] == "shipped"
         mocked.assert_not_awaited()
         assert db.add.call_count == 1
+
+    def test_ship_blocked_when_order_not_reviewed(self, test_client):
+        """硬门禁：订单未审核通过时禁止发货（不依赖站点开关）。"""
+        from forge.infrastructure.persistence.repositories.order_repo import SQLAlchemyCustomerOrderRepository
+
+        order = _FakeOrder(status="confirmed")  # review_status 默认空 = 未审核
+        db = _fake_db_for_order(order)
+
+        async def _fake_get_db():
+            yield db
+
+        _setup_auth(test_client)
+        test_client.app.dependency_overrides[dependencies.get_db] = _fake_get_db
+        try:
+            with patch.object(
+                SQLAlchemyCustomerOrderRepository,
+                "mark_shipped",
+                new_callable=AsyncMock,
+            ) as mocked:
+                resp = test_client.post(
+                    "/api/admin/v1/orders/FG-TEST-0001/ship",
+                    json={"packages": [{"carrier": "UPS", "tracking_number": "TRK-9"}]},
+                )
+        finally:
+            test_client.app.dependency_overrides.clear()
+        assert resp.status_code == 409
+        mocked.assert_not_awaited()
+        assert db.add.call_count == 0
 
     def test_ship_requires_packages(self, test_client):
         order = _FakeOrder(status="confirmed")
@@ -479,7 +489,6 @@ class TestAdminOrdersAPI:
         assert resp.status_code == 422
 
     def test_detail_returns_shipments_and_timeline(self, test_client):
-        from forge.api.admin.v1 import orders as orders_api
         from forge.infrastructure.persistence.repositories.order_repo import SQLAlchemyCustomerOrderRepository
         from forge.infrastructure.persistence.repositories.return_repo import SQLAlchemyReturnRepository
 
@@ -499,18 +508,12 @@ class TestAdminOrdersAPI:
                     new_callable=AsyncMock,
                     return_value=[],
                 ),
-                # 详情新增售后区块与站点门禁开关，单测以替身隔离 DB 依赖
+                # 详情新增售后区块，单测以替身隔离 DB 依赖
                 patch.object(
                     SQLAlchemyReturnRepository,
                     "list_by_order",
                     new_callable=AsyncMock,
                     return_value=[],
-                ),
-                patch.object(
-                    orders_api,
-                    "_require_review_before_ship",
-                    new_callable=AsyncMock,
-                    return_value=False,
                 ),
             ):
                 resp = test_client.get("/api/admin/v1/orders/FG-TEST-0001")
@@ -524,7 +527,6 @@ class TestAdminOrdersAPI:
         assert "shipped" in timeline_statuses
 
     def test_detail_timeline_includes_refunded_for_refunded_order(self, test_client):
-        from forge.api.admin.v1 import orders as orders_api
         from forge.infrastructure.persistence.repositories.order_repo import SQLAlchemyCustomerOrderRepository
         from forge.infrastructure.persistence.repositories.return_repo import SQLAlchemyReturnRepository
 
@@ -543,18 +545,12 @@ class TestAdminOrdersAPI:
                     new_callable=AsyncMock,
                     return_value=[],
                 ),
-                # 详情新增售后区块与站点门禁开关，单测以替身隔离 DB 依赖
+                # 详情新增售后区块，单测以替身隔离 DB 依赖
                 patch.object(
                     SQLAlchemyReturnRepository,
                     "list_by_order",
                     new_callable=AsyncMock,
                     return_value=[],
-                ),
-                patch.object(
-                    orders_api,
-                    "_require_review_before_ship",
-                    new_callable=AsyncMock,
-                    return_value=False,
                 ),
             ):
                 resp = test_client.get("/api/admin/v1/orders/FG-TEST-0001")
