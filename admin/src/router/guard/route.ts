@@ -123,6 +123,14 @@ async function initRoute(to: RouteLocationNormalized): Promise<RouteLocationRaw 
     return location;
   }
 
+  // 残留态校正：标记为已初始化、但首页 auth 路由实际未注册（上一轮登陆链路或 reset 后遗留的 latch），
+  // 先复位标记，让下面的 initAuthRoute 真正走一遍补注册；否则 dashboard 缺失会落入重定向环
+  if (routeStore.isInitAuthRoute && !routeStore.getIsAuthRouteRegistered(routeStore.routeHome as RouteKey)) {
+    markPhase('guard:stale-auth-flag-reset', { home: routeStore.routeHome });
+
+    routeStore.setIsInitAuthRoute(false);
+  }
+
   if (!routeStore.isInitAuthRoute) {
     // initialize the auth route
     markPhase('guard:init-auth:start');
@@ -163,7 +171,17 @@ async function initRoute(to: RouteLocationNormalized): Promise<RouteLocationRaw 
 
   if (exist) {
     window.$message?.warning('您没有权限访问该页面');
-    return { name: 'root' as RouteKey };
+
+    // 环兜底：root 会重定向到首页，若首页路由未注册，返回 root 将形成
+    // root → 首页 → not-found → root 无限重定向环（同步重入导致主线程停转）。
+    // 此时宁可停在 not-found，也不再跳 root。
+    if (routeStore.getIsAuthRouteRegistered(routeStore.routeHome as RouteKey)) {
+      return { name: 'root' as RouteKey };
+    }
+
+    markPhase('guard:not-found:cycle-guard', { path: to.path.slice(0, 120) });
+
+    return null;
   }
 
   return null;

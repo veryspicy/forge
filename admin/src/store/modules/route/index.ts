@@ -138,6 +138,11 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
 
     routeStore.$reset();
 
+    // $reset 不会复位 useBoolean 的内部状态，必须显式复位 auth 路由标记。
+    // 否则残留的 isInitAuthRoute=true 会让下次登录跳过 initAuthRoute，
+    // 导致 dashboard 等 auth 路由未注册，落入 not-found ↔ root 重定向环。
+    setIsInitAuthRoute(false);
+
     resetVueRoutes();
 
     // after reset store, need to re-init constant route
@@ -343,6 +348,19 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
   }
 
   /**
+   * Get is route registered in vue router
+   *
+   * 用于识别「标记已初始化但路由实际未注册」的残留态，避免跳过补注册
+   *
+   * @param routeKey Route key
+   */
+  function getIsAuthRouteRegistered(routeKey: RouteKey) {
+    if (!routeKey) return false;
+
+    return router.hasRoute(routeKey);
+  }
+
+  /**
    * Get selected menu key path
    *
    * @param selectedKey Selected menu key
@@ -375,6 +393,7 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
     isInitAuthRoute,
     setIsInitAuthRoute,
     getIsAuthRouteExist,
+    getIsAuthRouteRegistered,
     getSelectedMenuKeyPath,
     onRouteSwitchWhenLoggedIn,
     onRouteSwitchWhenNotLoggedIn
