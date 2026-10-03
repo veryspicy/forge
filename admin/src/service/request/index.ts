@@ -5,13 +5,13 @@ import { localStg } from '@/utils/storage';
 import { markPhase } from '@/utils/stall-watchdog';
 import { getServiceBaseURL } from '@/utils/service';
 import { $t } from '@/locales';
+import { reloadOnStaleConnection, STALE_RELOAD_KEY } from './stale-reload';
 import type { RequestInstanceState } from './type';
 
 const isHttpProxy = import.meta.env.DEV && import.meta.env.VITE_HTTP_PROXY === 'Y';
 const { baseURL } = getServiceBaseURL(import.meta.env, isHttpProxy);
 
-/** 服务重启后旧页面复用失效 keep-alive 连接导致请求挂起，超时后自动刷新的防循环计数 key */
-const STALE_RELOAD_KEY = 'forge:stale-reload-count';
+// 失效连接 / 旧产物 chunk 的自愈刷新与防循环计数统一收敛在 ./stale-reload（见 docs/DEV-RULES.md §18）
 
 /** 请求超时上限：服务重建/重启后旧连接失效时，避免请求无限挂起（@sa/axios 默认 10s，显式声明防包默认值变化） */
 const REQUEST_TIMEOUT = 10_000;
@@ -107,16 +107,10 @@ export const request = createFlatRequest(
         error.code === BACKEND_ERROR_CODE && [502, 503, 504].includes(error.response?.status || 0);
       const isNetworkError = error.code === 'ERR_NETWORK';
       if (isXhrTimeout || isForcedAbort || isBackendUnavailable || isNetworkError) {
-        const count = Number(sessionStorage.getItem(STALE_RELOAD_KEY) || '0') + 1;
-        sessionStorage.setItem(STALE_RELOAD_KEY, String(count));
-        if (count <= 3) {
-          window.$message?.warning($t('request.timeoutReloading'));
-          window.setTimeout(() => {
-            window.location.reload();
-          }, 800);
+        // 计数与刷新动作统一在 ./stale-reload（与 chunk 加载失败共用同一防循环计数）
+        if (reloadOnStaleConnection()) {
           return;
         }
-        sessionStorage.removeItem(STALE_RELOAD_KEY);
       }
 
       // ---- 错误提示统一收敛（契约见 docs/ERROR-CODE-CONVENTION.md）----
