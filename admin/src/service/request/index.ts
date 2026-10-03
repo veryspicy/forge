@@ -2,6 +2,7 @@ import type { AxiosResponse } from 'axios';
 import { BACKEND_ERROR_CODE, createFlatRequest } from '@sa/axios';
 import { useAuthStore } from '@/store/modules/auth';
 import { localStg } from '@/utils/storage';
+import { markPhase } from '@/utils/stall-watchdog';
 import { getServiceBaseURL } from '@/utils/service';
 import { $t } from '@/locales';
 import type { RequestInstanceState } from './type';
@@ -43,6 +44,7 @@ export const request = createFlatRequest(
       }
       // 请求成功即视为连接已恢复正常，清零超时刷新计数
       sessionStorage.removeItem(STALE_RELOAD_KEY);
+      markPhase('req:done', { url: String(response.config.url || '').split('?')[0].slice(0, 120) });
       return response.data;
     },
     async onRequest(config) {
@@ -50,6 +52,12 @@ export const request = createFlatRequest(
       if (token) {
         Object.assign(config.headers, { Authorization: `Bearer ${token}` });
       }
+
+      // 冻结定位打点：记录挂起请求，冻结报告可回溯到"停在哪一个请求上"（仅记 pathname，不带参数）
+      markPhase('req:pending', {
+        method: config.method || 'get',
+        url: String(config.url || '').split('?')[0].slice(0, 120)
+      });
 
       // 应用层强制超时兜底：浏览器复用失效 keep-alive 连接时，XHR timeout 计时器可能不触发，
       // 请求会无限挂起（自愈逻辑进不去）。这里用 AbortController 主动中断——进程内操作，
@@ -72,6 +80,12 @@ export const request = createFlatRequest(
       return null;
     },
     onError(error) {
+      markPhase('req:fail', {
+        code: error.code,
+        status: error.response?.status,
+        url: String(error.config?.url || '').split('?')[0].slice(0, 120)
+      });
+
       // 请求失败同样清理强制超时定时器
       const staleConfig = error.config as
         | (typeof error.config & { staleTimer?: number; staleTimeoutFired?: boolean })
