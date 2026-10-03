@@ -15,6 +15,14 @@ overrides:
   svgo@^4: 4.1.0
   nanoid@^3: 3.3.18
   postcss@^8: 8.5.23
-  brace-expansion@^1: 1.1.18
-  brace-expansion@^2: 2.1.4
-  brace-expansion@^5: 5.0.9
+  brace-expansion@^1: 1.1.21
+  brace-expansion@^2: 2.1.7
+  brace-expansion@^5: 5.0.12
+  devalue@^5: 5.9.4
+# 以下高危 advisory 的上游修复版本尚未发布到 npm，定点豁免；上游发布后应移除
+#   braces (GHSA-vfj7-8cjw-p6xm)     待发布 >=3.0.4
+#   node-forge (GHSA-86w9-cpqp-85rv) 待发布 >=1.4.1
+auditConfig:
+  ignoreGhsas:
+    - GHSA-vfj7-8cjw-p6xm
+    - GHSA-86w9-cpqp-85rv
