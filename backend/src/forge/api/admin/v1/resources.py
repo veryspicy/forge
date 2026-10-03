@@ -521,11 +521,7 @@ async def list_trash(
     ref_map: dict[str, list[dict[str, str]]] = {}
     if rows:
         ref_rows = (
-            (
-                await db.execute(
-                    select(ORMResourceRef).where(ORMResourceRef.resource_id.in_([r.id for r in rows]))
-                )
-            )
+            (await db.execute(select(ORMResourceRef).where(ORMResourceRef.resource_id.in_([r.id for r in rows]))))
             .scalars()
             .all()
         )
@@ -1047,15 +1043,11 @@ class SoftDeleteResult(TypedDict):
 
 def _serialize_refs(refs: Sequence[ORMResourceRef]) -> list[dict[str, str]]:
     """引用摘要（ref_type / ref_id / ref_label 快照，供前端展示引用位置）。"""
-    return [
-        {"ref_type": str(r.ref_type), "ref_id": str(r.ref_id), "ref_label": str(r.ref_label)} for r in refs
-    ]
+    return [{"ref_type": str(r.ref_type), "ref_id": str(r.ref_id), "ref_label": str(r.ref_label)} for r in refs]
 
 
 async def _load_refs(db: AsyncSession, resource_id: uuid.UUID) -> Sequence[ORMResourceRef]:
-    return (
-        (await db.execute(select(ORMResourceRef).where(ORMResourceRef.resource_id == resource_id))).scalars().all()
-    )
+    return (await db.execute(select(ORMResourceRef).where(ORMResourceRef.resource_id == resource_id))).scalars().all()
 
 
 async def _soft_delete(db: AsyncSession, resource_id: uuid.UUID) -> SoftDeleteResult | None:

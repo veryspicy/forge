@@ -378,7 +378,7 @@ async function restoreTrashSelection() {
 }
 
 /** 回收站引用清单渲染（用于彻底删除前的裂图知情提示） */
-function renderTrashPurgeVNode(list: ResourceItem[], dialogApi: any) {
+function renderTrashPurgeVNode(list: ResourceItem[]) {
   return h('div', { class: 'text-left text-xs' }, [
     h(
       'div',
@@ -439,9 +439,9 @@ async function purgeTrashSelection() {
   const ids = Array.from(trashSelected.value);
   const referenced = trashItems.value.filter(it => ids.includes(it.id) && (it.ref_count ?? 0) > 0);
   if (referenced.length) {
-    const d = dialog.warning({
+    dialog.warning({
       title: `${referenced.length} 个资源仍被引用`,
-      content: () => renderTrashPurgeVNode(referenced, d),
+      content: () => renderTrashPurgeVNode(referenced),
       positiveText: '仍要彻底删除',
       negativeText: '取消',
       onPositiveClick: () => runPurge(ids, true)
@@ -470,12 +470,11 @@ async function emptyTrashAll() {
         const data = res?.data?.data ?? res?.data ?? res;
         if (data?.blocked && (data?.referenced ?? []).length) {
           const referenced: any[] = data.referenced;
-          const d = dialog.warning({
+          dialog.warning({
             title: `回收站仍有 ${referenced.length} 个资源被引用`,
             content: () =>
               renderTrashPurgeVNode(
-                referenced.map((it: any) => ({ ...it, ref_count: it.ref_count ?? it.refs?.length ?? 0, refs: it.refs })),
-                d
+                referenced.map((it: any) => ({ ...it, ref_count: it.ref_count ?? it.refs?.length ?? 0, refs: it.refs }))
               ),
             positiveText: '仍要清空（引用处将裂图）',
             negativeText: '取消',
