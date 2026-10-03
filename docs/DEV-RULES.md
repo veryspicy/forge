@@ -330,6 +330,26 @@ powershell -ExecutionPolicy Bypass -File .\rebuild-service.ps1 -Service admin -S
 
 **反例（2026-08-30）**：首页 index.vue 两处商品卡片同时并行 edit，第一处（AI 推荐区）被第二处覆盖丢失，容器内文件只剩第二处修改；grep/浏览器验证均显示第一处仍为旧代码，浪费一轮排查。串行重做第一处后一次通过。
 
+### 8.6 禁止堆砌：先复用与精简，再新增实现
+
+**铁律**：在**完成功能的前提下**，优先复用现有实现并精简代码，**禁止**为达成功能而堆砌第二套重复实现。功能完成后必须回头删除被取代的历史冗余代码。
+
+**触发条件**：任何新增功能、新增接口 / 组件 / 工具函数，或改造既有流程的编码任务。
+
+**执行步骤**：
+
+1. **先搜后写**：动手前在对应模块内检索关键词（函数名 / API 路径 / 组件名 / 字段名），确认项目里是否已有同类实现。
+2. **复用优先**：已有实现能满足则直接调用；不足则**原地扩展**（加参数 / 加分支 / 加字段），禁止复制一份改名再做。
+3. **精简收口**：新实现落地后，在同一分支内删除被取代的旧实现——死代码、重复分支、已无引用的旧函数 / 旧组件 / 旧接口 / 旧 i18n 键 / 旧样式 / 失效测试桩，一并清理。
+4. **例外留痕**：若新旧实现必须并存（灰度、回滚、数据兼容），须在代码注释或 PLAN 文档中写明**保留原因与清理期限**，否则一律视为冗余。
+5. **交付前自检**：提交前核对 diff，逐条确认「无重复可复用实现残留」「被取代的旧代码已删除」。
+
+**理由**：重复实现会让同一业务出现多个真相源，改一处漏一处即产生不一致缺陷；冗余代码还会放大排查范围，让定位成本成倍上升。功能能用不等于实现合格。
+
+**违反后果**：同一逻辑两处维护，需求变更只改一处，线上出现"时好时坏"的行为差异；排查时误把历史残留当成设计意图，越查越偏。
+
+**反例**：为新增页面复制一份已有组件再改样式（而非通过 props / variant 复用），后续需求变更只改了原件，复制件成为长期残留的影子实现；或新增查询接口时另起一套 SQL，而未扩展既有 repository 方法，导致同一兜底规则出现两处维护点。
+
 ---
 
 ## 9. 会话启动上下文恢复（强制）
@@ -812,7 +832,7 @@ podman exec forge-postgres psql -U postgres -d forge -c "SELECT count(*) FROM di
 
 ---
 
-## 18. Admin 请求层超时兜底（失效连接场景）（强制）
+## 18. Admin 请求层与路由层自愈兜底（失效连接 / 旧产物场景）（强制）
 
 > **背景**：admin 后台服务重启后，旧标签页点击登录出现请求无限挂起（login 请求无响应），新标签页正常。根因是浏览器复用指向旧容器的失效 keep-alive 连接（half-open 连接），服务端静默不响应；仅依赖 axios `timeout` 的自愈逻辑在此场景下 XHR timeout 事件不触发，导致永久挂起。
 
@@ -837,6 +857,26 @@ podman exec forge-postgres psql -U postgres -d forge -c "SELECT count(*) FROM di
 - **禁止**只用新标签页验证——本问题仅在复用旧连接的标签页复现
 
 **反例（2026-08-26）**：admin 重启后旧标签页登录卡死，原代码已配置 XHR timeout(10s) + ECONNABORTED 自动刷新，但复用失效 keep-alive 连接时计时器不触发，请求永久挂起。修复：AbortController + setTimeout(10s) 主动 abort + `staleTimeoutFired` 标记识别，提交 73a2848（分支 fix/admin-stale-connection-reload）。
+
+### 18.4 分支二：旧标签页 chunk 加载失败的自愈（2026-09-27 补）
+
+**触发条件**：admin 重新构建/重建容器后，停留在旧页面的标签页通过路由懒加载请求已被替换的 chunk，动态 import 失败。
+
+**表现**：点菜单/点按钮无反应、路由跳转卡住或白屏；Console 报 `Failed to fetch dynamically imported module` / `Importing a module script failed`；该 chunk 请求可能被 SPA fallback 命中返回 `index.html`（HTML 当 JS 执行必然失败）。
+
+**背景**：admin 已用 `admin-assets-history` 卷持久化历史 assets（见 `docker/docker-compose.yml`），正常情况下重建后旧 chunk 仍可服务；本分支是历史卷缺失/被清理、或产物被替换时的兜底自愈。
+
+**执行步骤**：
+
+1. 自愈入口统一收敛在 `admin/src/service/request/stale-reload.ts`：`reloadOnStaleConnection({ quiet })`，与 §18.2 的失效连接刷新**共用同一个防循环计数**（`forge:stale-reload-count`，上限 3，请求成功即清零）
+2. 识别路径两条，缺一不可：`router.onError` 捕获路由懒加载失败（特征串见 `isChunkLoadError`）；`window.addEventListener('vite:preloadError')` 捕获 Vite 动态 import 失败事件并 `preventDefault()`
+3. chunk 失败走**静默刷新**（`quiet: true`）：不弹 `$message`——此时 message 组件自身可能就在未加载成功的 chunk 内，弹提示会二次抛错
+4. 部署验证：`build --no-cache` + `--force-recreate`，容器产物 grep `stale-reload-count` 或 `vite:preloadError` 确认已打包（§11.2）
+
+**禁止事项**：
+
+- **禁止**为 chunk 失败新开独立计数 key——两类异常共用计数，才能保证同一 tab 的刷新次数不被放大
+- **禁止**在 chunk 失败自愈中直接 `router.push` 原目标，必须先 reload 拉取新产物
 
 ---
 
@@ -872,18 +912,49 @@ podman exec forge-postgres psql -U postgres -d forge -c "SELECT count(*) FROM di
 
 ---
 
-## 20. 重建范围纪律与旧产物处置（强制）
+## 20. Admin 页面冻结观测（stall watchdog）
+
+> **背景**：2026-09-28 出现「`login` / `me` 返回 200 后浏览器停发全部请求（含 30s 自检）」的冻结指纹，应用侧无死循环，判定为主线程级停转。为在下一次复现时一次性拿到证据链，前端内置冻结观测器，并配套网关日志侧检测脚本。
+
+### 20.1 前端观测器（`admin/src/utils/stall-watchdog.ts`）
+
+- **常驻心跳**：2s 心跳写 `sessionStorage`（`forge:stall-hb`，含当前阶段与最近 6 条阶段历史）；页面启动时若发现上一会话心跳陈旧 > 8s 且非正常退出，判定上一会话冻结并落结构化记录。
+- **阶段打点**：`markPhase(phase, extra)` 记录 app 启动、路由初始化、守卫、登录、请求生命周期、chunk 恢复等关键阶段，并同步刷新心跳（阶段历史仅内存维护 16 条）。
+- **结构化报告**：环形缓冲（12 条）落 `localStorage`（`forge:stall-reports`），跨刷新可回溯冻结现场。
+- **关键过渡**：`beginCriticalTransition` / `endCriticalTransition` 覆盖登录与路由导航（30s TTL 防漏调用悬挂）；自动刷新必须先用 `isCriticalTransitionActive()` 判断，避免刷新打断登录、导航。
+- **阻塞与长任务**：心跳定时器实际延迟 > 3s 判定主线程阻塞（后台节流场景不做判定）；内置 `PerformanceObserver`（longtask）统计，单次 > 1s 的长任务上报（5s 内不重复）。
+- **浏览器内自取**：`window.__forgeStallDump()` 打印报告，`window.__forgeStallReports()` 取报告数组，`window.__forgeStallClear()` 清空，`window.__forgeStallStats()` 查看当前阶段与长任务统计。
+
+### 20.2 网关日志侧检测（`scripts/analyze-admin-stalls.ps1`）
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\analyze-admin-stalls.ps1 -LogPath <gateway access log> -GapSeconds 30
+```
+
+- 按 client IP 聚合访问日志，输出同一客户端**静默间隔 ≥ 阈值**的时间窗（默认 30s），并标注该间隔前最后一条请求及是否为 `index.html` 自检。
+- 判读口径：间隔 ≥30s 且间隔前为自检请求 → 页面自检停发，属主线程冻结指纹；仅 `/api/*` 静默而自检仍持续 → 请求层问题，非冻结。
+- 报告默认写 `temp/admin-stall-gaps-<ts>.txt`（禁止提交）；脚本为 ASCII 文本（§1.5 规则 5），改动脚本本体先过 PowerShell Parser 预检（§1.5 规则 4）。
+
+### 20.3 复现时的取数顺序
+
+1. 冻结发生后先在浏览器控制台执行 `window.__forgeStallDump()` 取前端报告（或事后读 `forge:stall-reports`）。
+2. 取对应时段网关日志，跑 `analyze-admin-stalls.ps1` 定位静默窗口。
+3. 两份证据按时间戳对齐，确认「最后一帧打点 / 停发时刻 / 自检是否消失」三要素后再定根因；禁止仅凭单侧证据宣布结论。
+
+---
+
+## 21. 重建范围纪律与旧产物处置（强制）
 
 > **背景**：本地 podman-compose 环境下，容器常因 `io.podman.compose.config-hash` 标签缺失/不同步，导致"单服务重建"被判定为全量重建——实测 `up -d --force-recreate --no-deps admin` 仍会连带重建 gateway；不带服务名的 `up -d` 更会把整个依赖图重跑一遍。连带重建会更换容器 IP、清空容器内日志，既污染复现实验，也让排查证据丢失。
 
-### 20.1 重建范围纪律
+### 21.1 重建范围纪律
 
 - **禁止**执行不带服务名的全量重建：`podman-compose ... up -d [--force-recreate]`、不带服务名的 `restart`（例外：显式全量重建走 §3.4 `rebuild-service.ps1 -Service all`，且执行前须向用户说明将重建哪些服务）
 - **禁止**把 `--no-deps` 当作"只重建一个服务"的保证：该参数在本环境下不改变连带重建行为（见 §17 踩坑记录），必须按实际结果核对
 - **强制**核对重建范围：重建前记录目标容器 `StartedAt`（`podman ps --format "{{.Names}}|{{.Status}}|{{.StartedAt}}"`），重建后逐个比对；出现非目标容器的 StartedAt 变化（如 gateway 被连带重建）必须**显式告知用户**，不得默认"只重建了某服务"
 - 需要真正精细的单容器重建时，不依赖 compose 的服务过滤：`podman rm -f <容器>` 后用等价方式单独起容器，再核对 StartedAt
 
-### 20.2 重建后必须提示旧标签页处置
+### 21.2 重建后必须提示旧标签页处置
 
 admin / portal 重建后，旧标签页持有的是**指向旧容器的失效连接与旧产物 chunk**（§18），必须主动提示用户：
 
@@ -891,7 +962,7 @@ admin / portal 重建后，旧标签页持有的是**指向旧容器的失效连
 - 前后端产物已变化时，禁止只用"新开标签页"验证就宣布问题解决（§18.3）
 - 重建执行完毕后，回复中必须包含"旧标签页需关闭/硬刷新"这一条
 
-### 20.3 网关 access log 必须落盘
+### 21.3 网关 access log 必须落盘
 
 - nginx 访问日志**双写**：`/dev/stdout`（`podman logs` 实时看）+ `/var/log/nginx-persist/access.log`（compose 命名卷 `gateway-logs`，容器重建后不丢）
 - 落盘目录**必须**是镜像内无软链接的目录（镜像内 `/var/log/nginx/access.log` 软链到 `/dev/stdout`，直接挂载 `/var/log/nginx` 会让落盘失效）
@@ -900,7 +971,7 @@ admin / portal 重建后，旧标签页持有的是**指向旧容器的失效连
 - 日志格式 `forge_main` 含 `rt / uct / urt / ua / us`：判断"请求是否到达网关、是否转发到后端"时必须先看这几个字段，禁止仅凭前端现象推断
 - 卷无自动轮转，排查结束后清空：`podman exec forge-gateway sh -c ': > /var/log/nginx-persist/access.log'`
 
-### 20.4 禁止事项（重申）
+### 21.4 禁止事项（重申）
 
 - **禁止**重建后不核对 StartedAt 就宣布"只重建了某服务"
 - **禁止**在未查看网关（落盘）访问日志的情况下，对"请求是否到达网关/后端"下结论
@@ -910,4 +981,5 @@ admin / portal 重建后，旧标签页持有的是**指向旧容器的失效连
 
 ---
 
-*最后更新：2026-09-28*
+*最后更新：2026-10-03*
+
