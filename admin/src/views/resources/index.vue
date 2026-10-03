@@ -1197,7 +1197,7 @@ onBeforeUnmount(() => {
         </div>
         <div v-else-if="!items.length" class="flex flex-col items-center justify-center py-20 text-gray-400">
           <SvgIcon icon="mdi:image-off-outline" class="text-40px mb-2" />
-          <span>暂无资源，点击右上角上传</span>
+          <span>暂无资源，请点击上传</span>
         </div>
         <div v-else class="grid h-full grid-cols-4 grid-rows-6 gap-3 xl:grid-cols-5">
           <div
