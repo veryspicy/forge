@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { h, onMounted, ref } from 'vue';
+import { computed, h, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   NButton,
@@ -24,13 +24,16 @@ import {
   ORDER_REFUND_REASON_DEFAULT,
   ORDER_REFUND_REASON_OPTIONS,
   ORDER_REJECT_REASON_OPTIONS,
+  orderReasonLabel,
   returnReasonLabel
 } from '@/constants/aftersalesReasons';
+import { useAuthStore } from '@/store/modules/auth';
 import type { DataTableColumns } from 'naive-ui';
 
 const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
+const authStore = useAuthStore();
 const order = ref<any>(null);
 const loading = ref(true);
 
@@ -58,25 +61,34 @@ const cancelRefund = ref(true);
 const actionError = ref('');
 const actionLoading = ref(false);
 
-/** 售后动作原因：预设可选 + 允许自定义输入（NSelect tag） */
-const toReasonOptions = (values: string[]) => values.map(value => ({ label: value, value }));
-const rejectReasonOptions = toReasonOptions(ORDER_REJECT_REASON_OPTIONS);
-const refundReasonOptions = toReasonOptions(ORDER_REFUND_REASON_OPTIONS);
-const cancelReasonOptions = toReasonOptions(ORDER_CANCEL_REASON_OPTIONS);
+/** 售后动作原因：预设可选 + 允许自定义输入（NSelect tag）；选项文案走 i18n，写入值保持英文审计口径 */
+const toReasonOptions = (values: string[]) => values.map(value => ({ label: orderReasonLabel(value, t), value }));
+const rejectReasonOptions = computed(() => toReasonOptions(ORDER_REJECT_REASON_OPTIONS));
+const refundReasonOptions = computed(() => toReasonOptions(ORDER_REFUND_REASON_OPTIONS));
+const cancelReasonOptions = computed(() => toReasonOptions(ORDER_CANCEL_REASON_OPTIONS));
 
 // 退款按资金余额判定，与订单履约状态解耦（行业：Shopify refundCreate，部分退款不阻断剩余行发货）
 function refundableAmount(): number {
   return Number(order.value?.refundable_amount || 0);
 }
-function canRefund(): boolean {
+/** 是否还有可退余额：退款类入口（取消 / 审核拒绝 / 仅退款）的显隐基准 */
+function hasRefundableBalance(): boolean {
   return refundableAmount() > 0.001;
 }
-function canCancel(): boolean {
-  return ['pending', 'confirmed', 'processing'].includes(order.value?.status || '');
+/** 仅退款入口：发货前只开放「部分退款」（全额退款走取消 / 审核拒绝等终止入口）；发货后是唯一资金入口，始终开放 */
+function canRefund(): boolean {
+  if (!hasRefundableBalance()) return false;
+  const s = order.value?.status || '';
+  if (s === 'shipped' || s === 'delivered') return true;
+  return refundableAmount() < Number(order.value?.total || 0) - 0.01;
 }
-/** 站点开启「发货前需审核通过」且订单未审核通过时，禁止发货 */
+/** 取消入口：待审核（confirmed）阶段的终止动作是审核拒绝，不重复提供取消；待付款与审核通过后仍可取消 */
+function canCancel(): boolean {
+  return ['pending', 'processing'].includes(order.value?.status || '');
+}
+/** 风控硬门禁：订单必须审核通过才可发货（后端同步硬校验，不再依赖站点开关） */
 function shipBlocked(): boolean {
-  return Boolean(order.value?.require_review_before_ship) && !order.value?.review_approved;
+  return !order.value?.review_approved;
 }
 function canShip(): boolean {
   if (shipBlocked()) return false;
@@ -297,7 +309,8 @@ const itemColumns: DataTableColumns<any> = [
 function openReview(approve: boolean) {
   reviewApprove.value = approve;
   reviewReason.value = '';
-  reviewBy.value = '';
+  // 审核人默认当前登录账号，可手工修改（保留审计留痕）
+  reviewBy.value = authStore.userInfo.userName || '';
   actionError.value = '';
   showReview.value = true;
 }
@@ -351,7 +364,7 @@ function openRefund(row?: any) {
 
 function openCancel() {
   cancelReason.value = ORDER_CANCEL_REASON_DEFAULT;
-  cancelRefund.value = canRefund();
+  cancelRefund.value = hasRefundableBalance();
   actionError.value = '';
   showCancel.value = true;
 }
@@ -364,11 +377,11 @@ async function doReview() {
       actionError.value = t('page.ordersDetail.rejectReasonRequired');
       return;
     }
+    // 拒绝 = 取消 + 默认全额退款：refund 不传，由后端按可退余额自动判定
     await post(`/api/admin/v1/orders/${route.params.id}/review`, {
       approved: reviewApprove.value,
       reason: reviewReason.value,
-      reviewed_by: reviewBy.value,
-      refund: reviewApprove.value ? undefined : canRefund()
+      reviewed_by: reviewBy.value
     });
     showReview.value = false;
     await loadOrder();
@@ -477,7 +490,8 @@ async function doCancel() {
   try {
     await post(`/api/admin/v1/orders/${route.params.id}/cancel`, {
       reason: cancelReason.value,
-      refund: canRefund() && cancelRefund.value
+      // 取消的退款勾选按「是否有可退余额」判定，与仅退款入口的阶段化显隐策略解耦
+      refund: hasRefundableBalance() && cancelRefund.value
     });
     showCancel.value = false;
     await loadOrder();
@@ -663,7 +677,7 @@ onMounted(loadOrder);
               </div>
               <div>
                 <span class="text-[var(--n-text-color-3)]">{{ $t('page.ordersDetail.reason') }}</span>
-                {{ order.review_status.reason || '-' }}
+                {{ orderReasonLabel(order.review_status.reason, t) }}
               </div>
             </div>
           </NCard>
@@ -795,9 +809,14 @@ onMounted(loadOrder);
     </NSpin>
 
     <!-- Review Modal -->
-    <NModal v-model:show="showReview" preset="card" :title="$t('page.ordersDetail.approveOrder')" style="width: 440px">
+    <NModal
+      v-model:show="showReview"
+      preset="card"
+      :title="reviewApprove ? $t('page.ordersDetail.approveOrder') : $t('page.ordersDetail.rejectOrder')"
+      style="width: 440px"
+    >
       <div class="flex flex-col gap-3">
-        <NFormItem :label="reviewApprove ? $t('page.ordersDetail.reason') : $t('page.ordersDetail.reason') + ' *'">
+        <NFormItem v-if="!reviewApprove" :label="$t('page.ordersDetail.rejectReason') + ' *'">
           <NSelect
             v-model:value="reviewReason"
             :options="rejectReasonOptions"
@@ -810,7 +829,7 @@ onMounted(loadOrder);
         <NFormItem :label="$t('page.ordersDetail.reviewedBy')"><NInput v-model:value="reviewBy" /></NFormItem>
         <div v-if="!reviewApprove" class="text-sm text-[var(--n-text-color-3)]">
           {{
-            canRefund()
+            hasRefundableBalance()
               ? $t('page.ordersDetail.rejectRefundHint', { amount: money(refundableAmount()) })
               : $t('page.ordersDetail.rejectNoRefundHint')
           }}
@@ -949,7 +968,7 @@ onMounted(loadOrder);
             :placeholder="$t('page.ordersDetail.reasonPlaceholder')"
           />
         </NFormItem>
-        <NCheckbox v-if="canRefund()" v-model:checked="cancelRefund">
+        <NCheckbox v-if="hasRefundableBalance()" v-model:checked="cancelRefund">
           同时全额退款（当前可退 {{ money(refundableAmount()) }}）
         </NCheckbox>
         <div v-else class="text-sm text-[var(--n-text-color-3)]">

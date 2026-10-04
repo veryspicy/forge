@@ -114,6 +114,9 @@ if ($diffText) {
             $_.Line -notmatch '=\s*[A-Za-z_]+\(\)?\s*$' -and
             $_.Line -notmatch ':\s*[$@]' -and
             $_.Line -notmatch '[:=]\s*[A-Za-z_$][\w$]*(\.[\w$]+)+' -and
+            $_.Line -notmatch '[:=]\s*[A-Za-z_$][\w$]*(\.[\w$]+)*\s*\(' -and
+            $_.Line -notmatch '[:=]\s*\(' -and
+            $_.Line -notmatch '[:=]\s*[A-Za-z_$][\w$]{0,15}\s*[\),]' -and
             $_.Line -notmatch '\["''(password|token|secret|key)"''\]'
         } | Select-Object -First 5)
     if ($secretHits.Count -gt 0) {
