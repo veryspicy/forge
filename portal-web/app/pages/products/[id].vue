@@ -139,7 +139,7 @@
             </div>
             <button
               class="flex-1 px-6 py-2.5 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              :disabled="!isInStock"
+              :disabled="!isInStock || adding"
               @click="addToCart"
             >
               {{ $t('products.addToCart') }}
@@ -252,8 +252,10 @@
 <script setup lang="ts">
 import { useProductStore } from '~/stores/product'
 import { useCartStore } from '~/stores/cart'
+import { useAuthStore } from '~/stores/auth'
 import { useCurrency } from '~/composables/useCurrency'
 import { useApi } from '~/composables/useApi'
+import { useToast } from '~/composables/useToast'
 import ProductCard from '~/components/products/ProductCard.vue'
 
 const localePath = useLocalePath()
@@ -264,10 +266,13 @@ const cartStore = useCartStore()
 const { fetchProductReviews } = useApi()
 const { t } = useI18n()
 const { formatPrice } = useCurrency()
+const { toast } = useToast()
+const authStore = useAuthStore()
 
 const product = computed(() => productStore.currentProduct)
 const activeImage = ref('')
 const quantity = ref(1)
+const adding = ref(false)
 const selectedVariant = ref<string | null>(null)
 const relatedProducts = ref<any[]>([])
 const productReviews = ref<any[]>([])
@@ -311,14 +316,33 @@ const productSpecs = computed(() => {
   return specs
 })
 
-function addToCart() {
+async function addToCart() {
   const p = product.value
-  if (!p) return
-  cartStore.addItem({
-    product: { id: p.id, name: p.name, price: p.price, image: p.images?.[0] },
-    quantity: quantity.value,
-  })
-  quantity.value = 1
+  if (!p || adding.value) return
+  adding.value = true
+  try {
+    await cartStore.addItem({
+      product: {
+        id: String(p.id),
+        name: p.name,
+        price: Number(p.price) || 0,
+        image: p.images?.[0] || '',
+      },
+      quantity: quantity.value,
+    })
+    toast.success(t('products.addedToCart', { name: p.name }))
+    quantity.value = 1
+  } catch {
+    // 未登录：明确提示并引导登录；其余失败给可重试提示，不再静默无响应
+    if (!authStore.isAuthenticated) {
+      toast.error(t('products.loginRequired'))
+      navigateTo(localePath(`/login?redirect=${encodeURIComponent(route.fullPath)}`))
+      return
+    }
+    toast.error(t('products.addToCartFailed'))
+  } finally {
+    adding.value = false
+  }
 }
 
 watchEffect(() => {

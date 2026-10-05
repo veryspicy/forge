@@ -11,6 +11,7 @@ import {
 import { setupStore } from './store';
 import { setupRouter, router } from './router';
 import { getLocale, setupI18n } from './locales';
+import { markPhase, startStallWatchdog } from './utils/stall-watchdog';
 import App from './App.vue';
 
 // Dev-only: validate Vue transition root nodes. This plugin injects an import of
@@ -45,15 +46,18 @@ function setupChunkErrorRecovery() {
     if (sessionStorage.getItem(CHUNK_RETRY_KEY)) {
       // 刷新过一次仍失败，说明不是缓存残留问题，停止自动恢复
       sessionStorage.removeItem(CHUNK_RETRY_KEY);
+      markPhase('chunk:reload-skipped');
       return;
     }
     sessionStorage.setItem(CHUNK_RETRY_KEY, '1');
+    markPhase('chunk:reload');
     window.location.reload();
   };
 
   window.addEventListener('unhandledrejection', event => {
     const message = event.reason instanceof Error ? event.reason.message : String(event.reason ?? '');
     if (isChunkLoadError(message)) {
+      markPhase('chunk:error', { source: 'unhandledrejection' });
       event.preventDefault();
       reloadOnce();
     }
@@ -62,12 +66,18 @@ function setupChunkErrorRecovery() {
   router.onError(error => {
     const message = error instanceof Error ? error.message : String(error ?? '');
     if (isChunkLoadError(message)) {
+      markPhase('chunk:error', { source: 'router' });
       reloadOnce();
     }
   });
 }
 
+// 冻结观测器最先启动：登录、路由初始化、chunk 恢复等后续全部阶段都留下心跳与打点
+startStallWatchdog();
+
 async function setupApp() {
+  markPhase('app:setup:start');
+
   setupLoading();
 
   setupNProgress();
@@ -78,6 +88,8 @@ async function setupApp() {
 
   setupChunkErrorRecovery();
 
+  markPhase('app:chunk-recovery:ready');
+
   const app = createApp(App);
 
   setupStore(app);
@@ -85,6 +97,8 @@ async function setupApp() {
   setupPermissionDirective(app);
 
   await setupRouter(app);
+
+  markPhase('app:router:ready');
 
   setupI18n(app);
 
@@ -95,6 +109,8 @@ async function setupApp() {
   });
 
   app.mount('#app');
+
+  markPhase('app:mounted');
 }
 
 setupApp();

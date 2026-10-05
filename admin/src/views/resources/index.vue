@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onBeforeUnmount, computed } from 'vue';
+import { h, ref, watch, onMounted, onBeforeUnmount, computed } from 'vue';
 import { useDialog, useMessage } from 'naive-ui';
 import { useRouter } from 'vue-router';
 import { resourceApi } from '@/service/api/resources';
@@ -20,6 +20,7 @@ interface ResourceItem {
   directory?: string;
   tags?: string[];
   ref_count?: number;
+  refs?: RefInfo[];
   deleted_at?: string | null;
 }
 
@@ -376,29 +377,83 @@ async function restoreTrashSelection() {
   });
 }
 
+/** 回收站引用清单渲染（用于彻底删除前的裂图知情提示） */
+function renderTrashPurgeVNode(list: ResourceItem[]) {
+  return h('div', { class: 'text-left text-xs' }, [
+    h(
+      'div',
+      { class: 'mb-1 text-gray-500 dark:text-gray-400' },
+      '以下回收站资源仍被业务位置引用，彻底删除将导致引用处图片裂图：'
+    ),
+    ...list.map(item => {
+      const refs = item.refs ?? [];
+      const labels = refs
+        .slice(0, 5)
+        .map(rf => rf.ref_label || rf.ref_type || rf.ref_id)
+        .join('、');
+      return h(
+        'div',
+        { class: 'mb-1 rounded bg-orange-50 px-2 py-1 dark:bg-orange-900/20' },
+        [
+          h('span', { class: 'text-orange-600 dark:text-orange-300' }, item.name),
+          h(
+            'span',
+            { class: 'ml-1 text-gray-500 dark:text-gray-400' },
+            `（${refs.length} 处引用：${labels}${refs.length > 5 ? '…' : ''}）`
+          )
+        ]
+      );
+    }),
+    h(
+      'div',
+      { class: 'mt-1 leading-5 text-gray-400 dark:text-gray-500' },
+      '建议先到引用位置解除引用后再彻底删除；确认继续将物理移除文件且不可恢复。'
+    )
+  ]);
+}
+
+async function runPurge(ids: string[], force: boolean) {
+  try {
+    const res = (await resourceApi.purgeTrash(ids, force)) as any;
+    const data = res?.data?.data ?? res?.data ?? res;
+    const purged = data?.purged ?? ids.length;
+    const blockedRefs: Array<{ name: string; ref_count: number }> = data?.referenced ?? [];
+    if (blockedRefs.length) {
+      message.warning(`已彻底删除 ${purged} 个，${blockedRefs.length} 个仍被引用的资源已跳过（请先解除引用）`);
+    } else {
+      message.success(`已彻底删除 ${purged} 个资源`);
+    }
+    trashSelected.value = new Set();
+    loadTrash();
+    loadMeta();
+  } catch (e: any) {
+    message.error(`彻底删除失败: ${e?.message || e}`);
+  }
+}
+
 async function purgeTrashSelection() {
   if (!trashSelected.value.size) {
     message.warning('请先勾选要彻底删除的资源');
     return;
   }
   const ids = Array.from(trashSelected.value);
+  const referenced = trashItems.value.filter(it => ids.includes(it.id) && (it.ref_count ?? 0) > 0);
+  if (referenced.length) {
+    dialog.warning({
+      title: `${referenced.length} 个资源仍被引用`,
+      content: () => renderTrashPurgeVNode(referenced),
+      positiveText: '仍要彻底删除',
+      negativeText: '取消',
+      onPositiveClick: () => runPurge(ids, true)
+    });
+    return;
+  }
   dialog.warning({
     title: '确认彻底删除',
     content: `将永久删除选中的 ${ids.length} 个资源（MinIO 文件与数据库记录一并清除，不可恢复）。确定继续？`,
     positiveText: '彻底删除',
     negativeText: '取消',
-    onPositiveClick: async () => {
-      try {
-        const res = (await resourceApi.purgeTrash(ids)) as any;
-        const data = res?.data?.data ?? res?.data ?? res;
-        message.success(`已彻底删除 ${data?.purged ?? ids.length} 个资源`);
-        trashSelected.value = new Set();
-        loadTrash();
-        loadMeta();
-      } catch (e: any) {
-        message.error(`彻底删除失败: ${e?.message || e}`);
-      }
-    }
+    onPositiveClick: () => runPurge(ids, false)
   });
 }
 
@@ -413,7 +468,32 @@ async function emptyTrashAll() {
       try {
         const res = (await resourceApi.emptyTrash()) as any;
         const data = res?.data?.data ?? res?.data ?? res;
-        message.success(`已清空回收站（${data?.purged ?? trashTotal.value} 个）`);
+        if (data?.blocked && (data?.referenced ?? []).length) {
+          const referenced: any[] = data.referenced;
+          dialog.warning({
+            title: `回收站仍有 ${referenced.length} 个资源被引用`,
+            content: () =>
+              renderTrashPurgeVNode(
+                referenced.map((it: any) => ({ ...it, ref_count: it.ref_count ?? it.refs?.length ?? 0, refs: it.refs }))
+              ),
+            positiveText: '仍要清空（引用处将裂图）',
+            negativeText: '取消',
+            onPositiveClick: async () => {
+              try {
+                const res2 = (await resourceApi.emptyTrash(true)) as any;
+                const data2 = res2?.data?.data ?? res2?.data ?? res2;
+                message.success(`已清空回收站（${data2?.purged ?? trashTotal.value} 个资源）`);
+                trashSelected.value = new Set();
+                loadTrash();
+                loadMeta();
+              } catch (e: any) {
+                message.error(`清空失败: ${e?.message || e}`);
+              }
+            }
+          });
+          return;
+        }
+        message.success(`已清空回收站（${data?.purged ?? trashTotal.value} 个资源）`);
         trashSelected.value = new Set();
         loadTrash();
         loadMeta();
@@ -453,7 +533,7 @@ async function triggerUpload() {
   if (w.showOpenFilePicker) {
     try {
       const handles = await w.showOpenFilePicker({ multiple: true });
-      const files = await Promise.all(handles.map((h: any) => h.getFile()));
+      const files = await Promise.all(handles.map((fh: any) => fh.getFile()));
       uploadFiles(files.map(f => ({ file: f })));
       return;
     } catch (err: any) {
@@ -853,22 +933,93 @@ function jumpToRef(refInfo: RefInfo) {
   router.push(target);
 }
 
+function renderRefListVNode(resourceId: string, refs: RefInfo[], dialogApi: any, forceWording: boolean) {
+  const jump = (refInfo: RefInfo) => {
+    dialogApi?.destroy();
+    const target = REF_ROUTE_MAP[refInfo.ref_type];
+    if (!target) {
+      message.info(`引用位置「${refInfo.ref_label}」暂无跳转路由`);
+      return;
+    }
+    if (refInfo.ref_type === 'product' || refInfo.ref_type === 'products') {
+      router.push({ path: `/products/${refInfo.ref_id}`, query: { highlight_resource: resourceId } });
+      return;
+    }
+    router.push(target);
+  };
+  return h('div', { class: 'text-left text-xs' }, [
+    h(
+      'div',
+      { class: 'mb-1 text-gray-500 dark:text-gray-400' },
+      `该资源被以下位置引用（共 ${refs.length} 处）：`
+    ),
+    ...refs.map(rf => {
+      const label = rf.ref_label || rf.ref_type || rf.ref_id;
+      if (!REF_ROUTE_MAP[rf.ref_type]) {
+        return h(
+          'div',
+          { class: 'mb-1 rounded bg-gray-100 px-2 py-1 text-gray-500 dark:bg-gray-800 dark:text-gray-400' },
+          `${label}（无跳转路由）`
+        );
+      }
+      return h(
+        'div',
+        {
+          class:
+            'mb-1 flex cursor-pointer items-center justify-between gap-2 rounded bg-green-50 px-2 py-1 text-green-600 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-300',
+          onClick: () => jump(rf)
+        },
+        [h('span', { class: 'truncate' }, label), h('span', { class: 'shrink-0 text-[10px]' }, '前往解除引用 ›')]
+      );
+    }),
+    h(
+      'div',
+      { class: 'mt-1 leading-5 text-gray-400 dark:text-gray-500' },
+      forceWording
+        ? '彻底删除将物理移除文件，上述引用位置的图片将无法显示（裂图）。确认后不可恢复。'
+        : '软删不影响已引用位置（图片仍正常显示）；彻底删除需先到引用处解除，或稍后进入回收站强制处理。'
+    )
+  ]);
+}
+
+async function softDeleteOne(r: ResourceItem) {
+  // 请求层 onError 已全局弹出错误消息，这里只处理成功分支，避免双弹窗
+  const { data } = (await resourceApi.remove(r.id)) as any;
+  if (!data) return;
+  message.success('已删除');
+  selectedIds.value.delete(r.id);
+  selectedIds.value = new Set(selectedIds.value);
+  if (currentDetail.value?.id === r.id) currentDetail.value = null;
+  await Promise.all([loadList(), loadMeta()]);
+}
+
 async function doDelete(r: ResourceItem) {
+  let refs: RefInfo[] = r.refs ?? [];
+  if ((r.ref_count ?? 0) > 0 && !refs.length) {
+    try {
+      const res = (await resourceApi.detail(r.id)) as any;
+      const data = res?.data?.data ?? res?.data ?? res;
+      refs = data?.refs ?? [];
+    } catch {
+      refs = [];
+    }
+  }
+  if (refs.length) {
+    const d = dialog.warning({
+      title: `删除「${r.name}」`,
+      content: () => renderRefListVNode(r.id, refs, d, false),
+      positiveText: '仍要删除（软删）',
+      negativeText: '取消',
+      onPositiveClick: () => softDeleteOne(r)
+    });
+    return;
+  }
   dialog.warning({
     title: '确认删除',
     content: `确定删除资源「${r.name}」吗？（软删，不影响已引用位置）`,
     positiveText: '删除',
     negativeText: '取消',
-    onPositiveClick: async () => {
-      // 请求层 onError 已全局弹出错误消息，这里只处理成功分支，避免双弹窗
-      const { data } = (await resourceApi.remove(r.id)) as any;
-      if (!data) return;
-      message.success('已删除');
-      selectedIds.value.delete(r.id);
-      selectedIds.value = new Set(selectedIds.value);
-      if (currentDetail.value?.id === r.id) currentDetail.value = null;
-      await Promise.all([loadList(), loadMeta()]);
-    }
+    onPositiveClick: () => softDeleteOne(r)
   });
 }
 
@@ -878,15 +1029,16 @@ async function doBatchDelete() {
     message.warning('请先选择资源');
     return;
   }
-  // 拦截：选中的资源中包含被引用资源，取消删除并提示
-  const refItem = items.value.find(it => ids.includes(it.id) && (it.ref_count ?? 0) > 0);
-  if (refItem) {
-    message.warning('选中的资源中包含被引用的资源，请将其释放后再试');
-    return;
-  }
+  // 引用提示：不再硬拦截，软删不影响已引用位置
+  const refItems = items.value.filter(it => ids.includes(it.id) && (it.ref_count ?? 0) > 0);
+  const refTotal = refItems.reduce((sum, it) => sum + (it.ref_count ?? 0), 0);
+  const base = `确定删除选中的 ${ids.length} 个资源吗？（软删，不影响已引用位置）`;
+  const tip = refItems.length
+    ? `其中 ${refItems.length} 个资源被引用共 ${refTotal} 处，仍将一并软删，引用位置图片保持正常显示；彻底删除需先解除引用。`
+    : '';
   dialog.warning({
     title: '确认批量删除',
-    content: `确定删除选中的 ${ids.length} 个资源吗？（软删）`,
+    content: tip ? `${base}\n\n${tip}` : base,
     positiveText: '删除',
     negativeText: '取消',
     onPositiveClick: async () => {
@@ -911,7 +1063,7 @@ async function handleCleanupInvalidRefs() {
   }
   dialog.warning({
     title: '清理无效引用',
-    content: `共发现 ${invalid.length} 条无效引用，清理后对应资源将解除占用、可正常删除。确认继续？`,
+    content: `共发现 ${invalid.length} 条无效引用，清理后对应资源将不再被计入引用数，可正常彻底删除。确认继续？`,
     positiveText: '清理',
     negativeText: '取消',
     onPositiveClick: async () => {
@@ -1197,7 +1349,7 @@ onBeforeUnmount(() => {
         </div>
         <div v-else-if="!items.length" class="flex flex-col items-center justify-center py-20 text-gray-400">
           <SvgIcon icon="mdi:image-off-outline" class="text-40px mb-2" />
-          <span>暂无资源，点击右上角上传</span>
+          <span>暂无资源，请点击上传</span>
         </div>
         <div v-else class="grid h-full grid-cols-4 grid-rows-6 gap-3 xl:grid-cols-5">
           <div
@@ -1272,7 +1424,7 @@ onBeforeUnmount(() => {
                     ? 'border-orange-400 bg-orange-50 text-orange-500 dark:bg-orange-900/30'
                     : 'border-gray-300 bg-white text-gray-400 dark:border-gray-500 dark:bg-gray-700'
               "
-              :title="(r.ref_count ?? 0) > 0 ? `被引用 ${r.ref_count} 处，不可删除` : '选择'"
+              :title="(r.ref_count ?? 0) > 0 ? `被引用 ${r.ref_count} 处，软删不影响引用` : '选择'"
               @click.stop="toggleSelect(r.id)"
             >
               <SvgIcon v-if="selectedIds.has(r.id)" icon="mdi:check" class="text-12px" />
@@ -1280,7 +1432,7 @@ onBeforeUnmount(() => {
             <div
               v-if="(r.ref_count ?? 0) > 0"
               class="absolute bottom-1.5 left-1.5 z-10 rounded bg-orange-500/90 px-1 text-[10px] leading-4 text-white"
-              title="被引用资源，不可删除"
+              title="被引用资源：软删不影响引用位置，彻底删除前请先解除引用"
             >
               引用 {{ r.ref_count }}
             </div>

@@ -8,7 +8,7 @@ export const ORDER_REJECT_REASON_OPTIONS = [
   'Invalid or incomplete shipping address',
   'Customer requested cancellation',
   'Other'
-]
+];
 
 /** 退款原因 */
 export const ORDER_REFUND_REASON_OPTIONS = [
@@ -19,7 +19,7 @@ export const ORDER_REFUND_REASON_OPTIONS = [
   'Shipping delay / lost parcel',
   'Goodwill / price adjustment',
   'Other'
-]
+];
 
 /** 取消订单原因 */
 export const ORDER_CANCEL_REASON_OPTIONS = [
@@ -28,11 +28,11 @@ export const ORDER_CANCEL_REASON_OPTIONS = [
   'Payment not completed in time',
   'Suspected fraudulent order',
   'Other'
-]
+];
 
 /** 退款 / 取消的默认原因（可改，保证资金动作始终带审计原因） */
-export const ORDER_REFUND_REASON_DEFAULT = ORDER_REFUND_REASON_OPTIONS[0]
-export const ORDER_CANCEL_REASON_DEFAULT = ORDER_CANCEL_REASON_OPTIONS[0]
+export const ORDER_REFUND_REASON_DEFAULT = ORDER_REFUND_REASON_OPTIONS[0];
+export const ORDER_CANCEL_REASON_DEFAULT = ORDER_CANCEL_REASON_OPTIONS[0];
 
 /**
  * C 端退货原因：reason 列自新版起存 code，历史数据存英文文案，
@@ -49,11 +49,40 @@ const RETURN_REASON_LABEL_KEYS: Record<string, string> = {
   'wrong item received': 'page.returns.reasonWrongItem',
   'not as described': 'page.returns.reasonNotAsDescribed',
   'no longer needed': 'page.returns.reasonNoLongerNeeded'
-}
+};
 
 export function returnReasonLabel(reason: string | null | undefined, t: (key: string) => string): string {
-  const raw = String(reason ?? '').trim()
-  if (!raw) return '-'
-  const key = RETURN_REASON_LABEL_KEYS[raw.toLowerCase()]
-  return key ? t(key) : raw
+  const raw = String(reason ?? '').trim();
+  if (!raw) return '-';
+  const key = RETURN_REASON_LABEL_KEYS[raw.toLowerCase()];
+  return key ? t(key) : raw;
+}
+
+/**
+ * 后台售后动作原因（审核拒绝 / 退款 / 取消）：字典值仍以英文写入库，
+ * 保证已落库的审计数据与写入格式不变；展示层统一走 orderReasonLabel 按当前语言渲染，
+ * 无法识别的原因原样显示（如运营手工输入的自定义内容）。
+ */
+const ORDER_REASON_LABEL_KEYS: Record<string, string> = {
+  'payment not verified': 'page.ordersDetail.reasonPaymentNotVerified',
+  'out of stock / discontinued': 'page.ordersDetail.reasonOutOfStock',
+  'suspected fraudulent order': 'page.ordersDetail.reasonSuspectedFraud',
+  'invalid or incomplete shipping address': 'page.ordersDetail.reasonInvalidAddress',
+  'customer requested cancellation': 'page.ordersDetail.reasonCustomerCancelled',
+  'customer requested refund': 'page.ordersDetail.reasonCustomerRefund',
+  'returned items received': 'page.ordersDetail.reasonReturnReceived',
+  'damaged or defective item': 'page.ordersDetail.reasonDamagedItem',
+  'duplicate payment': 'page.ordersDetail.reasonDuplicatePayment',
+  'shipping delay / lost parcel': 'page.ordersDetail.reasonShippingDelay',
+  'goodwill / price adjustment': 'page.ordersDetail.reasonGoodwill',
+  'out of stock / cannot fulfill': 'page.ordersDetail.reasonCannotFulfill',
+  'payment not completed in time': 'page.ordersDetail.reasonPaymentTimeout',
+  other: 'page.ordersDetail.reasonOther'
+};
+
+export function orderReasonLabel(reason: string | null | undefined, t: (key: string) => string): string {
+  const raw = String(reason ?? '').trim();
+  if (!raw) return '-';
+  const key = ORDER_REASON_LABEL_KEYS[raw.toLowerCase()];
+  return key ? t(key) : raw;
 }

@@ -9,6 +9,7 @@ import { SetupStoreId } from '@/enum';
 import { createStaticRoutes, getAuthVueRoutes } from '@/router/routes';
 import { ROOT_ROUTE } from '@/router/routes/builtin';
 import { getRouteName, getRoutePath } from '@/router/elegant/transform';
+import { markPhase } from '@/utils/stall-watchdog';
 import { useAuthStore } from '../auth';
 import { useTabStore } from '../tab';
 import {
@@ -137,6 +138,11 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
 
     routeStore.$reset();
 
+    // $reset 不会复位 useBoolean 的内部状态，必须显式复位 auth 路由标记。
+    // 否则残留的 isInitAuthRoute=true 会让下次登录跳过 initAuthRoute，
+    // 导致 dashboard 等 auth 路由未注册，落入 not-found ↔ root 重定向环。
+    setIsInitAuthRoute(false);
+
     resetVueRoutes();
 
     // after reset store, need to re-init constant route
@@ -152,6 +158,8 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
   /** init constant route */
   async function initConstantRoute() {
     if (isInitConstantRoute.value) return;
+
+    markPhase('route:init-constant:start', { mode: authRouteMode.value });
 
     const staticRoute = createStaticRoutes();
 
@@ -173,10 +181,14 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
     setIsInitConstantRoute(true);
 
     tabStore.initHomeTab();
+
+    markPhase('route:init-constant:end');
   }
 
   /** Init auth route */
   async function initAuthRoute() {
+    markPhase('route:init-auth:start', { mode: authRouteMode.value });
+
     // check if user info is initialized
     if (!authStore.userInfo.userId) {
       await authStore.initUserInfo();
@@ -189,10 +201,14 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
     }
 
     tabStore.initHomeTab();
+
+    markPhase('route:init-auth:end');
   }
 
   /** Init static auth route */
   function initStaticAuthRoute() {
+    markPhase('route:static-auth:start');
+
     const { authRoutes: staticAuthRoutes } = createStaticRoutes();
 
     if (authStore.isStaticSuper) {
@@ -206,10 +222,14 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
     handleConstantAndAuthRoutes();
 
     setIsInitAuthRoute(true);
+
+    markPhase('route:static-auth:end');
   }
 
   /** Init dynamic auth route */
   async function initDynamicAuthRoute() {
+    markPhase('route:dynamic-auth:start');
+
     const { data, error } = await fetchGetUserRoutes();
 
     if (!error) {
@@ -224,7 +244,10 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
       handleUpdateRootRouteRedirect(home);
 
       setIsInitAuthRoute(true);
+
+      markPhase('route:dynamic-auth:end');
     } else {
+      markPhase('route:dynamic-auth:failed');
       // if fetch user routes failed, reset store
       authStore.resetStore();
     }
@@ -232,19 +255,34 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
 
   /** handle constant and auth routes */
   function handleConstantAndAuthRoutes() {
+    // 登录链路纯静态处理，但规模随路由增长；分步打点用于定位冻结发生在哪一段
+    markPhase('route:handle:start', { constant: constantRoutes.value.length, auth: authRoutes.value.length });
+
     const allRoutes = filterRoutesByDev([...constantRoutes.value, ...authRoutes.value]);
+
+    markPhase('route:filter-done', { total: allRoutes.length });
 
     const sortRoutes = sortRoutesByOrder(allRoutes);
 
+    markPhase('route:sort-done');
+
     const vueRoutes = getAuthVueRoutes(sortRoutes);
+
+    markPhase('route:transform-done', { vueRoutes: vueRoutes.length });
 
     resetVueRoutes();
 
     addRoutesToVueRouter(vueRoutes);
 
+    markPhase('route:add-routes-done');
+
     getGlobalMenus(sortRoutes);
 
+    markPhase('route:menus-done');
+
     getCacheRoutes(vueRoutes);
+
+    markPhase('route:handle:end');
   }
 
   /**
@@ -310,6 +348,19 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
   }
 
   /**
+   * Get is route registered in vue router
+   *
+   * 用于识别「标记已初始化但路由实际未注册」的残留态，避免跳过补注册
+   *
+   * @param routeKey Route key
+   */
+  function getIsAuthRouteRegistered(routeKey: RouteKey) {
+    if (!routeKey) return false;
+
+    return router.hasRoute(routeKey);
+  }
+
+  /**
    * Get selected menu key path
    *
    * @param selectedKey Selected menu key
@@ -342,6 +393,7 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
     isInitAuthRoute,
     setIsInitAuthRoute,
     getIsAuthRouteExist,
+    getIsAuthRouteRegistered,
     getSelectedMenuKeyPath,
     onRouteSwitchWhenLoggedIn,
     onRouteSwitchWhenNotLoggedIn
