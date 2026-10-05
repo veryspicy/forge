@@ -1028,6 +1028,7 @@ dependencies = [
     { name = "casbin" },
     { name = "casbin-fastapi-decorator" },
     { name = "casbin-sqlalchemy-adapter" },
+    { name = "cryptography" },
     { name = "fastapi" },
     { name = "httpx" },
     { name = "langchain" },
@@ -1065,12 +1066,6 @@ dev = [
     { name = "types-python-jose" },
 ]
 
-[package.dev-dependencies]
-dev = [
-    { name = "types-passlib" },
-    { name = "types-python-jose" },
-]
-
 [package.metadata]
 requires-dist = [
     { name = "alembic", specifier = ">=1.14.0" },
@@ -1080,6 +1075,7 @@ requires-dist = [
     { name = "casbin", specifier = ">=1.40.0" },
     { name = "casbin-fastapi-decorator", specifier = ">=1.1.0" },
     { name = "casbin-sqlalchemy-adapter", specifier = ">=0.6.0" },
+    { name = "cryptography", specifier = ">=43.0.0" },
     { name = "fastapi", specifier = ">=0.115.0" },
     { name = "httpx", specifier = ">=0.28.0" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28.0" },
@@ -1112,12 +1108,6 @@ requires-dist = [
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.34.0,<0.35" },
 ]
 provides-extras = ["dev"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "types-passlib", specifier = ">=1.7.7" },
-    { name = "types-python-jose", specifier = ">=3.3.4" },
-]
 
 [[package]]
 name = "frozenlist"

@@ -521,6 +521,10 @@
     "MCP_KEY_INVALID_SCOPE": "Les portées demandées ne sont pas prises en charge",
     "MCP_KEY_SCOPES_REQUIRED": "Au moins une portée read/write est requise",
     "MCP_KEY_NOT_FOUND": "Clé API introuvable",
+    "AI_PROVIDER_NOT_FOUND": "Le fournisseur d'IA n'existe pas",
+    "AI_PROVIDER_INVALID": "Configuration du fournisseur invalide ; vérifiez le nom, l'URL de base et la liste des modèles",
+    "AI_PROVIDER_LIMIT_REACHED": "Nombre maximal de fournisseurs d'IA atteint",
+    "AI_UPSTREAM_UNREACHABLE": "Service d'IA en amont inaccessible ; vérifiez l'URL de base et la clé API",
     "INVALID_ID": "Format d'identifiant invalide",
     "UNKNOWN_ERROR": "Échec de l'opération, veuillez réessayer"
   },

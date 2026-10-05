@@ -1,9 +1,13 @@
 """OpenAI 兼容协议的 LLM 客户端（httpx 直连，不依赖 OpenAI SDK）。
 
-统一封装两类调用：
-- ``list_models``       : ``GET  {base_url}/models``              拉取上游可用模型
-- ``chat_completion``   : ``POST {base_url}/chat/completions``    对话补全
-- ``test_connection``   : 可用性测试（模型列表 + 一次最小 chat 调用）
+统一封装：
+- ``list_models``      : ``GET  {base_url}/models``             拉取上游可用模型
+- ``chat_completion``  : 按 ``cfg.protocol`` 分发：
+  - chat      → ``POST {base_url}/chat/completions``（Chat Completions）
+  - responses → ``POST {base_url}/responses``（OpenAI Responses）
+- ``test_connection``  : 单端点可用性测试（模型列表 + 一次最小对话，发送 ``hi``）
+- ``test_endpoints``   : 多端点按序测试（聚合供应商）
+- ``chat_completion_with_failover`` : 多端点按序调用，首个成功即返回（聚合故障转移）
 
 兼容 NVIDIA integrate API（https://integrate.api.nvidia.com/v1）、DeepSeek、OpenAI 等
 任意 OpenAI 协议上游。
@@ -23,6 +27,15 @@ logger = logging.getLogger(__name__)
 PROBE_TIMEOUT = 20.0
 CHAT_TIMEOUT = 60.0
 
+PROTOCOL_CHAT = "chat"
+PROTOCOL_RESPONSES = "responses"
+
+PROBE_MESSAGE = "hi"
+
+
+class LLMFailoverError(RuntimeError):
+    """所有端点均调用失败。"""
+
 
 @dataclass
 class LLMConfig:
@@ -34,6 +47,7 @@ class LLMConfig:
     temperature: float = 0.7
     max_tokens: int = 1024
     enabled: bool = True
+    protocol: str = PROTOCOL_CHAT
 
     def to_public_dict(self) -> dict[str, Any]:
         """不含敏感字段的公开视图。"""
@@ -43,6 +57,7 @@ class LLMConfig:
             "temperature": self.temperature,
             "max_tokens": self.max_tokens,
             "enabled": self.enabled,
+            "protocol": self.protocol,
         }
 
 
@@ -107,7 +122,18 @@ async def chat_completion(
     messages: list[dict[str, str]],
     timeout: float = CHAT_TIMEOUT,
 ) -> LLMResult:
-    """调用 ``/chat/completions``，返回首条回复内容。"""
+    """按 ``cfg.protocol`` 分发到对应协议实现，返回首条回复内容。"""
+    if cfg.protocol == PROTOCOL_RESPONSES:
+        return await responses_completion(cfg, messages, timeout)
+    return await chat_completions(cfg, messages, timeout)
+
+
+async def chat_completions(
+    cfg: LLMConfig,
+    messages: list[dict[str, str]],
+    timeout: float = CHAT_TIMEOUT,
+) -> LLMResult:
+    """调用 ``/chat/completions``（Chat Completions 协议）。"""
     url = f"{normalize_base_url(cfg.base_url)}/chat/completions"
     payload: dict[str, Any] = {
         "model": cfg.model,
@@ -132,6 +158,50 @@ async def chat_completion(
     return LLMResult(content=content, model=str(data.get("model") or cfg.model), latency_ms=latency_ms, usage=usage)
 
 
+async def responses_completion(
+    cfg: LLMConfig,
+    messages: list[dict[str, str]],
+    timeout: float = CHAT_TIMEOUT,
+) -> LLMResult:
+    """调用 ``/responses``（OpenAI Responses 协议）。"""
+    url = f"{normalize_base_url(cfg.base_url)}/responses"
+    payload: dict[str, Any] = {
+        "model": cfg.model,
+        "input": [{"role": str(m.get("role") or "user"), "content": str(m.get("content") or "")} for m in messages],
+        "temperature": cfg.temperature,
+        "max_output_tokens": cfg.max_tokens,
+    }
+    start = time.perf_counter()
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        resp = await client.post(url, headers=_headers(cfg.api_key), json=payload)
+        resp.raise_for_status()
+        data = resp.json()
+    latency_ms = int((time.perf_counter() - start) * 1000)
+    usage: dict[str, Any] = {}
+    raw_usage = data.get("usage") if isinstance(data, dict) else None
+    if isinstance(raw_usage, dict):
+        usage = {str(key): value for key, value in raw_usage.items()}
+    model = str(data.get("model") or cfg.model) if isinstance(data, dict) else cfg.model
+    return LLMResult(content=_extract_responses_text(data), model=model, latency_ms=latency_ms, usage=usage)
+
+
+def _extract_responses_text(data: Any) -> str:
+    """从 Responses 响应中提取文本（兼容 ``output_text`` 与 ``output[].content[].text``）。"""
+    if not isinstance(data, dict):
+        return ""
+    direct = data.get("output_text")
+    if isinstance(direct, str) and direct.strip():
+        return direct
+    parts: list[str] = []
+    for item in data.get("output") or []:
+        if not isinstance(item, dict):
+            continue
+        for block in item.get("content") or []:
+            if isinstance(block, dict) and isinstance(block.get("text"), str):
+                parts.append(block["text"])
+    return "".join(parts)
+
+
 def _fail(detail: str, latency_ms: int = 0) -> dict[str, Any]:
     return {
         "status": "fail",
@@ -144,17 +214,15 @@ def _fail(detail: str, latency_ms: int = 0) -> dict[str, Any]:
 
 
 async def test_connection(cfg: LLMConfig) -> dict[str, Any]:
-    """可用性测试：先取模型列表，再发一次最小 chat 请求。
+    """单端点可用性测试：先取模型列表，再发一次最小对话（发送 ``hi``）。
 
     返回 ``{status, latency_ms, detail, models_count, chat_ok, reply}``，
-    status ∈ ok / fail（不做 warn，避免语义含混）。
+    status ∈ ok / fail（不做 warn，避免语义含混）。未指定模型时用上游首个模型探测。
     """
     if not cfg.base_url:
         return _fail("缺少 Base URL")
     if not cfg.api_key:
         return _fail("缺少 API Key")
-    if not cfg.model:
-        return _fail("缺少模型名称")
 
     models: list[str] = []
     try:
@@ -166,18 +234,20 @@ async def test_connection(cfg: LLMConfig) -> dict[str, Any]:
     except ValueError as exc:
         return _fail(f"响应不是合法 JSON：{exc}")
 
+    probe_model = cfg.model or (models[0] if models else "")
+    if not probe_model:
+        return _fail("上游未返回可用模型，请手动填写模型名称")
+
     probe_cfg = LLMConfig(
         base_url=cfg.base_url,
         api_key=cfg.api_key,
-        model=cfg.model,
+        model=probe_model,
         temperature=cfg.temperature,
         max_tokens=16,
+        protocol=cfg.protocol,
     )
     try:
-        result = await chat_completion(
-            probe_cfg,
-            [{"role": "user", "content": "Reply with the single word: pong"}],
-        )
+        result = await chat_completion(probe_cfg, [{"role": "user", "content": PROBE_MESSAGE}])
     except httpx.HTTPStatusError as exc:
         return _fail(f"对话调用失败：HTTP {exc.response.status_code} {_error_detail(exc)}")
     except httpx.HTTPError as exc:
@@ -188,8 +258,60 @@ async def test_connection(cfg: LLMConfig) -> dict[str, Any]:
     return {
         "status": "ok",
         "latency_ms": result.latency_ms,
-        "detail": f"模型 {cfg.model} 调用正常，上游可选模型 {len(models)} 个",
+        "detail": f"模型 {probe_model} 调用正常，上游可选模型 {len(models)} 个",
         "models_count": len(models),
         "chat_ok": bool(result.content),
         "reply": result.content.strip()[:200],
     }
+
+
+async def test_endpoints(cfgs: list[LLMConfig], labels: list[str] | None = None) -> dict[str, Any]:
+    """多端点按序测试（聚合供应商）；任一成功即 ``status="ok"``，并附带各端点明细。"""
+    if not cfgs:
+        return {**_fail("没有可测试的上游端点"), "endpoints": []}
+
+    names = list(labels or [])
+    results: list[dict[str, Any]] = []
+    for index, cfg in enumerate(cfgs):
+        label = names[index] if index < len(names) else f"端点 {index + 1}"
+        results.append({"label": label, **await test_connection(cfg)})
+
+    succeeded = next((item for item in results if item["status"] == "ok"), None)
+    chosen = succeeded or results[0]
+    detail = str(chosen["detail"])
+    if len(results) > 1:
+        summary = "、".join(f"{item['label']} {'正常' if item['status'] == 'ok' else '失败'}" for item in results)
+        detail = f"{summary}；{detail}"
+
+    return {
+        "status": chosen["status"],
+        "latency_ms": chosen["latency_ms"],
+        "detail": detail[:500],
+        "models_count": chosen["models_count"],
+        "chat_ok": chosen["chat_ok"],
+        "reply": chosen["reply"],
+        "endpoints": results,
+    }
+
+
+async def chat_completion_with_failover(
+    cfgs: list[LLMConfig],
+    messages: list[dict[str, str]],
+    timeout: float = CHAT_TIMEOUT,
+) -> LLMResult:
+    """按序调用多个端点，返回首个成功结果；全部失败抛 ``LLMFailoverError``。"""
+    if not cfgs:
+        raise LLMFailoverError("没有可用的 LLM 端点")
+
+    errors: list[str] = []
+    for cfg in cfgs:
+        try:
+            return await chat_completion(cfg, messages, timeout)
+        except httpx.HTTPStatusError as exc:
+            errors.append(f"{cfg.base_url} HTTP {exc.response.status_code} {_error_detail(exc)}")
+        except httpx.HTTPError as exc:
+            errors.append(f"{cfg.base_url} {type(exc).__name__}: {exc}")
+        except ValueError as exc:
+            errors.append(f"{cfg.base_url} 响应解析失败：{exc}")
+
+    raise LLMFailoverError("；".join(errors)[:500])

@@ -316,7 +316,7 @@ const customRoutes = [
         path: '/ai-config',
         component: 'layout.base$view.ai-config',
         meta: {
-          title: 'AI Config',
+          title: 'Model Management',
           i18nKey: 'route.ai-config',
           icon: 'mdi:robot-happy',
           order: 4,
