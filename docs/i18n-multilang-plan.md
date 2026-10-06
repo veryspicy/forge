@@ -17,7 +17,7 @@
 
 1. **站点配置 translations**（admin 后台 i18n 面板按语言 Tab 编辑）：`nav.* / cat.* / footer.* / home.*` 等站点动态文案。
 2. **C 端静态语言包**（`portal-web/i18n/locales/*.json`）：页面固定 UI 文案（按钮、表单、导航通用词等）。
-3. **fallback**（`i18n.config.ts`）：`fallbackLocale: 'en'`，缺失 key 回退英文，`missingWarn/fallbackWarn` 关闭避免控制台刷屏。
+3. **fallback**（`portal-web/i18n/i18n.config.ts`）：`fallbackLocale: 'en'`，缺失 key 回退英文，`missingWarn/fallbackWarn` 关闭避免控制台刷屏。
 
 > 合并实现：`useSiteProfile.applyI18nTranslations` 将站点 `translations[locale]` 按命名空间合并进 vue-i18n 运行时；C 端组件统一用 `useI18n().t(key)` 取文案。
 
@@ -49,7 +49,7 @@
    - i18n 面板 `locales` 勾选 `ja`（localeOptions 已内置 ja 标签）；
    - 切到 `ja` Tab，为 `nav.* / cat.* / footer.*` 补齐日语文案（漏项回退英文）。
 2. **C 端静态包**：
-   - 新建 `app/i18n/locales/ja.json`（页面固定文案）；
+   - 新建 `portal-web/i18n/locales/ja.json`（页面固定文案）；
    - `nuxt.config` i18n 模块 `locales` 数组追加 `{ code: 'ja', language: 'ja', file: 'ja.json' }`（RTL 语言加 `dir: 'rtl'`）。
 
 > 若只做“站点动态文案”多语言（页面固定文案暂不翻译），步骤 2 可跳过，C 端固定文案会 fallback 到英文。
