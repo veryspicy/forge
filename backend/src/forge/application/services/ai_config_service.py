@@ -27,7 +27,7 @@ import json
 import logging
 import re
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -63,7 +63,7 @@ _IMPORT_NAME_FIELDS = ("name", "label", "title", "provider_name", "providerName"
 
 def _now() -> str:
     """统一时间戳（naive UTC ISO 字符串，与库内其它时间字段口径一致）。"""
-    return datetime.utcnow().isoformat(timespec="seconds")
+    return datetime.now(UTC).replace(tzinfo=None).isoformat(timespec="seconds")
 
 
 def _new_id(prefix: str) -> str:
@@ -400,7 +400,7 @@ async def _save_store(
         row.secret_value = secret_value  # type: ignore[assignment]
         row.is_secret = bool(secret_value)  # type: ignore[assignment]
         row.updated_by = updated_by  # type: ignore[assignment]
-        row.updated_at = datetime.utcnow()  # type: ignore[assignment]
+        row.updated_at = datetime.now(UTC).replace(tzinfo=None)  # type: ignore[assignment]
 
     await db.commit()
     await db.refresh(row)

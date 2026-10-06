@@ -860,6 +860,7 @@ const local: App.I18n.Schema = {
       draftName: '草稿供应商',
       missingName: '请填写供应商名称',
       missingBaseUrl: '请填写接口地址（Base URL）',
+      missingModel: '请填写或从列表中选择默认模型',
       testOk: '连接正常',
       testFail: '连接失败',
       upstreamModels: '上游可用模型',

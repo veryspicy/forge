@@ -104,6 +104,7 @@ const importing = ref(false);
 const testingIds = ref<string[]>([]);
 const cardTests = reactive<Record<string, TestResult>>({});
 const modelOptions = ref<{ label: string; value: string }[]>([]);
+const modelKeyword = ref('');
 
 const store = reactive<StoreView>({
   items: [],
@@ -370,9 +371,25 @@ function buildPayload() {
   };
 }
 
+function onModelSearch(keyword: string) {
+  modelKeyword.value = keyword;
+}
+
+/** filterable+tag 模式下未回车确认的输入不会写入 value，失焦时兜底提交，避免默认模型静默存空 */
+function commitModelKeyword() {
+  const keyword = modelKeyword.value.trim();
+  if (!form.model && keyword) {
+    form.model = keyword;
+  }
+}
+
 async function save() {
   if (!form.name.trim()) {
     window.$message?.warning(t('page.modelManagement.missingName'));
+    return;
+  }
+  if (!form.model.trim()) {
+    window.$message?.warning(t('page.modelManagement.missingModel'));
     return;
   }
   saving.value = true;
@@ -620,6 +637,8 @@ onMounted(loadStore);
                 tag
                 :options="modelOptions"
                 :placeholder="t('page.modelManagement.modelPlaceholder')"
+                @search="onModelSearch"
+                @blur="commitModelKeyword"
               />
               <NButton size="small" :loading="drawer.loadingModels" @click="fetchModels">
                 {{ t('page.modelManagement.fetchModels') }}

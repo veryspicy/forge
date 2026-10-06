@@ -866,6 +866,7 @@ const local: App.I18n.Schema = {
       draftName: 'Draft provider',
       missingName: 'Provider name is required',
       missingBaseUrl: 'Base URL is required',
+      missingModel: 'Enter or select a default model',
       testOk: 'Connected',
       testFail: 'Failed',
       upstreamModels: 'Upstream models',
