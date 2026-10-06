@@ -318,7 +318,7 @@ const customRoutes = [
         meta: {
           title: 'Model Management',
           i18nKey: 'route.ai-config',
-          icon: 'mdi:robot-happy',
+          icon: 'mdi:brain',
           order: 4,
           roles: ['super_admin', 'admin']
         }
