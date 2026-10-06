@@ -15,8 +15,8 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # Copy source (bind mount overlay for hot-reload)
 COPY . .
-# Symlink i18n/locales to match Nuxt i18n resolve path (rootDir + restructureDir + langDir)
-RUN rm -rf /app/i18n && ln -s /app/app/i18n /app/i18n
+# i18n 单一来源：portal-web/i18n/locales
+# Nuxt i18n 默认 restructureDir='i18n' + langDir='locales'，解析 rootDir/i18n/locales 即命中，无需软链
 
 EXPOSE 3000
 

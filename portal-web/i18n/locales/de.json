@@ -279,7 +279,8 @@
     "invalidCard": "Bitte überprüfen Sie die eingegebenen Kartendaten.",
     "invalidCardNumber": "Bitte geben Sie eine gültige Kartennummer ein (13-19 Ziffern).",
     "payNow": "Bestellen & bezahlen",
-    "payAfterOrderNote": "Nach der Bestellung zahlen Sie auf der Bestellseite (Sandbox, keine echte Belastung)."
+    "payAfterOrderNote": "Nach der Bestellung zahlen Sie auf der Bestellseite (Sandbox, keine echte Belastung).",
+    "testCardHint": "Demo akzeptiert nur die Testkarte 4242 4242 4242 4242; andere Karten werden abgelehnt"
   },
   "orders": {
     "title": "Meine Bestellungen",
@@ -357,7 +358,7 @@
     "noTrackingEvents": "Noch keine Sendungsereignisse",
     "trackingUpdate": "Aktualisierung"
   },
-"returns": {
+  "returns": {
     "title": "Retouren & Erstattungen",
     "requestReturn": "Rückgabe anfordern",
     "notEligible": "Diese Bestellung ist derzeit nicht für eine Rückgabe berechtigt.",
@@ -482,7 +483,8 @@
     "enterEmail": "E-Mail eingeben",
     "subscribe": "Abonnieren",
     "copyright": "© 2026 Forge. Alle Rechte vorbehalten.",
-    "paymentMethods": "Visa · MC · Amex · PayPal"
+    "paymentMethods": "Visa · MC · Amex · PayPal",
+    "followUs": "Folgen Sie uns"
   },
   "status": {
     "pending": "Ausstehend",
@@ -526,7 +528,10 @@
     "AI_PROVIDER_LIMIT_REACHED": "Maximale Anzahl an KI-Anbietern erreicht",
     "AI_UPSTREAM_UNREACHABLE": "KI-Upstream nicht erreichbar; bitte Basis-URL und API-Schlüssel prüfen",
     "INVALID_ID": "Ungültiges ID-Format",
-    "UNKNOWN_ERROR": "Vorgang fehlgeschlagen, bitte erneut versuchen"
+    "UNKNOWN_ERROR": "Vorgang fehlgeschlagen, bitte erneut versuchen",
+    "PAYMENT_DECLINED": "Zahlung abgelehnt, bitte versuchen Sie es mit einer anderen Karte",
+    "PAYMENT_METHOD_UNSUPPORTED": "Zahlungsmethode wird nicht unterstützt",
+    "PAYMENT_GATEWAY_ERROR": "Zahlungsdienst vorübergehend nicht verfügbar, bitte später erneut versuchen"
   },
   "hero": {
     "title": "Ihr Haustier verdient das Beste",

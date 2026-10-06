@@ -282,7 +282,8 @@
     "invalidCard": "Please check the card information you entered.",
     "invalidCardNumber": "Please enter a valid card number (13-19 digits).",
     "payNow": "Place order & pay",
-    "payAfterOrderNote": "After placing the order, complete payment on the order page (sandbox gateway, no real charge)."
+    "payAfterOrderNote": "After placing the order, complete payment on the order page (sandbox gateway, no real charge).",
+    "testCardHint": "Demo only accepts test card 4242 4242 4242 4242; other cards are declined"
   },
   "orders": {
     "title": "My Orders",
@@ -367,7 +368,7 @@
     "noTrackingEvents": "No tracking events yet",
     "trackingUpdate": "Update"
   },
-"returns": {
+  "returns": {
     "title": "Returns & Refunds",
     "requestReturn": "Request Return",
     "notEligible": "This order is not eligible for return right now.",
@@ -416,8 +417,24 @@
     },
     "errors": {
       "reasonRequired": "Please select a reason",
-      "itemsRequired": "Please select at least one item"
-    }
+      "itemsRequired": "Please select at least one item",
+      "shipmentRequired": "Carrier and tracking number are required"
+    },
+    "shipBackTracking": "Return Shipment",
+    "shippedAt": "Shipped on",
+    "refundAfterReceive": "Refund will be issued once we receive your return.",
+    "refundProcessing": "We've received your return. Your refund is being processed.",
+    "trackingRequired": "Please upload the return tracking number for this request.",
+    "submitTracking": "Add Tracking Number",
+    "updateTracking": "Update Tracking",
+    "shipmentModalTitle": "Return Shipment",
+    "shipmentModalHint": "Enter the carrier and tracking number of the parcel you sent back.",
+    "carrier": "Carrier",
+    "carrierPlaceholder": "e.g. DHL, USPS, SF Express",
+    "trackingNumber": "Tracking number",
+    "trackingNumberPlaceholder": "e.g. 1234567890",
+    "trackingHint": "Letters, numbers, dash, underscore or space, 4-64 characters.",
+    "shipmentSubmitted": "Tracking number submitted"
   },
   "chat": {
     "title": "AI Chat",
@@ -492,7 +509,8 @@
     "enterEmail": "Enter your email",
     "subscribe": "Subscribe",
     "copyright": "© 2026 Forge. All rights reserved.",
-    "paymentMethods": "Visa · MC · Amex · PayPal"
+    "paymentMethods": "Visa · MC · Amex · PayPal",
+    "followUs": "Follow us"
   },
   "status": {
     "pending": "Pending",
@@ -536,7 +554,10 @@
     "AI_PROVIDER_LIMIT_REACHED": "AI provider limit reached",
     "AI_UPSTREAM_UNREACHABLE": "AI upstream is unreachable; check base URL and API key",
     "INVALID_ID": "Invalid id format",
-    "UNKNOWN_ERROR": "Operation failed, please try again"
+    "UNKNOWN_ERROR": "Operation failed, please try again",
+    "PAYMENT_DECLINED": "Payment declined, please try another card",
+    "PAYMENT_METHOD_UNSUPPORTED": "Payment method not supported",
+    "PAYMENT_GATEWAY_ERROR": "Payment service temporarily unavailable, please try again later"
   },
   "hero": {
     "title": "Your Pet Deserves the Best",

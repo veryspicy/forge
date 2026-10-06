@@ -7,7 +7,7 @@
 
 ## 1. 现状与目标
 
-- C 端界面文案（vue-i18n 静态语言包）：`app/i18n/locales/{en,zh,ar,de,fr}.json`，由 `nuxt.config` i18n 模块管理，`strategy: 'prefix'`（`/de/xxx` 带语言前缀路由），`defaultLocale: 'en'`，`ar` 已配 `dir: 'rtl'`。
+- C 端界面文案（vue-i18n 静态语言包）：`portal-web/i18n/locales/{en,zh,ar,de,fr}.json`（**唯一来源**，本地 dev 与容器读同一份），由 `nuxt.config` i18n 模块管理，`strategy: 'prefix'`（`/de/xxx` 带语言前缀路由），`defaultLocale: 'en'`，`ar` 已配 `dir: 'rtl'`。
 - 站点动态文案（后台可编辑）：`DEFAULT_SITE_CONFIG.i18n` 由 admin 站点配置面板管理，含 `locales` 列表与 `translations` 字典（当前预置 en/zh/ar/de/fr 五语言，key 分 `nav.` / `cat.` / `footer.` 三个命名空间）。
 - 目标：**任意语言可平滑扩展**。新增语言只需两步（见 §4），前端语言切换下拉由站点配置驱动，不写死。
 
@@ -16,7 +16,7 @@
 ### 2.1 三层文案来源与合并顺序（优先级从高到低）
 
 1. **站点配置 translations**（admin 后台 i18n 面板按语言 Tab 编辑）：`nav.* / cat.* / footer.* / home.*` 等站点动态文案。
-2. **C 端静态语言包**（`app/i18n/locales/*.json`）：页面固定 UI 文案（按钮、表单、导航通用词等）。
+2. **C 端静态语言包**（`portal-web/i18n/locales/*.json`）：页面固定 UI 文案（按钮、表单、导航通用词等）。
 3. **fallback**（`i18n.config.ts`）：`fallbackLocale: 'en'`，缺失 key 回退英文，`missingWarn/fallbackWarn` 关闭避免控制台刷屏。
 
 > 合并实现：`useSiteProfile.applyI18nTranslations` 将站点 `translations[locale]` 按命名空间合并进 vue-i18n 运行时；C 端组件统一用 `useI18n().t(key)` 取文案。
