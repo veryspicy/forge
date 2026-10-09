@@ -1,4 +1,4 @@
-﻿"""Seed Site Profiles for Forge — pet_supplies + industrial_supplies."""
+"""Seed Site Profiles for Forge — pet_supplies + industrial_supplies."""
 
 import asyncio
 import os
@@ -180,9 +180,7 @@ async def main():
         from sqlalchemy import func, select
 
         # Check if profiles already exist
-        result = await session.execute(
-            select(func.count()).select_from(ORMSiteProfile)
-        )
+        result = await session.execute(select(func.count()).select_from(ORMSiteProfile))
         count = result.scalar()
         if count > 0:
             print(f"SKIP: {count} profiles already exist. Delete them first to re-seed.")
