@@ -1,5 +1,5 @@
 """Verify Casbin enforcer + DB integration."""
-import casbin
+
 from forge.infrastructure.casbin_enforcer import create_enforcer
 
 e = create_enforcer()

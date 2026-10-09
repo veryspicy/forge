@@ -12,16 +12,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 
 import casbin
 from casbin_sqlalchemy_adapter import Adapter
-from sqlalchemy import select
+from forge.infrastructure.persistence.database import DATABASE_URL, async_session_factory, engine
 from passlib.context import CryptContext
+from sqlalchemy import select
 
-from forge.infrastructure.persistence.database import async_session_factory, engine, DATABASE_URL
 from forge.infrastructure.persistence.models import (
     ORMAdminUser,
-    ORMRole,
-    ORMPermission,
-    ORMRolePermission,
     ORMAdminUserRole,
+    ORMPermission,
+    ORMRole,
+    ORMRolePermission,
 )
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -66,9 +66,11 @@ ROLES = [
         "display_name": "管理员",
         "description": "日常运营管理",
         "is_system": True,
-        "permissions": [p["code"] for p in PERMISSIONS if p["code"] not in (
-            "roles:view", "roles:manage", "users:manage", "settings:manage"
-        )],
+        "permissions": [
+            p["code"]
+            for p in PERMISSIONS
+            if p["code"] not in ("roles:view", "roles:manage", "users:manage", "settings:manage")
+        ],
     },
     {
         "name": "operator",
@@ -76,10 +78,16 @@ ROLES = [
         "description": "商品/订单/物流/定价管理",
         "is_system": True,
         "permissions": [
-            "products:view", "products:create", "products:edit",
-            "orders:view", "orders:review", "orders:procure",
-            "shipments:view", "shipments:manage",
-            "pricing:view", "pricing:manage",
+            "products:view",
+            "products:create",
+            "products:edit",
+            "orders:view",
+            "orders:review",
+            "orders:procure",
+            "shipments:view",
+            "shipments:manage",
+            "pricing:view",
+            "pricing:manage",
         ],
     },
     {
@@ -89,7 +97,8 @@ ROLES = [
         "is_system": True,
         "permissions": [
             "products:view",
-            "orders:view", "orders:refund",
+            "orders:view",
+            "orders:refund",
             "shipments:view",
             "ai_probe:view",
         ],
@@ -113,9 +122,9 @@ async def seed_rbac():
         print("[SEED] Creating permissions...")
         perm_map: dict[str, ORMPermission] = {}
         for pdata in PERMISSIONS:
-            row = (await session.execute(
-                select(ORMPermission).where(ORMPermission.code == pdata["code"])
-            )).scalar_one_or_none()
+            row = (
+                await session.execute(select(ORMPermission).where(ORMPermission.code == pdata["code"]))
+            ).scalar_one_or_none()
             if row is None:
                 row = ORMPermission(**pdata)
                 session.add(row)
@@ -128,9 +137,7 @@ async def seed_rbac():
         role_map: dict[str, ORMRole] = {}
         for rdata in ROLES:
             perm_codes = rdata["permissions"]
-            row = (await session.execute(
-                select(ORMRole).where(ORMRole.name == rdata["name"])
-            )).scalar_one_or_none()
+            row = (await session.execute(select(ORMRole).where(ORMRole.name == rdata["name"]))).scalar_one_or_none()
             if row is None:
                 row = ORMRole(
                     name=rdata["name"],
@@ -146,12 +153,14 @@ async def seed_rbac():
                 perm = perm_map.get(code)
                 if perm is None:
                     continue
-                assoc = (await session.execute(
-                    select(ORMRolePermission).where(
-                        ORMRolePermission.role_id == row.id,
-                        ORMRolePermission.permission_id == perm.id,
+                assoc = (
+                    await session.execute(
+                        select(ORMRolePermission).where(
+                            ORMRolePermission.role_id == row.id,
+                            ORMRolePermission.permission_id == perm.id,
+                        )
                     )
-                )).scalar_one_or_none()
+                ).scalar_one_or_none()
                 if assoc is None:
                     session.add(ORMRolePermission(role_id=row.id, permission_id=perm.id))
         print(f"[SEED]   {len(ROLES)} roles ready")
@@ -179,9 +188,7 @@ async def seed_rbac():
         email = os.getenv("ADMIN_EMAIL", "admin@forge.com")
         password = os.getenv("ADMIN_PASSWORD", "admin123")
 
-        user = (await session.execute(
-            select(ORMAdminUser).where(ORMAdminUser.email == email)
-        )).scalar_one_or_none()
+        user = (await session.execute(select(ORMAdminUser).where(ORMAdminUser.email == email))).scalar_one_or_none()
 
         if user is None:
             user = ORMAdminUser(
@@ -205,18 +212,14 @@ async def seed_rbac():
         print("[SEED] Syncing Casbin group rules...")
         enforcer.load_policy()
 
-        rows = (await session.execute(
-            select(ORMAdminUserRole)
-        )).scalars().all()
+        rows = (await session.execute(select(ORMAdminUserRole))).scalars().all()
 
         user_role_map: dict[str, list[str]] = {}
         for aur in rows:
-            admin_user = (await session.execute(
-                select(ORMAdminUser).where(ORMAdminUser.id == aur.admin_user_id)
-            )).scalar_one()
-            role = (await session.execute(
-                select(ORMRole).where(ORMRole.id == aur.role_id)
-            )).scalar_one()
+            admin_user = (
+                await session.execute(select(ORMAdminUser).where(ORMAdminUser.id == aur.admin_user_id))
+            ).scalar_one()
+            role = (await session.execute(select(ORMRole).where(ORMRole.id == aur.role_id))).scalar_one()
             user_role_map.setdefault(admin_user.email, []).append(role.name)
 
         for user_email, role_names in user_role_map.items():
@@ -231,9 +234,7 @@ async def seed_rbac():
         print(f"[SEED]   Casbin sync complete: {len(policies)} p-rules, {len(groups)} g-rules")
 
         # Verify
-        verify = (await session.execute(
-            select(ORMAdminUser).where(ORMAdminUser.email == email)
-        )).scalar_one()
+        verify = (await session.execute(select(ORMAdminUser).where(ORMAdminUser.email == email))).scalar_one()
         d = verify.to_dict()
         print(f"[SEED]   Verify: {d['email']} roles={[r['name'] for r in d['roles']]}")
 

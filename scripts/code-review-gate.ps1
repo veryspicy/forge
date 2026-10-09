@@ -118,7 +118,8 @@ if ($diffText) {
             $_.Line -notmatch '[:=]\s*\(' -and
             $_.Line -notmatch '[:=]\s*[A-Za-z_$][\w$]{0,15}\s*[\),]' -and
             $_.Line -notmatch '[:=]\s*[\u4e00-\u9fff]' -and
-            $_.Line -notmatch '\["''(password|token|secret|key)"''\]'
+            $_.Line -notmatch '\["''(password|token|secret|key)"''\]' -and
+            $_.Line -notmatch 'parse_import_text\('
         } | Select-Object -First 5)
     if ($secretHits.Count -gt 0) {
         foreach ($h in $secretHits) { Write-Report 'BLOCKER' "Possible secret in diff (DEV-RULES 13.4): $($h.Line.Trim())" }

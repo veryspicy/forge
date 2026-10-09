@@ -556,7 +556,7 @@ declare namespace App {
         ordersDetail: Record<string, string>;
         archive: Record<string, string>;
         aiProbe: Record<string, string>;
-        aiConfig: Record<string, string>;
+        modelManagement: Record<string, string>;
         users: Record<string, string>;
         site: Record<string, string>;
         settings: Record<string, string>;
@@ -649,6 +649,10 @@ declare namespace App {
         CUSTOMER_CANNOT_DELETE: string;
         INVALID_ID: string;
         ORDER_NOT_FOUND: string;
+        AI_PROVIDER_NOT_FOUND: string;
+        AI_PROVIDER_INVALID: string;
+        AI_PROVIDER_LIMIT_REACHED: string;
+        AI_UPSTREAM_UNREACHABLE: string;
       };
     };
 

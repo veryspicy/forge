@@ -9,8 +9,10 @@ overrides:
   browserslist: 4.28.8
   tar: 7.5.21
   js-yaml: 4.3.2
-  shell-quote: 1.10.0
-  sharp: 0.35.4
+  shell-quote: 1.12.0
+  sharp: 0.35.5
+  source-map-js: 1.2.2
+  vue: 3.5.43
   svgo@^3: 3.3.5
   svgo@^4: 4.1.0
   nanoid@^3: 3.3.18
@@ -22,7 +24,13 @@ overrides:
 # 以下高危 advisory 的上游修复版本尚未发布到 npm，定点豁免；上游发布后应移除
 #   braces (GHSA-vfj7-8cjw-p6xm)     待发布 >=3.0.4
 #   node-forge (GHSA-86w9-cpqp-85rv) 待发布 >=1.4.1
+#   simple-git 系列：nuxt@3.21.11 固定 @nuxt/devtools ^3.4.1 -> simple-git ^3.36.0，
+#     3.x 无修复版（修复在 4.0.x，为 ESM 与 devtools CJS 用法不兼容），待 nuxt/devtools 上游升级后移除
 auditConfig:
   ignoreGhsas:
     - GHSA-vfj7-8cjw-p6xm
     - GHSA-86w9-cpqp-85rv
+    - GHSA-v5rq-49vh-5v5c
+    - GHSA-x6jw-m9v5-85vh
+    - GHSA-g4wm-2vf7-vfgr
+    - GHSA-858h-whjf-mvg5

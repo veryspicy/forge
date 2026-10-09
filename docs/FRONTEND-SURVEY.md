@@ -31,7 +31,6 @@
 ```
 D:\codeRepo\forge\portal-web\
 ├── nuxt.config.ts              # Nuxt 配置（模块/运行时/CSS/代理）
-├── i18n.config.ts              # 国际化配置
 ├── package.json                # 依赖声明
 ├── tsconfig.json               # TypeScript 配置
 ├── pnpm-lock.yaml              # 锁文件
@@ -83,11 +82,14 @@ D:\codeRepo\forge\portal-web\
 │   └── types/
 │       └── tailwindcss.d.ts    # Tailwind 类型声明
 │
-├── locales/                    # i18n 翻译文件
-│   ├── en.json
-│   ├── ar.json
-│   ├── de.json
-│   └── fr.json
+├── i18n/                       # 国际化单一来源（i18n.config.ts + locales）
+│   ├── i18n.config.ts          # vueI18n 运行时配置（fallbackLocale: en）
+│   └── locales/                # i18n 翻译文件
+│       ├── en.json
+│       ├── ar.json
+│       ├── de.json
+│       ├── fr.json
+│       └── zh.json
 │
 ├── .nuxt/                      # Nuxt 自动生成（忽略）
 └── node_modules/               # 依赖（忽略）

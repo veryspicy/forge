@@ -1,4 +1,4 @@
-﻿"""Seed Site Profiles for Forge — pet_supplies + industrial_supplies."""
+"""Seed Site Profiles for Forge — pet_supplies + industrial_supplies."""
 
 import asyncio
 import os
@@ -7,8 +7,8 @@ import sys
 os.environ["DATABASE_URL"] = "postgresql+asyncpg://postgres:postgres@localhost:5432/forge"
 sys.path.insert(0, r"D:\codeRepo\forge\backend\src")
 
-from forge.main.application import app
 from forge.infrastructure.persistence.database import async_session_factory
+
 from forge.infrastructure.persistence.models import ORMSiteProfile
 
 PET_SUPPLIES_CONFIG = {
@@ -177,12 +177,10 @@ INDUSTRIAL_SUPPLIES_CONFIG = {
 
 async def main():
     async with async_session_factory() as session:
-        from sqlalchemy import select, func
+        from sqlalchemy import func, select
 
         # Check if profiles already exist
-        result = await session.execute(
-            select(func.count()).select_from(ORMSiteProfile)
-        )
+        result = await session.execute(select(func.count()).select_from(ORMSiteProfile))
         count = result.scalar()
         if count > 0:
             print(f"SKIP: {count} profiles already exist. Delete them first to re-seed.")

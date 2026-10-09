@@ -75,8 +75,8 @@ _safe_include("chat_requests", prefix="/chat-requests", tags=["Admin - Probe"])
 # AI Probe
 _safe_include("ai_probe", prefix="/ai", tags=["Admin - Probe"])
 
-# AI Config（LLM base_url / api_key / model 配置与可用性测试）
-_safe_include("ai_config", prefix="/ai-config", tags=["Admin - AI Config"])
+# Model Management（多供应商模型配置与可用性测试）
+_safe_include("ai_config", prefix="/ai-config", tags=["Admin - Model Management"])
 
 # Users
 _safe_include("users", prefix="/users", tags=["Admin - Users"])

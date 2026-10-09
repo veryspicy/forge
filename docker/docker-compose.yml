@@ -200,7 +200,8 @@ services:
       API_PROXY_TARGET: http://backend:8000
       NUXT_BACKEND_URL: http://backend:8000               # routeRules 代理目标（见 nuxt.config.ts）
     volumes:
-      - ../portal-web/app:/app/app  # 热重载
+      - ../portal-web/app:/app/app      # 热重载
+      - ../portal-web/i18n:/app/i18n    # i18n 单一来源热重载（locale JSON 改动免重建镜像）
     depends_on:
       backend:
         condition: service_healthy
