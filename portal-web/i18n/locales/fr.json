@@ -204,7 +204,12 @@
     "addedToCart": "\"{name}\" ajouté au panier",
     "loginRequired": "Veuillez vous connecter pour ajouter des articles au panier.",
     "noProducts": "Aucun produit ne correspond à vos critères.",
-    "addToCartFailed": "Échec de l'ajout au panier, veuillez réessayer."
+    "addToCartFailed": "Échec de l'ajout au panier, veuillez réessayer.",
+    "detailsTitle": "Détails du produit",
+    "trustFreeShipping": "Livraison gratuite",
+    "trustReturns": "Retours 30 jours",
+    "trustSecure": "Paiement sécurisé",
+    "videoNotSupported": "Votre navigateur ne prend pas en charge la lecture vidéo."
   },
   "cart": {
     "title": "Panier",

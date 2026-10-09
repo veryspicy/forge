@@ -207,7 +207,12 @@
     "addedToCart": "\"{name}\" added to cart",
     "loginRequired": "Please sign in to add items to your cart.",
     "noProducts": "No products found.",
-    "addToCartFailed": "Add to cart failed, please try again."
+    "addToCartFailed": "Add to cart failed, please try again.",
+    "detailsTitle": "Product Details",
+    "trustFreeShipping": "Free Shipping",
+    "trustReturns": "30-Day Returns",
+    "trustSecure": "Secure Checkout",
+    "videoNotSupported": "Your browser does not support the video tag."
   },
   "cart": {
     "title": "Shopping Cart",

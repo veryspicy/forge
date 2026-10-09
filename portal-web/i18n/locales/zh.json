@@ -207,7 +207,12 @@
     "addedToCart": "「{name}」已加入购物车",
     "loginRequired": "请先登录后再加入购物车。",
     "noProducts": "暂无商品。",
-    "addToCartFailed": "加入购物车失败，请重试。"
+    "addToCartFailed": "加入购物车失败，请重试。",
+    "detailsTitle": "商品详情",
+    "trustFreeShipping": "免运费",
+    "trustReturns": "30 天退换",
+    "trustSecure": "安全支付",
+    "videoNotSupported": "您的浏览器不支持视频播放。"
   },
   "cart": {
     "title": "购物车",
