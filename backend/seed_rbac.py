@@ -12,16 +12,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 
 import casbin
 from casbin_sqlalchemy_adapter import Adapter
-from sqlalchemy import select
+from forge.infrastructure.persistence.database import DATABASE_URL, async_session_factory, engine
 from passlib.context import CryptContext
+from sqlalchemy import select
 
-from forge.infrastructure.persistence.database import async_session_factory, engine, DATABASE_URL
 from forge.infrastructure.persistence.models import (
     ORMAdminUser,
-    ORMRole,
-    ORMPermission,
-    ORMRolePermission,
     ORMAdminUserRole,
+    ORMPermission,
+    ORMRole,
+    ORMRolePermission,
 )
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

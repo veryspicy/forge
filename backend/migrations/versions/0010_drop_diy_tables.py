@@ -7,17 +7,17 @@ Create Date: 2026-08-12
 删除 DIY 页面装修相关表（diy_page_components / diy_components / diy_pages）。
 原因：admin 端"页面装修"功能重构为"站点配置"，不再需要页面/组件/结构编辑。
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = '0010_drop_diy_tables'
-down_revision: Union[str, None] = '0009_seed_system_diy_pages'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = '0009_seed_system_diy_pages'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
