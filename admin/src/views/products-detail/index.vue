@@ -36,7 +36,6 @@ const saving = ref(false);
 const uploading = ref(false);
 
 const tagsString = ref('');
-const regionsString = ref('');
 const statusChange = ref<string | null>(null);
 
 const images = ref<{ key: string; url: string; alt?: string; resourceId?: string; isMain?: boolean }[]>([]);
@@ -186,10 +185,8 @@ const form = ref({
   supplier_id: '' as string,
   supplier_sku: '',
   tags: [] as string[],
-  region_availability: [] as string[],
   name_translations: {} as Record<string, string>,
   description_translations: {} as Record<string, string>,
-  ai_description_translations: {} as Record<string, string>,
   /** 结构化详情块（字段受后端 DETAIL_BLOCK_FIELDS 白名单约束） */
   detail_blocks: [] as Record<string, any>[]
 });
@@ -206,31 +203,23 @@ const langOptions = [
 const currentLang = ref('en');
 const translationName = ref('');
 const translationDesc = ref('');
-const translationAi = ref('');
 
 function loadLang(lang: string) {
   translationName.value = form.value.name_translations?.[lang] || '';
   translationDesc.value = form.value.description_translations?.[lang] || '';
-  translationAi.value = form.value.ai_description_translations?.[lang] || '';
 }
 
 function switchLang(lang: string) {
   syncLang('name');
   syncLang('desc');
-  syncLang('ai');
   currentLang.value = lang;
   loadLang(lang);
 }
 
-function syncLang(kind: 'name' | 'desc' | 'ai') {
-  const key =
-    kind === 'name'
-      ? 'name_translations'
-      : kind === 'desc'
-        ? 'description_translations'
-        : 'ai_description_translations';
+function syncLang(kind: 'name' | 'desc') {
+  const key = kind === 'name' ? 'name_translations' : 'description_translations';
   form.value[key][currentLang.value] =
-    kind === 'name' ? translationName.value : kind === 'desc' ? translationDesc.value : translationAi.value;
+    kind === 'name' ? translationName.value : translationDesc.value;
 }
 
 const categoryOptions = [
@@ -293,12 +282,6 @@ function updateTags() {
     .map(s => s.trim())
     .filter(Boolean);
 }
-function updateRegions() {
-  form.value.region_availability = regionsString.value
-    .split(',')
-    .map(s => s.trim())
-    .filter(Boolean);
-}
 
 onMounted(async () => {
   loadCatalogOptions();
@@ -324,15 +307,12 @@ onMounted(async () => {
       supplier_id: p.supplier_id || '',
       supplier_sku: p.supplier_sku || '',
       tags: p.tags || [],
-      region_availability: p.region_availability || [],
       name_translations: p.name_translations || {},
       description_translations: p.description_translations || {},
-      ai_description_translations: p.ai_description_translations || {},
       detail_blocks: (p.detail_blocks || []) as Record<string, any>[]
     };
     loadLang('en');
     tagsString.value = (p.tags || []).join(', ');
-    regionsString.value = (p.region_availability || []).join(', ');
     images.value = (p.images || [])
       .slice()
       .sort((a: any, b: any) => Number(a.sort ?? 0) - Number(b.sort ?? 0))
@@ -476,7 +456,6 @@ async function save() {
   error.value = '';
   syncLang('name');
   syncLang('desc');
-  syncLang('ai');
   try {
     const payload = buildPayload();
     if (isEdit.value) {
@@ -729,11 +708,6 @@ async function reloadVariants() {
               <NInput v-model:value="translationDesc" type="textarea" :rows="3" @update:value="syncLang('desc')" />
             </NFormItem>
           </NGi>
-          <NGi span="2">
-            <NFormItem label="AI 描述翻译">
-              <NInput v-model:value="translationAi" type="textarea" :rows="3" @update:value="syncLang('ai')" />
-            </NFormItem>
-          </NGi>
         </NGrid>
       </NCard>
 
@@ -757,20 +731,11 @@ async function reloadVariants() {
         </NFormItem>
       </NCard>
 
-      <!-- Tags & Regions -->
-      <NCard :title="$t('common.tagsRegions')" size="small" class="md:col-span-2">
-        <NGrid :cols="2" :x-gap="16" responsive="screen">
-          <NGi span="1 m:2">
-            <NFormItem :label="$t('page.productsDetail.tagsComma')">
-              <NInput v-model:value="tagsString" @update:value="updateTags" />
-            </NFormItem>
-          </NGi>
-          <NGi span="1 m:2">
-            <NFormItem :label="$t('page.productsDetail.regionsComma')">
-              <NInput v-model:value="regionsString" @update:value="updateRegions" />
-            </NFormItem>
-          </NGi>
-        </NGrid>
+      <!-- Tags -->
+      <NCard title="标签" size="small" class="md:col-span-2">
+        <NFormItem :label="$t('page.productsDetail.tagsComma')">
+          <NInput v-model:value="tagsString" @update:value="updateTags" />
+        </NFormItem>
       </NCard>
 
       <!-- Images -->
