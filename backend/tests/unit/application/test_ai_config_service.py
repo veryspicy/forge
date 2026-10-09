@@ -560,7 +560,9 @@ class TestImportParsing:
 
     def test_json_list_and_nested(self):
         drafts = svc.parse_import_text(
-            json.dumps([{"base_url": "https://a.example.com/v1", "api_key": "k1"}, {"base_url": "https://b.example.com/v1"}])
+            json.dumps(
+                [{"base_url": "https://a.example.com/v1", "api_key": "k1"}, {"base_url": "https://b.example.com/v1"}]
+            )
         )
         assert len(drafts) == 2
         nested = svc.parse_import_text(json.dumps({"providers": [{"base_url": "https://c.example.com/v1"}]}))
@@ -648,7 +650,9 @@ class TestImportProviders:
         items = [provider(id=f"p{i}") for i in range(svc.MAX_PROVIDERS)]
         row = make_row({"items": items, "active_id": "p0", "enabled": True})
         with pytest.raises(ValueError, match="上限"):
-            await svc.import_providers(FakeDB(providers_row=row), json.dumps([{"name": "B", "base_url": "https://b/v1"}]))
+            await svc.import_providers(
+                FakeDB(providers_row=row), json.dumps([{"name": "B", "base_url": "https://b/v1"}])
+            )
 
 
 # ---------------------------------------------------------------------------

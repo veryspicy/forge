@@ -5,6 +5,7 @@ Revises: 0006_add_chat_requests
 Create Date: 2026-07-22
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -12,27 +13,24 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '0007_add_site_profiles'
-down_revision: str | None = 'c11c8ddca4bc'
+revision: str = "0007_add_site_profiles"
+down_revision: str | None = "c11c8ddca4bc"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
     op.create_table(
-        'site_profiles',
-        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True,
-                  server_default=sa.text('gen_random_uuid()')),
-        sa.Column('name', sa.String(64), unique=True, nullable=False, index=True),
-        sa.Column('label', sa.String(128), nullable=False),
-        sa.Column('is_active', sa.Boolean(), nullable=False, default=False, index=True),
-        sa.Column('config', postgresql.JSONB(), nullable=False, default=dict),
-        sa.Column('created_at', sa.DateTime(), nullable=False,
-                  server_default=sa.text('now()')),
-        sa.Column('updated_at', sa.DateTime(), nullable=False,
-                  server_default=sa.text('now()')),
+        "site_profiles",
+        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
+        sa.Column("name", sa.String(64), unique=True, nullable=False, index=True),
+        sa.Column("label", sa.String(128), nullable=False),
+        sa.Column("is_active", sa.Boolean(), nullable=False, default=False, index=True),
+        sa.Column("config", postgresql.JSONB(), nullable=False, default=dict),
+        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.text("now()")),
+        sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.text("now()")),
     )
 
 
 def downgrade() -> None:
-    op.drop_table('site_profiles')
+    op.drop_table("site_profiles")
