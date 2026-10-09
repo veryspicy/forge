@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -51,7 +51,7 @@ async def _upsert_active_config(db: AsyncSession, payload_config: dict[str, obje
         db.add(profile)
     else:
         profile.config = merged_for_save  # type: ignore[assignment]
-    profile.updated_at = datetime.utcnow()  # type: ignore[assignment]
+    profile.updated_at = datetime.now(UTC).replace(tzinfo=None)  # type: ignore[assignment]
     await db.commit()
     await db.refresh(profile)
     return profile.config or {}  # type: ignore[return-value]

@@ -125,13 +125,9 @@ def upgrade() -> None:
     op.create_index("ix_products_category_id", "products", ["category_id"])
     op.create_index("ix_products_brand_id", "products", ["brand_id"])
     op.create_index("ix_products_product_type_id", "products", ["product_type_id"])
-    op.create_foreign_key(
-        "products_category_id_fkey", "products", "product_categories", ["category_id"], ["id"]
-    )
+    op.create_foreign_key("products_category_id_fkey", "products", "product_categories", ["category_id"], ["id"])
     op.create_foreign_key("products_brand_id_fkey", "products", "brands", ["brand_id"], ["id"])
-    op.create_foreign_key(
-        "products_product_type_id_fkey", "products", "product_types", ["product_type_id"], ["id"]
-    )
+    op.create_foreign_key("products_product_type_id_fkey", "products", "product_types", ["product_type_id"], ["id"])
 
     # 9. product_variants 新增库存预警值（D5）
     op.add_column(

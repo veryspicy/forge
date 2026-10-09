@@ -282,7 +282,8 @@
     "invalidCard": "请检查填写的银行卡信息。",
     "invalidCardNumber": "请输入有效的卡号（13-19 位数字）。",
     "payNow": "下单并去支付",
-    "payAfterOrderNote": "下单后将跳转订单详情页完成支付（沙箱网关演示，不会真实扣款）"
+    "payAfterOrderNote": "下单后将跳转订单详情页完成支付（沙箱网关演示，不会真实扣款）",
+    "testCardHint": "演示环境仅支持测试卡 4242 4242 4242 4242，其余卡号将被拒付"
   },
   "orders": {
     "title": "我的订单",
@@ -367,7 +368,7 @@
     "noTrackingEvents": "暂无物流动态",
     "trackingUpdate": "更新"
   },
-"returns": {
+  "returns": {
     "title": "退货与退款",
     "requestReturn": "申请退货",
     "notEligible": "当前订单不支持退货申请",
@@ -416,8 +417,24 @@
     },
     "errors": {
       "reasonRequired": "请选择退货原因",
-      "itemsRequired": "请至少选择一件商品"
-    }
+      "itemsRequired": "请至少选择一件商品",
+      "shipmentRequired": "请填写承运商与快递单号"
+    },
+    "shipBackTracking": "退货物流",
+    "shippedAt": "寄出时间",
+    "refundAfterReceive": "我们收到退货后将立即为您发起退款",
+    "refundProcessing": "商家已收到退货，正在为您安排退款…",
+    "trackingRequired": "请上传该退货申请的寄回快递单号",
+    "submitTracking": "填写快递单号",
+    "updateTracking": "更新快递单号",
+    "shipmentModalTitle": "寄回物流",
+    "shipmentModalHint": "请填写寄回包裹的承运商与快递单号，便于双方追踪。",
+    "carrier": "承运商",
+    "carrierPlaceholder": "如：顺丰、中通、DHL、USPS",
+    "trackingNumber": "快递单号",
+    "trackingNumberPlaceholder": "如 1234567890",
+    "trackingHint": "支持字母、数字及 - _ 空格，4-64 位",
+    "shipmentSubmitted": "快递单号已提交"
   },
   "chat": {
     "title": "AI 客服",
@@ -492,7 +509,8 @@
     "enterEmail": "输入您的邮箱",
     "subscribe": "订阅",
     "copyright": "© 2026 Forge 版权所有。",
-    "paymentMethods": "Visa · MC · Amex · PayPal"
+    "paymentMethods": "Visa · MC · Amex · PayPal",
+    "followUs": "关注我们"
   },
   "status": {
     "pending": "待付款",
@@ -531,8 +549,15 @@
     "MCP_KEY_INVALID_SCOPE": "包含无效的权限范围",
     "MCP_KEY_SCOPES_REQUIRED": "至少需要 read 或 write 权限",
     "MCP_KEY_NOT_FOUND": "API 密钥不存在",
+    "AI_PROVIDER_NOT_FOUND": "AI 供应商不存在",
+    "AI_PROVIDER_INVALID": "供应商配置不合法，请检查名称、接入地址与模型列表",
+    "AI_PROVIDER_LIMIT_REACHED": "AI 供应商数量已达上限",
+    "AI_UPSTREAM_UNREACHABLE": "无法连接 AI 上游服务，请检查接入地址与密钥",
     "INVALID_ID": "ID 格式无效",
-    "UNKNOWN_ERROR": "操作失败，请稍后重试"
+    "UNKNOWN_ERROR": "操作失败，请稍后重试",
+    "PAYMENT_DECLINED": "支付被拒绝，请更换银行卡后重试",
+    "PAYMENT_METHOD_UNSUPPORTED": "暂不支持该支付方式",
+    "PAYMENT_GATEWAY_ERROR": "支付服务暂时不可用，请稍后重试"
   },
   "hero": {
     "title": "给宠物最好的陪伴",

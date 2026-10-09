@@ -23,19 +23,21 @@ class SQLAlchemyPetProfileRepository:
     @staticmethod
     async def list_by_owner(db: AsyncSession, owner_id: UUID) -> list[ORMPetProfile]:
         rows = (
-            await db.execute(
-                select(ORMPetProfile)
-                .where(ORMPetProfile.owner_id == owner_id)
-                .order_by(ORMPetProfile.created_at.desc())
+            (
+                await db.execute(
+                    select(ORMPetProfile)
+                    .where(ORMPetProfile.owner_id == owner_id)
+                    .order_by(ORMPetProfile.created_at.desc())
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         return list(rows)
 
     @staticmethod
     async def get_by_id(db: AsyncSession, pet_id: UUID) -> ORMPetProfile | None:
-        return (
-            await db.execute(select(ORMPetProfile).where(ORMPetProfile.id == pet_id))
-        ).scalar_one_or_none()
+        return (await db.execute(select(ORMPetProfile).where(ORMPetProfile.id == pet_id))).scalar_one_or_none()
 
     @staticmethod
     async def create(db: AsyncSession, owner_id: UUID, data: dict[str, Any]) -> ORMPetProfile:

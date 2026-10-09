@@ -83,6 +83,12 @@ class ErrorCode(StrEnum):
     MCP_KEY_SCOPES_REQUIRED = "MCP_KEY_SCOPES_REQUIRED"
     MCP_KEY_NOT_FOUND = "MCP_KEY_NOT_FOUND"
 
+    # Admin AI providers (模型管理)
+    AI_PROVIDER_NOT_FOUND = "AI_PROVIDER_NOT_FOUND"
+    AI_PROVIDER_INVALID = "AI_PROVIDER_INVALID"
+    AI_PROVIDER_LIMIT_REACHED = "AI_PROVIDER_LIMIT_REACHED"
+    AI_UPSTREAM_UNREACHABLE = "AI_UPSTREAM_UNREACHABLE"
+
     # Common validation
     INVALID_ID = "INVALID_ID"
 
@@ -179,6 +185,11 @@ _REGISTRY: dict[ErrorCode, ErrorSpec] = {
         ErrorType.VALIDATION_ERROR, 400, "At least one of read/write scopes is required."
     ),
     ErrorCode.MCP_KEY_NOT_FOUND: ErrorSpec(ErrorType.RESOURCE_ERROR, 404, "API key not found."),
+    # Admin AI providers (模型管理)
+    ErrorCode.AI_PROVIDER_NOT_FOUND: ErrorSpec(ErrorType.RESOURCE_ERROR, 404, "AI provider does not exist."),
+    ErrorCode.AI_PROVIDER_INVALID: ErrorSpec(ErrorType.VALIDATION_ERROR, 400, "AI provider configuration is invalid."),
+    ErrorCode.AI_PROVIDER_LIMIT_REACHED: ErrorSpec(ErrorType.VALIDATION_ERROR, 400, "AI provider limit reached."),
+    ErrorCode.AI_UPSTREAM_UNREACHABLE: ErrorSpec(ErrorType.SERVER_ERROR, 502, "AI upstream is unreachable."),
     # Common validation
     ErrorCode.INVALID_ID: ErrorSpec(ErrorType.VALIDATION_ERROR, 400, "Identifier is not a valid UUID."),
     # C-end commerce (cart / orders / payment placeholder)
