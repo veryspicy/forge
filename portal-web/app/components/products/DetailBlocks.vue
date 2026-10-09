@@ -146,9 +146,22 @@ function asText(v: unknown): string {
   return String(v ?? '')
 }
 
+// 卖点项：字符串直接返回；对象优先拼接 label + value（如 "Material: BPA-free nylon"），无 label 时只取 value
+function featureText(v: unknown): string {
+  if (typeof v === 'string') return v
+  if (v && typeof v === 'object') {
+    const obj = v as Record<string, unknown>
+    const label = String(obj.label ?? obj.name ?? '')
+    const value = String(obj.value ?? '')
+    if (label && value) return `${label}: ${value}`
+    return label || value
+  }
+  return String(v ?? '')
+}
+
 // features.items：字符串数组，或 { label/name/value } 对象数组
 function normalizedItems(items: unknown[]): string[] {
-  return (items || []).map(asText).filter(Boolean)
+  return (items || []).map(featureText).filter(Boolean)
 }
 
 // faq.items：`问题|答案` 字符串或 { question/answer, label/value } 对象
