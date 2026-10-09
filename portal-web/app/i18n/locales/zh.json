@@ -280,6 +280,7 @@
     "cardCvv": "CVV",
     "paymentNote": "安全加密传输。模拟支付网关（Sandbox），不会真实扣款。下单后请在订单页完成支付。",
     "invalidCard": "请检查填写的银行卡信息。",
+    "testCardHint": "演示环境仅支持测试卡 4242 4242 4242 4242，其余卡号将被拒付",
     "payNow": "下单并去支付",
     "payAfterOrderNote": "下单后将跳转订单详情页完成支付（沙箱网关演示，不会真实扣款）",
     "invalidCardNumber": "请输入有效的卡号（13-19 位数字）。"
@@ -481,6 +482,9 @@
     "MCP_KEY_SCOPES_REQUIRED": "至少需要 read 或 write 权限",
     "MCP_KEY_NOT_FOUND": "API 密钥不存在",
     "INVALID_ID": "ID 格式无效",
+    "PAYMENT_DECLINED": "支付被拒绝，请更换银行卡后重试",
+    "PAYMENT_METHOD_UNSUPPORTED": "暂不支持该支付方式",
+    "PAYMENT_GATEWAY_ERROR": "支付服务暂时不可用，请稍后重试",
     "UNKNOWN_ERROR": "操作失败，请稍后重试"
   },
   "hero": {

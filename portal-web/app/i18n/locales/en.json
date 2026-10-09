@@ -280,6 +280,7 @@
     "cardCvv": "CVV",
     "paymentNote": "Encrypted and secure. Sandbox payment gateway — no real charge. Complete payment on the order page after placing the order.",
     "invalidCard": "Please check the card information you entered.",
+    "testCardHint": "Demo only accepts test card 4242 4242 4242 4242; other cards are declined",
     "payNow": "Place order & pay",
     "payAfterOrderNote": "After placing the order, complete payment on the order page (sandbox gateway, no real charge).",
     "invalidCardNumber": "Please enter a valid card number (13-19 digits)."
@@ -481,6 +482,9 @@
     "MCP_KEY_SCOPES_REQUIRED": "At least one of read/write scopes is required",
     "MCP_KEY_NOT_FOUND": "API key not found",
     "INVALID_ID": "Invalid id format",
+    "PAYMENT_DECLINED": "Payment declined, please try another card",
+    "PAYMENT_METHOD_UNSUPPORTED": "Payment method not supported",
+    "PAYMENT_GATEWAY_ERROR": "Payment service temporarily unavailable, please try again later",
     "UNKNOWN_ERROR": "Operation failed, please try again"
   },
   "hero": {

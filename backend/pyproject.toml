@@ -23,6 +23,7 @@ dependencies = [
     "langchain-openai>=0.2.0",
     "langchain-community>=0.3.0",
     "httpx>=0.28.0",
+    "cryptography>=43.0.0",
     "python-jose[cryptography]>=3.3.0",
     "passlib[bcrypt]>=1.7.4",
     "bcrypt==4.0.1",
@@ -67,6 +68,11 @@ select = ["E", "F", "W", "I", "N", "UP", "B", "SIM"]
 "src/forge/api/**/*.py" = ["B008"]
 # 站点默认配置种子数据：JSON 风格长字典字面量，行长豁免
 "src/forge/infrastructure/site_defaults.py" = ["E501"]
+# Alembic 迁移：seed JSON 与 sa.Column 长行是迁移文件常态，行长豁免
+"migrations/versions/*.py" = ["E501"]
+# seed 脚本：产品描述等种子数据为长字符串字面量，行长豁免
+"seed_full.py" = ["E501"]
+"seed_profiles.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -87,3 +93,10 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"
 testpaths = ["tests"]
+
+[tool.uv]
+# 传递依赖安全下限：修复 langgraph-sdk CVE-2026-104873 / multidict CVE-2026-104874
+constraint-dependencies = [
+    "langgraph-sdk>=0.4.4",
+    "multidict>=6.9.1",
+]

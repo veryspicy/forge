@@ -4,6 +4,7 @@ import { useLoading } from '@sa/hooks';
 import { fetchGetUserInfo, fetchLogin } from '@/service/api';
 import { useRouterPush } from '@/hooks/common/router';
 import { localStg } from '@/utils/storage';
+import { beginCriticalTransition, endCriticalTransition, markPhase } from '@/utils/stall-watchdog';
 import { SetupStoreId } from '@/enum';
 
 export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
@@ -31,6 +32,7 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
 
   /** Reset auth store */
   async function resetStore() {
+    markPhase('auth:reset-store');
     localStg.remove('token');
     token.value = '';
     Object.assign(userInfo, { userId: '', userName: '', roles: [], permissions: [], buttons: [] });
@@ -38,7 +40,9 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
   }
 
   async function getUserInfo() {
+    markPhase('auth:userinfo:start');
     const { data: info, error } = await fetchGetUserInfo();
+    markPhase('auth:userinfo:end', { ok: !error });
     if (!error) {
       Object.assign(userInfo, {
         userId: String(info.id || ''),
@@ -57,30 +61,45 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
    */
   async function login(email: string, password: string, redirect = true) {
     startLoading();
+    markPhase('auth:login:start');
+    beginCriticalTransition('auth-login');
 
-    const { data: loginResult, error } = await fetchLogin(email, password);
+    try {
+      const { data: loginResult, error } = await fetchLogin(email, password);
 
-    if (!error && loginResult.access_token) {
-      localStg.set('token', loginResult.access_token);
-      token.value = loginResult.access_token;
+      if (!error && loginResult.access_token) {
+        markPhase('auth:login:token');
+        localStg.set('token', loginResult.access_token);
+        token.value = loginResult.access_token;
 
-      const pass = await getUserInfo();
-      if (pass) {
-        await redirectFromLogin(redirect);
-        window.$notification?.success({
-          title: 'Login Success',
-          content: `Welcome back, ${userInfo.userName || email}`,
-          duration: 3000
-        });
+        const pass = await getUserInfo();
+        if (pass) {
+          markPhase('auth:redirect:start');
+          await redirectFromLogin(redirect);
+          markPhase('auth:redirect:end');
+          window.$notification?.success({
+            title: 'Login Success',
+            content: `Welcome back, ${userInfo.userName || email}`,
+            duration: 3000
+          });
+        }
+      } else {
+        resetStore();
       }
-    } else {
-      resetStore();
-    }
 
-    endLoading();
+      markPhase('auth:login:done');
+    } catch (error) {
+      markPhase('auth:login:error', { message: (error as Error)?.message?.slice(0, 80) });
+      throw error;
+    } finally {
+      // 无论成功 / 失败 / 抛错都要结束 loading 与关键过渡，避免登录按钮永久停留在加载态
+      endCriticalTransition('auth-login');
+      endLoading();
+    }
   }
 
   async function initUserInfo() {
+    markPhase('auth:init-userinfo:start');
     const savedToken = localStg.get('token');
     if (savedToken) {
       token.value = savedToken;
@@ -89,6 +108,7 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
         resetStore();
       }
     }
+    markPhase('auth:init-userinfo:end', { hasToken: Boolean(savedToken) });
   }
 
   return {

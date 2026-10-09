@@ -42,10 +42,10 @@ export const resourceApi = {
     get('/api/admin/v1/resources/trash', params),
   /** 恢复（单/批量） */
   restoreTrash: (ids: string[]) => post('/api/admin/v1/resources/trash/restore', { ids }),
-  /** 彻底删除（单/批量） */
-  purgeTrash: (ids: string[]) => del('/api/admin/v1/resources/trash', { ids }),
-  /** 清空回收站 */
-  emptyTrash: () => del('/api/admin/v1/resources/trash/empty'),
+  /** 彻底删除（单/批量）：force=true 表示用户已确认引用裂图取舍 */
+  purgeTrash: (ids: string[], force = false) => del('/api/admin/v1/resources/trash', { ids, force }),
+  /** 清空回收站：force=true 表示用户已确认引用裂图取舍 */
+  emptyTrash: (force = false) => del('/api/admin/v1/resources/trash/empty', { force }),
   /** 批量移动到目录 */
   move: (ids: string[], directory: string) => post('/api/admin/v1/resources/move', { ids, directory }),
   /** 全量同步引用关系（商品 / 站点配置表单保存后调用） */

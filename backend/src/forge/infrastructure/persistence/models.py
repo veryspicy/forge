@@ -108,6 +108,8 @@ class ORMProduct(Base):
     seo_title = Column(String(500), nullable=True)
     seo_description = Column(Text, nullable=True)
     seo_keywords: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
+    # 商品详情块（结构化详情：图文块 / 富文本块 / 规格表 / FAQ），PRODUCT-DETAIL-BLOCKS
+    detail_blocks = Column(JSONB, nullable=False, default=list, server_default="'[]'::jsonb")
     created_at = Column(DateTime(timezone=True), nullable=False, server_default="now()")
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default="now()")
 
@@ -152,6 +154,7 @@ class ORMProduct(Base):
             "seo_title": self.seo_title,
             "seo_description": self.seo_description,
             "seo_keywords": self.seo_keywords or [],
+            "detail_blocks": self.detail_blocks or [],
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -1015,4 +1018,35 @@ class ORMMcpAuditLog(Base):
             "result_status": self.result_status,
             "error": self.error,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class ORMSystemConfig(Base):
+    """系统运行期配置（KV）。
+
+    用于存放可在 Admin 后台修改、且需持久化的系统级配置，如 AI/LLM 配置。
+
+    - key: 配置键（如 ``ai.llm``），主键
+    - value: 非敏感配置（base_url / model / temperature 等）的 JSON 值
+    - secret_value: 敏感值（API Key 等）的 Fernet 密文，落库即加密，永不回显明文
+    - is_secret: 是否已保存敏感值
+    """
+
+    __tablename__ = "system_configs"
+
+    key = Column(String(100), primary_key=True)
+    value = Column(JSONB, nullable=False, default=dict)
+    secret_value = Column(Text, nullable=True)
+    is_secret = Column(Boolean, nullable=False, default=False, server_default="false")
+    updated_by = Column(String(100), nullable=True)
+    created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+    updated_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "key": self.key,
+            "value": self.value or {},
+            "is_secret": bool(self.is_secret),
+            "updated_by": self.updated_by,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
