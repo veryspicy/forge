@@ -1,10 +1,14 @@
-﻿import asyncio, sys, os, json
+﻿import asyncio
+import os
+import sys
+
 os.environ["DATABASE_URL"] = "postgresql+asyncpg://postgres:postgres@localhost:5432/forge"
 sys.path.insert(0, r"D:\codeRepo\forge\backend\src")
 
-from forge.main.application import app
 from forge.infrastructure.persistence.database import async_session_factory
+
 from forge.infrastructure.persistence.models import ORMProduct, ORMRegion
+
 
 async def main():
     async with async_session_factory() as session:

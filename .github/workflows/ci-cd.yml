@@ -81,7 +81,8 @@ jobs:
           cd backend
           # ecdsa 的 Minerva 时序攻击（PYSEC-2026-1325 / CVE-2024-23342）影响全部版本且上游无修复计划，
           # python-jose 间接依赖，仅签名侧信道风险；待 python-jose 迁移后移除忽略。
-          uv run pip-audit --ignore-vuln PYSEC-2026-1325
+          # python-jose 3.5.0 的 CVE-2026-85394 全部版本受影响且上游无修复版本，暂无替代品，登记忽略。
+          uv run pip-audit --ignore-vuln PYSEC-2026-1325 --ignore-vuln CVE-2026-85394
       
       - name: Upload coverage
         uses: codecov/codecov-action@v4

@@ -9,17 +9,17 @@ Create Date: 2026-08-17
 - 新增 resource_tag 标签表（全局标签，name 唯一）
 - 新增 resource_tag_map 资源-标签多对多关联表
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = '0012_resource_dir_tag'
-down_revision: Union[str, None] = '0011_add_resources'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = '0011_add_resources'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
