@@ -14,12 +14,15 @@ import {
   NInputNumber,
   NModal,
   NProgress,
+  NRadioButton,
+  NRadioGroup,
   NSelect,
   NSpace,
   NSwitch,
   NTable,
   NTag,
-  NUpload
+  NUpload,
+  useMessage
 } from 'naive-ui';
 import { useI18n } from 'vue-i18n';
 import { get, post, patch, del } from '@/service/api/helper';
@@ -31,9 +34,79 @@ import ProductImageEditor from './ProductImageEditor.vue';
 const route = useRoute();
 const { t } = useI18n();
 const router = useRouter();
+const message = useMessage();
 const isEdit = computed(() => !!route.params.id);
 
 const error = ref('');
+
+// 商品审核（PRODUCT-AUDIT-FLOW）：展示留痕 + 快捷审核
+const auditInfo = ref<{
+  audit_status: string;
+  audit_reason: string;
+  audit_by: string;
+  audited_at: string;
+}>({
+  audit_status: 'pending',
+  audit_reason: '',
+  audit_by: '',
+  audited_at: ''
+});
+const showAuditModal = ref(false);
+const auditForm = ref<{ action: 'approve' | 'reject'; reason: string }>({
+  action: 'approve',
+  reason: ''
+});
+
+function auditLabel(value: string): string {
+  const map: Record<string, string> = {
+    pending: '待审核',
+    approved: '已通过',
+    rejected: '未通过'
+  };
+  return map[value] ?? value ?? '--';
+}
+
+function auditTagType(value: string): 'default' | 'success' | 'warning' | 'error' {
+  const map: Record<string, 'default' | 'success' | 'warning' | 'error'> = {
+    pending: 'warning',
+    approved: 'success',
+    rejected: 'error'
+  };
+  return map[value] ?? 'default';
+}
+
+function openAuditModal() {
+  auditForm.value = {
+    action: auditInfo.value.audit_status === 'approved' ? 'reject' : 'approve',
+    reason: ''
+  };
+  showAuditModal.value = true;
+}
+
+async function submitAudit() {
+  if (!route.params.id) return;
+  if (auditForm.value.action === 'reject' && !auditForm.value.reason.trim()) {
+    message.warning('拒绝时必须填写审核原因');
+    return;
+  }
+  try {
+    const res = await post(`/api/admin/v1/products/${route.params.id}/audit`, {
+      action: auditForm.value.action,
+      reason: auditForm.value.reason.trim() || null
+    });
+    const p = (res as any)?.data?.data ?? (res as any)?.data;
+    auditInfo.value = {
+      audit_status: p.audit_status || 'pending',
+      audit_reason: p.audit_reason || '',
+      audit_by: p.audit_by || '',
+      audited_at: p.audited_at || ''
+    };
+    message.success(auditForm.value.action === 'approve' ? '审核已通过' : '已拒绝该商品');
+    showAuditModal.value = false;
+  } catch (err) {
+    message.error(String(err));
+  }
+}
 const saving = ref(false);
 const uploading = ref(false);
 
@@ -371,6 +444,12 @@ onMounted(async () => {
         isMain: !!i.is_main
       }));
     variants.value = p.variants || [];
+    auditInfo.value = {
+      audit_status: p.audit_status || 'pending',
+      audit_reason: p.audit_reason || '',
+      audit_by: p.audit_by || '',
+      audited_at: p.audited_at || ''
+    };
     seoForm.value = {
       title: p.seo_title || '',
       description: p.seo_description || '',
@@ -818,6 +897,28 @@ async function reloadVariants() {
         </NGrid>
       </NCard>
 
+      <!-- Product Audit -->
+      <NCard title="商品审核" size="small" class="md:col-span-2">
+        <div class="flex items-center justify-between">
+          <div class="flex flex-col gap-2">
+            <div class="flex items-center gap-3">
+              <span class="text-sm text-gray-500">当前状态:</span>
+              <NTag size="small" :bordered="false" :type="auditTagType(auditInfo.audit_status)">
+                {{ auditLabel(auditInfo.audit_status) }}
+              </NTag>
+            </div>
+            <div class="flex items-center gap-3 text-sm text-gray-500">
+              <span>审核人: {{ auditInfo.audit_by || '--' }}</span>
+              <span>审核时间: {{ auditInfo.audited_at || '--' }}</span>
+            </div>
+            <div v-if="auditInfo.audit_reason" class="text-sm text-gray-500">
+              <span class="mr-1">审核备注:</span>{{ auditInfo.audit_reason }}
+            </div>
+          </div>
+          <NButton v-if="isEdit" size="small" type="primary" secondary @click="openAuditModal">审核</NButton>
+        </div>
+      </NCard>
+
       <!-- Translations -->
       <NCard title="多语言内容" size="small" class="md:col-span-2">
         <NFormItem label="语言">
@@ -1196,5 +1297,37 @@ async function reloadVariants() {
     <div class="flex justify-end">
       <NButton type="primary" :loading="saving" @click="save">{{ $t('common.save') }}</NButton>
     </div>
+
+    <NModal v-model:show="showAuditModal" preset="card" title="商品审核" style="width: 480px">
+      <NSpace vertical>
+        <NForm label-placement="top" size="small">
+          <NFormItem label="审核动作">
+            <NRadioGroup v-model:value="auditForm.action">
+              <NRadioButton value="approve">通过</NRadioButton>
+              <NRadioButton value="reject">拒绝</NRadioButton>
+            </NRadioGroup>
+          </NFormItem>
+          <NFormItem label="审核备注 / 拒绝原因">
+            <NInput
+              v-model:value="auditForm.reason"
+              type="textarea"
+              :rows="3"
+              placeholder="拒绝时必须填写原因；通过时可留备注"
+            />
+          </NFormItem>
+        </NForm>
+        <div class="text-xs text-gray-400">审核人：当前登录管理员，审核后状态与留痕不可覆盖修改。</div>
+        <NSpace justify="end">
+          <NButton size="small" @click="showAuditModal = false">取消</NButton>
+          <NButton
+            size="small"
+            :type="auditForm.action === 'approve' ? 'success' : 'error'"
+            @click="submitAudit"
+          >
+            提交审核
+          </NButton>
+        </NSpace>
+      </NSpace>
+    </NModal>
   </div>
 </template>

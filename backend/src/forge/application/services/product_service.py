@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -192,6 +193,44 @@ class ProductService:
                 {"status": f"status 必须为 {sorted(VALID_STATUSES)} 之一"},
             )
         return await SQLAlchemyProductRepository.set_status(db, product, status)
+
+    @staticmethod
+    async def audit_product(
+        db: AsyncSession,
+        product: ORMProduct,
+        action: str,
+        reviewer: str,
+        reason: str | None = None,
+    ) -> ORMProduct:
+        """商品审核流转：pending → approved / rejected。
+
+        - approve：状态置 approved，reason 可选（记入审核备注）
+        - reject：状态置 rejected，reason 必填（供上传方整改）
+        审核人与时间随每次审核落库，可追溯（PRODUCT-AUDIT-FLOW）。
+        """
+        action = (action or "").strip().lower()
+        if action not in {"approve", "reject"}:
+            raise ProductValidationError(
+                "非法审核动作",
+                {"action": "action 必须为 approve 或 reject"},
+            )
+        if action == "reject" and not (reason or "").strip():
+            raise ProductValidationError(
+                "拒绝必须填写原因",
+                {"reason": "reject 时必须填写审核原因"},
+            )
+        reviewer = (reviewer or "").strip()
+        if not reviewer:
+            raise ProductValidationError(
+                "缺少审核人",
+                {"reviewer": "审核人不能为空"},
+            )
+
+        product.audit_status = "approved" if action == "approve" else "rejected"
+        product.audit_reason = (reason or "").strip() or None
+        product.audit_by = reviewer
+        product.audited_at = datetime.now(UTC)
+        return product
 
     @staticmethod
     def normalize_images(

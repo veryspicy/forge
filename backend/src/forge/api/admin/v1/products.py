@@ -161,6 +161,11 @@ class BatchStatusPayload(BaseModel):
     status: str
 
 
+class ProductAuditPayload(BaseModel):
+    action: str
+    reason: str | None = None
+
+
 class ProductListResponse(BaseModel):
     items: list[dict[str, Any]]
     total: int
@@ -710,6 +715,40 @@ async def delete_product(
     await ProductService.set_status(db, product, "deleted")
     await db.commit()
     return {"data": {"id": str(product.id), "status": "deleted"}}
+
+
+# ---------------------------------------------------------------------------
+# 5.6 商品审核（pending → approved / rejected，PRODUCT-AUDIT-FLOW）
+# ---------------------------------------------------------------------------
+@router.post("/{product_id}/audit")
+async def audit_product(
+    product_id: str,
+    payload: ProductAuditPayload,
+    admin: dict[str, Any] = Depends(require_permission("products", "status")),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    if not admin:
+        raise HTTPException(status_code=401, detail="未登录")
+
+    product = await _get_product_or_404(db, product_id)
+    if product.status == "deleted":
+        raise HTTPException(status_code=400, detail="商品已删除")
+
+    reviewer = str(admin.get("sub") or admin.get("email") or admin.get("username") or "admin")
+    try:
+        product = await ProductService.audit_product(
+            db,
+            product,
+            payload.action,
+            reviewer=reviewer,
+            reason=payload.reason,
+        )
+    except ProductValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+
+    await db.commit()
+    await db.refresh(product)
+    return {"data": _serialize_product(product)}
 
 
 # ---------------------------------------------------------------------------

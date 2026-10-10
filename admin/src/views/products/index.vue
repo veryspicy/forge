@@ -16,6 +16,8 @@ import {
   NModal,
   NPagination,
   NPopconfirm,
+  NRadioButton,
+  NRadioGroup,
   NSelect,
   NSpace,
   NSwitch,
@@ -331,6 +333,49 @@ function auditTagType(value: string): 'default' | 'success' | 'warning' | 'error
   return map[value] ?? 'default';
 }
 
+// 商品审核（PRODUCT-AUDIT-FLOW）：列表快捷审核弹窗
+const showAuditModal = ref(false);
+const auditForm = ref<{
+  id: number | null;
+  action: 'approve' | 'reject';
+  reason: string;
+  current: string;
+}>({
+  id: null,
+  action: 'approve',
+  reason: '',
+  current: 'pending'
+});
+
+function openAuditModal(row: any) {
+  auditForm.value = {
+    id: row.id,
+    action: row.audit_status === 'approved' ? 'reject' : 'approve',
+    reason: '',
+    current: row.audit_status ?? 'pending'
+  };
+  showAuditModal.value = true;
+}
+
+async function submitAudit() {
+  if (auditForm.value.id == null) return;
+  if (auditForm.value.action === 'reject' && !auditForm.value.reason.trim()) {
+    message.warning('拒绝时必须填写审核原因');
+    return;
+  }
+  try {
+    await post(`/api/admin/v1/products/${auditForm.value.id}/audit`, {
+      action: auditForm.value.action,
+      reason: auditForm.value.reason.trim() || null
+    });
+    message.success(auditForm.value.action === 'approve' ? '审核已通过' : '已拒绝该商品');
+    showAuditModal.value = false;
+    loadProducts();
+  } catch (err) {
+    message.error(String(err));
+  }
+}
+
 async function toggleFlag(row: any, field: 'is_new' | 'is_recommend') {
   try {
     await patch(`/api/admin/v1/products/${row.id}`, { [field]: !row[field] });
@@ -493,12 +538,14 @@ const columns: DataTableColumns<any> = [
               { default: () => auditLabel(row) }
             ),
             h(
-              'a',
+              NButton,
               {
-                style: 'color:#1677ff;font-size:12px;cursor:pointer',
-                onClick: () => router.push(`/products/${row.id}`)
+                size: 'tiny',
+                quaternary: true,
+                type: 'primary',
+                onClick: () => openAuditModal(row)
               },
-              '审核详情'
+              { default: () => '审核' }
             )
           ]
         }
@@ -773,6 +820,44 @@ onMounted(loadProducts);
           size="small"
           :bordered="false"
         />
+      </NSpace>
+    </NModal>
+
+    <NModal v-model:show="showAuditModal" preset="card" :title="`商品审核 — #${auditForm.id ?? ''}`" style="width: 480px">
+      <NSpace vertical>
+        <div class="flex items-center gap-2 text-sm">
+          <span class="text-gray-500">当前状态:</span>
+          <NTag size="small" :bordered="false" :type="auditTagType(auditForm.current)">
+            {{ auditLabel({ audit_status: auditForm.current }) }}
+          </NTag>
+        </div>
+        <NForm label-placement="top" size="small">
+          <NFormItem label="审核动作">
+            <NRadioGroup v-model:value="auditForm.action">
+              <NRadioButton value="approve">通过</NRadioButton>
+              <NRadioButton value="reject">拒绝</NRadioButton>
+            </NRadioGroup>
+          </NFormItem>
+          <NFormItem label="审核备注 / 拒绝原因">
+            <NInput
+              v-model:value="auditForm.reason"
+              type="textarea"
+              :rows="3"
+              placeholder="拒绝时必须填写原因；通过时可留备注"
+            />
+          </NFormItem>
+        </NForm>
+        <div class="text-xs text-gray-400">审核人：当前登录管理员，审核后状态与留痕不可覆盖修改。</div>
+        <NSpace justify="end">
+          <NButton size="small" @click="showAuditModal = false">取消</NButton>
+          <NButton
+            size="small"
+            :type="auditForm.action === 'approve' ? 'success' : 'error'"
+            @click="submitAudit"
+          >
+            提交审核
+          </NButton>
+        </NSpace>
       </NSpace>
     </NModal>
 

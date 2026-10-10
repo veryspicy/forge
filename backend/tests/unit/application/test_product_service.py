@@ -13,7 +13,7 @@ from forge.application.services.product_service import (
 
 
 class TestNormalizeImages:
-    """行业标准图片契约：url 必填、sort 唯一、主图唯一。"""
+    """琛屼笟鏍囧噯鍥剧墖濂戠害锛歶rl 蹇呭～銆乻ort 鍞�涓�銆佷富鍥惧敮涓�銆�"""
 
     def test_missing_url_raises(self) -> None:
         with pytest.raises(ProductValidationError) as exc:
@@ -44,7 +44,7 @@ class TestNormalizeImages:
 
 
 class TestPublishGate:
-    """status=active 上架门禁：描述、图片、主图 alt 缺一不可。"""
+    """status=active 涓婃灦闂ㄧ�侊細鎻忚堪銆佸浘鐗囥�佷富鍥� alt 缂轰竴涓嶅彲銆�"""
 
     def test_draft_skips_gate(self) -> None:
         errors = ProductService._validate_active_gate({"status": "draft"})
@@ -73,14 +73,14 @@ class TestPublishGate:
 
     def test_update_merges_existing_values(self) -> None:
         existing = MagicMock()
-        existing.description = "已有描述"
+        existing.description = "宸叉湁鎻忚堪"
         existing.images = [{"url": "a.jpg", "is_main": True, "alt": "toy"}]
         errors = ProductService._validate_active_gate({"status": "active"}, existing=existing)
         assert errors == {}
 
 
 class TestCreateProductWithVariants:
-    """变体随商品上传：创建商品后批量建变体并重算总库存。"""
+    """鍙樹綋闅忓晢鍝佷笂浼狅細鍒涘缓鍟嗗搧鍚庢壒閲忓缓鍙樹綋骞堕噸绠楁�诲簱瀛樸��"""
 
     async def test_variants_are_created_and_inventory_synced(self) -> None:
         db = AsyncMock()
@@ -92,7 +92,7 @@ class TestCreateProductWithVariants:
         product.id = "1001"
         repo.create.return_value = product
 
-        # _unique_slug / _validate_catalog_refs 直接短路
+        # _unique_slug / _validate_catalog_refs 鐩存帴鐭�璺�
         with (
             patch.object(ProductService, "_unique_slug", new=AsyncMock(return_value="toy")),
             patch.object(ProductService, "_validate_catalog_refs", new=AsyncMock(return_value={})),
@@ -139,7 +139,7 @@ class TestCreateProductWithVariants:
         assert "variants" in exc.value.errors
 
     async def test_variant_sku_required(self) -> None:
-        """变体 SKU 必填（行业标准：SKU 手填，不再自动生成）。"""
+        """鍙樹綋 SKU 蹇呭～锛堣�屼笟鏍囧噯锛歋KU 鎵嬪～锛屼笉鍐嶈嚜鍔ㄧ敓鎴愶級銆�"""
         with pytest.raises(ProductValidationError) as exc:
             await ProductService.create_variant(
                 AsyncMock(),
@@ -149,7 +149,7 @@ class TestCreateProductWithVariants:
         assert "sku" in exc.value.errors
 
     async def test_variant_update_empty_sku_rejected(self) -> None:
-        """update 场景传空 sku 也应报错，不允许自动生成。"""
+        """update 鍦烘櫙浼犵┖ sku 涔熷簲鎶ラ敊锛屼笉鍏佽�歌嚜鍔ㄧ敓鎴愩��"""
         variant = MagicMock()
         variant.sku = "TOY-100-S"
         variant.product_id = "1001"
@@ -161,3 +161,61 @@ class TestCreateProductWithVariants:
                 {"sku": "", "name": "Small"},
             )
         assert "sku" in exc.value.errors
+
+class TestAuditProduct:
+    """PRODUCT-AUDIT-FLOW: pending -> approved / rejected 流转与留痕校验。"""
+
+    def _product(self) -> MagicMock:
+        p = MagicMock()
+        p.audit_status = "pending"
+        p.audit_reason = None
+        p.audit_by = None
+        p.audited_at = None
+        return p
+
+    async def test_approve_sets_approved_with_reason_optional(self) -> None:
+        p = self._product()
+        result = await ProductService.audit_product(AsyncMock(), p, "approve", "admin-1", "内容合规")
+        assert result.audit_status == "approved"
+        assert result.audit_by == "admin-1"
+        assert result.audit_reason == "内容合规"
+        assert result.audited_at is not None
+
+    async def test_approve_without_reason_allowed(self) -> None:
+        p = self._product()
+        result = await ProductService.audit_product(AsyncMock(), p, "approve", "admin-1", None)
+        assert result.audit_status == "approved"
+        assert result.audit_reason is None
+
+    async def test_reject_sets_rejected_and_requires_reason(self) -> None:
+        p = self._product()
+        result = await ProductService.audit_product(AsyncMock(), p, "reject", "admin-1", "图片缺 alt")
+        assert result.audit_status == "rejected"
+        assert result.audit_reason == "图片缺 alt"
+
+    async def test_reject_without_reason_raises(self) -> None:
+        p = self._product()
+        with pytest.raises(ProductValidationError) as exc:
+            await ProductService.audit_product(AsyncMock(), p, "reject", "admin-1", None)
+        assert "reason" in exc.value.errors
+
+    async def test_reject_blank_reason_raises(self) -> None:
+        p = self._product()
+        with pytest.raises(ProductValidationError):
+            await ProductService.audit_product(AsyncMock(), p, "reject", "admin-1", "   ")
+
+    async def test_invalid_action_raises(self) -> None:
+        with pytest.raises(ProductValidationError) as exc:
+            await ProductService.audit_product(AsyncMock(), self._product(), "publish", "admin-1", None)
+        assert "action" in exc.value.errors
+
+    async def test_missing_reviewer_raises(self) -> None:
+        with pytest.raises(ProductValidationError) as exc:
+            await ProductService.audit_product(AsyncMock(), self._product(), "approve", "", None)
+        assert "reviewer" in exc.value.errors
+
+    async def test_case_and_whitespace_normalized(self) -> None:
+        p = self._product()
+        result = await ProductService.audit_product(AsyncMock(), p, "  APPROVE  ", "admin-1", "  ok  ")
+        assert result.audit_status == "approved"
+        assert result.audit_reason == "ok"

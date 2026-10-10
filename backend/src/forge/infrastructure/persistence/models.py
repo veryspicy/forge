@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
@@ -95,7 +96,10 @@ class ORMProduct(Base):
     is_recommend = Column(Boolean, nullable=False, default=False, server_default="false")
     sort_order = Column(Integer, nullable=False, default=0, server_default="0")
     sales = Column(Integer, nullable=False, default=0, server_default="0")
-    audit_status = Column(String(20), nullable=False, default="pending", server_default="pending")
+    audit_status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending", server_default="pending")
+    audit_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    audit_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    audited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # 履约模式：self=自采购（下单扣减本地库存）/ dropship=一件代发（不占本地库存）
     fulfillment_mode = Column(String(20), nullable=False, default="self", server_default="self", index=True)
     supplier_id = Column(UUID(as_uuid=True), nullable=True, index=True)
@@ -142,6 +146,9 @@ class ORMProduct(Base):
             "sort_order": self.sort_order or 0,
             "sales": self.sales or 0,
             "audit_status": self.audit_status or "pending",
+            "audit_reason": self.audit_reason,
+            "audit_by": self.audit_by,
+            "audited_at": self.audited_at.isoformat() if self.audited_at else None,
             "attributes": self.attributes or {},
             "fulfillment_mode": self.fulfillment_mode or "self",
             "supplier_id": str(self.supplier_id) if self.supplier_id else None,
