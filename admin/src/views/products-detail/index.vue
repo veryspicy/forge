@@ -24,7 +24,9 @@ import {
 import { useI18n } from 'vue-i18n';
 import { get, post, patch, del } from '@/service/api/helper';
 import { resourceApi } from '@/service/api/resources';
+import { VueDraggable } from 'vue-draggable-plus';
 import ProductDetailBlocks from './ProductDetailBlocks.vue';
+import ProductImageEditor from './ProductImageEditor.vue';
 
 const route = useRoute();
 const { t } = useI18n();
@@ -42,6 +44,12 @@ const statusChange = ref<string | null>(null);
 const images = ref<{ key: string; url: string; alt?: string; resourceId?: string; isMain?: boolean }[]>([]);
 const pendingFiles = ref<File[]>([]);
 const imagesSaving = ref(false);
+/** 当前选中的图片下标（点击选中高亮边框，操作集中在选中操作条） */
+const selectedIdx = ref<number | null>(null);
+/** 图片裁剪弹窗 */
+const editorModal = ref({ show: false, idx: -1 });
+/** 拖拽排序自动保存节流计时器 */
+let imagesSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** 从资源管理跳转携带的高亮资源 id（resourceId 匹配的图片加边框高亮） */
 const highlightResource = computed(() => String(route.query.highlight_resource || ''));
@@ -49,9 +57,6 @@ const highlightMatched = computed(() =>
   highlightResource.value ? images.value.some(i => String(i.resourceId) === highlightResource.value) : false
 );
 const highlightEl = ref<HTMLElement | null>(null);
-function setHighlightEl(el: any) {
-  if (el) highlightEl.value = el as HTMLElement;
-}
 watch(
   [highlightResource, images],
   async () => {
@@ -407,24 +412,76 @@ async function removeImage(idx: number) {
   images.value.splice(idx, 1);
   // 主图被删除时由第一张接替（与后端 normalize_images 规则一致）
   if (wasMain && images.value.length) images.value[0].isMain = true;
+  if (selectedIdx.value !== null) selectedIdx.value = null;
+  if (isEdit.value) onImagesDrop();
 }
 
-/** 调整图片顺序（下次保存图片整组时落库） */
-function moveImage(idx: number, delta: number) {
-  const j = idx + delta;
-  if (j < 0 || j >= images.value.length) return;
-  const arr = images.value;
-  const tmp = arr[idx];
-  arr[idx] = arr[j];
-  arr[j] = tmp;
+/** 点击选中图片（再次点击取消选中） */
+function selectImage(idx: number) {
+  selectedIdx.value = selectedIdx.value === idx ? null : idx;
 }
 
-/** 指定主图：整组唯一 */
+/** 拖拽排序结束后自动保存（节流 400ms，避免连续拖拽频繁请求） */
+function onImagesDrop() {
+  if (!isEdit.value) return;
+  if (imagesSaveTimer) clearTimeout(imagesSaveTimer);
+  imagesSaveTimer = setTimeout(() => {
+    saveImages();
+  }, 400);
+}
+
+/** 指定主图：整组唯一（通过选中操作条触发） */
 function setMainImage(idx: number) {
   images.value = images.value.map((img, i) => ({ ...img, isMain: i === idx }));
+  if (isEdit.value) onImagesDrop();
 }
 
-/** 保存图片整组（排序 / 主图 / alt） */
+/** 打开裁剪弹窗 */
+function openEditor(idx: number) {
+  editorModal.value = { show: true, idx };
+}
+
+/** 裁剪完成：上传新图并替换当前条目，随后自动保存整组 */
+async function onEditorSave(payload: { file: File; dataUrl: string }) {
+  if (!isEdit.value) return;
+  const idx = editorModal.value.idx;
+  if (idx < 0 || !images.value[idx]) return;
+  const oldKey = images.value[idx].key;
+  uploading.value = true;
+  error.value = '';
+  try {
+    const formData = new FormData();
+    formData.append('file', payload.file);
+    const res = await post(`/api/admin/v1/products/${route.params.id}/upload-image`, formData, {
+      'Content-Type': 'multipart/form-data'
+    });
+    const uploaded = (res.data?.data?.images || res.data?.images || []).slice(-1)[0];
+    if (!uploaded) throw new Error('上传返回为空');
+    if (oldKey) {
+      try {
+        await del(`/api/admin/v1/products/${route.params.id}/images/${encodeURIComponent(oldKey)}`);
+      } catch {
+        /* 旧图删除失败不阻塞替换 */
+      }
+    }
+    images.value[idx] = {
+      key: uploaded.key || '',
+      url: payload.dataUrl || uploaded.url || '',
+      alt: uploaded.alt || images.value[idx].alt || '',
+      resourceId: uploaded.resource_id || '',
+      isMain: !!images.value[idx].isMain
+    };
+    await saveImages();
+    images.value[idx].url = uploaded.url || images.value[idx].url || '';
+  } catch (e: any) {
+    error.value = e.response?.data?.detail || '裁剪图片保存失败';
+  } finally {
+    uploading.value = false;
+    editorModal.value = { show: false, idx: -1 };
+  }
+}
+
+/** 保存图片整组（排序 / 主图 / alt），拖拽与选中操作后自动触发 */
 async function saveImages() {
   if (!isEdit.value || !images.value.length) return;
   imagesSaving.value = true;
@@ -483,6 +540,17 @@ async function save() {
       await patch(`/api/admin/v1/products/${route.params.id}`, payload);
       await syncProductRefs(String(route.params.id));
     } else {
+      // 新建商品时一并上传本地变体（后端 ProductCreate.variants 批量创建）
+      payload.variants = variants.value.map(v => ({
+        sku: v.sku || '',
+        name: v.name || '',
+        attributes: v.attributes || {},
+        price: v.price ?? 0,
+        cost: v.cost ?? 0,
+        inventory: v.inventory ?? 0,
+        status: v.status || 'active',
+        is_default: !!v.is_default
+      }));
       const res = await post('/api/admin/v1/products/', payload);
       const newId = res.data?.data?.id ?? res.data?.id;
       for (const file of pendingFiles.value) {
@@ -576,7 +644,7 @@ async function saveVariant() {
     const key = (row.key ?? '').trim();
     if (!key) continue;
     if (key in attributes) {
-      error.value = `规格名重复: ${key}`;
+      error.value = `选项名重复: ${key}`;
       variantSaving.value = false;
       return;
     }
@@ -593,6 +661,17 @@ async function saveVariant() {
     is_default: variantForm.value.is_default
   };
   try {
+    if (!isEdit.value) {
+      // 新建模式：纯本地维护，随商品创建一并上传（后端 ProductCreate.variants）
+      if (variantModal.value.id) {
+        const idx = variants.value.findIndex(x => String(x.id) === String(variantModal.value.id));
+        if (idx >= 0) variants.value[idx] = { ...variants.value[idx], ...payload };
+      } else {
+        variants.value.push({ id: `local-${Date.now()}`, ...payload });
+      }
+      variantModal.value.show = false;
+      return;
+    }
     if (variantModal.value.id) {
       await patch(`/api/admin/v1/products/${route.params.id}/variants/${variantModal.value.id}`, payload);
     } else {
@@ -608,6 +687,10 @@ async function saveVariant() {
 }
 
 async function deleteVariant(id: string) {
+  if (!isEdit.value) {
+    variants.value = variants.value.filter(v => String(v.id) !== String(id));
+    return;
+  }
   try {
     await del(`/api/admin/v1/products/${route.params.id}/variants/${id}`);
     await reloadVariants();
@@ -782,38 +865,74 @@ async function reloadVariants() {
           <span>{{ highlightMatched ? '已定位到引用图片（绿色边框高亮）' : '未在当前图片列表中找到该引用图片' }}</span>
           <NButton size="tiny" quaternary @click="clearHighlight">清除高亮</NButton>
         </div>
-        <div v-if="images.length" class="flex flex-wrap gap-3 mb-4">
-          <div
-            v-for="(img, idx) in images"
-            :key="img.key || idx"
-            :ref="String(img.resourceId) === highlightResource ? setHighlightEl : undefined"
-            class="relative w-[140px] rounded-md overflow-hidden border border-[var(--n-border-color)] transition-all duration-300"
-            :class="String(img.resourceId) === highlightResource ? 'ring-2 ring-green-500 border-green-500' : ''"
-          >
-            <div class="relative">
-              <NImage :src="img.url" width="140" height="140" style="object-fit: cover" />
-              <NTag v-if="img.isMain" size="tiny" type="success" class="absolute top-0.5 left-0.5">主图</NTag>
-              <NButton class="absolute top-0.5 right-0.5" size="tiny" circle type="error" @click="removeImage(idx)">
-                &times;
-              </NButton>
-            </div>
-            <NInput v-model:value="img.alt" size="tiny" placeholder="alt 文本" class="px-1 py-1" />
-            <NSpace size="small" class="px-1 pb-1" justify="space-between" align="center">
-              <NButton size="tiny" tertiary :disabled="idx === 0" @click="moveImage(idx, -1)">&larr;</NButton>
-              <NButton
-                size="tiny"
-                :type="img.isMain ? 'success' : 'default'"
-                :disabled="!!img.isMain"
-                @click="setMainImage(idx)"
-              >
-                {{ img.isMain ? '主图' : '设主图' }}
-              </NButton>
-              <NButton size="tiny" tertiary :disabled="idx === images.length - 1" @click="moveImage(idx, 1)">
-                &rarr;
-              </NButton>
-            </NSpace>
+        <div v-if="images.length" class="mb-4">
+          <div class="flex flex-wrap gap-3">
+            <VueDraggable
+              v-model="images"
+              :item-key="(item: any) => item.key || item.url"
+              :animation="150"
+              ghost-class="opacity-40"
+              @end="onImagesDrop"
+            >
+              <template #item="{ element: img, index: idx }">
+                <div
+                  class="relative w-[140px] rounded-md overflow-hidden border transition-all duration-300 cursor-pointer select-none"
+                  :class="
+                    selectedIdx === idx
+                      ? 'ring-2 ring-blue-500 border-blue-500'
+                      : String(img.resourceId) === highlightResource
+                        ? 'ring-2 ring-green-500 border-green-500'
+                        : 'border-[var(--n-border-color)]'
+                  "
+                  @click="selectImage(idx)"
+                >
+                  <div class="relative">
+                    <NImage :src="img.url" width="140" height="140" style="object-fit: cover" />
+                    <NTag v-if="img.isMain" size="tiny" type="success" class="absolute top-0.5 left-0.5">主图</NTag>
+                    <NButton
+                      class="absolute top-0.5 right-0.5"
+                      size="tiny"
+                      circle
+                      type="error"
+                      @click.stop="removeImage(idx)"
+                    >
+                      &times;
+                    </NButton>
+                  </div>
+                  <div class="px-1 py-1 text-center text-xs">
+                    {{ img.alt || '无 alt' }}
+                  </div>
+                </div>
+              </template>
+            </VueDraggable>
           </div>
         </div>
+
+        <!-- 选中图片操作条：alt / 设主图 / 裁剪 / 删除 -->
+        <div
+          v-if="selectedIdx !== null && images[selectedIdx]"
+          class="mb-4 flex flex-wrap items-center gap-2 rounded border border-blue-200 bg-blue-50 px-3 py-2 dark:border-blue-500/30 dark:bg-blue-500/10"
+        >
+          <span class="text-xs font-medium text-blue-600 dark:text-blue-300">已选中图片 #{{ selectedIdx + 1 }}</span>
+          <NInput
+            v-model:value="images[selectedIdx].alt"
+            size="small"
+            placeholder="alt 文本（自动保存）"
+            class="!w-64"
+            @update:value="onImagesDrop"
+          />
+          <NButton
+            size="small"
+            :type="images[selectedIdx].isMain ? 'success' : 'default'"
+            :disabled="!!images[selectedIdx].isMain"
+            @click="setMainImage(selectedIdx)"
+          >
+            {{ images[selectedIdx].isMain ? '主图' : '设为主图' }}
+          </NButton>
+          <NButton size="small" @click="openEditor(selectedIdx)">编辑图片</NButton>
+          <NButton size="small" type="error" @click="removeImage(selectedIdx)">删除</NButton>
+        </div>
+
         <NSpace size="small" align="center">
           <NUpload
             :multiple="true"
@@ -824,26 +943,25 @@ async function reloadVariants() {
           >
             <NButton :loading="uploading">{{ $t('common.uploadImages') }}</NButton>
           </NUpload>
-          <NButton
-            v-if="isEdit"
-            type="primary"
-            :loading="imagesSaving"
-            :disabled="!images.length"
-            @click="saveImages"
-          >
-            保存图片排序 / 主图 / alt
-          </NButton>
-          <span v-if="isEdit" class="text-xs opacity-60">排序与主图改动需点击保存后生效</span>
+          <span v-if="isEdit" class="text-xs opacity-60">
+            {{ imagesSaving ? '正在自动保存…' : '拖拽排序、选中操作均自动保存' }}
+          </span>
         </NSpace>
       </NCard>
+
+      <ProductImageEditor
+        v-model:show="editorModal.show"
+        :image-url="editorModal.show && editorModal.idx >= 0 ? images[editorModal.idx]?.url || '' : ''"
+        @save="onEditorSave"
+      />
 
       <!-- Structured detail blocks -->
       <NCard title="商品详情块（结构化）" size="small" class="md:col-span-2">
         <ProductDetailBlocks v-model:value="form.detail_blocks" />
       </NCard>
 
-      <!-- Variants (edit only) -->
-      <NCard v-if="isEdit" title="变体管理" size="small" class="md:col-span-2">
+      <!-- Variants（编辑模式走独立接口，新建模式随商品创建一并上传） -->
+      <NCard title="变体管理 Variants" size="small" class="md:col-span-2">
         <div class="mb-3">
           <NButton size="small" type="primary" @click="openVariantModal()">新增变体</NButton>
         </div>
@@ -852,7 +970,7 @@ async function reloadVariants() {
             <tr>
               <th>名称</th>
               <th>SKU</th>
-              <th>属性</th>
+              <th>选项 Options</th>
               <th>价格</th>
               <th>成本</th>
               <th>库存</th>
@@ -895,18 +1013,18 @@ async function reloadVariants() {
             <NInput v-model:value="variantForm.sku" placeholder="留空自动生成，如 PET-1001-BLK-M" />
           </NFormItem>
           <NFormItem label="名称" required><NInput v-model:value="variantForm.name" /></NFormItem>
-          <NFormItem label="规格（用于自动生成 SKU 短码）">
+          <NFormItem label="选项 Options（用于自动生成 SKU 短码）">
             <div class="w-full flex flex-col gap-1">
               <div v-if="variantForm.specRows.length" class="flex flex-col gap-1">
                 <div v-for="(row, idx) in variantForm.specRows" :key="idx" class="flex items-center gap-2">
-                  <NInput v-model:value="row.key" placeholder="规格名，如 color" />
-                  <NInput v-model:value="row.value" placeholder="规格值，如 black" />
+                  <NInput v-model:value="row.key" placeholder="选项名，如 Color" />
+                  <NInput v-model:value="row.value" placeholder="选项值，如 Black" />
                   <NButton size="tiny" quaternary type="error" @click="removeSpecRow(idx)">删除</NButton>
                 </div>
               </div>
-              <div v-else class="text-xs text-gray-400">未填写规格时 SKU 仅基于货号生成</div>
+              <div v-else class="text-xs text-gray-400">未填写选项时 SKU 仅基于货号生成</div>
               <NButton size="tiny" type="primary" quaternary style="align-self: flex-start" @click="addSpecRow">
-                + 添加规格
+                + 添加选项
               </NButton>
             </div>
           </NFormItem>

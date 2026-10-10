@@ -21,8 +21,8 @@ declare module "@elegant-router/types" {
     "404": "/404";
     "500": "/500";
     "admin-users": "/admin-users";
-    "ai-probe": "/ai-probe";
     "ai-config": "/ai-config";
+    "ai-probe": "/ai-probe";
     "brands": "/brands";
     "categories": "/categories";
     "dashboard": "/dashboard";
@@ -78,8 +78,8 @@ declare module "@elegant-router/types" {
     | "404"
     | "500"
     | "admin-users"
-    | "ai-probe"
     | "ai-config"
+    | "ai-probe"
     | "brands"
     | "categories"
     | "dashboard"
@@ -122,8 +122,8 @@ declare module "@elegant-router/types" {
     | "iframe-page"
     | "login"
     | "admin-users"
-    | "ai-probe"
     | "ai-config"
+    | "ai-probe"
     | "brands"
     | "categories"
     | "dashboard"
