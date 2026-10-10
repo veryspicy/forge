@@ -144,6 +144,7 @@ class ProductService:
     @staticmethod
     async def create_product(db: AsyncSession, data: dict[str, Any]) -> ORMProduct:
         errors = ProductService._validate_base(data)
+        errors.update(ProductService._validate_active_gate(data))
         if errors:
             raise ProductValidationError("商品参数校验失败", errors)
         catalog_errors = await ProductService._validate_catalog_refs(db, data)
@@ -154,6 +155,9 @@ class ProductService:
         existing = await SQLAlchemyProductRepository.get_by_sku(db, sku)
         if existing:
             raise ProductSkuConflictError(f"SKU 已存在: {sku}")
+
+        # 变体随商品上传（UPLOAD-WITH-VARIANTS）：创建商品后批量建变体并重算总库存
+        variants = data.pop("variants", None)
 
         payload = dict(data)
         payload["sku"] = sku
@@ -166,11 +170,18 @@ class ProductService:
             payload["detail_blocks"] = ProductService.normalize_detail_blocks(data["detail_blocks"])
         payload.setdefault("status", "draft")
         payload.setdefault("images", [])
-        return await SQLAlchemyProductRepository.create(db, payload)
+        product = await SQLAlchemyProductRepository.create(db, payload)
+
+        if variants:
+            for variant in variants:
+                await ProductService.create_variant(db, product, variant)
+            await SQLAlchemyProductRepository.sync_product_inventory(db, int(product.id))
+        return product
 
     @staticmethod
     async def update_product(db: AsyncSession, product: ORMProduct, data: dict[str, Any]) -> ORMProduct:
         errors = ProductService._validate_base(data, partial=True)
+        errors.update(ProductService._validate_active_gate(data, existing=product))
         if errors:
             raise ProductValidationError("商品参数校验失败", errors)
         catalog_errors = await ProductService._validate_catalog_refs(db, data)
@@ -214,14 +225,39 @@ class ProductService:
     def normalize_images(
         images: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
-        """清洗图片数组：结构对齐、主图唯一；未指定主图时 sort 最小者为主图。"""
+        """清洗图片数组：结构对齐、主图唯一、url 必填、sort 唯一。
+
+        行业标准（Shopify/Chewy）要求商品图必须可寻址：
+        - url 缺失或为空 → 抛业务异常（不允许无地址图片）
+        - sort 缺失按序号补齐，重复自动顺延，保证前端拖拽排序稳定
+        - is_main 恰好一个；未指定主图时 sort 最小者为主图
+        """
+        if not isinstance(images, list):
+            raise ProductValidationError("图片格式错误", {"images": "images 必须是数组"})
         cleaned: list[dict[str, Any]] = []
         main_seen = False
+        used_sorts: set[int] = set()
         for idx, img in enumerate(images):
+            if not isinstance(img, dict):
+                raise ProductValidationError("图片格式错误", {"images": f"第 {idx + 1} 张图片必须是对象"})
+            url = str(img.get("url") or "").strip()
+            if not url:
+                raise ProductValidationError("图片格式错误", {"images": f"第 {idx + 1} 张图片缺少 url"})
+            raw_sort = img.get("sort")
+            try:
+                sort = int(raw_sort) if raw_sort is not None else idx
+            except (TypeError, ValueError):
+                raise ProductValidationError(
+                    "图片格式错误",
+                    {"images": f"第 {idx + 1} 张图片 sort 格式错误"},
+                ) from None
+            while sort in used_sorts:
+                sort += 1
+            used_sorts.add(sort)
             entry = {
                 "key": str(img.get("key", "")),
-                "url": str(img.get("url", "")),
-                "sort": int(img.get("sort", idx)),
+                "url": url,
+                "sort": sort,
                 "is_main": bool(img.get("is_main", False)),
                 "alt": str(img.get("alt", "")),
             }
@@ -387,6 +423,22 @@ class ProductService:
         if "status" in data and data["status"] not in VALID_STATUSES:
             errors["status"] = f"status 必须为 {sorted(VALID_STATUSES)} 之一"
 
+        if "images" in data and data["images"] is not None and not isinstance(data["images"], list):
+            errors["images"] = "images 必须是数组"
+
+        if "variants" in data and data["variants"] is not None:
+            if not isinstance(data["variants"], list):
+                errors["variants"] = "variants 必须是数组"
+            else:
+                for vidx, variant in enumerate(data["variants"]):
+                    if not isinstance(variant, dict):
+                        errors["variants"] = f"第 {vidx + 1} 个变体必须是对象"
+                        break
+                    vname = variant.get("name")
+                    if not vname or not str(vname).strip():
+                        errors["variants"] = f"第 {vidx + 1} 个变体缺少 name"
+                        break
+
         if "slug" in data and data["slug"] and len(str(data["slug"])) > 500:
             errors["slug"] = "slug 长度不能超过 500"
 
@@ -411,6 +463,34 @@ class ProductService:
                             errors[field] = f"{field} 的 {lang} 值必须是字符串"
                             break
 
+        return errors
+
+    @staticmethod
+    def _validate_active_gate(data: dict[str, Any], existing: ORMProduct | None = None) -> dict[str, str]:
+        """上架门禁（行业标准 Shopify/Chewy）：status=active 必须满足可展示最低要求。
+
+        - 商品描述非空
+        - 至少 1 张图片
+        - 主图 alt 非空（LCP/无障碍/SEO）
+        update 场景传入 existing 以合并未变更字段。
+        """
+        errors: dict[str, str] = {}
+        if data.get("status") != "active":
+            return errors
+        description = data.get("description")
+        if description is None and existing is not None:
+            description = existing.description
+        if not description or not str(description).strip():
+            errors["description"] = "上架商品必须填写商品描述"
+        images = data.get("images")
+        if images is None and existing is not None:
+            images = list(existing.images or [])
+        if not images:
+            errors["images"] = "上架商品必须至少上传 1 张图片"
+        else:
+            main_image = next((i for i in images if i.get("is_main")), images[0])
+            if not (main_image or {}).get("alt", "").strip():
+                errors["images"] = "上架商品主图必须填写 alt 文本"
         return errors
 
     # ------------------------------------------------------------------

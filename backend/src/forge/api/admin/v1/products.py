@@ -22,6 +22,7 @@ from fastapi import (
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from forge.api.errors import APIError, ErrorCode, FieldError
 from forge.application.services.product_service import (
     VALID_STATUSES,
     ProductService,
@@ -49,6 +50,30 @@ IMAGE_SIZE_LIMIT = 5 * 1024 * 1024  # 5MB
 # ---------------------------------------------------------------------------
 # Pydantic 模型
 # ---------------------------------------------------------------------------
+class VariantCreate(BaseModel):
+    """变体创建载荷（随商品上传 / 单独新增共用）。"""
+
+    sku: str | None = None  # 空值自动生成 {商品货号}-{规格短码}
+    name: str
+    attributes: dict[str, Any] | None = None
+    price: float | None = None
+    cost: float | None = None
+    inventory: int | None = 0
+    status: str | None = "active"
+    is_default: bool | None = False
+
+
+class VariantUpdate(BaseModel):
+    sku: str | None = None
+    name: str | None = None
+    attributes: dict[str, Any] | None = None
+    price: float | None = None
+    cost: float | None = None
+    inventory: int | None = None
+    status: str | None = None
+    is_default: bool | None = None
+
+
 class ProductCreate(BaseModel):
     sku: str
     name: str
@@ -83,6 +108,8 @@ class ProductCreate(BaseModel):
     category_id: int | None = None
     brand_id: int | None = None
     product_type_id: int | None = None
+    # 变体随商品上传（UPLOAD-WITH-VARIANTS）：结构同 VariantCreate
+    variants: list[VariantCreate] | None = None
 
 
 class ProductUpdate(BaseModel):
@@ -132,28 +159,6 @@ class StatusPayload(BaseModel):
 class BatchStatusPayload(BaseModel):
     ids: list[str]
     status: str
-
-
-class VariantCreate(BaseModel):
-    sku: str | None = None  # 空值自动生成 {商品货号}-{规格短码}
-    name: str
-    attributes: dict[str, Any] | None = None
-    price: float | None = None
-    cost: float | None = None
-    inventory: int | None = 0
-    status: str | None = "active"
-    is_default: bool | None = False
-
-
-class VariantUpdate(BaseModel):
-    sku: str | None = None
-    name: str | None = None
-    attributes: dict[str, Any] | None = None
-    price: float | None = None
-    cost: float | None = None
-    inventory: int | None = None
-    status: str | None = None
-    is_default: bool | None = None
 
 
 class ProductListResponse(BaseModel):
@@ -249,18 +254,23 @@ async def create_product(
         raise HTTPException(status_code=401, detail="未登录")
 
     data = payload.model_dump()
-    if data.get("images") is not None:
-        data["images"] = ProductService.normalize_images(data["images"])
-    if data.get("supplier_id"):
-        data["supplier_id"] = _coerce_uuid(data["supplier_id"], "supplier_id")
-    _validate_fulfillment(data)
-
     try:
+        if data.get("images") is not None:
+            data["images"] = ProductService.normalize_images(data["images"])
+        if data.get("supplier_id"):
+            data["supplier_id"] = _coerce_uuid(data["supplier_id"], "supplier_id")
+        _validate_fulfillment(data)
         product = await ProductService.create_product(db, data)
     except ProductSkuConflictError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from None
     except ProductValidationError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from None
+        raise APIError(
+            code=ErrorCode.BAD_REQUEST,
+            errors=[
+                FieldError(field=field, code="VALIDATION_ERROR", message=message)
+                for field, message in exc.errors.items()
+            ],
+        ) from None
 
     await db.commit()
     await db.refresh(product)
@@ -592,18 +602,23 @@ async def update_product(
     if not data:
         raise HTTPException(status_code=400, detail="无更新字段")
 
-    if data.get("images") is not None:
-        data["images"] = ProductService.normalize_images(data["images"])
-    if data.get("supplier_id"):
-        data["supplier_id"] = _coerce_uuid(data["supplier_id"], "supplier_id")
-    _validate_fulfillment(data, existing_supplier_id=cast(uuid.UUID | None, product.supplier_id))
-
     try:
+        if data.get("images") is not None:
+            data["images"] = ProductService.normalize_images(data["images"])
+        if data.get("supplier_id"):
+            data["supplier_id"] = _coerce_uuid(data["supplier_id"], "supplier_id")
+        _validate_fulfillment(data, existing_supplier_id=cast(uuid.UUID | None, product.supplier_id))
         product = await ProductService.update_product(db, product, data)
     except ProductSkuConflictError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from None
     except ProductValidationError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from None
+        raise APIError(
+            code=ErrorCode.BAD_REQUEST,
+            errors=[
+                FieldError(field=field, code="VALIDATION_ERROR", message=message)
+                for field, message in exc.errors.items()
+            ],
+        ) from None
 
     await db.commit()
     await db.refresh(product)
