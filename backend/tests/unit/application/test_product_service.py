@@ -137,3 +137,27 @@ class TestCreateProductWithVariants:
                 },
             )
         assert "variants" in exc.value.errors
+
+    async def test_variant_sku_required(self) -> None:
+        """变体 SKU 必填（行业标准：SKU 手填，不再自动生成）。"""
+        with pytest.raises(ProductValidationError) as exc:
+            await ProductService.create_variant(
+                AsyncMock(),
+                MagicMock(id="1001", sku="TOY-100"),
+                {"name": "Small", "attributes": {"Size": "S"}, "price": 8.0},
+            )
+        assert "sku" in exc.value.errors
+
+    async def test_variant_update_empty_sku_rejected(self) -> None:
+        """update 场景传空 sku 也应报错，不允许自动生成。"""
+        variant = MagicMock()
+        variant.sku = "TOY-100-S"
+        variant.product_id = "1001"
+        variant.attributes = {"Size": "S"}
+        with pytest.raises(ProductValidationError) as exc:
+            await ProductService.update_variant(
+                AsyncMock(),
+                variant,
+                {"sku": "", "name": "Small"},
+            )
+        assert "sku" in exc.value.errors

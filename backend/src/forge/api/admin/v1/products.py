@@ -53,7 +53,7 @@ IMAGE_SIZE_LIMIT = 5 * 1024 * 1024  # 5MB
 class VariantCreate(BaseModel):
     """变体创建载荷（随商品上传 / 单独新增共用）。"""
 
-    sku: str | None = None  # 空值自动生成 {商品货号}-{规格短码}
+    sku: str  # 必填，行业标准（Shopify/Chewy）变体 SKU 手填
     name: str
     attributes: dict[str, Any] | None = None
     price: float | None = None

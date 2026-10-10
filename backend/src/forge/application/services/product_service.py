@@ -29,34 +29,6 @@ MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
 
 _ASCII_STRIP_RE = re.compile(r"[^a-z0-9]+")
 
-# 规格值 → SKU 短码的常见颜色映射（兜底规则：大写字母数字取前 3 位）
-_COLOR_SHORTCODES: dict[str, str] = {
-    "black": "BLK",
-    "white": "WHT",
-    "red": "RED",
-    "blue": "BLU",
-    "green": "GRN",
-    "yellow": "YLW",
-    "orange": "ORG",
-    "purple": "PRP",
-    "pink": "PNK",
-    "gray": "GRY",
-    "grey": "GRY",
-    "brown": "BRN",
-    "navy": "NVY",
-    "gold": "GLD",
-    "silver": "SLV",
-    "beige": "BGE",
-    "cream": "CRM",
-    "khaki": "KHK",
-    "olive": "OLV",
-    "teal": "TEL",
-    "coral": "CRL",
-    "ivory": "IVY",
-    "maroon": "MRN",
-    "turquoise": "TRQ",
-}
-
 # 商品详情块（PRODUCT-DETAIL-BLOCKS）：结构化详情，避免整段 HTML 富文本
 # （XSS 面、多语言不可复用、结构化数据无法抽取）
 DETAIL_BLOCK_TYPES = (
@@ -497,48 +469,14 @@ class ProductService:
     # 变体业务（P2-1）
     # ------------------------------------------------------------------
     @staticmethod
-    def _spec_shortcode(value: str) -> str:
-        """规格值 → SKU 短码。颜色走常见映射，其余大写字母数字取前 3 位。"""
-        text = unicodedata.normalize("NFKD", str(value))
-        ascii_text = "".join(ch for ch in text if ch.isalnum()).upper()
-        if not ascii_text:
-            return "X"
-        lower = ascii_text.lower()
-        if lower in _COLOR_SHORTCODES:
-            return _COLOR_SHORTCODES[lower]
-        return ascii_text[:3] if len(ascii_text) > 3 else ascii_text
-
-    @staticmethod
-    async def generate_variant_sku(
-        db: AsyncSession,
-        product: ORMProduct,
-        attributes: dict[str, Any] | None,
-    ) -> str:
-        """自动生成变体 SKU：{商品货号}-{规格短码}，冲突追加序号。"""
-        base = str(product.sku or product.slug or "PRODUCT").strip().upper()
-        shortcodes = [
-            ProductService._spec_shortcode(str(v))
-            for v in (attributes or {}).values()
-            if v is not None and str(v).strip()
-        ]
-        base_sku = f"{base}-{'-'.join(shortcodes)}" if shortcodes else f"{base}-VAR"
-
-        candidate = base_sku
-        suffix = 2
-        while True:
-            existing = await SQLAlchemyProductRepository.get_variant_by_sku(db, candidate)
-            if existing is None:
-                return candidate
-            candidate = f"{base_sku}-{suffix}"
-            suffix += 1
-
-    @staticmethod
     async def _validate_variant(data: dict[str, Any], partial: bool = False) -> dict[str, str]:
         errors: dict[str, str] = {}
 
-        if "sku" in data and data["sku"] is not None:
-            sku = str(data["sku"]).strip()
-            if sku and len(sku) > 100:
+        if not partial or "sku" in data:
+            sku = str(data.get("sku") or "").strip()
+            if not sku:
+                errors["sku"] = "SKU 不能为空（变体 SKU 必须手填）"
+            elif len(sku) > 100:
                 errors["sku"] = "SKU 长度不能超过 100"
 
         if "name" in data or not partial:
@@ -583,10 +521,7 @@ class ProductService:
             raise ProductValidationError("变体参数校验失败", errors)
 
         payload = dict(data)
-        attributes = payload.get("attributes") or {}
-        if not payload.get("sku") or not str(payload["sku"]).strip():
-            payload["sku"] = await ProductService.generate_variant_sku(db, product, attributes)
-        sku = str(payload["sku"]).strip()
+        sku = str(payload.get("sku") or "").strip()
         existing = await SQLAlchemyProductRepository.get_variant_by_sku(db, sku)
         if existing:
             raise ProductSkuConflictError(f"变体 SKU 已存在: {sku}")
@@ -614,21 +549,11 @@ class ProductService:
             raise ProductValidationError("变体参数校验失败", errors)
 
         if "sku" in data and data["sku"] != variant.sku:
-            if data["sku"] and str(data["sku"]).strip():
-                new_sku = str(data["sku"]).strip()
-                existing = await SQLAlchemyProductRepository.get_variant_by_sku(db, new_sku)
-                if existing and existing.id != variant.id:
-                    raise ProductSkuConflictError(f"变体 SKU 已存在: {new_sku}")
-                data["sku"] = new_sku
-            else:
-                # 传空 sku 表示自动重新生成
-                product = await SQLAlchemyProductRepository.get_by_id(db, str(variant.product_id))
-                if product is None:
-                    raise ProductValidationError("商品不存在", {"product_id": "商品不存在"})
-                attrs = data.get("attributes")
-                if attrs is None:
-                    attrs = dict(variant.attributes or {})
-                data["sku"] = await ProductService.generate_variant_sku(db, product, attrs)
+            new_sku = str(data.get("sku") or "").strip()
+            existing = await SQLAlchemyProductRepository.get_variant_by_sku(db, new_sku)
+            if existing and existing.id != variant.id:
+                raise ProductSkuConflictError(f"变体 SKU 已存在: {new_sku}")
+            data["sku"] = new_sku
 
         variant = await SQLAlchemyProductRepository.update_variant(db, variant, data)
 
