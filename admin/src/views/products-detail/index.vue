@@ -219,6 +219,28 @@ function loadLang(lang: string) {
   translationAi.value = form.value.ai_description_translations?.[lang] || '';
 }
 
+function langStatus(lang: string): boolean {
+  return !!(
+    form.value.name_translations?.[lang] ||
+    form.value.description_translations?.[lang]
+  );
+}
+
+/** Shopify 模式：以 zh-cn 为基准语言，克隆其名称/描述到目标语言（AI 翻译接入前的一键生成） */
+function cloneFromBase(lang: string) {
+  const baseName = form.value.name_translations?.['zh-cn'] || form.value.name || '';
+  const baseDesc = form.value.description_translations?.['zh-cn'] || form.value.description || '';
+  if (lang === 'zh-cn') return;
+  syncLang('name');
+  syncLang('desc');
+  syncLang('ai');
+  currentLang.value = lang;
+  translationName.value = baseName;
+  translationDesc.value = baseDesc;
+  syncLang('name');
+  syncLang('desc');
+}
+
 function switchLang(lang: string) {
   syncLang('name');
   syncLang('desc');
@@ -800,7 +822,34 @@ async function reloadVariants() {
       <NCard title="多语言内容" size="small" class="md:col-span-2">
         <NFormItem label="语言">
           <NSelect :value="currentLang" :options="langOptions" style="width: 200px" @update:value="switchLang" />
+          <div class="mt-2 flex flex-wrap gap-2">
+            <button
+              v-for="opt in langOptions"
+              :key="opt.value"
+              type="button"
+              class="rounded px-2.5 py-1 text-xs transition"
+              :class="
+                currentLang === opt.value
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300'
+              "
+              :title="opt.label"
+              @click="switchLang(opt.value)"
+            >
+              {{ opt.value }}
+              <span :class="langStatus(opt.value) ? 'text-green-400' : 'text-amber-400'">●</span>
+            </button>
+          </div>
         </NFormItem>
+        <div class="mb-2 flex items-center gap-2">
+          <NButton size="small" type="primary" secondary @click="cloneFromBase(currentLang)">
+            从基准语言(zh-cn)克隆
+          </NButton>
+          <NButton size="small" disabled title="需配置 AI 服务后启用：将基准语言内容翻译为目标语言">
+            AI 翻译（待接入）
+          </NButton>
+          <span class="text-xs text-gray-400">● 绿=已填写，黄=未翻译（C 端自动回退基准语言）</span>
+        </div>
         <NGrid :cols="2" :x-gap="16" responsive="screen">
           <NGi span="2">
             <NFormItem label="名称翻译">
