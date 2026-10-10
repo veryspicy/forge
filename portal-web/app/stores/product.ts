@@ -49,6 +49,7 @@ interface Product {
   name_translations?: Record<string, string>;
   description_translations?: Record<string, string>;
   detail_blocks?: DetailBlock[];
+  detail_blocks_translations?: Record<string, DetailBlock[]>;
   seo_title?: string;
   seo_description?: string;
   seo_keywords?: string;

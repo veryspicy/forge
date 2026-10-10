@@ -267,9 +267,10 @@ const form = ref({
   region_availability: [] as string[],
   name_translations: {} as Record<string, string>,
   description_translations: {} as Record<string, string>,
-  ai_description_translations: {} as Record<string, string>,
   /** 结构化详情块（字段受后端 DETAIL_BLOCK_FIELDS 白名单约束） */
-  detail_blocks: [] as Record<string, any>[]
+  detail_blocks: [] as Record<string, any>[],
+  /** 详情块多语言：{locale: [blocks]}，detail_blocks 为基准语言（zh-cn） */
+  detail_blocks_translations: {} as Record<string, Record<string, any>[]>
 });
 
 const langOptions = [
@@ -284,29 +285,29 @@ const langOptions = [
 const currentLang = ref('en');
 const translationName = ref('');
 const translationDesc = ref('');
-const translationAi = ref('');
 
 function loadLang(lang: string) {
   translationName.value = form.value.name_translations?.[lang] || '';
   translationDesc.value = form.value.description_translations?.[lang] || '';
-  translationAi.value = form.value.ai_description_translations?.[lang] || '';
 }
 
 function langStatus(lang: string): boolean {
   return !!(
     form.value.name_translations?.[lang] ||
-    form.value.description_translations?.[lang]
+    form.value.description_translations?.[lang] ||
+    (lang !== 'zh-cn' && !!form.value.detail_blocks_translations?.[lang]?.length)
   );
 }
 
-/** Shopify 模式：以 zh-cn 为基准语言，克隆其名称/描述到目标语言（AI 翻译接入前的一键生成） */
+/** Shopify 模式：以 zh-cn 为基准语言，克隆其名称/描述/详情块到目标语言（AI 翻译接入前的一键生成） */
 function cloneFromBase(lang: string) {
   const baseName = form.value.name_translations?.['zh-cn'] || form.value.name || '';
   const baseDesc = form.value.description_translations?.['zh-cn'] || form.value.description || '';
   if (lang === 'zh-cn') return;
   syncLang('name');
   syncLang('desc');
-  syncLang('ai');
+  const baseBlocks = form.value.detail_blocks || [];
+  form.value.detail_blocks_translations[lang] = JSON.parse(JSON.stringify(baseBlocks));
   currentLang.value = lang;
   translationName.value = baseName;
   translationDesc.value = baseDesc;
@@ -317,21 +318,33 @@ function cloneFromBase(lang: string) {
 function switchLang(lang: string) {
   syncLang('name');
   syncLang('desc');
-  syncLang('ai');
   currentLang.value = lang;
   loadLang(lang);
 }
 
-function syncLang(kind: 'name' | 'desc' | 'ai') {
+function syncLang(kind: 'name' | 'desc') {
   const key =
     kind === 'name'
       ? 'name_translations'
-      : kind === 'desc'
-        ? 'description_translations'
-        : 'ai_description_translations';
+      : 'description_translations';
   form.value[key][currentLang.value] =
-    kind === 'name' ? translationName.value : kind === 'desc' ? translationDesc.value : translationAi.value;
+    kind === 'name' ? translationName.value : translationDesc.value;
 }
+
+/** 当前语言下可见的详情块：zh-cn 走基准块，其余语言走该语言的整组翻译块（缺失回退空数组，编辑即写入） */
+const activeBlocks = computed<Record<string, any>[]>({
+  get: () =>
+    currentLang.value === 'zh-cn'
+      ? (form.value.detail_blocks || [])
+      : (form.value.detail_blocks_translations?.[currentLang.value] || []),
+  set: (v) => {
+    if (currentLang.value === 'zh-cn') {
+      form.value.detail_blocks = v;
+    } else {
+      form.value.detail_blocks_translations[currentLang.value] = v;
+    }
+  }
+});
 
 const categoryOptions = [
   { label: 'Food', value: 'FOOD' },
@@ -427,8 +440,8 @@ onMounted(async () => {
       region_availability: p.region_availability || [],
       name_translations: p.name_translations || {},
       description_translations: p.description_translations || {},
-      ai_description_translations: p.ai_description_translations || {},
-      detail_blocks: (p.detail_blocks || []) as Record<string, any>[]
+      detail_blocks: (p.detail_blocks || []) as Record<string, any>[],
+      detail_blocks_translations: (p.detail_blocks_translations || {}) as Record<string, Record<string, any>[]>
     };
     loadLang('en');
     tagsString.value = (p.tags || []).join(', ');
@@ -634,7 +647,6 @@ async function save() {
   error.value = '';
   syncLang('name');
   syncLang('desc');
-  syncLang('ai');
   try {
     const payload = buildPayload();
     if (isEdit.value) {
@@ -962,11 +974,6 @@ async function reloadVariants() {
               <NInput v-model:value="translationDesc" type="textarea" :rows="3" @update:value="syncLang('desc')" />
             </NFormItem>
           </NGi>
-          <NGi span="2">
-            <NFormItem label="AI 描述翻译">
-              <NInput v-model:value="translationAi" type="textarea" :rows="3" @update:value="syncLang('ai')" />
-            </NFormItem>
-          </NGi>
         </NGrid>
       </NCard>
 
@@ -1105,9 +1112,12 @@ async function reloadVariants() {
         @save="onEditorSave"
       />
 
-      <!-- Structured detail blocks -->
+      <!-- Structured detail blocks（当前语言下编辑；zh-cn 为基准块，其他语言写入 detail_blocks_translations） -->
       <NCard title="商品详情块（结构化）" size="small" class="md:col-span-2">
-        <ProductDetailBlocks v-model:value="form.detail_blocks" />
+        <ProductDetailBlocks v-model:value="activeBlocks" />
+        <div v-if="currentLang !== 'zh-cn'" class="mt-2 text-xs opacity-60">
+          当前编辑 {{ currentLang }} 语言块（克隆基准块后翻译；C 端按语言整组回退）
+        </div>
       </NCard>
 
       <!-- Variants（编辑模式走独立接口，新建模式随商品创建一并上传） -->

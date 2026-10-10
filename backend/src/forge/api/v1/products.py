@@ -55,6 +55,7 @@ _PUBLIC_DETAIL_FIELDS = [
     "seo_description",
     "seo_keywords",
     "detail_blocks",
+    "detail_blocks_translations",
 ]
 
 

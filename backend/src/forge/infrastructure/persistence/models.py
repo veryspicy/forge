@@ -77,7 +77,6 @@ class ORMProduct(Base):
     ai_description = Column(Text, nullable=True)
     name_translations = Column(JSONB, nullable=False, default=dict)
     description_translations = Column(JSONB, nullable=False, default=dict)
-    ai_description_translations = Column(JSONB, nullable=False, default=dict)
     price = Column(Numeric(12, 2), nullable=False)
     cost = Column(Numeric(12, 2), nullable=False)
     category = Column(String(50), nullable=False, index=True)
@@ -114,6 +113,8 @@ class ORMProduct(Base):
     seo_keywords: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
     # 商品详情块（结构化详情：图文块 / 富文本块 / 规格表 / FAQ），PRODUCT-DETAIL-BLOCKS
     detail_blocks = Column(JSONB, nullable=False, default=list, server_default="'[]'::jsonb")
+    # 详情块多语言（Shopify 字段级模型）：detail_blocks 为基准语言块，本列为 {locale: [blocks]} 覆盖
+    detail_blocks_translations = Column(JSONB, nullable=False, default=dict, server_default="'{}'::jsonb")
     created_at = Column(DateTime(timezone=True), nullable=False, server_default="now()")
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default="now()")
 
@@ -127,7 +128,6 @@ class ORMProduct(Base):
             "ai_description": self.ai_description,
             "name_translations": self.name_translations or {},
             "description_translations": self.description_translations or {},
-            "ai_description_translations": self.ai_description_translations or {},
             "price": float(self.price) if self.price else 0,
             "cost": float(self.cost) if self.cost else 0,
             "category": self.category,
@@ -162,6 +162,7 @@ class ORMProduct(Base):
             "seo_description": self.seo_description,
             "seo_keywords": self.seo_keywords or [],
             "detail_blocks": self.detail_blocks or [],
+            "detail_blocks_translations": self.detail_blocks_translations or {},
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

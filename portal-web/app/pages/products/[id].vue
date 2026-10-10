@@ -34,7 +34,7 @@
               :src="activeImage"
               :alt="activeImageAlt"
               class="w-full h-full object-cover"
-            />
+            >
             <span v-else class="text-gray-400">{{ $t('products.noImage') }}</span>
           </div>
 
@@ -47,7 +47,7 @@
               :class="activeImage === img ? 'border-primary-500' : 'border-gray-200 hover:border-gray-400'"
               @click="activeImage = img"
             >
-              <img :src="img" :alt="imageAlt(img, idx)" class="w-full h-full object-cover" />
+              <img :src="img" :alt="imageAlt(img, idx)" class="w-full h-full object-cover" >
             </button>
           </div>
         </div>
@@ -183,7 +183,7 @@
           </div>
 
           <!-- Specifications (Collapsible) -->
-          <details class="mt-6 group" v-if="productSpecs.length > 0">
+          <details v-if="productSpecs.length > 0" class="mt-6 group">
             <summary class="text-sm font-medium text-gray-700 cursor-pointer list-none flex items-center gap-1">
               {{ $t('products.specifications') }}
               <span class="transition-transform group-open:rotate-90">&#9654;</span>
@@ -231,7 +231,7 @@
                     <div
                       class="h-full bg-yellow-400"
                       :style="{ width: (reviewSummary.review_count ? (reviewSummary.distribution?.[star] || 0) / reviewSummary.review_count * 100 : 0) + '%' }"
-                    ></div>
+                    />
                   </div>
                   <span class="w-6 text-xs text-gray-400 text-right">{{ reviewSummary.distribution?.[star] || 0 }}</span>
                 </div>
@@ -332,7 +332,17 @@ const displayDescription = computed(() =>
   localizedText(product.value?.description_translations, product.value?.description || '')
 )
 
-const detailBlocks = computed(() => product.value?.detail_blocks || [])
+const detailBlocks = computed(() => {
+  const p = product.value
+  if (!p) return []
+  // 详情块多语言：优先当前 locale 的整组块，逐级回退到 en / 基准块（Shopify 字段级模型）
+  const translations = p.detail_blocks_translations || {}
+  const key = backendLocaleKey.value
+  if (translations[key]?.length) return translations[key]
+  if (translations[locale.value]?.length) return translations[locale.value]
+  if (translations.en?.length) return translations.en
+  return p.detail_blocks || []
+})
 
 // 图片 alt：优先 image_details 中的 alt，回退商品名（SEO/无障碍）
 function imageAlt(img: string, idx: number): string {

@@ -82,7 +82,6 @@ class ProductCreate(BaseModel):
     ai_description: str | None = None
     name_translations: dict[str, str] | None = None
     description_translations: dict[str, str] | None = None
-    ai_description_translations: dict[str, str] | None = None
     price: float
     cost: float | None = 0.0
     inventory: int = 0
@@ -104,6 +103,8 @@ class ProductCreate(BaseModel):
     slug: str | None = None
     # 结构化详情块（PRODUCT-DETAIL-BLOCKS），元素含 type 与各类型专属字段
     detail_blocks: list[dict[str, Any]] | None = None
+    # 详情块多语言（Shopify 字段级模型）：{locale: [detail_block]}，detail_blocks 为基准语言
+    detail_blocks_translations: dict[str, list[dict[str, Any]]] | None = None
     # 商品体系改造（PRODUCT-CATALOG-REFACTOR）目录侧外键
     category_id: int | None = None
     brand_id: int | None = None
@@ -119,7 +120,6 @@ class ProductUpdate(BaseModel):
     ai_description: str | None = None
     name_translations: dict[str, str] | None = None
     description_translations: dict[str, str] | None = None
-    ai_description_translations: dict[str, str] | None = None
     price: float | None = None
     cost: float | None = None
     inventory: int | None = None
@@ -139,6 +139,7 @@ class ProductUpdate(BaseModel):
     seo_keywords: list[str] | None = None
     slug: str | None = None
     detail_blocks: list[dict[str, Any]] | None = None
+    detail_blocks_translations: dict[str, list[dict[str, Any]]] | None = None
     is_new: bool | None = None
     is_recommend: bool | None = None
     sort_order: int | None = None

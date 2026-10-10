@@ -141,6 +141,10 @@ class ProductService:
         payload["slug"] = await ProductService._unique_slug(db, base_slug)
         if data.get("detail_blocks") is not None:
             payload["detail_blocks"] = ProductService.normalize_detail_blocks(data["detail_blocks"])
+        if data.get("detail_blocks_translations") is not None:
+            payload["detail_blocks_translations"] = ProductService.normalize_detail_blocks_translations(
+                data["detail_blocks_translations"]
+            )
         payload.setdefault("status", "draft")
         payload.setdefault("images", [])
         product = await SQLAlchemyProductRepository.create(db, payload)
@@ -182,6 +186,10 @@ class ProductService:
 
         if data.get("detail_blocks") is not None:
             data["detail_blocks"] = ProductService.normalize_detail_blocks(data["detail_blocks"])
+        if data.get("detail_blocks_translations") is not None:
+            data["detail_blocks_translations"] = ProductService.normalize_detail_blocks_translations(
+                data["detail_blocks_translations"]
+            )
 
         return await SQLAlchemyProductRepository.update(db, product, data)
 
@@ -345,6 +353,17 @@ class ProductService:
         return value
 
     @staticmethod
+    def normalize_detail_blocks_translations(translations: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
+        """清洗详情块多语言：{locale: [blocks]}，每个语言的块数组走 normalize_detail_blocks。"""
+        cleaned: dict[str, list[dict[str, Any]]] = {}
+        for lang, blocks in translations.items():
+            lang_key = str(lang).strip()
+            if not lang_key:
+                continue
+            cleaned[lang_key] = ProductService.normalize_detail_blocks(blocks)
+        return cleaned
+
+    @staticmethod
     async def add_image(
         db: AsyncSession,
         product: ORMProduct,
@@ -460,7 +479,7 @@ class ProductService:
         ):
             errors["detail_blocks"] = "detail_blocks 必须是数组"
 
-        for field in ("name_translations", "description_translations", "ai_description_translations"):
+        for field in ("name_translations", "description_translations"):
             if field in data and data[field] is not None:
                 translations = data[field]
                 if not isinstance(translations, dict):
@@ -473,6 +492,27 @@ class ProductService:
                         if text is not None and not isinstance(text, str):
                             errors[field] = f"{field} 的 {lang} 值必须是字符串"
                             break
+
+        if "detail_blocks_translations" in data and data["detail_blocks_translations"] is not None:
+            translations = data["detail_blocks_translations"]
+            if not isinstance(translations, dict):
+                errors["detail_blocks_translations"] = "detail_blocks_translations 必须是语言代码到详情块数组的映射对象"
+            else:
+                for lang, blocks in translations.items():
+                    if not isinstance(lang, str) or not lang.strip():
+                        errors["detail_blocks_translations"] = "detail_blocks_translations 的语言代码必须是非空字符串"
+                        break
+                    if not isinstance(blocks, list):
+                        errors["detail_blocks_translations"] = (
+                            f"detail_blocks_translations 的 {lang} 值必须是详情块数组"
+                        )
+                        break
+                    try:
+                        ProductService.normalize_detail_blocks(blocks)
+                    except ProductValidationError as exc:
+                        errors["detail_blocks_translations"] = (
+                            f"detail_blocks_translations 的 {lang} 语言块{exc.errors}"
+                        )
 
         return errors
 
