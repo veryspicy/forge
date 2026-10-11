@@ -248,6 +248,13 @@ function specAddCol(i: number) {
   specDrafts.value[i] = { ...s };
 }
 
+function specInsertCol(i: number, j: number) {
+  const s = specState(i);
+  s.cols.splice(j + 1, 0, `列 ${s.cols.length + 1}`);
+  s.rows.forEach(r => r.cells.splice(j + 1, 0, ''));
+  specDrafts.value[i] = { ...s };
+}
+
 function specRemoveCol(i: number, j: number) {
   const s = specState(i);
   if (s.cols.length <= 2) return;
@@ -259,6 +266,12 @@ function specRemoveCol(i: number, j: number) {
 function specAddRow(i: number) {
   const s = specState(i);
   s.rows.push({ id: ++specRowSeq, cells: s.cols.map(() => '') });
+  specDrafts.value[i] = { ...s };
+}
+
+function specInsertRow(i: number, r: number) {
+  const s = specState(i);
+  s.rows.splice(r + 1, 0, { id: ++specRowSeq, cells: s.cols.map(() => '') });
   specDrafts.value[i] = { ...s };
 }
 
@@ -370,45 +383,100 @@ function specCommit(i: number) {
           </NFormItem>
         </template>
 
-        <!-- 规格表：轻量表格编辑 -->
+        <!-- 规格表：所见即所得表格编辑 -->
         <template v-else-if="block.type === 'spec_table'">
-          <div class="flex items-center gap-2 mb-2">
-            <span class="text-xs opacity-60">列头：</span>
-            <div v-for="(col, j) in specState(i).cols" :key="j" class="flex items-center gap-1">
-              <NInput v-model:value="specState(i).cols[j]" size="small" style="width: 120px" placeholder="列名" @blur="specCommit(i)" />
-              <NButton
-                size="tiny"
-                quaternary
-                type="error"
-                :disabled="specState(i).cols.length <= 2"
-                @click="specRemoveCol(i, j); specCommit(i)"
-              >
-                ×
-              </NButton>
-            </div>
-            <NButton size="tiny" dashed @click="specAddCol(i)">+ 列</NButton>
+          <div class="overflow-x-auto">
+            <table class="w-full border-collapse text-sm">
+              <thead>
+                <tr>
+                  <th
+                    v-for="(col, j) in specState(i).cols"
+                    :key="j"
+                    class="border border-[var(--n-border-color)] bg-gray-100 p-1 align-middle"
+                  >
+                    <div class="flex items-center gap-1">
+                      <NInput
+                        v-model:value="specState(i).cols[j]"
+                        :bordered="false"
+                        size="small"
+                        placeholder="列名"
+                        @blur="specCommit(i)"
+                      />
+                      <NButton
+                        size="tiny"
+                        quaternary
+                        type="primary"
+                        title="在该列右侧插入列"
+                        @click="specInsertCol(i, j); specCommit(i)"
+                      >
+                        ＋
+                      </NButton>
+                      <NButton
+                        size="tiny"
+                        quaternary
+                        type="error"
+                        title="删除该列"
+                        :disabled="specState(i).cols.length <= 2"
+                        @click="specRemoveCol(i, j); specCommit(i)"
+                      >
+                        ×
+                      </NButton>
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <template v-for="(row, r) in specState(i).rows" :key="row.id">
+                  <tr>
+                    <td
+                      v-for="(cell, c) in row.cells"
+                      :key="c"
+                      class="border border-[var(--n-border-color)] p-1 align-middle"
+                    >
+                      <NInput
+                        v-model:value="row.cells[c]"
+                        :bordered="false"
+                        size="small"
+                        placeholder="值"
+                        @blur="specCommit(i)"
+                      />
+                    </td>
+                  </tr>
+                  <tr>
+                    <td
+                      :colspan="specState(i).cols.length"
+                      class="border border-[var(--n-border-color)] p-0.5 text-center"
+                    >
+                      <NSpace size="small" justify="center" :wrap="false">
+                        <NButton
+                          size="tiny"
+                          quaternary
+                          type="primary"
+                          title="在该行下方插入行"
+                          @click="specInsertRow(i, r); specCommit(i)"
+                        >
+                          ＋ 插入行
+                        </NButton>
+                        <NButton
+                          size="tiny"
+                          quaternary
+                          type="error"
+                          title="删除该行"
+                          @click="specRemoveRow(i, r); specCommit(i)"
+                        >
+                          × 删除行
+                        </NButton>
+                      </NSpace>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
           </div>
-          <div class="flex flex-col gap-1 mb-2">
-            <div
-              v-for="(row, r) in specState(i).rows"
-              :key="row.id"
-              class="flex items-center gap-1"
-            >
-              <NInput
-                v-for="(cell, c) in row.cells"
-                :key="c"
-                v-model:value="row.cells[c]"
-                size="small"
-                style="width: 120px"
-                placeholder="值"
-                @blur="specCommit(i)"
-              />
-              <NButton size="tiny" quaternary type="error" @click="specRemoveRow(i, r); specCommit(i)">删除</NButton>
-            </div>
-          </div>
-          <NSpace size="small">
-            <NButton size="tiny" dashed @click="specAddRow(i)">+ 行</NButton>
-            <span class="text-xs opacity-60">轻量表格，C 端按列头渲染</span>
+          <NSpace size="small" class="mt-2">
+            <NButton size="tiny" dashed @click="specAddCol(i); specCommit(i)">+ 添加列</NButton>
+            <NButton size="tiny" dashed @click="specAddRow(i)">+ 添加行</NButton>
+            <span class="text-xs opacity-60">表头可直接改列名，列头 ＋/× 增删列，行下方 ＋/× 增删行</span>
           </NSpace>
         </template>
 
