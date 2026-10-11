@@ -58,6 +58,8 @@ class VariantCreate(BaseModel):
     # 变体展示名多语言（Shopify 字段级模型）：{locale: name}，name 为基准语言
     name_translations: dict[str, str] | None = None
     attributes: dict[str, Any] | None = None
+    # 变体属性值多语言：{locale: {key: value}}，attributes 为基准语言（key/value 均基准）
+    attributes_translations: dict[str, dict[str, str]] | None = None
     price: float | None = None
     cost: float | None = None
     inventory: int | None = 0
@@ -70,6 +72,7 @@ class VariantUpdate(BaseModel):
     name: str | None = None
     name_translations: dict[str, str] | None = None
     attributes: dict[str, Any] | None = None
+    attributes_translations: dict[str, dict[str, str]] | None = None
     price: float | None = None
     cost: float | None = None
     inventory: int | None = None

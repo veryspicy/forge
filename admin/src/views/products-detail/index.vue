@@ -150,6 +150,8 @@ const variantForm = ref({
   name: '',
   name_translations: {} as Record<string, string>,
   specRows: [] as { key: string; value: string }[],
+  baseAttributes: {} as Record<string, string>,
+  attributes_translations: {} as Record<string, Record<string, string>>,
   price: 0,
   cost: 0,
   inventory: 0,
@@ -173,9 +175,19 @@ function addSpecRow() {
 function removeSpecRow(idx: number) {
   variantForm.value.specRows.splice(idx, 1);
 }
-function attrsToSpecRows(attrs: Record<string, any> | null | undefined): { key: string; value: string }[] {
+function attrsToSpecRows(
+  attrs: Record<string, any> | null | undefined,
+  translations?: Record<string, Record<string, string>> | null,
+  lang?: string
+): { key: string; value: string }[] {
+  const base = attrs ?? {};
+  const langMap = translations?.[lang ?? ''] ?? {};
   const rows: { key: string; value: string }[] = [];
-  for (const [k, v] of Object.entries(attrs ?? {})) rows.push({ key: String(k), value: v == null ? '' : String(v) });
+  for (const [k, v] of Object.entries(base)) {
+    // 基准语言读主列；其他语言读该语言翻译（未翻译回退基准值，作为 placeholder 参考）
+    const value = lang && lang !== 'zh-cn' ? (langMap[k] ?? '') : v;
+    rows.push({ key: String(k), value: value == null ? '' : String(value) });
+  }
   return rows;
 }
 
@@ -285,6 +297,16 @@ const langOptions = [
 
 /** 全局编辑语言：顶部语言标签切换；zh-cn 为基准语言（走主列），其余语言写 *_translations[lang] */
 const currentLang = ref('zh-cn');
+
+/** 变体属性按当前语言展示（基准语言走 attributes，其他语言走 translations 回退基准） */
+function variantAttrsText(v: any): string {
+  const base = v.attributes || {};
+  if (currentLang.value === 'zh-cn') return JSON.stringify(base);
+  const map = (v.attributes_translations || {})[currentLang.value] || {};
+  const localized: Record<string, any> = {};
+  for (const [k, val] of Object.entries(base)) localized[k] = map[k] ?? val;
+  return JSON.stringify(localized);
+}
 
 function langStatus(lang: string): boolean {
   const seo = form.value.seo_translations?.[lang];
@@ -746,6 +768,7 @@ async function save() {
         sku: v.sku || '',
         name: v.name || '',
         attributes: v.attributes || {},
+        attributes_translations: v.attributes_translations || {},
         price: v.price ?? 0,
         cost: v.cost ?? 0,
         inventory: v.inventory ?? 0,
@@ -815,8 +838,12 @@ function openVariantModal(v?: any) {
       name: v.name || '',
       name_translations: (v.name_translations || {}) as Record<string, string>,
       specRows: attrsToSpecRows(
-        v.attributes ?? (v.specs ? Object.fromEntries((v.specs as any[]).map((s: any) => [s.spec_key, s.value])) : null)
+        v.attributes ?? (v.specs ? Object.fromEntries((v.specs as any[]).map((s: any) => [s.spec_key, s.value])) : null),
+        (v.attributes_translations || {}) as Record<string, Record<string, string>>,
+        currentLang.value
       ),
+      baseAttributes: (v.attributes || {}) as Record<string, string>,
+      attributes_translations: (v.attributes_translations || {}) as Record<string, Record<string, string>>,
       price: v.price ?? 0,
       cost: v.cost ?? 0,
       inventory: v.inventory ?? 0,
@@ -830,6 +857,8 @@ function openVariantModal(v?: any) {
       name: '',
       name_translations: {},
       specRows: [],
+      baseAttributes: {},
+      attributes_translations: {},
       price: 0,
       cost: 0,
       inventory: 0,
@@ -843,7 +872,7 @@ function openVariantModal(v?: any) {
 async function saveVariant() {
   variantSaving.value = true;
   error.value = '';
-  const attributes: Record<string, any> = {};
+  const attributes: Record<string, string> = {};
   for (const row of variantForm.value.specRows) {
     const key = (row.key ?? '').trim();
     if (!key) continue;
@@ -858,13 +887,30 @@ async function saveVariant() {
     sku: variantForm.value.sku.trim(),
     name: variantForm.value.name.trim(),
     name_translations: variantForm.value.name_translations,
-    attributes,
     price: variantForm.value.price,
     cost: variantForm.value.cost,
     inventory: variantForm.value.inventory,
     status: variantForm.value.status,
     is_default: variantForm.value.is_default
   };
+  if (currentLang.value === 'zh-cn') {
+    // 基准语言：写 attributes 主列，各语言翻译仅保留与最新基准键匹配的项（键变更时清理悬空翻译）
+    payload.attributes = attributes;
+    const merged: Record<string, Record<string, string>> = {};
+    for (const [lang, map] of Object.entries(variantForm.value.attributes_translations)) {
+      const keep: Record<string, string> = {};
+      for (const k of Object.keys(attributes)) if (map[k] !== undefined) keep[k] = map[k];
+      if (Object.keys(keep).length) merged[lang] = keep;
+    }
+    payload.attributes_translations = merged;
+  } else {
+    // 其他语言：基准 attributes 不可变，仅覆盖当前语言属性值翻译
+    payload.attributes = variantForm.value.baseAttributes;
+    payload.attributes_translations = {
+      ...variantForm.value.attributes_translations,
+      [currentLang.value]: attributes
+    };
+  }
   try {
     if (!isEdit.value) {
       // 新建模式：纯本地维护，随商品创建一并上传（后端 ProductCreate.variants）
@@ -1218,7 +1264,7 @@ async function reloadVariants() {
             <tr v-for="v in variants" :key="v.id">
               <td>{{ variantDisplayNameOf(v) }}</td>
               <td>{{ v.sku }}</td>
-              <td class="text-xs opacity-70">{{ JSON.stringify(v.attributes || {}) }}</td>
+              <td class="text-xs opacity-70">{{ variantAttrsText(v) }}</td>
               <td>{{ v.price }}</td>
               <td>{{ v.cost }}</td>
               <td>{{ v.inventory }}</td>
@@ -1257,13 +1303,40 @@ async function reloadVariants() {
             <div class="w-full flex flex-col gap-1">
               <div v-if="variantForm.specRows.length" class="flex flex-col gap-1">
                 <div v-for="(row, idx) in variantForm.specRows" :key="idx" class="flex items-center gap-2">
-                  <NInput v-model:value="row.key" placeholder="选项名，如 Color" />
-                  <NInput v-model:value="row.value" placeholder="选项值，如 Black" />
-                  <NButton size="tiny" quaternary type="error" @click="removeSpecRow(idx)">删除</NButton>
+                  <NInput
+                    v-model:value="row.key"
+                    placeholder="选项名，如 Color"
+                    :disabled="currentLang !== 'zh-cn'"
+                  />
+                  <NInput
+                    v-model:value="row.value"
+                    :placeholder="
+                      currentLang !== 'zh-cn'
+                        ? `基准：${variantForm.baseAttributes[row.key] ?? '（空）'}`
+                        : '选项值，如 Black'
+                    "
+                  />
+                  <NButton
+                    v-if="currentLang === 'zh-cn'"
+                    size="tiny"
+                    quaternary
+                    type="error"
+                    @click="removeSpecRow(idx)"
+                  >
+                    删除
+                  </NButton>
+                  <span v-else class="text-xs text-gray-400">基准键</span>
                 </div>
               </div>
               <div v-else class="text-xs text-gray-400">未填写选项时 SKU 仅基于货号生成</div>
-              <NButton size="tiny" type="primary" quaternary style="align-self: flex-start" @click="addSpecRow">
+              <NButton
+                v-if="currentLang === 'zh-cn'"
+                size="tiny"
+                type="primary"
+                quaternary
+                style="align-self: flex-start"
+                @click="addSpecRow"
+              >
                 + 添加选项
               </NButton>
             </div>
