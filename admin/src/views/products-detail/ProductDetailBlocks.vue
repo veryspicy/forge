@@ -419,7 +419,7 @@ function specCommit(i: number) {
                         :disabled="specState(i).cols.length <= 2"
                         @click="specRemoveCol(i, j); specCommit(i)"
                       >
-                        ×
+                        −
                       </NButton>
                     </div>
                   </th>
@@ -427,7 +427,7 @@ function specCommit(i: number) {
               </thead>
               <tbody>
                 <template v-for="(row, r) in specState(i).rows" :key="row.id">
-                  <tr>
+                  <tr class="spec-data-row">
                     <td
                       v-for="(cell, c) in row.cells"
                       :key="c"
@@ -442,12 +442,12 @@ function specCommit(i: number) {
                       />
                     </td>
                   </tr>
-                  <tr>
+                  <tr class="spec-row-ops">
                     <td
                       :colspan="specState(i).cols.length"
-                      class="border border-[var(--n-border-color)] p-0.5 text-center"
+                      class="spec-row-ops-cell"
                     >
-                      <NSpace size="small" justify="center" :wrap="false">
+                      <NSpace size="small" :wrap="false" class="spec-row-ops-btns">
                         <NButton
                           size="tiny"
                           quaternary
@@ -455,7 +455,7 @@ function specCommit(i: number) {
                           title="在该行下方插入行"
                           @click="specInsertRow(i, r); specCommit(i)"
                         >
-                          ＋ 插入行
+                          ＋
                         </NButton>
                         <NButton
                           size="tiny"
@@ -464,7 +464,7 @@ function specCommit(i: number) {
                           title="删除该行"
                           @click="specRemoveRow(i, r); specCommit(i)"
                         >
-                          × 删除行
+                          −
                         </NButton>
                       </NSpace>
                     </td>
@@ -476,7 +476,7 @@ function specCommit(i: number) {
           <NSpace size="small" class="mt-2">
             <NButton size="tiny" dashed @click="specAddCol(i); specCommit(i)">+ 添加列</NButton>
             <NButton size="tiny" dashed @click="specAddRow(i)">+ 添加行</NButton>
-            <span class="text-xs opacity-60">表头可直接改列名，列头 ＋/× 增删列，行下方 ＋/× 增删行</span>
+            <span class="text-xs opacity-60">表头可直接改列名，列头 ＋/− 增删列；鼠标移到行间边框出现 ＋/− 增删行</span>
           </NSpace>
         </template>
 
@@ -535,3 +535,29 @@ function specCommit(i: number) {
     />
   </div>
 </template>
+
+<style scoped>
+/* 规格表：行操作条默认隐藏，仅当鼠标悬停到上一数据行或行间轨道时显示 */
+.spec-row-ops {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+.spec-data-row:hover + .spec-row-ops,
+.spec-row-ops:hover {
+  opacity: 1;
+  pointer-events: auto;
+}
+.spec-row-ops-cell {
+  height: 8px;
+  padding: 0;
+  position: relative;
+  border: none;
+}
+.spec-row-ops-btns {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+</style>
