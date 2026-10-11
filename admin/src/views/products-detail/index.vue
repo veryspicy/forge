@@ -285,21 +285,8 @@ const langOptions = [
   { label: 'Deutsch (de)', value: 'de' }
 ];
 
-const currentLang = ref('en');
-const translationName = ref('');
-const translationDesc = ref('');
-const translationSeoTitle = ref('');
-const translationSeoDesc = ref('');
-const translationSeoKeywords = ref('');
-
-function loadLang(lang: string) {
-  translationName.value = form.value.name_translations?.[lang] || '';
-  translationDesc.value = form.value.description_translations?.[lang] || '';
-  const seo = form.value.seo_translations?.[lang];
-  translationSeoTitle.value = seo?.title || '';
-  translationSeoDesc.value = seo?.description || '';
-  translationSeoKeywords.value = (seo?.keywords || []).join(', ');
-}
+/** 全局编辑语言：顶部语言标签切换；zh-cn 为基准语言（走主列），其余语言写 *_translations[lang] */
+const currentLang = ref('zh-cn');
 
 function langStatus(lang: string): boolean {
   const seo = form.value.seo_translations?.[lang];
@@ -314,29 +301,101 @@ function langStatus(lang: string): boolean {
 }
 
 function switchLang(lang: string) {
-  syncLang('name');
-  syncLang('desc');
-  syncLang('seo');
   currentLang.value = lang;
-  loadLang(lang);
 }
 
-function syncLang(kind: 'name' | 'desc' | 'seo') {
-  if (kind === 'name') {
-    form.value.name_translations[currentLang.value] = translationName.value;
-  } else if (kind === 'desc') {
-    form.value.description_translations[currentLang.value] = translationDesc.value;
-  } else {
-    const keywords = translationSeoKeywords.value
-      .split(',')
-      .map((k) => k.trim())
-      .filter(Boolean);
-    form.value.seo_translations[currentLang.value] = {
-      title: translationSeoTitle.value,
-      description: translationSeoDesc.value,
-      keywords
-    };
+/** 名称按当前编辑语言路由：zh-cn 走基准主列，其余语言写 name_translations[lang] */
+const displayName = computed({
+  get: () => currentLang.value === 'zh-cn' ? form.value.name : (form.value.name_translations?.[currentLang.value] || ''),
+  set: (v: string) => {
+    if (currentLang.value === 'zh-cn') {
+      form.value.name = v;
+    } else {
+      form.value.name_translations = { ...form.value.name_translations, [currentLang.value]: v };
+    }
   }
+});
+
+/** 描述按当前编辑语言路由：zh-cn 走基准主列，其余语言写 description_translations[lang] */
+const displayDesc = computed({
+  get: () => currentLang.value === 'zh-cn'
+    ? form.value.description
+    : (form.value.description_translations?.[currentLang.value] || ''),
+  set: (v: string) => {
+    if (currentLang.value === 'zh-cn') {
+      form.value.description = v;
+    } else {
+      form.value.description_translations = { ...form.value.description_translations, [currentLang.value]: v };
+    }
+  }
+});
+
+/** SEO 标题按当前编辑语言路由：zh-cn 走 seoForm（基准主列），其余语言写 seo_translations[lang] */
+const displaySeoTitle = computed({
+  get: () => currentLang.value === 'zh-cn'
+    ? seoForm.value.title
+    : (form.value.seo_translations?.[currentLang.value]?.title || ''),
+  set: (v: string) => {
+    if (currentLang.value === 'zh-cn') {
+      seoForm.value.title = v;
+    } else {
+      const cur = { ...form.value.seo_translations?.[currentLang.value] };
+      cur.title = v;
+      form.value.seo_translations = { ...form.value.seo_translations, [currentLang.value]: cur };
+    }
+  }
+});
+
+/** SEO 描述按当前编辑语言路由：zh-cn 走 seoForm，其余语言写 seo_translations[lang] */
+const displaySeoDesc = computed({
+  get: () => currentLang.value === 'zh-cn'
+    ? seoForm.value.description
+    : (form.value.seo_translations?.[currentLang.value]?.description || ''),
+  set: (v: string) => {
+    if (currentLang.value === 'zh-cn') {
+      seoForm.value.description = v;
+    } else {
+      const cur = { ...form.value.seo_translations?.[currentLang.value] };
+      cur.description = v;
+      form.value.seo_translations = { ...form.value.seo_translations, [currentLang.value]: cur };
+    }
+  }
+});
+
+/** SEO 关键词按当前编辑语言路由：zh-cn 走 seoForm，其余语言写 seo_translations[lang] */
+const displaySeoKeywords = computed({
+  get: () => currentLang.value === 'zh-cn'
+    ? seoForm.value.keywords
+    : ((form.value.seo_translations?.[currentLang.value]?.keywords || []).join(', ')),
+  set: (v: string) => {
+    const keywords = v.split(',').map((k: string) => k.trim()).filter(Boolean);
+    if (currentLang.value === 'zh-cn') {
+      seoForm.value.keywords = v;
+    } else {
+      const cur = { ...form.value.seo_translations?.[currentLang.value] };
+      cur.keywords = keywords;
+      form.value.seo_translations = { ...form.value.seo_translations, [currentLang.value]: cur };
+    }
+  }
+});
+
+/** 变体名称按当前编辑语言路由：zh-cn 走 name 主列，其余语言写 name_translations[lang] */
+const variantDisplayName = computed({
+  get: () => currentLang.value === 'zh-cn'
+    ? variantForm.value.name
+    : (variantForm.value.name_translations?.[currentLang.value] || ''),
+  set: (v: string) => {
+    if (currentLang.value === 'zh-cn') {
+      variantForm.value.name = v;
+    } else {
+      variantForm.value.name_translations = { ...variantForm.value.name_translations, [currentLang.value]: v };
+    }
+  }
+});
+
+/** 变体表格展示：当前语言名，缺失回退基准名 */
+function variantDisplayNameOf(v: any): string {
+  return currentLang.value === 'zh-cn' ? (v.name || '') : (v.name_translations?.[currentLang.value] || v.name || '');
 }
 
 /** 当前语言下可见的详情块：zh-cn 走基准块，其余语言走该语言的整组翻译块（缺失回退空数组，编辑即写入） */
@@ -452,7 +511,6 @@ onMounted(async () => {
       detail_blocks_translations: (p.detail_blocks_translations || {}) as Record<string, Record<string, any>[]>,
       seo_translations: (p.seo_translations || {}) as Record<string, { title?: string; description?: string; keywords?: string[] }>
     };
-    loadLang('en');
     tagsString.value = (p.tags || []).join(', ');
     regionsString.value = (p.region_availability || []).join(', ');
     images.value = (p.images || [])
@@ -582,11 +640,6 @@ function setImageAlt(idx: number, value: string) {
   onImagesDrop();
 }
 
-/** 当前语言标签文案 */
-function currentLangLabel() {
-  return langOptions.find(o => o.value === currentLang.value)?.label || currentLang.value;
-}
-
 /** 打开裁剪弹窗 */
 function openEditor(idx: number) {
   editorModal.value = { show: true, idx };
@@ -685,10 +738,15 @@ function buildPayload(): Record<string, any> {
 async function save() {
   saving.value = true;
   error.value = '';
-  syncLang('name');
-  syncLang('desc');
   try {
     const payload = buildPayload();
+    // 基准语言 SEO 随主表单一并提交（编辑模式下与「保存 SEO」幂等）
+    payload.seo_title = seoForm.value.title;
+    payload.seo_description = seoForm.value.description;
+    payload.seo_keywords = seoForm.value.keywords
+      .split(',')
+      .map((k: string) => k.trim())
+      .filter(Boolean);
     if (isEdit.value) {
       await patch(`/api/admin/v1/products/${route.params.id}`, payload);
       await syncProductRefs(String(route.params.id));
@@ -873,6 +931,34 @@ async function reloadVariants() {
 
     <div v-if="error" class="bg-red-50 text-red-600 p-3 rounded text-sm">{{ error }}</div>
 
+    <!-- 全局编辑语言：所有多语言字段按当前语言联动；zh-cn 为基准语言，其余语言写入对应 translations -->
+    <NCard size="small" class="md:col-span-2">
+      <div class="flex flex-wrap items-center gap-3">
+        <span class="text-sm font-medium">编辑语言</span>
+        <div class="flex flex-wrap gap-2">
+          <button
+            v-for="opt in langOptions"
+            :key="opt.value"
+            type="button"
+            class="rounded px-2.5 py-1 text-xs transition"
+            :class="
+              currentLang === opt.value
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300'
+            "
+            :title="opt.value"
+            @click="switchLang(opt.value)"
+          >
+            {{ opt.label }}
+            <span :class="langStatus(opt.value) ? 'text-green-400' : 'text-amber-400'">●</span>
+          </button>
+        </div>
+        <span class="text-xs text-gray-400">
+          当前编辑语言由上方标签标明；● 绿=已填写，黄=未翻译（C 端自动回退基准语言 zh-cn）
+        </span>
+      </div>
+    </NCard>
+
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <!-- Basic Info -->
       <NCard :title="$t('common.basicInfo')" size="small" class="md:col-span-2">
@@ -881,7 +967,12 @@ async function reloadVariants() {
             <NFormItem :label="$t('common.sku')" required><NInput v-model:value="form.sku" /></NFormItem>
           </NGi>
           <NGi span="1 m:2">
-            <NFormItem :label="$t('common.name')" required><NInput v-model:value="form.name" /></NFormItem>
+            <NFormItem :label="$t('common.name')" required>
+              <NInput
+                v-model:value="displayName"
+                :placeholder="currentLang !== 'zh-cn' ? `基准：${form.name || '（空）'}` : ''"
+              />
+            </NFormItem>
           </NGi>
           <NGi span="1">
             <NFormItem :label="$t('page.productsDetail.slug')"><NInput v-model:value="form.slug" /></NFormItem>
@@ -947,7 +1038,12 @@ async function reloadVariants() {
           </NGi>
           <NGi span="1 m:2">
             <NFormItem :label="$t('common.description')">
-              <NInput v-model:value="form.description" type="textarea" :rows="3" />
+              <NInput
+                v-model:value="displayDesc"
+                type="textarea"
+                :rows="3"
+                :placeholder="currentLang !== 'zh-cn' ? `基准：${form.description || '（空）'}` : ''"
+              />
             </NFormItem>
           </NGi>
         </NGrid>
@@ -973,58 +1069,6 @@ async function reloadVariants() {
           </div>
           <NButton v-if="isEdit" size="small" type="primary" secondary @click="openAuditModal">审核</NButton>
         </div>
-      </NCard>
-
-      <!-- Translations -->
-      <NCard title="多语言内容" size="small" class="md:col-span-2">
-        <NFormItem label="语言">
-          <div class="flex flex-wrap gap-2">
-            <button
-              v-for="opt in langOptions"
-              :key="opt.value"
-              type="button"
-              class="rounded px-2.5 py-1 text-xs transition"
-              :class="
-                currentLang === opt.value
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300'
-              "
-              :title="opt.label"
-              @click="switchLang(opt.value)"
-            >
-              {{ opt.value }}
-              <span :class="langStatus(opt.value) ? 'text-green-400' : 'text-amber-400'">●</span>
-            </button>
-          </div>
-          <div class="mt-1 text-xs text-gray-400">● 绿=已填写，黄=未翻译（C 端自动回退基准语言 zh-cn）</div>
-        </NFormItem>
-        <NGrid :cols="2" :x-gap="16" responsive="screen">
-          <NGi span="2">
-            <NFormItem label="名称翻译">
-              <NInput v-model:value="translationName" @update:value="syncLang('name')" />
-            </NFormItem>
-          </NGi>
-          <NGi span="2">
-            <NFormItem label="描述翻译">
-              <NInput v-model:value="translationDesc" type="textarea" :rows="3" @update:value="syncLang('desc')" />
-            </NFormItem>
-          </NGi>
-          <NGi span="2">
-            <NFormItem :label="`SEO 标题翻译（${currentLang}）`">
-              <NInput v-model:value="translationSeoTitle" placeholder="留空则 C 端回退基准语言 seo_title" @update:value="syncLang('seo')" />
-            </NFormItem>
-          </NGi>
-          <NGi span="2">
-            <NFormItem :label="`SEO 描述翻译（${currentLang}）`">
-              <NInput v-model:value="translationSeoDesc" type="textarea" :rows="2" placeholder="留空则 C 端回退基准语言 seo_description" @update:value="syncLang('seo')" />
-            </NFormItem>
-          </NGi>
-          <NGi span="2">
-            <NFormItem :label="`SEO 关键词翻译（${currentLang}）`">
-              <NInput v-model:value="translationSeoKeywords" placeholder="逗号分隔，留空则 C 端回退基准语言 seo_keywords" @update:value="syncLang('seo')" />
-            </NFormItem>
-          </NGi>
-        </NGrid>
       </NCard>
 
       <!-- Pricing -->
@@ -1124,7 +1168,7 @@ async function reloadVariants() {
           <NInput
             :value="imageAlt(images[selectedIdx])"
             size="small"
-            :placeholder="`alt 文本（${currentLangLabel()}，自动保存）`"
+            placeholder="alt 文本（当前语言，自动保存）"
             class="!w-64"
             @update:value="setImageAlt(selectedIdx, $event)"
           />
@@ -1162,11 +1206,11 @@ async function reloadVariants() {
         @save="onEditorSave"
       />
 
-      <!-- Structured detail blocks（当前语言下编辑；zh-cn 为基准块，其他语言写入 detail_blocks_translations） -->
+      <!-- Structured detail blocks（当前编辑语言下编辑；zh-cn 为基准块，其他语言写入 detail_blocks_translations） -->
       <NCard title="商品详情块（结构化）" size="small" class="md:col-span-2">
         <ProductDetailBlocks v-model:value="activeBlocks" />
         <div v-if="currentLang !== 'zh-cn'" class="mt-2 text-xs opacity-60">
-          当前编辑 {{ currentLang }} 语言块（C 端按语言整组回退基准语言）
+          当前编辑语言块（C 端按语言整组回退基准语言）
         </div>
       </NCard>
 
@@ -1191,7 +1235,7 @@ async function reloadVariants() {
           </thead>
           <tbody>
             <tr v-for="v in variants" :key="v.id">
-              <td>{{ v.name }}</td>
+              <td>{{ variantDisplayNameOf(v) }}</td>
               <td>{{ v.sku }}</td>
               <td class="text-xs opacity-70">{{ JSON.stringify(v.attributes || {}) }}</td>
               <td>{{ v.price }}</td>
@@ -1222,11 +1266,10 @@ async function reloadVariants() {
           <NFormItem label="SKU">
             <NInput v-model:value="variantForm.sku" placeholder="留空自动生成，如 PET-1001-BLK-M" />
           </NFormItem>
-          <NFormItem label="名称" required><NInput v-model:value="variantForm.name" /></NFormItem>
-          <NFormItem :label="`展示名翻译（${currentLang}）`">
+          <NFormItem label="名称" required>
             <NInput
-              v-model:value="variantForm.name_translations[currentLang]"
-              placeholder="该语言的变体展示名，留空则回退基准名称"
+              v-model:value="variantDisplayName"
+              :placeholder="currentLang !== 'zh-cn' ? `基准：${variantForm.name || '（空）'}` : '该语言下的展示名'"
             />
           </NFormItem>
           <NFormItem label="选项 Options（用于自动生成 SKU 短码）">
@@ -1280,17 +1323,23 @@ async function reloadVariants() {
         </template>
       </NModal>
 
-      <!-- SEO Score (edit only) -->
-      <NCard v-if="isEdit" title="SEO 评分" size="small" class="md:col-span-2">
+      <!-- SEO（按当前编辑语言联动：zh-cn 走基准主列并支持评分，其余语言写 seo_translations[lang]） -->
+      <NCard title="SEO" size="small" class="md:col-span-2">
         <div class="grid grid-cols-1 gap-3 mb-4">
           <div>
             <div class="text-sm font-medium mb-1">SEO 标题</div>
-            <NInput v-model:value="seoForm.title" placeholder="建议 30-60 字符" maxlength="200" show-count clearable />
+            <NInput
+              v-model:value="displaySeoTitle"
+              placeholder="建议 30-60 字符"
+              maxlength="200"
+              show-count
+              clearable
+            />
           </div>
           <div>
             <div class="text-sm font-medium mb-1">SEO 描述</div>
             <NInput
-              v-model:value="seoForm.description"
+              v-model:value="displaySeoDesc"
               type="textarea"
               placeholder="建议 70-160 字符"
               maxlength="300"
@@ -1300,15 +1349,25 @@ async function reloadVariants() {
           </div>
           <div>
             <div class="text-sm font-medium mb-1">SEO 关键词</div>
-            <NInput v-model:value="seoForm.keywords" placeholder="逗号分隔，例如：宠物,猫粮,狗玩具" clearable />
+            <NInput
+              v-model:value="displaySeoKeywords"
+              placeholder="逗号分隔，例如：宠物,猫粮,狗玩具"
+              clearable
+            />
           </div>
-          <div class="flex gap-2">
-            <NButton size="small" type="primary" :loading="seoSaving" @click="saveSeo">保存 SEO</NButton>
-            <NButton size="small" :loading="seoLoading" @click="loadSeoScore">重新评分</NButton>
+          <div class="flex gap-2 items-center">
+            <template v-if="currentLang === 'zh-cn' && isEdit">
+              <NButton size="small" type="primary" :loading="seoSaving" @click="saveSeo">保存 SEO</NButton>
+              <NButton size="small" :loading="seoLoading" @click="loadSeoScore">重新评分</NButton>
+            </template>
+            <span v-else-if="currentLang !== 'zh-cn'" class="text-xs opacity-60">
+              当前语言 SEO 随主表单「保存」一并提交；留空则 C 端回退基准语言
+            </span>
+            <span v-else class="text-xs opacity-60">保存商品时随主表单提交</span>
           </div>
         </div>
 
-        <template v-if="seoScore">
+        <template v-if="isEdit && currentLang === 'zh-cn' && seoScore">
           <div class="flex items-center justify-between mb-4">
             <div class="flex items-center gap-3">
               <span class="text-4xl font-bold" :class="gradeColor">{{ seoScore.total_score }}</span>
@@ -1340,7 +1399,7 @@ async function reloadVariants() {
           </div>
           <NEmpty v-else description="SEO 状态优秀，无需优化" size="small" class="py-4" />
         </template>
-        <NEmpty v-else description="点击「重新评分」获取数据" size="small" class="py-6" />
+        <NEmpty v-else-if="isEdit && currentLang === 'zh-cn'" description="点击「重新评分」获取数据" size="small" class="py-6" />
       </NCard>
 
       <!-- Danger Zone (edit only) -->
