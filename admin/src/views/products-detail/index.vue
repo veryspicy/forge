@@ -114,7 +114,7 @@ const tagsString = ref('');
 const regionsString = ref('');
 const statusChange = ref<string | null>(null);
 
-const images = ref<{ key: string; url: string; alt?: string; resourceId?: string; isMain?: boolean }[]>([]);
+const images = ref<{ key: string; url: string; alt?: string; alt_translations?: Record<string, string>; resourceId?: string; isMain?: boolean }[]>([]);
 const pendingFiles = ref<File[]>([]);
 const imagesSaving = ref(false);
 /** 当前选中的图片下标（点击选中高亮边框，操作集中在选中操作条） */
@@ -149,6 +149,7 @@ const variantSaving = ref(false);
 const variantForm = ref({
   sku: '',
   name: '',
+  name_translations: {} as Record<string, string>,
   specRows: [] as { key: string; value: string }[],
   price: 0,
   cost: 0,
@@ -270,7 +271,9 @@ const form = ref({
   /** 结构化详情块（字段受后端 DETAIL_BLOCK_FIELDS 白名单约束） */
   detail_blocks: [] as Record<string, any>[],
   /** 详情块多语言：{locale: [blocks]}，detail_blocks 为基准语言（zh-cn） */
-  detail_blocks_translations: {} as Record<string, Record<string, any>[]>
+  detail_blocks_translations: {} as Record<string, Record<string, any>[]>,
+  /** SEO 多语言：{locale: {title, description, keywords[]}}，seo_* 为基准语言 */
+  seo_translations: {} as Record<string, { title?: string; description?: string; keywords?: string[] }>
 });
 
 const langOptions = [
@@ -285,50 +288,55 @@ const langOptions = [
 const currentLang = ref('en');
 const translationName = ref('');
 const translationDesc = ref('');
+const translationSeoTitle = ref('');
+const translationSeoDesc = ref('');
+const translationSeoKeywords = ref('');
 
 function loadLang(lang: string) {
   translationName.value = form.value.name_translations?.[lang] || '';
   translationDesc.value = form.value.description_translations?.[lang] || '';
+  const seo = form.value.seo_translations?.[lang];
+  translationSeoTitle.value = seo?.title || '';
+  translationSeoDesc.value = seo?.description || '';
+  translationSeoKeywords.value = (seo?.keywords || []).join(', ');
 }
 
 function langStatus(lang: string): boolean {
+  const seo = form.value.seo_translations?.[lang];
   return !!(
     form.value.name_translations?.[lang] ||
     form.value.description_translations?.[lang] ||
+    seo?.title ||
+    seo?.description ||
+    seo?.keywords?.length ||
     (lang !== 'zh-cn' && !!form.value.detail_blocks_translations?.[lang]?.length)
   );
-}
-
-/** Shopify 模式：以 zh-cn 为基准语言，克隆其名称/描述/详情块到目标语言（AI 翻译接入前的一键生成） */
-function cloneFromBase(lang: string) {
-  const baseName = form.value.name_translations?.['zh-cn'] || form.value.name || '';
-  const baseDesc = form.value.description_translations?.['zh-cn'] || form.value.description || '';
-  if (lang === 'zh-cn') return;
-  syncLang('name');
-  syncLang('desc');
-  const baseBlocks = form.value.detail_blocks || [];
-  form.value.detail_blocks_translations[lang] = JSON.parse(JSON.stringify(baseBlocks));
-  currentLang.value = lang;
-  translationName.value = baseName;
-  translationDesc.value = baseDesc;
-  syncLang('name');
-  syncLang('desc');
 }
 
 function switchLang(lang: string) {
   syncLang('name');
   syncLang('desc');
+  syncLang('seo');
   currentLang.value = lang;
   loadLang(lang);
 }
 
-function syncLang(kind: 'name' | 'desc') {
-  const key =
-    kind === 'name'
-      ? 'name_translations'
-      : 'description_translations';
-  form.value[key][currentLang.value] =
-    kind === 'name' ? translationName.value : translationDesc.value;
+function syncLang(kind: 'name' | 'desc' | 'seo') {
+  if (kind === 'name') {
+    form.value.name_translations[currentLang.value] = translationName.value;
+  } else if (kind === 'desc') {
+    form.value.description_translations[currentLang.value] = translationDesc.value;
+  } else {
+    const keywords = translationSeoKeywords.value
+      .split(',')
+      .map((k) => k.trim())
+      .filter(Boolean);
+    form.value.seo_translations[currentLang.value] = {
+      title: translationSeoTitle.value,
+      description: translationSeoDesc.value,
+      keywords
+    };
+  }
 }
 
 /** 当前语言下可见的详情块：zh-cn 走基准块，其余语言走该语言的整组翻译块（缺失回退空数组，编辑即写入） */
@@ -441,7 +449,8 @@ onMounted(async () => {
       name_translations: p.name_translations || {},
       description_translations: p.description_translations || {},
       detail_blocks: (p.detail_blocks || []) as Record<string, any>[],
-      detail_blocks_translations: (p.detail_blocks_translations || {}) as Record<string, Record<string, any>[]>
+      detail_blocks_translations: (p.detail_blocks_translations || {}) as Record<string, Record<string, any>[]>,
+      seo_translations: (p.seo_translations || {}) as Record<string, { title?: string; description?: string; keywords?: string[] }>
     };
     loadLang('en');
     tagsString.value = (p.tags || []).join(', ');
@@ -453,6 +462,7 @@ onMounted(async () => {
         key: i.key || '',
         url: i.url || '',
         alt: i.alt || '',
+        alt_translations: i.alt_translations || {},
         resourceId: i.resource_id || '',
         isMain: !!i.is_main
       }));
@@ -492,6 +502,7 @@ async function handleUpload({ file: fileItem }: any) {
           key: uploaded.key || '',
           url: uploaded.url || '',
           alt: uploaded.alt || '',
+          alt_translations: uploaded.alt_translations || {},
           resourceId: uploaded.resource_id || ''
         });
     } catch (e: any) {
@@ -499,7 +510,7 @@ async function handleUpload({ file: fileItem }: any) {
     }
   } else {
     pendingFiles.value.push(file);
-    images.value.push({ key: '', url: URL.createObjectURL(file), alt: '' });
+    images.value.push({ key: '', url: URL.createObjectURL(file), alt: '', alt_translations: {} });
   }
   uploading.value = false;
 }
@@ -550,6 +561,32 @@ function setMainImage(idx: number) {
   if (isEdit.value) onImagesDrop();
 }
 
+/** 当前语言下图片 alt 展示值：zh-cn 读基准 alt，其余语种读 alt_translations */
+function imageAlt(img: any) {
+  if (currentLang.value !== 'zh-cn') {
+    return img.alt_translations?.[currentLang.value] || '';
+  }
+  return img.alt || '';
+}
+
+/** 按当前语言写入图片 alt：zh-cn 写基准 alt，其余语种写 alt_translations[lang] */
+function setImageAlt(idx: number, value: string) {
+  const img = images.value[idx];
+  if (!img) return;
+  if (currentLang.value === 'zh-cn') {
+    img.alt = value;
+  } else {
+    if (!img.alt_translations) img.alt_translations = {};
+    img.alt_translations[currentLang.value] = value;
+  }
+  onImagesDrop();
+}
+
+/** 当前语言标签文案 */
+function currentLangLabel() {
+  return langOptions.find(o => o.value === currentLang.value)?.label || currentLang.value;
+}
+
 /** 打开裁剪弹窗 */
 function openEditor(idx: number) {
   editorModal.value = { show: true, idx };
@@ -582,6 +619,7 @@ async function onEditorSave(payload: { file: File; dataUrl: string }) {
       key: uploaded.key || '',
       url: payload.dataUrl || uploaded.url || '',
       alt: uploaded.alt || images.value[idx].alt || '',
+      alt_translations: uploaded.alt_translations || images.value[idx].alt_translations || {},
       resourceId: uploaded.resource_id || '',
       isMain: !!images.value[idx].isMain
     };
@@ -605,6 +643,7 @@ async function saveImages() {
       key: img.key,
       url: img.url,
       alt: img.alt || '',
+      alt_translations: img.alt_translations || {},
       is_main: !!img.isMain,
       sort: idx,
       resource_id: img.resourceId || undefined
@@ -619,6 +658,7 @@ async function saveImages() {
           key: i.key || '',
           url: i.url || '',
           alt: i.alt || '',
+          alt_translations: i.alt_translations || {},
           resourceId: i.resource_id || '',
           isMain: !!i.is_main
         }));
@@ -678,6 +718,7 @@ async function save() {
             key: uploaded.key || '',
             url: uploaded.url || '',
             alt: uploaded.alt || '',
+            alt_translations: uploaded.alt_translations || {},
             resourceId: uploaded.resource_id || ''
           });
       }
@@ -724,6 +765,7 @@ function openVariantModal(v?: any) {
     variantForm.value = {
       sku: v.sku || '',
       name: v.name || '',
+      name_translations: (v.name_translations || {}) as Record<string, string>,
       specRows: attrsToSpecRows(
         v.attributes ?? (v.specs ? Object.fromEntries((v.specs as any[]).map((s: any) => [s.spec_key, s.value])) : null)
       ),
@@ -738,6 +780,7 @@ function openVariantModal(v?: any) {
     variantForm.value = {
       sku: '',
       name: '',
+      name_translations: {},
       specRows: [],
       price: 0,
       cost: 0,
@@ -766,6 +809,7 @@ async function saveVariant() {
   const payload: any = {
     sku: variantForm.value.sku.trim(),
     name: variantForm.value.name.trim(),
+    name_translations: variantForm.value.name_translations,
     attributes,
     price: variantForm.value.price,
     cost: variantForm.value.cost,
@@ -934,8 +978,7 @@ async function reloadVariants() {
       <!-- Translations -->
       <NCard title="多语言内容" size="small" class="md:col-span-2">
         <NFormItem label="语言">
-          <NSelect :value="currentLang" :options="langOptions" style="width: 200px" @update:value="switchLang" />
-          <div class="mt-2 flex flex-wrap gap-2">
+          <div class="flex flex-wrap gap-2">
             <button
               v-for="opt in langOptions"
               :key="opt.value"
@@ -953,16 +996,8 @@ async function reloadVariants() {
               <span :class="langStatus(opt.value) ? 'text-green-400' : 'text-amber-400'">●</span>
             </button>
           </div>
+          <div class="mt-1 text-xs text-gray-400">● 绿=已填写，黄=未翻译（C 端自动回退基准语言 zh-cn）</div>
         </NFormItem>
-        <div class="mb-2 flex items-center gap-2">
-          <NButton size="small" type="primary" secondary @click="cloneFromBase(currentLang)">
-            从基准语言(zh-cn)克隆
-          </NButton>
-          <NButton size="small" disabled title="需配置 AI 服务后启用：将基准语言内容翻译为目标语言">
-            AI 翻译（待接入）
-          </NButton>
-          <span class="text-xs text-gray-400">● 绿=已填写，黄=未翻译（C 端自动回退基准语言）</span>
-        </div>
         <NGrid :cols="2" :x-gap="16" responsive="screen">
           <NGi span="2">
             <NFormItem label="名称翻译">
@@ -972,6 +1007,21 @@ async function reloadVariants() {
           <NGi span="2">
             <NFormItem label="描述翻译">
               <NInput v-model:value="translationDesc" type="textarea" :rows="3" @update:value="syncLang('desc')" />
+            </NFormItem>
+          </NGi>
+          <NGi span="2">
+            <NFormItem :label="`SEO 标题翻译（${currentLang}）`">
+              <NInput v-model:value="translationSeoTitle" placeholder="留空则 C 端回退基准语言 seo_title" @update:value="syncLang('seo')" />
+            </NFormItem>
+          </NGi>
+          <NGi span="2">
+            <NFormItem :label="`SEO 描述翻译（${currentLang}）`">
+              <NInput v-model:value="translationSeoDesc" type="textarea" :rows="2" placeholder="留空则 C 端回退基准语言 seo_description" @update:value="syncLang('seo')" />
+            </NFormItem>
+          </NGi>
+          <NGi span="2">
+            <NFormItem :label="`SEO 关键词翻译（${currentLang}）`">
+              <NInput v-model:value="translationSeoKeywords" placeholder="逗号分隔，留空则 C 端回退基准语言 seo_keywords" @update:value="syncLang('seo')" />
             </NFormItem>
           </NGi>
         </NGrid>
@@ -1057,7 +1107,7 @@ async function reloadVariants() {
                     </NButton>
                   </div>
                   <div class="px-1 py-1 text-center text-xs">
-                    {{ img.alt || '无 alt' }}
+                    {{ imageAlt(img) || '无 alt' }}
                   </div>
                 </div>
               </template>
@@ -1072,11 +1122,11 @@ async function reloadVariants() {
         >
           <span class="text-xs font-medium text-blue-600 dark:text-blue-300">已选中图片 #{{ selectedIdx + 1 }}</span>
           <NInput
-            v-model:value="images[selectedIdx].alt"
+            :value="imageAlt(images[selectedIdx])"
             size="small"
-            placeholder="alt 文本（自动保存）"
+            :placeholder="`alt 文本（${currentLangLabel()}，自动保存）`"
             class="!w-64"
-            @update:value="onImagesDrop"
+            @update:value="setImageAlt(selectedIdx, $event)"
           />
           <NButton
             size="small"
@@ -1116,7 +1166,7 @@ async function reloadVariants() {
       <NCard title="商品详情块（结构化）" size="small" class="md:col-span-2">
         <ProductDetailBlocks v-model:value="activeBlocks" />
         <div v-if="currentLang !== 'zh-cn'" class="mt-2 text-xs opacity-60">
-          当前编辑 {{ currentLang }} 语言块（克隆基准块后翻译；C 端按语言整组回退）
+          当前编辑 {{ currentLang }} 语言块（C 端按语言整组回退基准语言）
         </div>
       </NCard>
 
@@ -1173,6 +1223,12 @@ async function reloadVariants() {
             <NInput v-model:value="variantForm.sku" placeholder="留空自动生成，如 PET-1001-BLK-M" />
           </NFormItem>
           <NFormItem label="名称" required><NInput v-model:value="variantForm.name" /></NFormItem>
+          <NFormItem :label="`展示名翻译（${currentLang}）`">
+            <NInput
+              v-model:value="variantForm.name_translations[currentLang]"
+              placeholder="该语言的变体展示名，留空则回退基准名称"
+            />
+          </NFormItem>
           <NFormItem label="选项 Options（用于自动生成 SKU 短码）">
             <div class="w-full flex flex-col gap-1">
               <div v-if="variantForm.specRows.length" class="flex flex-col gap-1">

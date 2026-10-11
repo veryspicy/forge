@@ -113,7 +113,7 @@
                   : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400'"
                 @click="selectedVariant = v.id"
               >
-                {{ v.name }}
+                {{ variantDisplayName(v) }}
               </button>
             </div>
           </div>
@@ -324,6 +324,20 @@ function localizedText(translations: Record<string, string> | undefined, fallbac
   return fallback || ''
 }
 
+function variantDisplayName(v: any): string {
+  return localizedText(v?.name_translations, v?.name || '')
+}
+
+// SEO 多语言：seo_translations[locale] 逐级回退，未填则返回 undefined 走基准语言
+function localizedSeo(seoKey: 'title' | 'description' | 'keywords'): string | string[] | undefined {
+  const p = product.value
+  const t = p?.seo_translations || {}
+  const entry = t[backendLocaleKey.value] || t[locale.value] || t.en || {}
+  const v = entry[seoKey]
+  if (v === undefined || v === null || v === '') return undefined
+  return v
+}
+
 const displayName = computed(() =>
   localizedText(product.value?.name_translations, product.value?.name || '')
 )
@@ -344,10 +358,17 @@ const detailBlocks = computed(() => {
   return p.detail_blocks || []
 })
 
-// 图片 alt：优先 image_details 中的 alt，回退商品名（SEO/无障碍）
+// 图片 alt：当前语种翻译 → 基准 alt → 商品名（SEO/无障碍）
 function imageAlt(img: string, idx: number): string {
   const detail = product.value?.image_details?.find((d) => d.url === img)
-  return detail?.alt || `${displayName.value} - ${idx + 1}`
+  const tr = detail?.alt_translations || {}
+  return (
+    tr[backendLocaleKey.value] ||
+    tr[locale.value] ||
+    tr.en ||
+    detail?.alt ||
+    `${displayName.value} - ${idx + 1}`
+  )
 }
 
 const activeImageAlt = computed(() => {
@@ -355,11 +376,15 @@ const activeImageAlt = computed(() => {
   return imageAlt(activeImage.value, 0)
 })
 
-// SEO：seo_title/seo_description 兜底翻译字段；JSON-LD Product schema
+// SEO：seo_translations[locale] 优先，回退基准 seo_*；JSON-LD Product schema
 useSeoMeta({
-  title: () => product.value?.seo_title || displayName.value,
-  description: () => product.value?.seo_description || displayDescription.value,
-  keywords: () => product.value?.seo_keywords || undefined,
+  title: () => (localizedSeo('title') as string | undefined) || product.value?.seo_title || displayName.value,
+  description: () => (localizedSeo('description') as string | undefined) || product.value?.seo_description || displayDescription.value,
+  keywords: () => {
+    const kws = (localizedSeo('keywords') as string[] | undefined) || product.value?.seo_keywords || undefined
+    if (!kws) return undefined
+    return Array.isArray(kws) ? kws.join(', ') : kws
+  },
   ogTitle: () => displayName.value,
   ogDescription: () => displayDescription.value,
   ogImage: () => product.value?.main_image || product.value?.images?.[0] || undefined,

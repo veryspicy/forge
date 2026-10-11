@@ -55,6 +55,8 @@ class VariantCreate(BaseModel):
 
     sku: str  # 必填，行业标准（Shopify/Chewy）变体 SKU 手填
     name: str
+    # 变体展示名多语言（Shopify 字段级模型）：{locale: name}，name 为基准语言
+    name_translations: dict[str, str] | None = None
     attributes: dict[str, Any] | None = None
     price: float | None = None
     cost: float | None = None
@@ -66,6 +68,7 @@ class VariantCreate(BaseModel):
 class VariantUpdate(BaseModel):
     sku: str | None = None
     name: str | None = None
+    name_translations: dict[str, str] | None = None
     attributes: dict[str, Any] | None = None
     price: float | None = None
     cost: float | None = None
@@ -105,6 +108,8 @@ class ProductCreate(BaseModel):
     detail_blocks: list[dict[str, Any]] | None = None
     # 详情块多语言（Shopify 字段级模型）：{locale: [detail_block]}，detail_blocks 为基准语言
     detail_blocks_translations: dict[str, list[dict[str, Any]]] | None = None
+    # SEO 多语言：{locale: {title, description, keywords[]}}，seo_* 为基准语言
+    seo_translations: dict[str, dict[str, Any]] | None = None
     # 商品体系改造（PRODUCT-CATALOG-REFACTOR）目录侧外键
     category_id: int | None = None
     brand_id: int | None = None
@@ -140,6 +145,7 @@ class ProductUpdate(BaseModel):
     slug: str | None = None
     detail_blocks: list[dict[str, Any]] | None = None
     detail_blocks_translations: dict[str, list[dict[str, Any]]] | None = None
+    seo_translations: dict[str, dict[str, Any]] | None = None
     is_new: bool | None = None
     is_recommend: bool | None = None
     sort_order: int | None = None
@@ -229,6 +235,8 @@ def _serialize_image(image: dict[str, Any]) -> dict[str, Any]:
         "is_main": bool(image.get("is_main", False)),
         "alt": image.get("alt", ""),
     }
+    if image.get("alt_translations"):
+        data["alt_translations"] = image["alt_translations"]
     if image.get("resource_id"):
         data["resource_id"] = image["resource_id"]
     return data

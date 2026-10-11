@@ -5,6 +5,7 @@ import { useApi } from "~/composables/useApi";
 export interface ProductImageDetail {
   url: string;
   alt?: string;
+  alt_translations?: Record<string, string>;
   is_main?: boolean;
   sort?: number;
 }
@@ -53,6 +54,7 @@ interface Product {
   seo_title?: string;
   seo_description?: string;
   seo_keywords?: string;
+  seo_translations?: Record<string, { title?: string; description?: string; keywords?: string[] }>;
   main_image?: string;
   image_details?: ProductImageDetail[];
   suitable_for?: string[];

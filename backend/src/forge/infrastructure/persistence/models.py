@@ -115,6 +115,8 @@ class ORMProduct(Base):
     detail_blocks = Column(JSONB, nullable=False, default=list, server_default="'[]'::jsonb")
     # 详情块多语言（Shopify 字段级模型）：detail_blocks 为基准语言块，本列为 {locale: [blocks]} 覆盖
     detail_blocks_translations = Column(JSONB, nullable=False, default=dict, server_default="'{}'::jsonb")
+    # SEO 多语言：seo_* 为基准语言，本列为 {locale: {title, description, keywords[]}} 覆盖
+    seo_translations = Column(JSONB, nullable=False, default=dict, server_default="'{}'::jsonb")
     created_at = Column(DateTime(timezone=True), nullable=False, server_default="now()")
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default="now()")
 
@@ -163,6 +165,7 @@ class ORMProduct(Base):
             "seo_keywords": self.seo_keywords or [],
             "detail_blocks": self.detail_blocks or [],
             "detail_blocks_translations": self.detail_blocks_translations or {},
+            "seo_translations": self.seo_translations or {},
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -182,6 +185,8 @@ class ORMProductVariant(Base):
     )
     sku = Column(String(100), nullable=False, unique=True)
     name = Column(String(255), nullable=False)
+    # 变体展示名多语言（Shopify 字段级模型）：name 为基准语言，本列为 {locale: name} 覆盖
+    name_translations = Column(JSONB, nullable=False, default=dict, server_default="'{}'::jsonb")
     attributes = Column(JSONB, nullable=False, default=dict)
     price = Column(Numeric(12, 2), nullable=True)
     cost = Column(Numeric(12, 2), nullable=True)
@@ -198,6 +203,7 @@ class ORMProductVariant(Base):
             "product_id": str(self.product_id) if self.product_id else None,
             "sku": self.sku,
             "name": self.name,
+            "name_translations": self.name_translations or {},
             "attributes": self.attributes or {},
             "price": float(self.price) if self.price else None,
             "cost": float(self.cost) if self.cost else None,

@@ -280,6 +280,9 @@ class ProductService:
                 "is_main": bool(img.get("is_main", False)),
                 "alt": str(img.get("alt", "")),
             }
+            alt_translations = img.get("alt_translations")
+            if isinstance(alt_translations, dict) and alt_translations:
+                entry["alt_translations"] = {str(k): str(v) for k, v in alt_translations.items() if str(v).strip()}
             if img.get("resource_id"):
                 entry["resource_id"] = str(img["resource_id"])
             if entry["is_main"]:
@@ -514,6 +517,32 @@ class ProductService:
                             f"detail_blocks_translations 的 {lang} 语言块{exc.errors}"
                         )
 
+        if "seo_translations" in data and data["seo_translations"] is not None:
+            translations = data["seo_translations"]
+            if not isinstance(translations, dict):
+                errors["seo_translations"] = "seo_translations 必须是语言代码到 SEO 对象的映射"
+            else:
+                for lang, seo in translations.items():
+                    if not isinstance(lang, str) or not lang.strip():
+                        errors["seo_translations"] = "seo_translations 的语言代码必须是非空字符串"
+                        break
+                    if not isinstance(seo, dict):
+                        errors["seo_translations"] = f"seo_translations 的 {lang} 值必须是对象"
+                        break
+                    for key in ("title", "description"):
+                        if key in seo and seo[key] is not None and not isinstance(seo[key], str):
+                            errors["seo_translations"] = f"seo_translations 的 {lang}.{key} 必须是字符串"
+                            break
+                    if (
+                        "keywords" in seo
+                        and seo["keywords"] is not None
+                        and (
+                            not isinstance(seo["keywords"], list)
+                            or not all(isinstance(k, str) for k in seo["keywords"])
+                        )
+                    ):
+                        errors["seo_translations"] = f"seo_translations 的 {lang}.keywords 必须是字符串数组"
+
         return errors
 
     @staticmethod
@@ -564,6 +593,19 @@ class ProductService:
                 errors["name"] = "变体名称不能为空"
             elif len(str(name)) > 255:
                 errors["name"] = "变体名称长度不能超过 255"
+
+        if "name_translations" in data and data["name_translations"] is not None:
+            translations = data["name_translations"]
+            if not isinstance(translations, dict):
+                errors["name_translations"] = "name_translations 必须是语言代码到名称的映射对象"
+            else:
+                for lang, text in translations.items():
+                    if not isinstance(lang, str) or not lang.strip():
+                        errors["name_translations"] = "name_translations 的语言代码必须是非空字符串"
+                        break
+                    if text is not None and not isinstance(text, str):
+                        errors["name_translations"] = f"name_translations 的 {lang} 值必须是字符串"
+                        break
 
         if "attributes" in data and data["attributes"] is not None:
             attributes = data["attributes"]
