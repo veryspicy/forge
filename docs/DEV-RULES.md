@@ -81,7 +81,7 @@
 | 脚本 | 场景 | 行为 |
 |---|---|---|
 | `code-review-gate.ps1` | 合并/发布前门禁（核心） | 分支命名、commit 规范、备份/密钥/temp 机械检查、改动文件质量复验（backend 走 pre-commit ruff+mypy 与 hook 同参；前端 pnpm lint+typecheck）、报告落 `temp/code-review-report-<ts>.md`；有 blocker 则 exit 1 |
-| `merge-dev.ps1` | 用户已"验证通过"后的合 dev 动作 | 先跑 gate → ff 同步 origin/dev → `--no-ff` merge → push → 轮询该 merge commit 的 CI run 直至绿；CI 红/超时则 fail 并提示保留分支 |
+| `merge-dev.ps1` | 用户已"验证通过"后的合 dev 动作 | 先跑 gate → ff 同步 origin/dev → `--no-ff` merge → 校验 `git branch --no-merged dev` 中目标分支已消失（防 PS 5.1 输出截断致 merge 静默失效）→ push → fetch 后校验 dev 与 origin/dev `rev-parse` 一致 → 轮询该 merge commit 的 CI run 直至绿；CI 红/超时则 fail 并提示保留分支 |
 | `release-gate.ps1` | 大版本发布（dev → main / 打 tag）前 | 校验 dev 分支与工作区、同步 origin、CHANGELOG Unreleased 非空、backend/admin/portal 版本号一致性，再对 origin/main 跑完整 gate |
 
 **执行规则**：
@@ -91,6 +91,7 @@
 3. 与 §1.3 顺序仍为：CI/门禁绿 → 用户验证通过 → `merge-dev.ps1` 合 dev
 4. 修改 `scripts/` 下脚本本身：先 PowerShell Parser 语法预检（`[System.Management.Automation.Language.Parser]::ParseFile`），提交信息按 Conventional Commits（`chore(scripts): ...`）
 5. 脚本报告统一写 `temp/`，禁止提交；脚本文本保持 ASCII，规避 PowerShell 5.1 无 BOM UTF-8 解析乱码
+6. **merge-dev.ps1 已知坑（2026-10-12 固化）**：PowerShell 5.1 下命令链输出截断可导致 checkout/merge 静默未生效而脚本报成功（踩坑：feature/product-variant-attr-translations 合入 dev，commit 662487d）。脚本已内置两项强制校验——合并后 `git branch --no-merged dev` 不含目标分支、push 后 fetch 比对 dev 与 origin/dev `rev-parse` 一致，任一失败即 exit 1 并提示手动分步处理；人工分步合并时同样必须执行这两项校验，禁止跳过校验仅凭 push 成功/无输出判定合并完成
 
 ---
 
