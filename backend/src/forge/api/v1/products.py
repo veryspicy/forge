@@ -54,8 +54,27 @@ _PUBLIC_DETAIL_FIELDS = [
     "seo_title",
     "seo_description",
     "seo_keywords",
+    "seo_translations",
     "detail_blocks",
+    "detail_blocks_translations",
 ]
+
+# 变体对外可见字段（裁剪成本/状态等内部字段）
+_PUBLIC_VARIANT_FIELDS = [
+    "id",
+    "sku",
+    "name",
+    "name_translations",
+    "attributes",
+    "attributes_translations",
+    "price",
+    "inventory",
+    "is_default",
+]
+
+
+def _public_variant(variant: dict[str, Any]) -> dict[str, Any]:
+    return {k: variant.get(k) for k in _PUBLIC_VARIANT_FIELDS}
 
 
 def _public_item(item: dict[str, Any], *, detail: bool = False) -> dict[str, Any]:
@@ -74,6 +93,7 @@ def _public_item(item: dict[str, Any], *, detail: bool = False) -> dict[str, Any
             {
                 "url": img.get("url", ""),
                 "alt": img.get("alt", ""),
+                "alt_translations": img.get("alt_translations") or {},
                 "is_main": bool(img.get("is_main", False)),
                 "sort": int(img.get("sort", idx)),
             }
@@ -176,4 +196,8 @@ async def get_public_product(
             product = await SQLAlchemyProductRepository.get_by_id(db, pid)
     if product is None or product.status != "active":
         raise HTTPException(status_code=404, detail="Product not found")
-    return _public_item(product.to_dict(), detail=True)
+    data = _public_item(product.to_dict(), detail=True)
+    # 变体（含展示名多语言）：C 端变体选择器消费
+    variants = await SQLAlchemyProductRepository.list_variants(db, int(product.id))
+    data["variants"] = [_public_variant(v.to_dict()) for v in variants]
+    return data

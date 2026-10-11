@@ -1,4 +1,5 @@
 import asyncio
+import os
 import sys
 from logging.config import fileConfig
 from pathlib import Path
@@ -15,6 +16,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+# 容器内迁移：优先使用 DATABASE_URL 环境变量（compose 网络内部地址），
+# 本地直连场景回退到 alembic.ini 的 sqlalchemy.url（宿主机映射端口）。
+if os.getenv("DATABASE_URL"):
+    config.set_main_option("sqlalchemy.url", os.environ["DATABASE_URL"])
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

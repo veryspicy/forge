@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { NButton, NFormItem, NInput, NSelect, NSpace, NTag } from 'naive-ui';
+import RichTextEditor from './RichTextEditor.vue';
 
 /**
  * 商品结构化详情块编辑器（PRODUCT-DETAIL-BLOCKS）。
@@ -9,10 +10,10 @@ import { NButton, NFormItem, NInput, NSelect, NSpace, NTag } from 'naive-ui';
  * rich_text(title/html/align) / image(title/images/caption) / image_text(title/image/html/layout)
  * / spec_table(title/columns/rows) / features(title/items) / faq(title/items) / video(title/url/poster)
  *
- * 数组类字段用「每行一条」的文本域编辑，失焦时解析回结构化数组：
- * - items(FAQ) 每行 `问题|答案`
- * - rows 每行 `名称=值`
- * - images / columns / features.items 每行一条
+ * 交互升级（向 Shopify/Chewy 靠拢）：
+ * - rich_text：富文本 Tiptap 所见即所得 + Markdown 源码双模式（RichTextEditor.vue）
+ * - features：卖点一行一条，逐行编辑
+ * - spec_table：轻量表格编辑（列头 + 单元格，支持多列）
  */
 
 type Block = Record<string, any>;
@@ -43,14 +44,22 @@ const layoutOptions = [
 
 const hintMap: Record<string, string> = {
   image: '每行一个图片 URL',
-  spec_table: '每行 `名称=值`，如：尺寸=12cm',
-  features: '每行一条卖点',
-  faq: '每行 `问题|答案`',
-  columns: '每行一个列名，可留空'
+  faq: '每行 `问题|答案`'
 };
 
 const local = ref<Block[]>([]);
 const drafts = ref<Record<string, string>>({});
+
+/** 富文本编辑器弹窗 */
+const richEditor = ref<{ show: boolean; idx: number }>({ show: false, idx: -1 });
+
+/** 卖点：一行一条（块下标 -> 字符串数组草稿） */
+const featDrafts = ref<Record<number, string[]>>({});
+
+/** 规格表：列头与单元格草稿（块下标 -> { cols: string[]; rows: { id: number; cells: string[] }[] }） */
+const specDrafts = ref<Record<number, { cols: string[]; rows: { id: number; cells: string[] }[] }>>({});
+
+let specRowSeq = 0;
 
 function clone(v: any): Block[] {
   return JSON.parse(JSON.stringify(v ?? []));
@@ -68,6 +77,8 @@ watch(
     if (JSON.stringify(next) === JSON.stringify(local.value)) return;
     local.value = next;
     drafts.value = {};
+    featDrafts.value = {};
+    specDrafts.value = {};
   },
   { immediate: true, deep: true }
 );
@@ -83,17 +94,6 @@ watch(
 
 function dkey(i: number, k: string): string {
   return `${i}:${k}`;
-}
-
-function rowToText(x: any): string {
-  if (x && typeof x === 'object') {
-    if ('question' in x || 'answer' in x) return `${x.question ?? ''}|${x.answer ?? ''}`;
-    if ('label' in x || 'value' in x) return `${x.label ?? ''}=${x.value ?? ''}`;
-    return Object.entries(x)
-      .map(([k, v]) => `${k}=${v}`)
-      .join('&');
-  }
-  return String(x ?? '');
 }
 
 function arrText(i: number, k: string): string {
@@ -125,18 +125,20 @@ function commitDraft(i: number, k: string): void {
         ? { question: line, answer: '' }
         : { question: line.slice(0, idx).trim(), answer: line.slice(idx + 1).trim() };
     });
-  } else if (k === 'rows') {
-    parsed = lines.map(line => {
-      const idx = line.indexOf('=');
-      return idx === -1
-        ? { label: line, value: '' }
-        : { label: line.slice(0, idx).trim(), value: line.slice(idx + 1).trim() };
-    });
   } else {
     parsed = lines;
   }
   block[k] = parsed;
   drafts.value = Object.fromEntries(Object.entries(drafts.value).filter(([draftKey]) => draftKey !== key));
+}
+
+function rowToText(x: any): string {
+  if (x && typeof x === 'object') {
+    if ('question' in x || 'answer' in x) return `${x.question ?? ''}|${x.answer ?? ''}`;
+    if ('label' in x || 'value' in x) return `${x.label ?? ''}=${x.value ?? ''}`;
+    return Object.values(x).join(' | ');
+  }
+  return String(x ?? '');
 }
 
 function add(): void {
@@ -146,6 +148,8 @@ function add(): void {
 function remove(i: number): void {
   local.value.splice(i, 1);
   drafts.value = {};
+  featDrafts.value = {};
+  specDrafts.value = {};
 }
 
 function move(i: number, delta: number): void {
@@ -162,6 +166,125 @@ function changeType(i: number, type: string): void {
   const title = local.value[i]?.title;
   local.value[i] = { type, ...(title ? { title } : {}) };
   drafts.value = {};
+}
+
+/* ---------------- 富文本 ---------------- */
+
+function openRichEditor(i: number) {
+  richEditor.value = { show: true, idx: i };
+}
+
+function saveRichHtml(html: string) {
+  const i = richEditor.value.idx;
+  if (i >= 0 && local.value[i]) local.value[i].html = html;
+  richEditor.value = { show: false, idx: -1 };
+}
+
+function stripHtmlForPreview(html: string): string {
+  if (!html) return '';
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  return (div.textContent || '').trim().slice(0, 120);
+}
+
+/* ---------------- 卖点：一行一条 ---------------- */
+
+function featItems(i: number): string[] {
+  const d = featDrafts.value[i];
+  if (d) return d;
+  const items = local.value[i]?.items;
+  const arr = Array.isArray(items)
+    ? items.map((x: any) => {
+        if (x && typeof x === 'object') {
+          return String(x.label ?? x.value ?? x.text ?? '');
+        }
+        return String(x ?? '');
+      })
+    : [];
+  featDrafts.value[i] = arr;
+  return arr;
+}
+
+function featAdd(i: number) {
+  const arr = featItems(i);
+  arr.push('');
+  featDrafts.value[i] = [...arr];
+}
+
+function featRemove(i: number, j: number) {
+  const arr = featItems(i);
+  arr.splice(j, 1);
+  featDrafts.value[i] = [...arr];
+}
+
+function featCommit(i: number) {
+  const arr = (featDrafts.value[i] || []).map(s => s.trim()).filter(Boolean);
+  if (local.value[i]) local.value[i].items = arr;
+  Reflect.deleteProperty(featDrafts.value, i);
+}
+
+/* ---------------- 规格表：轻量表格 ---------------- */
+
+function specState(i: number): { cols: string[]; rows: { id: number; cells: string[] }[] } {
+  const d = specDrafts.value[i];
+  if (d) return d;
+  const block = local.value[i] || {};
+  const cols = Array.isArray(block.columns) && block.columns.length ? [...block.columns] : ['名称', '值'];
+  const rows = Array.isArray(block.rows)
+    ? block.rows.map((r: any) => {
+        const cells = r && typeof r === 'object' ? Object.values(r).map(v => String(v ?? '')) : [String(r ?? ''), ''];
+        while (cells.length < cols.length) cells.push('');
+        return { id: ++specRowSeq, cells: cells.slice(0, cols.length) };
+      })
+    : [];
+  specDrafts.value[i] = { cols, rows };
+  return specDrafts.value[i];
+}
+
+function specAddCol(i: number) {
+  const s = specState(i);
+  s.cols.push(`列 ${s.cols.length + 1}`);
+  s.rows.forEach(r => r.cells.push(''));
+  specDrafts.value[i] = { ...s };
+}
+
+function specRemoveCol(i: number, j: number) {
+  const s = specState(i);
+  if (s.cols.length <= 2) return;
+  s.cols.splice(j, 1);
+  s.rows.forEach(r => r.cells.splice(j, 1));
+  specDrafts.value[i] = { ...s };
+}
+
+function specAddRow(i: number) {
+  const s = specState(i);
+  s.rows.push({ id: ++specRowSeq, cells: s.cols.map(() => '') });
+  specDrafts.value[i] = { ...s };
+}
+
+function specRemoveRow(i: number, j: number) {
+  const s = specState(i);
+  s.rows.splice(j, 1);
+  specDrafts.value[i] = { ...s };
+}
+
+function specCommit(i: number) {
+  const s = specDrafts.value[i];
+  if (!s || !local.value[i]) return;
+  const cols = s.cols.map(c => c.trim()).filter(Boolean);
+  const rows = s.rows
+    .map(r => r.cells.map(c => c.trim()))
+    .filter(r => r.some(Boolean))
+    .map(r => {
+      const obj: Record<string, string> = {};
+      r.forEach((cell, j) => {
+        obj[cols[j] || `col${j}`] = cell;
+      });
+      return obj;
+    });
+  local.value[i].columns = cols.length ? cols : undefined;
+  local.value[i].rows = rows;
+  Reflect.deleteProperty(specDrafts.value, i);
 }
 </script>
 
@@ -195,12 +318,25 @@ function changeType(i: number, type: string): void {
           <NInput v-model:value="block.title" placeholder="可选，用于详情页小标题" />
         </NFormItem>
 
-        <!-- 富文本 -->
+        <!-- 富文本：Tiptap + Markdown -->
         <template v-if="block.type === 'rich_text'">
-          <NFormItem label="正文（支持简单 HTML）" :show-feedback="false">
-            <NInput v-model:value="block.html" type="textarea" :rows="4" placeholder="<p>内容段落</p>" />
-          </NFormItem>
-          <NFormItem label="对齐" :show-feedback="false">
+          <div class="flex items-center justify-between gap-2">
+            <div class="text-sm opacity-80">
+              {{ block.html ? (stripHtmlForPreview(block.html) + '…') : '（空）' }}
+            </div>
+            <NSpace size="small">
+              <NButton size="small" type="primary" quaternary @click="openRichEditor(i)">富文本编辑</NButton>
+              <NButton
+                v-if="block.html"
+                size="small"
+                quaternary
+                @click="block.html = ''"
+              >
+                清空
+              </NButton>
+            </NSpace>
+          </div>
+          <NFormItem label="对齐" :show-feedback="false" class="mt-2">
             <NSelect v-model:value="block.align" :options="alignOptions" style="width: 160px" clearable />
           </NFormItem>
         </template>
@@ -234,39 +370,61 @@ function changeType(i: number, type: string): void {
           </NFormItem>
         </template>
 
-        <!-- 规格表 -->
+        <!-- 规格表：轻量表格编辑 -->
         <template v-else-if="block.type === 'spec_table'">
-          <NFormItem :label="hintMap.columns" :show-feedback="false">
-            <NInput
-              type="textarea"
-              :rows="2"
-              :value="arrText(i, 'columns')"
-              @update:value="(v: string) => setDraft(i, 'columns', v)"
-              @blur="commitDraft(i, 'columns')"
-            />
-          </NFormItem>
-          <NFormItem :label="hintMap.spec_table" :show-feedback="false">
-            <NInput
-              type="textarea"
-              :rows="3"
-              :value="arrText(i, 'rows')"
-              @update:value="(v: string) => setDraft(i, 'rows', v)"
-              @blur="commitDraft(i, 'rows')"
-            />
-          </NFormItem>
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-xs opacity-60">列头：</span>
+            <div v-for="(col, j) in specState(i).cols" :key="j" class="flex items-center gap-1">
+              <NInput v-model:value="specState(i).cols[j]" size="small" style="width: 120px" placeholder="列名" @blur="specCommit(i)" />
+              <NButton
+                size="tiny"
+                quaternary
+                type="error"
+                :disabled="specState(i).cols.length <= 2"
+                @click="specRemoveCol(i, j); specCommit(i)"
+              >
+                ×
+              </NButton>
+            </div>
+            <NButton size="tiny" dashed @click="specAddCol(i)">+ 列</NButton>
+          </div>
+          <div class="flex flex-col gap-1 mb-2">
+            <div
+              v-for="(row, r) in specState(i).rows"
+              :key="row.id"
+              class="flex items-center gap-1"
+            >
+              <NInput
+                v-for="(cell, c) in row.cells"
+                :key="c"
+                v-model:value="row.cells[c]"
+                size="small"
+                style="width: 120px"
+                placeholder="值"
+                @blur="specCommit(i)"
+              />
+              <NButton size="tiny" quaternary type="error" @click="specRemoveRow(i, r); specCommit(i)">删除</NButton>
+            </div>
+          </div>
+          <NSpace size="small">
+            <NButton size="tiny" dashed @click="specAddRow(i)">+ 行</NButton>
+            <span class="text-xs opacity-60">轻量表格，C 端按列头渲染</span>
+          </NSpace>
         </template>
 
-        <!-- 卖点 -->
+        <!-- 卖点：一行一条 -->
         <template v-else-if="block.type === 'features'">
-          <NFormItem :label="hintMap.features" :show-feedback="false">
-            <NInput
-              type="textarea"
-              :rows="3"
-              :value="arrText(i, 'items')"
-              @update:value="(v: string) => setDraft(i, 'items', v)"
-              @blur="commitDraft(i, 'items')"
-            />
-          </NFormItem>
+          <div class="flex flex-col gap-1 mb-2">
+            <div v-for="(item, j) in featItems(i)" :key="j" class="flex items-center gap-2">
+              <span class="w-4 text-center text-xs opacity-40">{{ j + 1 }}</span>
+              <NInput v-model:value="featItems(i)[j]" placeholder="一条卖点，如：无谷物配方，易消化" @blur="featCommit(i)" />
+              <NButton size="tiny" quaternary type="error" @click="featRemove(i, j); featCommit(i)">删除</NButton>
+            </div>
+          </div>
+          <NSpace size="small">
+            <NButton size="tiny" dashed @click="featAdd(i)">+ 添加卖点</NButton>
+            <span class="text-xs opacity-60">一行一条，C 端渲染为要点列表</span>
+          </NSpace>
         </template>
 
         <!-- FAQ -->
@@ -299,5 +457,13 @@ function changeType(i: number, type: string): void {
       <NButton dashed size="small" @click="add">+ 添加详情块</NButton>
       <span class="text-xs opacity-60 self-center">最多 50 块；与简介互补，详情页按顺序渲染</span>
     </NSpace>
+
+    <RichTextEditor
+      :show="richEditor.show"
+      :html="richEditor.idx >= 0 ? local[richEditor.idx]?.html || '' : ''"
+      :title="richEditor.idx >= 0 ? local[richEditor.idx]?.title || '' : ''"
+      @update:show="(v: boolean) => (v ? undefined : (richEditor = { show: false, idx: -1 }))"
+      @save="saveRichHtml"
+    />
   </div>
 </template>
