@@ -549,7 +549,7 @@ function specCommit(i: number) {
   pointer-events: auto;
 }
 .spec-row-ops-cell {
-  height: 8px;
+  height: 10px;
   padding: 0;
   position: relative;
   border: none;
@@ -559,5 +559,11 @@ function specCommit(i: number) {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
+  /* 默认不可命中，避免透明区域误触；轨道可见时恢复命中 */
+  pointer-events: none;
+}
+.spec-row-ops:hover .spec-row-ops-btns,
+.spec-data-row:hover + .spec-row-ops .spec-row-ops-btns {
+  pointer-events: auto;
 }
 </style>
