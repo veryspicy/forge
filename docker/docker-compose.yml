@@ -145,6 +145,8 @@ services:
     volumes:
       - ../backend/src:/app/src  # 热重载
       - ../backend/uploads:/app/uploads  # 本地降级图片持久化，容器重建不丢
+      - ../backend/migrations:/app/migrations  # alembic 迁移脚本
+      - ../backend/alembic.ini:/app/alembic.ini  # alembic 配置
     depends_on:
       postgres:
         condition: service_healthy

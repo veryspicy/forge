@@ -2,6 +2,30 @@
 import { defineStore } from "pinia";
 import { useApi } from "~/composables/useApi";
 
+export interface ProductImageDetail {
+  url: string;
+  alt?: string;
+  alt_translations?: Record<string, string>;
+  is_main?: boolean;
+  sort?: number;
+}
+
+export interface DetailBlock {
+  type: "rich_text" | "image" | "image_text" | "spec_table" | "features" | "faq" | "video" | string;
+  title?: string;
+  html?: string;
+  align?: string;
+  images?: string[];
+  caption?: string;
+  image?: string;
+  layout?: string;
+  columns?: string[];
+  rows?: string[];
+  items?: string[];
+  url?: string;
+  poster?: string;
+}
+
 interface Product {
   id: string;
   sku: string;
@@ -23,6 +47,17 @@ interface Product {
   dimensions?: string;
   material?: string;
   ingredients?: string;
+  name_translations?: Record<string, string>;
+  description_translations?: Record<string, string>;
+  detail_blocks?: DetailBlock[];
+  detail_blocks_translations?: Record<string, DetailBlock[]>;
+  seo_title?: string;
+  seo_description?: string;
+  seo_keywords?: string;
+  seo_translations?: Record<string, { title?: string; description?: string; keywords?: string[] }>;
+  main_image?: string;
+  image_details?: ProductImageDetail[];
+  suitable_for?: string[];
 }
 
 interface ProductFilters {

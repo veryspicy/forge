@@ -1,9 +1,11 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import cast
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 _UPLOADS_DIR = Path(__file__).resolve().parents[3] / "uploads"
@@ -38,6 +40,27 @@ app = FastAPI(
 from forge.api.errors import register_error_handlers  # noqa: E402
 
 register_error_handlers(app)
+
+
+async def _product_validation_handler(request: Request, exc: Exception) -> JSONResponse:
+    """ProductValidationError -> 400 with field-level errors (never 500)."""
+    pve = cast("ProductValidationError", exc)
+    errors = [
+        {"field": field, "code": "VALIDATION_ERROR", "message": message}
+        for field, message in pve.errors.items()
+    ]
+    return JSONResponse(
+        status_code=400,
+        content={"code": "BAD_REQUEST", "message": "Bad request.", "status": 400, "errors": errors},
+    )
+
+
+try:
+    from forge.application.services.product_service import ProductValidationError
+
+    app.add_exception_handler(ProductValidationError, _product_validation_handler)
+except ImportError:
+    pass
 
 app.add_middleware(
     CORSMiddleware,

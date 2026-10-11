@@ -22,6 +22,7 @@ from fastapi import (
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from forge.api.errors import APIError, ErrorCode, FieldError
 from forge.application.services.product_service import (
     VALID_STATUSES,
     ProductService,
@@ -49,6 +50,33 @@ IMAGE_SIZE_LIMIT = 5 * 1024 * 1024  # 5MB
 # ---------------------------------------------------------------------------
 # Pydantic 模型
 # ---------------------------------------------------------------------------
+class VariantCreate(BaseModel):
+    """变体创建载荷（随商品上传 / 单独新增共用）。"""
+
+    sku: str  # 必填，行业标准（Shopify/Chewy）变体 SKU 手填
+    name: str
+    # 变体展示名多语言（Shopify 字段级模型）：{locale: name}，name 为基准语言
+    name_translations: dict[str, str] | None = None
+    attributes: dict[str, Any] | None = None
+    price: float | None = None
+    cost: float | None = None
+    inventory: int | None = 0
+    status: str | None = "active"
+    is_default: bool | None = False
+
+
+class VariantUpdate(BaseModel):
+    sku: str | None = None
+    name: str | None = None
+    name_translations: dict[str, str] | None = None
+    attributes: dict[str, Any] | None = None
+    price: float | None = None
+    cost: float | None = None
+    inventory: int | None = None
+    status: str | None = None
+    is_default: bool | None = None
+
+
 class ProductCreate(BaseModel):
     sku: str
     name: str
@@ -57,7 +85,6 @@ class ProductCreate(BaseModel):
     ai_description: str | None = None
     name_translations: dict[str, str] | None = None
     description_translations: dict[str, str] | None = None
-    ai_description_translations: dict[str, str] | None = None
     price: float
     cost: float | None = 0.0
     inventory: int = 0
@@ -79,10 +106,16 @@ class ProductCreate(BaseModel):
     slug: str | None = None
     # 结构化详情块（PRODUCT-DETAIL-BLOCKS），元素含 type 与各类型专属字段
     detail_blocks: list[dict[str, Any]] | None = None
+    # 详情块多语言（Shopify 字段级模型）：{locale: [detail_block]}，detail_blocks 为基准语言
+    detail_blocks_translations: dict[str, list[dict[str, Any]]] | None = None
+    # SEO 多语言：{locale: {title, description, keywords[]}}，seo_* 为基准语言
+    seo_translations: dict[str, dict[str, Any]] | None = None
     # 商品体系改造（PRODUCT-CATALOG-REFACTOR）目录侧外键
     category_id: int | None = None
     brand_id: int | None = None
     product_type_id: int | None = None
+    # 变体随商品上传（UPLOAD-WITH-VARIANTS）：结构同 VariantCreate
+    variants: list[VariantCreate] | None = None
 
 
 class ProductUpdate(BaseModel):
@@ -92,7 +125,6 @@ class ProductUpdate(BaseModel):
     ai_description: str | None = None
     name_translations: dict[str, str] | None = None
     description_translations: dict[str, str] | None = None
-    ai_description_translations: dict[str, str] | None = None
     price: float | None = None
     cost: float | None = None
     inventory: int | None = None
@@ -112,6 +144,8 @@ class ProductUpdate(BaseModel):
     seo_keywords: list[str] | None = None
     slug: str | None = None
     detail_blocks: list[dict[str, Any]] | None = None
+    detail_blocks_translations: dict[str, list[dict[str, Any]]] | None = None
+    seo_translations: dict[str, dict[str, Any]] | None = None
     is_new: bool | None = None
     is_recommend: bool | None = None
     sort_order: int | None = None
@@ -134,26 +168,9 @@ class BatchStatusPayload(BaseModel):
     status: str
 
 
-class VariantCreate(BaseModel):
-    sku: str | None = None  # 空值自动生成 {商品货号}-{规格短码}
-    name: str
-    attributes: dict[str, Any] | None = None
-    price: float | None = None
-    cost: float | None = None
-    inventory: int | None = 0
-    status: str | None = "active"
-    is_default: bool | None = False
-
-
-class VariantUpdate(BaseModel):
-    sku: str | None = None
-    name: str | None = None
-    attributes: dict[str, Any] | None = None
-    price: float | None = None
-    cost: float | None = None
-    inventory: int | None = None
-    status: str | None = None
-    is_default: bool | None = None
+class ProductAuditPayload(BaseModel):
+    action: str
+    reason: str | None = None
 
 
 class ProductListResponse(BaseModel):
@@ -218,6 +235,8 @@ def _serialize_image(image: dict[str, Any]) -> dict[str, Any]:
         "is_main": bool(image.get("is_main", False)),
         "alt": image.get("alt", ""),
     }
+    if image.get("alt_translations"):
+        data["alt_translations"] = image["alt_translations"]
     if image.get("resource_id"):
         data["resource_id"] = image["resource_id"]
     return data
@@ -249,18 +268,23 @@ async def create_product(
         raise HTTPException(status_code=401, detail="未登录")
 
     data = payload.model_dump()
-    if data.get("images") is not None:
-        data["images"] = ProductService.normalize_images(data["images"])
-    if data.get("supplier_id"):
-        data["supplier_id"] = _coerce_uuid(data["supplier_id"], "supplier_id")
-    _validate_fulfillment(data)
-
     try:
+        if data.get("images") is not None:
+            data["images"] = ProductService.normalize_images(data["images"])
+        if data.get("supplier_id"):
+            data["supplier_id"] = _coerce_uuid(data["supplier_id"], "supplier_id")
+        _validate_fulfillment(data)
         product = await ProductService.create_product(db, data)
     except ProductSkuConflictError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from None
     except ProductValidationError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from None
+        raise APIError(
+            code=ErrorCode.BAD_REQUEST,
+            errors=[
+                FieldError(field=field, code="VALIDATION_ERROR", message=message)
+                for field, message in exc.errors.items()
+            ],
+        ) from None
 
     await db.commit()
     await db.refresh(product)
@@ -592,18 +616,23 @@ async def update_product(
     if not data:
         raise HTTPException(status_code=400, detail="无更新字段")
 
-    if data.get("images") is not None:
-        data["images"] = ProductService.normalize_images(data["images"])
-    if data.get("supplier_id"):
-        data["supplier_id"] = _coerce_uuid(data["supplier_id"], "supplier_id")
-    _validate_fulfillment(data, existing_supplier_id=cast(uuid.UUID | None, product.supplier_id))
-
     try:
+        if data.get("images") is not None:
+            data["images"] = ProductService.normalize_images(data["images"])
+        if data.get("supplier_id"):
+            data["supplier_id"] = _coerce_uuid(data["supplier_id"], "supplier_id")
+        _validate_fulfillment(data, existing_supplier_id=cast(uuid.UUID | None, product.supplier_id))
         product = await ProductService.update_product(db, product, data)
     except ProductSkuConflictError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from None
     except ProductValidationError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from None
+        raise APIError(
+            code=ErrorCode.BAD_REQUEST,
+            errors=[
+                FieldError(field=field, code="VALIDATION_ERROR", message=message)
+                for field, message in exc.errors.items()
+            ],
+        ) from None
 
     await db.commit()
     await db.refresh(product)
@@ -695,6 +724,40 @@ async def delete_product(
     await ProductService.set_status(db, product, "deleted")
     await db.commit()
     return {"data": {"id": str(product.id), "status": "deleted"}}
+
+
+# ---------------------------------------------------------------------------
+# 5.6 商品审核（pending → approved / rejected，PRODUCT-AUDIT-FLOW）
+# ---------------------------------------------------------------------------
+@router.post("/{product_id}/audit")
+async def audit_product(
+    product_id: str,
+    payload: ProductAuditPayload,
+    admin: dict[str, Any] = Depends(require_permission("products", "status")),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    if not admin:
+        raise HTTPException(status_code=401, detail="未登录")
+
+    product = await _get_product_or_404(db, product_id)
+    if product.status == "deleted":
+        raise HTTPException(status_code=400, detail="商品已删除")
+
+    reviewer = str(admin.get("sub") or admin.get("email") or admin.get("username") or "admin")
+    try:
+        product = await ProductService.audit_product(
+            db,
+            product,
+            payload.action,
+            reviewer=reviewer,
+            reason=payload.reason,
+        )
+    except ProductValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+
+    await db.commit()
+    await db.refresh(product)
+    return {"data": _serialize_product(product)}
 
 
 # ---------------------------------------------------------------------------

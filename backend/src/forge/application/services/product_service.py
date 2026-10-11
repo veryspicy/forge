@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,34 +29,6 @@ ALLOWED_IMAGE_MIME = {"image/jpeg", "image/png", "image/webp"}
 MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
 
 _ASCII_STRIP_RE = re.compile(r"[^a-z0-9]+")
-
-# 规格值 → SKU 短码的常见颜色映射（兜底规则：大写字母数字取前 3 位）
-_COLOR_SHORTCODES: dict[str, str] = {
-    "black": "BLK",
-    "white": "WHT",
-    "red": "RED",
-    "blue": "BLU",
-    "green": "GRN",
-    "yellow": "YLW",
-    "orange": "ORG",
-    "purple": "PRP",
-    "pink": "PNK",
-    "gray": "GRY",
-    "grey": "GRY",
-    "brown": "BRN",
-    "navy": "NVY",
-    "gold": "GLD",
-    "silver": "SLV",
-    "beige": "BGE",
-    "cream": "CRM",
-    "khaki": "KHK",
-    "olive": "OLV",
-    "teal": "TEL",
-    "coral": "CRL",
-    "ivory": "IVY",
-    "maroon": "MRN",
-    "turquoise": "TRQ",
-}
 
 # 商品详情块（PRODUCT-DETAIL-BLOCKS）：结构化详情，避免整段 HTML 富文本
 # （XSS 面、多语言不可复用、结构化数据无法抽取）
@@ -144,6 +117,7 @@ class ProductService:
     @staticmethod
     async def create_product(db: AsyncSession, data: dict[str, Any]) -> ORMProduct:
         errors = ProductService._validate_base(data)
+        errors.update(ProductService._validate_active_gate(data))
         if errors:
             raise ProductValidationError("商品参数校验失败", errors)
         catalog_errors = await ProductService._validate_catalog_refs(db, data)
@@ -155,6 +129,9 @@ class ProductService:
         if existing:
             raise ProductSkuConflictError(f"SKU 已存在: {sku}")
 
+        # 变体随商品上传（UPLOAD-WITH-VARIANTS）：创建商品后批量建变体并重算总库存
+        variants = data.pop("variants", None)
+
         payload = dict(data)
         payload["sku"] = sku
         requested_slug = str(data.get("slug") or "").strip()
@@ -164,13 +141,24 @@ class ProductService:
         payload["slug"] = await ProductService._unique_slug(db, base_slug)
         if data.get("detail_blocks") is not None:
             payload["detail_blocks"] = ProductService.normalize_detail_blocks(data["detail_blocks"])
+        if data.get("detail_blocks_translations") is not None:
+            payload["detail_blocks_translations"] = ProductService.normalize_detail_blocks_translations(
+                data["detail_blocks_translations"]
+            )
         payload.setdefault("status", "draft")
         payload.setdefault("images", [])
-        return await SQLAlchemyProductRepository.create(db, payload)
+        product = await SQLAlchemyProductRepository.create(db, payload)
+
+        if variants:
+            for variant in variants:
+                await ProductService.create_variant(db, product, variant)
+            await SQLAlchemyProductRepository.sync_product_inventory(db, int(product.id))
+        return product
 
     @staticmethod
     async def update_product(db: AsyncSession, product: ORMProduct, data: dict[str, Any]) -> ORMProduct:
         errors = ProductService._validate_base(data, partial=True)
+        errors.update(ProductService._validate_active_gate(data, existing=product))
         if errors:
             raise ProductValidationError("商品参数校验失败", errors)
         catalog_errors = await ProductService._validate_catalog_refs(db, data)
@@ -198,6 +186,10 @@ class ProductService:
 
         if data.get("detail_blocks") is not None:
             data["detail_blocks"] = ProductService.normalize_detail_blocks(data["detail_blocks"])
+        if data.get("detail_blocks_translations") is not None:
+            data["detail_blocks_translations"] = ProductService.normalize_detail_blocks_translations(
+                data["detail_blocks_translations"]
+            )
 
         return await SQLAlchemyProductRepository.update(db, product, data)
 
@@ -211,20 +203,86 @@ class ProductService:
         return await SQLAlchemyProductRepository.set_status(db, product, status)
 
     @staticmethod
+    async def audit_product(
+        db: AsyncSession,
+        product: ORMProduct,
+        action: str,
+        reviewer: str,
+        reason: str | None = None,
+    ) -> ORMProduct:
+        """商品审核流转：pending → approved / rejected。
+
+        - approve：状态置 approved，reason 可选（记入审核备注）
+        - reject：状态置 rejected，reason 必填（供上传方整改）
+        审核人与时间随每次审核落库，可追溯（PRODUCT-AUDIT-FLOW）。
+        """
+        action = (action or "").strip().lower()
+        if action not in {"approve", "reject"}:
+            raise ProductValidationError(
+                "非法审核动作",
+                {"action": "action 必须为 approve 或 reject"},
+            )
+        if action == "reject" and not (reason or "").strip():
+            raise ProductValidationError(
+                "拒绝必须填写原因",
+                {"reason": "reject 时必须填写审核原因"},
+            )
+        reviewer = (reviewer or "").strip()
+        if not reviewer:
+            raise ProductValidationError(
+                "缺少审核人",
+                {"reviewer": "审核人不能为空"},
+            )
+
+        product.audit_status = "approved" if action == "approve" else "rejected"
+        product.audit_reason = (reason or "").strip() or None
+        product.audit_by = reviewer
+        product.audited_at = datetime.now(UTC)
+        return product
+
+    @staticmethod
     def normalize_images(
         images: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
-        """清洗图片数组：结构对齐、主图唯一；未指定主图时 sort 最小者为主图。"""
+        """清洗图片数组：结构对齐、主图唯一、url 必填、sort 唯一。
+
+        行业标准（Shopify/Chewy）要求商品图必须可寻址：
+        - url 缺失或为空 → 抛业务异常（不允许无地址图片）
+        - sort 缺失按序号补齐，重复自动顺延，保证前端拖拽排序稳定
+        - is_main 恰好一个；未指定主图时 sort 最小者为主图
+        """
+        if not isinstance(images, list):
+            raise ProductValidationError("图片格式错误", {"images": "images 必须是数组"})
         cleaned: list[dict[str, Any]] = []
         main_seen = False
+        used_sorts: set[int] = set()
         for idx, img in enumerate(images):
+            if not isinstance(img, dict):
+                raise ProductValidationError("图片格式错误", {"images": f"第 {idx + 1} 张图片必须是对象"})
+            url = str(img.get("url") or "").strip()
+            if not url:
+                raise ProductValidationError("图片格式错误", {"images": f"第 {idx + 1} 张图片缺少 url"})
+            raw_sort = img.get("sort")
+            try:
+                sort = int(raw_sort) if raw_sort is not None else idx
+            except (TypeError, ValueError):
+                raise ProductValidationError(
+                    "图片格式错误",
+                    {"images": f"第 {idx + 1} 张图片 sort 格式错误"},
+                ) from None
+            while sort in used_sorts:
+                sort += 1
+            used_sorts.add(sort)
             entry = {
                 "key": str(img.get("key", "")),
-                "url": str(img.get("url", "")),
-                "sort": int(img.get("sort", idx)),
+                "url": url,
+                "sort": sort,
                 "is_main": bool(img.get("is_main", False)),
                 "alt": str(img.get("alt", "")),
             }
+            alt_translations = img.get("alt_translations")
+            if isinstance(alt_translations, dict) and alt_translations:
+                entry["alt_translations"] = {str(k): str(v) for k, v in alt_translations.items() if str(v).strip()}
             if img.get("resource_id"):
                 entry["resource_id"] = str(img["resource_id"])
             if entry["is_main"]:
@@ -296,6 +354,17 @@ class ProductService:
         if isinstance(value, str):
             return value.strip()
         return value
+
+    @staticmethod
+    def normalize_detail_blocks_translations(translations: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
+        """清洗详情块多语言：{locale: [blocks]}，每个语言的块数组走 normalize_detail_blocks。"""
+        cleaned: dict[str, list[dict[str, Any]]] = {}
+        for lang, blocks in translations.items():
+            lang_key = str(lang).strip()
+            if not lang_key:
+                continue
+            cleaned[lang_key] = ProductService.normalize_detail_blocks(blocks)
+        return cleaned
 
     @staticmethod
     async def add_image(
@@ -387,6 +456,22 @@ class ProductService:
         if "status" in data and data["status"] not in VALID_STATUSES:
             errors["status"] = f"status 必须为 {sorted(VALID_STATUSES)} 之一"
 
+        if "images" in data and data["images"] is not None and not isinstance(data["images"], list):
+            errors["images"] = "images 必须是数组"
+
+        if "variants" in data and data["variants"] is not None:
+            if not isinstance(data["variants"], list):
+                errors["variants"] = "variants 必须是数组"
+            else:
+                for vidx, variant in enumerate(data["variants"]):
+                    if not isinstance(variant, dict):
+                        errors["variants"] = f"第 {vidx + 1} 个变体必须是对象"
+                        break
+                    vname = variant.get("name")
+                    if not vname or not str(vname).strip():
+                        errors["variants"] = f"第 {vidx + 1} 个变体缺少 name"
+                        break
+
         if "slug" in data and data["slug"] and len(str(data["slug"])) > 500:
             errors["slug"] = "slug 长度不能超过 500"
 
@@ -397,7 +482,7 @@ class ProductService:
         ):
             errors["detail_blocks"] = "detail_blocks 必须是数组"
 
-        for field in ("name_translations", "description_translations", "ai_description_translations"):
+        for field in ("name_translations", "description_translations"):
             if field in data and data[field] is not None:
                 translations = data[field]
                 if not isinstance(translations, dict):
@@ -411,54 +496,95 @@ class ProductService:
                             errors[field] = f"{field} 的 {lang} 值必须是字符串"
                             break
 
+        if "detail_blocks_translations" in data and data["detail_blocks_translations"] is not None:
+            translations = data["detail_blocks_translations"]
+            if not isinstance(translations, dict):
+                errors["detail_blocks_translations"] = "detail_blocks_translations 必须是语言代码到详情块数组的映射对象"
+            else:
+                for lang, blocks in translations.items():
+                    if not isinstance(lang, str) or not lang.strip():
+                        errors["detail_blocks_translations"] = "detail_blocks_translations 的语言代码必须是非空字符串"
+                        break
+                    if not isinstance(blocks, list):
+                        errors["detail_blocks_translations"] = (
+                            f"detail_blocks_translations 的 {lang} 值必须是详情块数组"
+                        )
+                        break
+                    try:
+                        ProductService.normalize_detail_blocks(blocks)
+                    except ProductValidationError as exc:
+                        errors["detail_blocks_translations"] = (
+                            f"detail_blocks_translations 的 {lang} 语言块{exc.errors}"
+                        )
+
+        if "seo_translations" in data and data["seo_translations"] is not None:
+            translations = data["seo_translations"]
+            if not isinstance(translations, dict):
+                errors["seo_translations"] = "seo_translations 必须是语言代码到 SEO 对象的映射"
+            else:
+                for lang, seo in translations.items():
+                    if not isinstance(lang, str) or not lang.strip():
+                        errors["seo_translations"] = "seo_translations 的语言代码必须是非空字符串"
+                        break
+                    if not isinstance(seo, dict):
+                        errors["seo_translations"] = f"seo_translations 的 {lang} 值必须是对象"
+                        break
+                    for key in ("title", "description"):
+                        if key in seo and seo[key] is not None and not isinstance(seo[key], str):
+                            errors["seo_translations"] = f"seo_translations 的 {lang}.{key} 必须是字符串"
+                            break
+                    if (
+                        "keywords" in seo
+                        and seo["keywords"] is not None
+                        and (
+                            not isinstance(seo["keywords"], list)
+                            or not all(isinstance(k, str) for k in seo["keywords"])
+                        )
+                    ):
+                        errors["seo_translations"] = f"seo_translations 的 {lang}.keywords 必须是字符串数组"
+
+        return errors
+
+    @staticmethod
+    def _validate_active_gate(data: dict[str, Any], existing: ORMProduct | None = None) -> dict[str, str]:
+        """上架门禁（行业标准 Shopify/Chewy）：status=active 必须满足可展示最低要求。
+
+        - 商品描述非空
+        - 至少 1 张图片
+        - 主图 alt 非空（LCP/无障碍/SEO）
+        update 场景传入 existing 以合并未变更字段。
+        """
+        errors: dict[str, str] = {}
+        if data.get("status") != "active":
+            return errors
+        description = data.get("description")
+        if description is None and existing is not None:
+            description = existing.description
+        if not description or not str(description).strip():
+            errors["description"] = "上架商品必须填写商品描述"
+        images = data.get("images")
+        if images is None and existing is not None:
+            images = list(existing.images or [])
+        if not images:
+            errors["images"] = "上架商品必须至少上传 1 张图片"
+        else:
+            main_image = next((i for i in images if i.get("is_main")), images[0])
+            if not (main_image or {}).get("alt", "").strip():
+                errors["images"] = "上架商品主图必须填写 alt 文本"
         return errors
 
     # ------------------------------------------------------------------
     # 变体业务（P2-1）
     # ------------------------------------------------------------------
     @staticmethod
-    def _spec_shortcode(value: str) -> str:
-        """规格值 → SKU 短码。颜色走常见映射，其余大写字母数字取前 3 位。"""
-        text = unicodedata.normalize("NFKD", str(value))
-        ascii_text = "".join(ch for ch in text if ch.isalnum()).upper()
-        if not ascii_text:
-            return "X"
-        lower = ascii_text.lower()
-        if lower in _COLOR_SHORTCODES:
-            return _COLOR_SHORTCODES[lower]
-        return ascii_text[:3] if len(ascii_text) > 3 else ascii_text
-
-    @staticmethod
-    async def generate_variant_sku(
-        db: AsyncSession,
-        product: ORMProduct,
-        attributes: dict[str, Any] | None,
-    ) -> str:
-        """自动生成变体 SKU：{商品货号}-{规格短码}，冲突追加序号。"""
-        base = str(product.sku or product.slug or "PRODUCT").strip().upper()
-        shortcodes = [
-            ProductService._spec_shortcode(str(v))
-            for v in (attributes or {}).values()
-            if v is not None and str(v).strip()
-        ]
-        base_sku = f"{base}-{'-'.join(shortcodes)}" if shortcodes else f"{base}-VAR"
-
-        candidate = base_sku
-        suffix = 2
-        while True:
-            existing = await SQLAlchemyProductRepository.get_variant_by_sku(db, candidate)
-            if existing is None:
-                return candidate
-            candidate = f"{base_sku}-{suffix}"
-            suffix += 1
-
-    @staticmethod
     async def _validate_variant(data: dict[str, Any], partial: bool = False) -> dict[str, str]:
         errors: dict[str, str] = {}
 
-        if "sku" in data and data["sku"] is not None:
-            sku = str(data["sku"]).strip()
-            if sku and len(sku) > 100:
+        if not partial or "sku" in data:
+            sku = str(data.get("sku") or "").strip()
+            if not sku:
+                errors["sku"] = "SKU 不能为空（变体 SKU 必须手填）"
+            elif len(sku) > 100:
                 errors["sku"] = "SKU 长度不能超过 100"
 
         if "name" in data or not partial:
@@ -467,6 +593,19 @@ class ProductService:
                 errors["name"] = "变体名称不能为空"
             elif len(str(name)) > 255:
                 errors["name"] = "变体名称长度不能超过 255"
+
+        if "name_translations" in data and data["name_translations"] is not None:
+            translations = data["name_translations"]
+            if not isinstance(translations, dict):
+                errors["name_translations"] = "name_translations 必须是语言代码到名称的映射对象"
+            else:
+                for lang, text in translations.items():
+                    if not isinstance(lang, str) or not lang.strip():
+                        errors["name_translations"] = "name_translations 的语言代码必须是非空字符串"
+                        break
+                    if text is not None and not isinstance(text, str):
+                        errors["name_translations"] = f"name_translations 的 {lang} 值必须是字符串"
+                        break
 
         if "attributes" in data and data["attributes"] is not None:
             attributes = data["attributes"]
@@ -503,10 +642,7 @@ class ProductService:
             raise ProductValidationError("变体参数校验失败", errors)
 
         payload = dict(data)
-        attributes = payload.get("attributes") or {}
-        if not payload.get("sku") or not str(payload["sku"]).strip():
-            payload["sku"] = await ProductService.generate_variant_sku(db, product, attributes)
-        sku = str(payload["sku"]).strip()
+        sku = str(payload.get("sku") or "").strip()
         existing = await SQLAlchemyProductRepository.get_variant_by_sku(db, sku)
         if existing:
             raise ProductSkuConflictError(f"变体 SKU 已存在: {sku}")
@@ -534,21 +670,11 @@ class ProductService:
             raise ProductValidationError("变体参数校验失败", errors)
 
         if "sku" in data and data["sku"] != variant.sku:
-            if data["sku"] and str(data["sku"]).strip():
-                new_sku = str(data["sku"]).strip()
-                existing = await SQLAlchemyProductRepository.get_variant_by_sku(db, new_sku)
-                if existing and existing.id != variant.id:
-                    raise ProductSkuConflictError(f"变体 SKU 已存在: {new_sku}")
-                data["sku"] = new_sku
-            else:
-                # 传空 sku 表示自动重新生成
-                product = await SQLAlchemyProductRepository.get_by_id(db, str(variant.product_id))
-                if product is None:
-                    raise ProductValidationError("商品不存在", {"product_id": "商品不存在"})
-                attrs = data.get("attributes")
-                if attrs is None:
-                    attrs = dict(variant.attributes or {})
-                data["sku"] = await ProductService.generate_variant_sku(db, product, attrs)
+            new_sku = str(data.get("sku") or "").strip()
+            existing = await SQLAlchemyProductRepository.get_variant_by_sku(db, new_sku)
+            if existing and existing.id != variant.id:
+                raise ProductSkuConflictError(f"变体 SKU 已存在: {new_sku}")
+            data["sku"] = new_sku
 
         variant = await SQLAlchemyProductRepository.update_variant(db, variant, data)
 

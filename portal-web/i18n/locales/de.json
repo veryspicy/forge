@@ -204,7 +204,12 @@
     "addedToCart": "\"{name}\" wurde zum Warenkorb hinzugefügt",
     "loginRequired": "Bitte melden Sie sich an, um Artikel in den Warenkorb zu legen.",
     "noProducts": "Keine Produkte gefunden, die Ihren Kriterien entsprechen.",
-    "addToCartFailed": "Hinzufügen zum Warenkorb fehlgeschlagen, bitte erneut versuchen."
+    "addToCartFailed": "Hinzufügen zum Warenkorb fehlgeschlagen, bitte erneut versuchen.",
+    "detailsTitle": "Produktdetails",
+    "trustFreeShipping": "Kostenloser Versand",
+    "trustReturns": "30 Tage Rückgabe",
+    "trustSecure": "Sicherer Checkout",
+    "videoNotSupported": "Ihr Browser unterstützt keine Video-Wiedergabe."
   },
   "cart": {
     "title": "Warenkorb",
