@@ -96,6 +96,20 @@ if ($LASTEXITCODE -ne 0) {
 $mergeSha = git rev-parse HEAD
 Write-Host "[merge-dev] Merged at $($mergeSha.Substring(0,7))"
 
+# ---------- post-merge safety check (PS 5.1 output-truncation guard) ----------
+# A chained checkout/merge can silently not take effect on PS 5.1; verify the
+# target branch is actually gone from 'git branch --no-merged dev' before push.
+$noMerged = git branch --no-merged dev
+if ($LASTEXITCODE -ne 0) { Fail 'git branch --no-merged dev failed.' }
+$unmergedList = @($noMerged) | ForEach-Object { ($_ -replace '^[*\s]+', '').Trim() } | Where-Object { $_ }
+if ($unmergedList -contains $Branch) {
+    Fail "Merge did not take effect: '$Branch' still listed in 'git branch --no-merged dev'. Dev is still at $($mergeSha.Substring(0,7)); resolve manually per DEV-RULES 1.1."
+}
+if ($unmergedList.Count -gt 0) {
+    Write-Host "[merge-dev] WARNING: other unmerged branches remain: $($unmergedList -join ', '). This script only verifies '$Branch'." -ForegroundColor Yellow
+}
+Write-Host "[merge-dev] Verified: '$Branch' no longer appears in 'git branch --no-merged dev'." -ForegroundColor Green
+
 if ($SkipPush) {
     Write-Host '[merge-dev] -SkipPush: not pushing.' -ForegroundColor Yellow
     exit 0
@@ -105,6 +119,17 @@ if ($SkipPush) {
 Write-Host '[merge-dev] Pushing dev to origin...'
 Invoke-Git push origin dev | Out-Null
 if ($LASTEXITCODE -ne 0) { Fail 'Push to origin/dev failed.' }
+
+# ---------- post-push sync check ----------
+# PS 5.1 can truncate push output; verify local dev and origin/dev actually match.
+Invoke-Git fetch origin | Out-Null
+if ($LASTEXITCODE -ne 0) { Fail 'fetch origin failed during post-push sync check.' }
+$localDev = git rev-parse dev
+$originDev = git rev-parse origin/dev
+if ($localDev -ne $originDev) {
+    Fail "Push not synced: local dev=$($localDev.Substring(0,7)), origin/dev=$($originDev.Substring(0,7)). Resolve manually."
+}
+Write-Host "[merge-dev] Verified: dev and origin/dev in sync at $($localDev.Substring(0,7))." -ForegroundColor Green
 
 # ---------- CI health check ----------
 $token = Get-GitHubToken
