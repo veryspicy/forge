@@ -66,6 +66,7 @@ _PUBLIC_VARIANT_FIELDS = [
     "name",
     "name_translations",
     "attributes",
+    "attributes_translations",
     "price",
     "inventory",
     "is_default",

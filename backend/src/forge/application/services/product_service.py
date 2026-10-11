@@ -612,6 +612,39 @@ class ProductService:
             if not isinstance(attributes, dict):
                 errors["attributes"] = "attributes 必须是对象"
 
+        if "attributes_translations" in data and data["attributes_translations"] is not None:
+            translations = data["attributes_translations"]
+            if not isinstance(translations, dict):
+                errors["attributes_translations"] = "attributes_translations 必须是语言代码到属性映射的对象"
+            else:
+                invalid = False
+                for lang, values in translations.items():
+                    if not isinstance(lang, str) or not lang.strip():
+                        errors["attributes_translations"] = "attributes_translations 的语言代码必须是非空字符串"
+                        invalid = True
+                        break
+                    if not isinstance(values, dict):
+                        errors["attributes_translations"] = (
+                            f"attributes_translations 的 {lang} 值必须是 {{key: value}} 映射对象"
+                        )
+                        invalid = True
+                        break
+                    for key, text in values.items():
+                        if not isinstance(key, str) or not key.strip():
+                            errors["attributes_translations"] = (
+                                f"attributes_translations 的 {lang} 属性键必须是非空字符串"
+                            )
+                            invalid = True
+                            break
+                        if text is not None and not isinstance(text, str):
+                            errors["attributes_translations"] = (
+                                f"attributes_translations 的 {lang}.{key} 值必须是字符串"
+                            )
+                            invalid = True
+                            break
+                    if invalid:
+                        break
+
         if "price" in data and data["price"] is not None:
             try:
                 if float(data["price"]) <= 0:

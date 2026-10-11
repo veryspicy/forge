@@ -188,6 +188,9 @@ class ORMProductVariant(Base):
     # 变体展示名多语言（Shopify 字段级模型）：name 为基准语言，本列为 {locale: name} 覆盖
     name_translations = Column(JSONB, nullable=False, default=dict, server_default="'{}'::jsonb")
     attributes = Column(JSONB, nullable=False, default=dict)
+    # 变体属性值多语言（Shopify 字段级模型）：attributes 为基准语言（key/value 均基准），
+    # 本列为 {locale: {key: localized_value}} 覆盖属性值；属性键以基准语言录入
+    attributes_translations = Column(JSONB, nullable=False, default=dict, server_default="'{}'::jsonb")
     price = Column(Numeric(12, 2), nullable=True)
     cost = Column(Numeric(12, 2), nullable=True)
     inventory = Column(Integer, nullable=False, default=0)
@@ -205,6 +208,7 @@ class ORMProductVariant(Base):
             "name": self.name,
             "name_translations": self.name_translations or {},
             "attributes": self.attributes or {},
+            "attributes_translations": self.attributes_translations or {},
             "price": float(self.price) if self.price else None,
             "cost": float(self.cost) if self.cost else None,
             "inventory": self.inventory or 0,
