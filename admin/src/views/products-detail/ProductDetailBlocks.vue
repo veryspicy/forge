@@ -229,12 +229,17 @@ function specState(i: number): { cols: string[]; rows: { id: number; cells: stri
   const d = specDrafts.value[i];
   if (d) return d;
   const block = local.value[i] || {};
-  const cols = Array.isArray(block.columns) && block.columns.length ? [...block.columns] : ['名称', '值'];
+  const rawCols: string[] = Array.isArray(block.columns) ? block.columns.map(c => String(c ?? '').trim()) : [];
+  const keep = rawCols.map(c => c !== '');
+  const cols = rawCols.filter(c => c !== '');
+  if (cols.length === 0) cols.push('名称');
+  if (cols.length === 1) cols.push('值');
   const rows = Array.isArray(block.rows)
     ? block.rows.map((r: any) => {
         const cells = r && typeof r === 'object' ? Object.values(r).map(v => String(v ?? '')) : [String(r ?? ''), ''];
-        while (cells.length < cols.length) cells.push('');
-        return { id: ++specRowSeq, cells: cells.slice(0, cols.length) };
+        const kept = cells.filter((_, j) => keep[j]);
+        while (kept.length < cols.length) kept.push('');
+        return { id: ++specRowSeq, cells: kept.slice(0, cols.length) };
       })
     : [];
   specDrafts.value[i] = { cols, rows };
@@ -245,6 +250,13 @@ function specAddCol(i: number) {
   const s = specState(i);
   s.cols.push(`列 ${s.cols.length + 1}`);
   s.rows.forEach(r => r.cells.push(''));
+  specDrafts.value[i] = { ...s };
+}
+
+function specInsertCol(i: number, j: number) {
+  const s = specState(i);
+  s.cols.splice(j + 1, 0, `列 ${s.cols.length + 1}`);
+  s.rows.forEach(r => r.cells.splice(j + 1, 0, ''));
   specDrafts.value[i] = { ...s };
 }
 
@@ -262,6 +274,12 @@ function specAddRow(i: number) {
   specDrafts.value[i] = { ...s };
 }
 
+function specInsertRow(i: number, r: number) {
+  const s = specState(i);
+  s.rows.splice(r + 1, 0, { id: ++specRowSeq, cells: s.cols.map(() => '') });
+  specDrafts.value[i] = { ...s };
+}
+
 function specRemoveRow(i: number, j: number) {
   const s = specState(i);
   s.rows.splice(j, 1);
@@ -271,13 +289,22 @@ function specRemoveRow(i: number, j: number) {
 function specCommit(i: number) {
   const s = specDrafts.value[i];
   if (!s || !local.value[i]) return;
+  const keep: boolean[] = s.cols.map(c => c.trim() !== '');
   const cols = s.cols.map(c => c.trim()).filter(Boolean);
+  if (cols.length === 0) cols.push('名称');
+  if (cols.length === 1) cols.push('值');
   const rows = s.rows
-    .map(r => r.cells.map(c => c.trim()))
-    .filter(r => r.some(Boolean))
+    .map(r => {
+      const cells = r.cells
+        .map((c, j) => (keep[j] ? c.trim() : null))
+        .filter((c): c is string => c !== null);
+      while (cells.length < cols.length) cells.push('');
+      return { id: r.id, cells: cells.slice(0, cols.length) };
+    })
+    .filter(r => r.cells.some(Boolean))
     .map(r => {
       const obj: Record<string, string> = {};
-      r.forEach((cell, j) => {
+      r.cells.forEach((cell, j) => {
         obj[cols[j] || `col${j}`] = cell;
       });
       return obj;
@@ -291,11 +318,7 @@ function specCommit(i: number) {
 <template>
   <div>
     <div v-if="local.length" class="flex flex-col gap-3 mb-3">
-      <div
-        v-for="(block, i) in local"
-        :key="i"
-        class="rounded-md border border-[var(--n-border-color)] p-3"
-      >
+      <div v-for="(block, i) in local" :key="i" class="rounded-md border border-[var(--n-border-color)] p-3">
         <div class="flex items-center justify-between gap-2 mb-2">
           <NSpace size="small" align="center">
             <NTag size="small" type="info">{{ i + 1 }} · {{ typeLabel(block.type) }}</NTag>
@@ -322,18 +345,11 @@ function specCommit(i: number) {
         <template v-if="block.type === 'rich_text'">
           <div class="flex items-center justify-between gap-2">
             <div class="text-sm opacity-80">
-              {{ block.html ? (stripHtmlForPreview(block.html) + '…') : '（空）' }}
+              {{ block.html ? stripHtmlForPreview(block.html) + '…' : '（空）' }}
             </div>
             <NSpace size="small">
               <NButton size="small" type="primary" quaternary @click="openRichEditor(i)">富文本编辑</NButton>
-              <NButton
-                v-if="block.html"
-                size="small"
-                quaternary
-                @click="block.html = ''"
-              >
-                清空
-              </NButton>
+              <NButton v-if="block.html" size="small" quaternary @click="block.html = ''">清空</NButton>
             </NSpace>
           </div>
           <NFormItem label="对齐" :show-feedback="false" class="mt-2">
@@ -370,45 +386,123 @@ function specCommit(i: number) {
           </NFormItem>
         </template>
 
-        <!-- 规格表：轻量表格编辑 -->
+        <!-- 规格表：所见即所得表格编辑 -->
         <template v-else-if="block.type === 'spec_table'">
-          <div class="flex items-center gap-2 mb-2">
-            <span class="text-xs opacity-60">列头：</span>
-            <div v-for="(col, j) in specState(i).cols" :key="j" class="flex items-center gap-1">
-              <NInput v-model:value="specState(i).cols[j]" size="small" style="width: 120px" placeholder="列名" @blur="specCommit(i)" />
-              <NButton
-                size="tiny"
-                quaternary
-                type="error"
-                :disabled="specState(i).cols.length <= 2"
-                @click="specRemoveCol(i, j); specCommit(i)"
-              >
-                ×
-              </NButton>
-            </div>
-            <NButton size="tiny" dashed @click="specAddCol(i)">+ 列</NButton>
+          <div class="overflow-x-auto">
+            <table class="spec-table w-full border-collapse text-sm">
+              <thead>
+                <tr>
+                  <th
+                    v-for="(col, j) in specState(i).cols"
+                    :key="j"
+                    class="relative border border-[var(--n-border-color)] bg-gray-100 p-1 align-middle"
+                  >
+                    <NInput
+                      v-model:value="specState(i).cols[j]"
+                      :bordered="false"
+                      size="small"
+                      placeholder="列名"
+                      @blur="specCommit(i)"
+                    />
+                    <NSpace
+                      size="small"
+                      :wrap="false"
+                      class="spec-col-ops"
+                    >
+                      <NButton
+                        size="tiny"
+                        quaternary
+                        type="primary"
+                        title="在该列右侧插入列"
+                        @click="
+                          specInsertCol(i, j);
+                          specCommit(i);
+                        "
+                      >
+                        ＋
+                      </NButton>
+                      <NButton
+                        size="tiny"
+                        quaternary
+                        type="error"
+                        title="删除该列"
+                        :disabled="specState(i).cols.length <= 2"
+                        @click="
+                          specRemoveCol(i, j);
+                          specCommit(i);
+                        "
+                      >
+                        −
+                      </NButton>
+                    </NSpace>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <template v-for="(row, r) in specState(i).rows" :key="row.id">
+                  <tr class="spec-data-row">
+                    <td
+                      v-for="(cell, c) in row.cells"
+                      :key="c"
+                      class="relative border border-[var(--n-border-color)] p-1 align-middle"
+                    >
+                      <NInput
+                        v-model:value="row.cells[c]"
+                        :bordered="false"
+                        size="small"
+                        placeholder="值"
+                        @blur="specCommit(i)"
+                      />
+                      <NSpace
+                        v-if="c === row.cells.length - 1"
+                        size="small"
+                        :wrap="false"
+                        justify="center"
+                        class="spec-row-ops"
+                      >
+                        <NButton
+                          size="tiny"
+                          quaternary
+                          type="primary"
+                          title="在该行下方插入行"
+                          @click="specInsertRow(i, r)"
+                        >
+                          ＋
+                        </NButton>
+                        <NButton
+                          size="tiny"
+                          quaternary
+                          type="error"
+                          title="删除该行"
+                          @click="
+                            specRemoveRow(i, r);
+                            specCommit(i);
+                          "
+                        >
+                          −
+                        </NButton>
+                      </NSpace>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
           </div>
-          <div class="flex flex-col gap-1 mb-2">
-            <div
-              v-for="(row, r) in specState(i).rows"
-              :key="row.id"
-              class="flex items-center gap-1"
+          <NSpace size="small" class="mt-2">
+            <NButton
+              size="tiny"
+              dashed
+              @click="
+                specAddCol(i);
+                specCommit(i);
+              "
             >
-              <NInput
-                v-for="(cell, c) in row.cells"
-                :key="c"
-                v-model:value="row.cells[c]"
-                size="small"
-                style="width: 120px"
-                placeholder="值"
-                @blur="specCommit(i)"
-              />
-              <NButton size="tiny" quaternary type="error" @click="specRemoveRow(i, r); specCommit(i)">删除</NButton>
-            </div>
-          </div>
-          <NSpace size="small">
-            <NButton size="tiny" dashed @click="specAddRow(i)">+ 行</NButton>
-            <span class="text-xs opacity-60">轻量表格，C 端按列头渲染</span>
+              + 添加列
+            </NButton>
+            <NButton size="tiny" dashed @click="specAddRow(i)">+ 添加行</NButton>
+            <span class="text-xs opacity-60">
+              表头可直接改列名；悬停表头行末显示 ＋/− 增删列，悬停数据行右侧悬浮 ＋/− 增删行
+            </span>
           </NSpace>
         </template>
 
@@ -417,8 +511,22 @@ function specCommit(i: number) {
           <div class="flex flex-col gap-1 mb-2">
             <div v-for="(item, j) in featItems(i)" :key="j" class="flex items-center gap-2">
               <span class="w-4 text-center text-xs opacity-40">{{ j + 1 }}</span>
-              <NInput v-model:value="featItems(i)[j]" placeholder="一条卖点，如：无谷物配方，易消化" @blur="featCommit(i)" />
-              <NButton size="tiny" quaternary type="error" @click="featRemove(i, j); featCommit(i)">删除</NButton>
+              <NInput
+                v-model:value="featItems(i)[j]"
+                placeholder="一条卖点，如：无谷物配方，易消化"
+                @blur="featCommit(i)"
+              />
+              <NButton
+                size="tiny"
+                quaternary
+                type="error"
+                @click="
+                  featRemove(i, j);
+                  featCommit(i);
+                "
+              >
+                删除
+              </NButton>
             </div>
           </div>
           <NSpace size="small">
@@ -467,3 +575,51 @@ function specCommit(i: number) {
     />
   </div>
 </template>
+
+<style scoped>
+/* 规格表：单元格内容默认居中；行末 +/- 悬浮显示 */
+.spec-table th,
+.spec-table td {
+  text-align: center;
+}
+.spec-table th .n-input__input-el,
+.spec-table td .n-input__input-el {
+  text-align: center;
+}
+/* 行末操作层：不占列，绝对定位悬浮在行末单元格之上，悬停行时显示；按钮去边框 */
+.spec-row-ops {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+.spec-data-row:hover .spec-row-ops {
+  opacity: 1;
+  pointer-events: auto;
+}
+.spec-row-ops .n-button {
+  border: none;
+}
+/* 列头增删列按钮（悬浮层）：不占列宽，绝对定位悬浮在列头之上，默认隐藏无灰块，悬停表头行时淡入 */
+.spec-col-ops {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+.spec-table thead:hover .spec-col-ops {
+  opacity: 1;
+  pointer-events: auto;
+}
+.spec-col-ops .n-button {
+  border: none;
+}
+</style>
