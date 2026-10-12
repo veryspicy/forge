@@ -395,16 +395,20 @@ function specCommit(i: number) {
                   <th
                     v-for="(col, j) in specState(i).cols"
                     :key="j"
-                    class="border border-[var(--n-border-color)] bg-gray-100 p-1 align-middle"
+                    class="relative border border-[var(--n-border-color)] bg-gray-100 p-1 align-middle"
                   >
-                    <div class="flex items-center gap-1 spec-col-ops">
-                      <NInput
-                        v-model:value="specState(i).cols[j]"
-                        :bordered="false"
-                        size="small"
-                        placeholder="列名"
-                        @blur="specCommit(i)"
-                      />
+                    <NInput
+                      v-model:value="specState(i).cols[j]"
+                      :bordered="false"
+                      size="small"
+                      placeholder="列名"
+                      @blur="specCommit(i)"
+                    />
+                    <NSpace
+                      size="small"
+                      :wrap="false"
+                      class="spec-col-ops"
+                    >
                       <NButton
                         size="tiny"
                         quaternary
@@ -430,7 +434,7 @@ function specCommit(i: number) {
                       >
                         −
                       </NButton>
-                    </div>
+                    </NSpace>
                   </th>
                 </tr>
               </thead>
@@ -600,12 +604,22 @@ function specCommit(i: number) {
 .spec-row-ops .n-button {
   border: none;
 }
-/* 列头增删列按钮（列内）：默认隐藏，悬停表头行时淡入 */
-.spec-col-ops .n-button {
+/* 列头增删列按钮（悬浮层）：不占列宽，绝对定位悬浮在列头之上，默认隐藏无灰块，悬停表头行时淡入 */
+.spec-col-ops {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
   opacity: 0;
   transition: opacity 0.15s ease;
+  pointer-events: none;
 }
-.spec-table thead:hover .spec-col-ops .n-button {
+.spec-table thead:hover .spec-col-ops {
   opacity: 1;
+  pointer-events: auto;
+}
+.spec-col-ops .n-button {
+  border: none;
 }
 </style>
