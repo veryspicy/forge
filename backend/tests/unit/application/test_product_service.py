@@ -162,8 +162,18 @@ class TestCreateProductWithVariants:
             )
         assert "sku" in exc.value.errors
 
+
 class TestAuditProduct:
     """PRODUCT-AUDIT-FLOW: pending -> approved / rejected 流转与留痕校验。"""
+
+    @pytest.fixture(autouse=True)
+    def _audit_enabled(self) -> None:
+        """审核开关默认关闭（product-audit-switch），测试审核流转时须显式开启。"""
+        with patch(
+            "forge.application.services.product_service.is_product_audit_enabled",
+            new=AsyncMock(return_value=True),
+        ):
+            yield
 
     def _product(self) -> MagicMock:
         p = MagicMock()
