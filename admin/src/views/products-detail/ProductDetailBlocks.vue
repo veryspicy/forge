@@ -394,7 +394,7 @@ function specCommit(i: number) {
                     :key="j"
                     class="border border-[var(--n-border-color)] bg-gray-100 p-1 align-middle"
                   >
-                    <div class="flex items-center gap-1">
+                    <div class="flex items-center gap-1 spec-col-ops">
                       <NInput
                         v-model:value="specState(i).cols[j]"
                         :bordered="false"
@@ -472,7 +472,7 @@ function specCommit(i: number) {
           <NSpace size="small" class="mt-2">
             <NButton size="tiny" dashed @click="specAddCol(i); specCommit(i)">+ 添加列</NButton>
             <NButton size="tiny" dashed @click="specAddRow(i)">+ 添加行</NButton>
-            <span class="text-xs opacity-60">表头可直接改列名，列头 ＋/− 增删列；悬停行末显示 ＋/− 增删行</span>
+            <span class="text-xs opacity-60">表头可直接改列名；悬停表头行末显示 ＋/− 增删列，悬停行末显示 ＋/− 增删行</span>
           </NSpace>
         </template>
 
@@ -542,7 +542,7 @@ function specCommit(i: number) {
 .spec-table td .n-input__input-el {
   text-align: center;
 }
-/* 行末操作列：默认隐藏，悬停行时显示 +/− */
+/* 行末操作列：默认隐藏，悬停行时显示 +/−；按钮去边框 */
 .spec-op-col {
   width: 76px;
   white-space: nowrap;
@@ -552,6 +552,17 @@ function specCommit(i: number) {
   transition: opacity 0.15s ease;
 }
 .spec-data-row:hover .spec-op-col .spec-row-ops {
+  opacity: 1;
+}
+.spec-op-col .n-button {
+  border: none;
+}
+/* 列头增删列按钮（列内）：默认隐藏，悬停表头行时淡入 */
+.spec-col-ops .n-button {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.spec-table thead:hover .spec-col-ops .n-button {
   opacity: 1;
 }
 </style>
