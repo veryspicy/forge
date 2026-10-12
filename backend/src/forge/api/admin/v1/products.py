@@ -672,14 +672,21 @@ async def batch_set_product_status(
     existing_ids = {str(p.id) for p in products}
     missing = [pid for pid in ids if pid not in existing_ids]
 
+    # PRODUCT-AUDIT-FLOW 联动：批量状态变更逐个执行，未审核通过的上架请求跳过并记录原因，
+    # 避免单个商品校验失败导致整批 500。
+    skipped: list[dict[str, Any]] = []
     for product in products:
-        await ProductService.set_status(db, product, payload.status)
+        try:
+            await ProductService.set_status(db, product, payload.status)
+        except ProductValidationError as exc:
+            skipped.append({"id": str(product.id), "reason": str(exc)})
 
     await db.commit()
     return {
         "data": {
-            "updated": len(products),
+            "updated": len(products) - len(skipped),
             "missing": missing,
+            "skipped": skipped,
         }
     }
 
