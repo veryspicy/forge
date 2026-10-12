@@ -589,6 +589,10 @@ function faqCommit(i: number): void {
         <!-- FAQ：一张卡片一对问答 -->
         <template v-else-if="block.type === 'faq'">
           <NFormItem :label="hintMap.faq" :show-feedback="false">
+            <NSpace size="small" class="mb-2">
+              <NButton size="tiny" dashed @click="faqAdd(i)">+ 添加问答</NButton>
+              <span class="text-xs opacity-60">拖动 ⠿ 调整顺序，C 端按此顺序展示</span>
+            </NSpace>
             <VueDraggable
               v-if="faqState(i).length >= 0"
               v-model="faqDrafts[i]"
@@ -632,10 +636,6 @@ function faqCommit(i: number): void {
                 />
               </div>
             </VueDraggable>
-            <NSpace size="small">
-              <NButton size="tiny" dashed @click="faqAdd(i)">+ 添加问答</NButton>
-              <span class="text-xs opacity-60">拖动 ⠿ 调整顺序，C 端按此顺序展示</span>
-            </NSpace>
           </NFormItem>
         </template>
 
