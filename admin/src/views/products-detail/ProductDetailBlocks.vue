@@ -229,12 +229,17 @@ function specState(i: number): { cols: string[]; rows: { id: number; cells: stri
   const d = specDrafts.value[i];
   if (d) return d;
   const block = local.value[i] || {};
-  const cols = Array.isArray(block.columns) && block.columns.length ? [...block.columns] : ['名称', '值'];
+  const rawCols: string[] = Array.isArray(block.columns) ? block.columns.map(c => String(c ?? '').trim()) : [];
+  const keep = rawCols.map(c => c !== '');
+  const cols = rawCols.filter(c => c !== '');
+  if (cols.length === 0) cols.push('名称');
+  if (cols.length === 1) cols.push('值');
   const rows = Array.isArray(block.rows)
     ? block.rows.map((r: any) => {
         const cells = r && typeof r === 'object' ? Object.values(r).map(v => String(v ?? '')) : [String(r ?? ''), ''];
-        while (cells.length < cols.length) cells.push('');
-        return { id: ++specRowSeq, cells: cells.slice(0, cols.length) };
+        const kept = cells.filter((_, j) => keep[j]);
+        while (kept.length < cols.length) kept.push('');
+        return { id: ++specRowSeq, cells: kept.slice(0, cols.length) };
       })
     : [];
   specDrafts.value[i] = { cols, rows };
@@ -284,13 +289,22 @@ function specRemoveRow(i: number, j: number) {
 function specCommit(i: number) {
   const s = specDrafts.value[i];
   if (!s || !local.value[i]) return;
+  const keep: boolean[] = s.cols.map(c => c.trim() !== '');
   const cols = s.cols.map(c => c.trim()).filter(Boolean);
+  if (cols.length === 0) cols.push('名称');
+  if (cols.length === 1) cols.push('值');
   const rows = s.rows
-    .map(r => r.cells.map(c => c.trim()))
-    .filter(r => r.some(Boolean))
+    .map(r => {
+      const cells = r.cells
+        .map((c, j) => (keep[j] ? c.trim() : null))
+        .filter((c): c is string => c !== null);
+      while (cells.length < cols.length) cells.push('');
+      return { id: r.id, cells: cells.slice(0, cols.length) };
+    })
+    .filter(r => r.cells.some(Boolean))
     .map(r => {
       const obj: Record<string, string> = {};
-      r.forEach((cell, j) => {
+      r.cells.forEach((cell, j) => {
         obj[cols[j] || `col${j}`] = cell;
       });
       return obj;
