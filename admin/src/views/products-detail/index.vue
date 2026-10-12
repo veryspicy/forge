@@ -93,7 +93,11 @@ function blockSummary(b: Record<string, any>): string {
     Array.isArray(arr) && arr.length ? text(arr[0][key]) : '';
   switch (type) {
     case 'rich_text':
-      return text(b.html)?.replace(/<[^>]+>/g, '')?.slice(0, 120) || '';
+      return (
+        text(b.html)
+          ?.replace(/<[^>]+>/g, '')
+          ?.slice(0, 120) || ''
+      );
     case 'image':
       return Array.isArray(b.images) && b.images.length ? `${b.images.length} 张图片` : '';
     case 'image_text':
@@ -141,7 +145,16 @@ const uploading = ref(false);
 const tagsString = ref('');
 const statusChange = ref<string | null>(null);
 
-const images = ref<{ key: string; url: string; alt?: string; alt_translations?: Record<string, string>; resourceId?: string; isMain?: boolean }[]>([]);
+const images = ref<
+  {
+    key: string;
+    url: string;
+    alt?: string;
+    alt_translations?: Record<string, string>;
+    resourceId?: string;
+    isMain?: boolean;
+  }[]
+>([]);
 const pendingFiles = ref<File[]>([]);
 const imagesSaving = ref(false);
 /** 当前选中的图片下标（点击选中高亮边框，操作集中在选中操作条） */
@@ -354,7 +367,8 @@ function switchLang(lang: string) {
 
 /** 名称按当前编辑语言路由：zh-cn 走基准主列，其余语言写 name_translations[lang] */
 const displayName = computed({
-  get: () => currentLang.value === 'zh-cn' ? form.value.name : (form.value.name_translations?.[currentLang.value] || ''),
+  get: () =>
+    currentLang.value === 'zh-cn' ? form.value.name : form.value.name_translations?.[currentLang.value] || '',
   set: (v: string) => {
     if (currentLang.value === 'zh-cn') {
       form.value.name = v;
@@ -366,9 +380,10 @@ const displayName = computed({
 
 /** 描述按当前编辑语言路由：zh-cn 走基准主列，其余语言写 description_translations[lang] */
 const displayDesc = computed({
-  get: () => currentLang.value === 'zh-cn'
-    ? form.value.description
-    : (form.value.description_translations?.[currentLang.value] || ''),
+  get: () =>
+    currentLang.value === 'zh-cn'
+      ? form.value.description
+      : form.value.description_translations?.[currentLang.value] || '',
   set: (v: string) => {
     if (currentLang.value === 'zh-cn') {
       form.value.description = v;
@@ -380,9 +395,8 @@ const displayDesc = computed({
 
 /** SEO 标题按当前编辑语言路由：zh-cn 走 seoForm（基准主列），其余语言写 seo_translations[lang] */
 const displaySeoTitle = computed({
-  get: () => currentLang.value === 'zh-cn'
-    ? seoForm.value.title
-    : (form.value.seo_translations?.[currentLang.value]?.title || ''),
+  get: () =>
+    currentLang.value === 'zh-cn' ? seoForm.value.title : form.value.seo_translations?.[currentLang.value]?.title || '',
   set: (v: string) => {
     if (currentLang.value === 'zh-cn') {
       seoForm.value.title = v;
@@ -396,9 +410,10 @@ const displaySeoTitle = computed({
 
 /** SEO 描述按当前编辑语言路由：zh-cn 走 seoForm，其余语言写 seo_translations[lang] */
 const displaySeoDesc = computed({
-  get: () => currentLang.value === 'zh-cn'
-    ? seoForm.value.description
-    : (form.value.seo_translations?.[currentLang.value]?.description || ''),
+  get: () =>
+    currentLang.value === 'zh-cn'
+      ? seoForm.value.description
+      : form.value.seo_translations?.[currentLang.value]?.description || '',
   set: (v: string) => {
     if (currentLang.value === 'zh-cn') {
       seoForm.value.description = v;
@@ -412,11 +427,15 @@ const displaySeoDesc = computed({
 
 /** SEO 关键词按当前编辑语言路由：zh-cn 走 seoForm，其余语言写 seo_translations[lang] */
 const displaySeoKeywords = computed({
-  get: () => currentLang.value === 'zh-cn'
-    ? seoForm.value.keywords
-    : ((form.value.seo_translations?.[currentLang.value]?.keywords || []).join(', ')),
+  get: () =>
+    currentLang.value === 'zh-cn'
+      ? seoForm.value.keywords
+      : (form.value.seo_translations?.[currentLang.value]?.keywords || []).join(', '),
   set: (v: string) => {
-    const keywords = v.split(',').map((k: string) => k.trim()).filter(Boolean);
+    const keywords = v
+      .split(',')
+      .map((k: string) => k.trim())
+      .filter(Boolean);
     if (currentLang.value === 'zh-cn') {
       seoForm.value.keywords = v;
     } else {
@@ -429,9 +448,10 @@ const displaySeoKeywords = computed({
 
 /** 变体名称按当前编辑语言路由：zh-cn 走 name 主列，其余语言写 name_translations[lang] */
 const variantDisplayName = computed({
-  get: () => currentLang.value === 'zh-cn'
-    ? variantForm.value.name
-    : (variantForm.value.name_translations?.[currentLang.value] || ''),
+  get: () =>
+    currentLang.value === 'zh-cn'
+      ? variantForm.value.name
+      : variantForm.value.name_translations?.[currentLang.value] || '',
   set: (v: string) => {
     if (currentLang.value === 'zh-cn') {
       variantForm.value.name = v;
@@ -443,16 +463,16 @@ const variantDisplayName = computed({
 
 /** 变体表格展示：当前语言名，缺失回退基准名 */
 function variantDisplayNameOf(v: any): string {
-  return currentLang.value === 'zh-cn' ? (v.name || '') : (v.name_translations?.[currentLang.value] || v.name || '');
+  return currentLang.value === 'zh-cn' ? v.name || '' : v.name_translations?.[currentLang.value] || v.name || '';
 }
 
 /** 当前语言下可见的详情块：zh-cn 走基准块，其余语言走该语言的整组翻译块（缺失回退空数组，编辑即写入） */
 const activeBlocks = computed<Record<string, any>[]>({
   get: () =>
     currentLang.value === 'zh-cn'
-      ? (form.value.detail_blocks || [])
-      : (form.value.detail_blocks_translations?.[currentLang.value] || []),
-  set: (v) => {
+      ? form.value.detail_blocks || []
+      : form.value.detail_blocks_translations?.[currentLang.value] || [],
+  set: v => {
     if (currentLang.value === 'zh-cn') {
       form.value.detail_blocks = v;
     } else {
@@ -550,7 +570,10 @@ onMounted(async () => {
       description_translations: p.description_translations || {},
       detail_blocks: (p.detail_blocks || []) as Record<string, any>[],
       detail_blocks_translations: (p.detail_blocks_translations || {}) as Record<string, Record<string, any>[]>,
-      seo_translations: (p.seo_translations || {}) as Record<string, { title?: string; description?: string; keywords?: string[] }>
+      seo_translations: (p.seo_translations || {}) as Record<
+        string,
+        { title?: string; description?: string; keywords?: string[] }
+      >
     };
     tagsString.value = (p.tags || []).join(', ');
     images.value = (p.images || [])
@@ -866,7 +889,8 @@ function openVariantModal(v?: any) {
       name: v.name || '',
       name_translations: (v.name_translations || {}) as Record<string, string>,
       specRows: attrsToSpecRows(
-        v.attributes ?? (v.specs ? Object.fromEntries((v.specs as any[]).map((s: any) => [s.spec_key, s.value])) : null),
+        v.attributes ??
+          (v.specs ? Object.fromEntries((v.specs as any[]).map((s: any) => [s.spec_key, s.value])) : null),
         (v.attributes_translations || {}) as Record<string, Record<string, string>>,
         currentLang.value
       ),
@@ -988,7 +1012,11 @@ async function reloadVariants() {
   <div class="flex flex-col gap-4">
     <div class="flex items-center justify-between">
       <h2 class="text-lg font-semibold m-0">
-        {{ isEdit ? (readonly ? t('common.view') : t('common.edit')) + ' ' + t('common.product') : t('common.new') + ' ' + t('common.product') }}
+        {{
+          isEdit
+            ? (readonly ? t('common.view') : t('common.edit')) + ' ' + t('common.product')
+            : t('common.new') + ' ' + t('common.product')
+        }}
       </h2>
       <NButton @click="$router.push('/products')">{{ $t('common.backToList') }}</NButton>
     </div>
@@ -1028,7 +1056,9 @@ async function reloadVariants() {
       <NCard :title="$t('common.basicInfo')" size="small" class="md:col-span-2">
         <NGrid :cols="2" :x-gap="16" :y-gap="12" responsive="screen">
           <NGi span="1 m:2">
-            <NFormItem :label="$t('common.sku')" required><NInput v-model:value="form.sku" :disabled="readonly" /></NFormItem>
+            <NFormItem :label="$t('common.sku')" required>
+              <NInput v-model:value="form.sku" :disabled="readonly" />
+            </NFormItem>
           </NGi>
           <NGi span="1 m:2">
             <NFormItem :label="$t('common.name')" required>
@@ -1040,7 +1070,9 @@ async function reloadVariants() {
             </NFormItem>
           </NGi>
           <NGi span="1">
-            <NFormItem :label="$t('page.productsDetail.slug')"><NInput v-model:value="form.slug" :disabled="readonly" /></NFormItem>
+            <NFormItem :label="$t('page.productsDetail.slug')">
+              <NInput v-model:value="form.slug" :disabled="readonly" />
+            </NFormItem>
           </NGi>
           <NGi span="1">
             <NFormItem :label="$t('page.products.category')">
@@ -1134,7 +1166,8 @@ async function reloadVariants() {
               <span>审核时间: {{ auditInfo.audited_at || '--' }}</span>
             </div>
             <div v-if="auditInfo.audit_reason" class="text-sm text-gray-500">
-              <span class="mr-1">审核备注:</span>{{ auditInfo.audit_reason }}
+              <span class="mr-1">审核备注:</span>
+              {{ auditInfo.audit_reason }}
             </div>
           </div>
           <NButton
@@ -1263,7 +1296,7 @@ async function reloadVariants() {
             :custom-request="handleUpload"
             :disabled="uploading || readonly"
           >
-            <NButton :loading="uploading">{{ $t('common.uploadImages') }}</NButton>
+            <NButton v-if="!readonly" :loading="uploading">{{ $t('common.uploadImages') }}</NButton>
           </NUpload>
           <span v-if="isEdit && !readonly" class="text-xs opacity-60">
             {{ imagesSaving ? '正在自动保存…' : '拖拽排序、选中操作均自动保存' }}
@@ -1365,11 +1398,7 @@ async function reloadVariants() {
             <div class="w-full flex flex-col gap-1">
               <div v-if="variantForm.specRows.length" class="flex flex-col gap-1">
                 <div v-for="(row, idx) in variantForm.specRows" :key="idx" class="flex items-center gap-2">
-                  <NInput
-                    v-model:value="row.key"
-                    placeholder="选项名，如 Color"
-                    :disabled="currentLang !== 'zh-cn'"
-                  />
+                  <NInput v-model:value="row.key" placeholder="选项名，如 Color" :disabled="currentLang !== 'zh-cn'" />
                   <NInput
                     v-model:value="row.value"
                     :placeholder="
@@ -1518,7 +1547,12 @@ async function reloadVariants() {
           </div>
           <NEmpty v-else description="SEO 状态优秀，无需优化" size="small" class="py-4" />
         </template>
-        <NEmpty v-else-if="isEdit && currentLang === 'zh-cn'" description="点击「重新评分」获取数据" size="small" class="py-6" />
+        <NEmpty
+          v-else-if="isEdit && currentLang === 'zh-cn'"
+          description="点击「重新评分」获取数据"
+          size="small"
+          class="py-6"
+        />
       </NCard>
 
       <!-- Danger Zone (edit only) -->
@@ -1563,11 +1597,7 @@ async function reloadVariants() {
         <div class="text-xs text-gray-400">审核人：当前登录管理员，审核后状态与留痕不可覆盖修改。</div>
         <NSpace justify="end">
           <NButton size="small" @click="showAuditModal = false">取消</NButton>
-          <NButton
-            size="small"
-            :type="auditForm.action === 'approve' ? 'success' : 'error'"
-            @click="submitAudit"
-          >
+          <NButton size="small" :type="auditForm.action === 'approve' ? 'success' : 'error'" @click="submitAudit">
             提交审核
           </NButton>
         </NSpace>

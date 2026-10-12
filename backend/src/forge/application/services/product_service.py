@@ -261,7 +261,7 @@ class ProductService:
         状态机单向：仅 pending 可审核；approved/rejected 为终态，不可重复审核，
         被驳回商品需编辑保存（内容字段修改）回退 pending 后重新审核。
         """
-        current = (product.audit_status or "pending")
+        current = product.audit_status or "pending"
         if current != "pending":
             raise ProductValidationError(
                 "当前审核状态不可重复审核",

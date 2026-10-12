@@ -466,10 +466,7 @@ const columns: DataTableColumns<any> = [
               h(NSwitch, {
                 size: 'small',
                 value: row.status === 'active',
-                disabled:
-                  row.status === 'deleted' ||
-                  row.status === 'draft' ||
-                  row.audit_status !== 'approved',
+                disabled: row.status === 'deleted' || row.status === 'draft' || row.audit_status !== 'approved',
                 'on-update:value': () => toggleStatus(row)
               }),
               h('span', { style: 'color:var(--n-text-color-3);font-size:12px' }, '上架')
@@ -568,7 +565,12 @@ const columns: DataTableColumns<any> = [
           default: () => [
             h(
               NButton,
-              { size: 'small', quaternary: true, type: 'primary', onClick: () => router.push(`/products/${row.id}?mode=view`) },
+              {
+                size: 'small',
+                quaternary: true,
+                type: 'primary',
+                onClick: () => router.push(`/products/${row.id}?mode=view`)
+              },
               { default: () => '查看' }
             ),
             h(
@@ -831,7 +833,12 @@ onMounted(loadProducts);
       </NSpace>
     </NModal>
 
-    <NModal v-model:show="showAuditModal" preset="card" :title="`商品审核 — #${auditForm.id ?? ''}`" style="width: 480px">
+    <NModal
+      v-model:show="showAuditModal"
+      preset="card"
+      :title="`商品审核 — #${auditForm.id ?? ''}`"
+      style="width: 480px"
+    >
       <NSpace vertical>
         <div class="flex items-center gap-2 text-sm">
           <span class="text-gray-500">当前状态:</span>
@@ -858,11 +865,7 @@ onMounted(loadProducts);
         <div class="text-xs text-gray-400">审核人：当前登录管理员，审核后状态与留痕不可覆盖修改。</div>
         <NSpace justify="end">
           <NButton size="small" @click="showAuditModal = false">取消</NButton>
-          <NButton
-            size="small"
-            :type="auditForm.action === 'approve' ? 'success' : 'error'"
-            @click="submitAudit"
-          >
+          <NButton size="small" :type="auditForm.action === 'approve' ? 'success' : 'error'" @click="submitAudit">
             提交审核
           </NButton>
         </NSpace>
