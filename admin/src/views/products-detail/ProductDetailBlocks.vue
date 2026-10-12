@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { NButton, NFormItem, NInput, NSelect, NSpace, NTag } from 'naive-ui';
+import { VueDraggable } from 'vue-draggable-plus';
 import RichTextEditor from './RichTextEditor.vue';
 
 /**
@@ -63,6 +64,17 @@ const specDrafts = ref<Record<number, { cols: string[]; rows: { id: number; cell
 /** FAQ：一张卡片一对问答（块下标 -> 卡片草稿数组） */
 const faqDrafts = ref<Record<number, { id: number; question: string; answer: string }[]>>({});
 let faqRowSeq = 0;
+/** 拖拽排序进行中标记：拖拽期间挂起 faqCommit，避免输入框 blur 触发 commit 打断排序 */
+let faqDragging = false;
+
+function faqDragStart(): void {
+  faqDragging = true;
+}
+
+function faqDragEnd(i: number): void {
+  faqDragging = false;
+  faqCommit(i);
+}
 
 let specRowSeq = 0;
 
@@ -304,9 +316,7 @@ function specCommit(i: number) {
   if (cols.length === 1) cols.push('值');
   const rows = s.rows
     .map(r => {
-      const cells = r.cells
-        .map((c, j) => (keep[j] ? c.trim() : null))
-        .filter((c): c is string => c !== null);
+      const cells = r.cells.map((c, j) => (keep[j] ? c.trim() : null)).filter((c): c is string => c !== null);
       while (cells.length < cols.length) cells.push('');
       return { id: r.id, cells: cells.slice(0, cols.length) };
     })
@@ -351,6 +361,7 @@ function faqRemove(i: number, j: number): void {
 }
 
 function faqCommit(i: number): void {
+  if (faqDragging) return;
   const arr = (faqDrafts.value[i] || [])
     .map(x => ({ question: x.question.trim(), answer: x.answer.trim() }))
     .filter(x => x.question !== '' || x.answer !== '');
@@ -448,11 +459,7 @@ function faqCommit(i: number): void {
                       placeholder="列名"
                       @blur="specCommit(i)"
                     />
-                    <NSpace
-                      size="small"
-                      :wrap="false"
-                      class="spec-col-ops"
-                    >
+                    <NSpace size="small" :wrap="false" class="spec-col-ops">
                       <NButton
                         size="tiny"
                         quaternary
@@ -582,9 +589,20 @@ function faqCommit(i: number): void {
         <!-- FAQ：一张卡片一对问答 -->
         <template v-else-if="block.type === 'faq'">
           <NFormItem :label="hintMap.faq" :show-feedback="false">
-            <div class="flex flex-col gap-2 mb-2">
+            <VueDraggable
+              v-if="faqState(i).length >= 0"
+              v-model="faqDrafts[i]"
+              item-key="id"
+              handle=".faq-drag-handle"
+              class="flex flex-col gap-2 mb-2"
+              ghost-class="faq-ghost"
+              :animation="150"
+              @start="faqDragStart"
+              @end="faqDragEnd(i)"
+            >
               <div v-for="(item, j) in faqState(i)" :key="item.id" class="faq-card">
                 <div class="flex items-center justify-between mb-1">
+                  <span class="faq-drag-handle" title="拖动调整顺序">⠿</span>
                   <span class="text-xs opacity-40">Q{{ j + 1 }}</span>
                   <NButton
                     size="tiny"
@@ -613,11 +631,11 @@ function faqCommit(i: number): void {
                   @blur="faqCommit(i)"
                 />
               </div>
-              <NSpace size="small">
-                <NButton size="tiny" dashed @click="faqAdd(i)">+ 添加问答</NButton>
-                <span class="text-xs opacity-60">一张卡片一对问答，C 端按顺序渲染</span>
-              </NSpace>
-            </div>
+            </VueDraggable>
+            <NSpace size="small">
+              <NButton size="tiny" dashed @click="faqAdd(i)">+ 添加问答</NButton>
+              <span class="text-xs opacity-60">拖动 ⠿ 调整顺序，C 端按此顺序展示</span>
+            </NSpace>
           </NFormItem>
         </template>
 
@@ -656,6 +674,21 @@ function faqCommit(i: number): void {
   border-radius: 6px;
   padding: 8px 10px;
   background: rgba(128, 128, 128, 0.04);
+}
+/* 拖拽手柄：可抓取指示 + 拖动中的占位卡片 */
+.faq-drag-handle {
+  cursor: grab;
+  color: rgba(128, 128, 128, 0.5);
+  font-size: 12px;
+  line-height: 1;
+  user-select: none;
+}
+.faq-drag-handle:active {
+  cursor: grabbing;
+}
+.faq-ghost {
+  opacity: 0.4;
+  border-style: dashed;
 }
 
 /* 规格表：单元格内容默认居中；行末 +/- 悬浮显示 */
