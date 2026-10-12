@@ -304,11 +304,7 @@ function specCommit(i: number) {
 <template>
   <div>
     <div v-if="local.length" class="flex flex-col gap-3 mb-3">
-      <div
-        v-for="(block, i) in local"
-        :key="i"
-        class="rounded-md border border-[var(--n-border-color)] p-3"
-      >
+      <div v-for="(block, i) in local" :key="i" class="rounded-md border border-[var(--n-border-color)] p-3">
         <div class="flex items-center justify-between gap-2 mb-2">
           <NSpace size="small" align="center">
             <NTag size="small" type="info">{{ i + 1 }} · {{ typeLabel(block.type) }}</NTag>
@@ -335,18 +331,11 @@ function specCommit(i: number) {
         <template v-if="block.type === 'rich_text'">
           <div class="flex items-center justify-between gap-2">
             <div class="text-sm opacity-80">
-              {{ block.html ? (stripHtmlForPreview(block.html) + '…') : '（空）' }}
+              {{ block.html ? stripHtmlForPreview(block.html) + '…' : '（空）' }}
             </div>
             <NSpace size="small">
               <NButton size="small" type="primary" quaternary @click="openRichEditor(i)">富文本编辑</NButton>
-              <NButton
-                v-if="block.html"
-                size="small"
-                quaternary
-                @click="block.html = ''"
-              >
-                清空
-              </NButton>
+              <NButton v-if="block.html" size="small" quaternary @click="block.html = ''">清空</NButton>
             </NSpace>
           </div>
           <NFormItem label="对齐" :show-feedback="false" class="mt-2">
@@ -407,7 +396,10 @@ function specCommit(i: number) {
                         quaternary
                         type="primary"
                         title="在该列右侧插入列"
-                        @click="specInsertCol(i, j); specCommit(i)"
+                        @click="
+                          specInsertCol(i, j);
+                          specCommit(i);
+                        "
                       >
                         ＋
                       </NButton>
@@ -417,13 +409,15 @@ function specCommit(i: number) {
                         type="error"
                         title="删除该列"
                         :disabled="specState(i).cols.length <= 2"
-                        @click="specRemoveCol(i, j); specCommit(i)"
+                        @click="
+                          specRemoveCol(i, j);
+                          specCommit(i);
+                        "
                       >
                         −
                       </NButton>
                     </div>
                   </th>
-                  <th class="border border-[var(--n-border-color)] bg-gray-100 p-1 spec-op-col"></th>
                 </tr>
               </thead>
               <tbody>
@@ -432,7 +426,7 @@ function specCommit(i: number) {
                     <td
                       v-for="(cell, c) in row.cells"
                       :key="c"
-                      class="border border-[var(--n-border-color)] p-1 align-middle"
+                      class="relative border border-[var(--n-border-color)] p-1 align-middle"
                     >
                       <NInput
                         v-model:value="row.cells[c]"
@@ -441,9 +435,13 @@ function specCommit(i: number) {
                         placeholder="值"
                         @blur="specCommit(i)"
                       />
-                    </td>
-                    <td class="border border-[var(--n-border-color)] p-1 align-middle spec-op-col">
-                      <NSpace size="small" :wrap="false" justify="center" class="spec-row-ops">
+                      <NSpace
+                        v-if="c === row.cells.length - 1"
+                        size="small"
+                        :wrap="false"
+                        justify="center"
+                        class="spec-row-ops"
+                      >
                         <NButton
                           size="tiny"
                           quaternary
@@ -458,7 +456,10 @@ function specCommit(i: number) {
                           quaternary
                           type="error"
                           title="删除该行"
-                          @click="specRemoveRow(i, r); specCommit(i)"
+                          @click="
+                            specRemoveRow(i, r);
+                            specCommit(i);
+                          "
                         >
                           −
                         </NButton>
@@ -470,9 +471,20 @@ function specCommit(i: number) {
             </table>
           </div>
           <NSpace size="small" class="mt-2">
-            <NButton size="tiny" dashed @click="specAddCol(i); specCommit(i)">+ 添加列</NButton>
+            <NButton
+              size="tiny"
+              dashed
+              @click="
+                specAddCol(i);
+                specCommit(i);
+              "
+            >
+              + 添加列
+            </NButton>
             <NButton size="tiny" dashed @click="specAddRow(i)">+ 添加行</NButton>
-            <span class="text-xs opacity-60">表头可直接改列名；悬停表头行末显示 ＋/− 增删列，悬停行末显示 ＋/− 增删行</span>
+            <span class="text-xs opacity-60">
+              表头可直接改列名；悬停表头行末显示 ＋/− 增删列，悬停数据行右侧悬浮 ＋/− 增删行
+            </span>
           </NSpace>
         </template>
 
@@ -481,8 +493,22 @@ function specCommit(i: number) {
           <div class="flex flex-col gap-1 mb-2">
             <div v-for="(item, j) in featItems(i)" :key="j" class="flex items-center gap-2">
               <span class="w-4 text-center text-xs opacity-40">{{ j + 1 }}</span>
-              <NInput v-model:value="featItems(i)[j]" placeholder="一条卖点，如：无谷物配方，易消化" @blur="featCommit(i)" />
-              <NButton size="tiny" quaternary type="error" @click="featRemove(i, j); featCommit(i)">删除</NButton>
+              <NInput
+                v-model:value="featItems(i)[j]"
+                placeholder="一条卖点，如：无谷物配方，易消化"
+                @blur="featCommit(i)"
+              />
+              <NButton
+                size="tiny"
+                quaternary
+                type="error"
+                @click="
+                  featRemove(i, j);
+                  featCommit(i);
+                "
+              >
+                删除
+              </NButton>
             </div>
           </div>
           <NSpace size="small">
@@ -542,19 +568,22 @@ function specCommit(i: number) {
 .spec-table td .n-input__input-el {
   text-align: center;
 }
-/* 行末操作列：默认隐藏，悬停行时显示 +/−；按钮去边框 */
-.spec-op-col {
-  width: 76px;
-  white-space: nowrap;
-}
-.spec-op-col .spec-row-ops {
+/* 行末操作层：不占列，绝对定位悬浮在行末单元格之上，悬停行时显示；按钮去边框 */
+.spec-row-ops {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
   opacity: 0;
   transition: opacity 0.15s ease;
+  pointer-events: none;
 }
-.spec-data-row:hover .spec-op-col .spec-row-ops {
+.spec-data-row:hover .spec-row-ops {
   opacity: 1;
+  pointer-events: auto;
 }
-.spec-op-col .n-button {
+.spec-row-ops .n-button {
   border: none;
 }
 /* 列头增删列按钮（列内）：默认隐藏，悬停表头行时淡入 */
