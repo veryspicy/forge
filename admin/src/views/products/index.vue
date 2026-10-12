@@ -350,7 +350,7 @@ const auditForm = ref<{
 function openAuditModal(row: any) {
   auditForm.value = {
     id: row.id,
-    action: row.audit_status === 'approved' ? 'reject' : 'approve',
+    action: 'approve',
     reason: '',
     current: row.audit_status ?? 'pending'
   };
@@ -466,7 +466,10 @@ const columns: DataTableColumns<any> = [
               h(NSwitch, {
                 size: 'small',
                 value: row.status === 'active',
-                disabled: row.status === 'deleted' || row.status === 'draft',
+                disabled:
+                  row.status === 'deleted' ||
+                  row.status === 'draft' ||
+                  row.audit_status !== 'approved',
                 'on-update:value': () => toggleStatus(row)
               }),
               h('span', { style: 'color:var(--n-text-color-3);font-size:12px' }, '上架')
@@ -537,16 +540,18 @@ const columns: DataTableColumns<any> = [
               { size: 'small', bordered: false, type: auditTagType(row.audit_status) },
               { default: () => auditLabel(row) }
             ),
-            h(
-              NButton,
-              {
-                size: 'tiny',
-                quaternary: true,
-                type: 'primary',
-                onClick: () => openAuditModal(row)
-              },
-              { default: () => '审核' }
-            )
+            row.audit_status === 'pending'
+              ? h(
+                  NButton,
+                  {
+                    size: 'tiny',
+                    quaternary: true,
+                    type: 'primary',
+                    onClick: () => openAuditModal(row)
+                  },
+                  { default: () => '审核' }
+                )
+              : null
           ]
         }
       )
@@ -563,7 +568,7 @@ const columns: DataTableColumns<any> = [
           default: () => [
             h(
               NButton,
-              { size: 'small', quaternary: true, type: 'primary', onClick: () => router.push(`/products/${row.id}`) },
+              { size: 'small', quaternary: true, type: 'primary', onClick: () => router.push(`/products/${row.id}?mode=view`) },
               { default: () => '查看' }
             ),
             h(
@@ -633,7 +638,10 @@ async function batchStatus(target: string) {
       status: target
     });
     const data = (res as any)?.data ?? res;
-    message.success(`${t('page.products.statusUpdated')}（${data?.updated ?? 0}）`);
+    const skipped = Array.isArray(data?.skipped) ? data.skipped : [];
+    message.success(
+      `${t('page.products.statusUpdated')}（${data?.updated ?? 0}${skipped.length ? `，${skipped.length} 个未审核商品已跳过` : ''}）`
+    );
     checkedRowKeys.value = [];
     loadProducts();
   } catch (err) {

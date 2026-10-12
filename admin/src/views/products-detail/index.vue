@@ -36,6 +36,8 @@ const { t } = useI18n();
 const router = useRouter();
 const message = useMessage();
 const isEdit = computed(() => !!route.params.id);
+/** 只读预览模式：列表「查看」跳转 ?mode=view，表单全部禁用编辑（PRODUCT-AUDIT-FLOW） */
+const readonly = computed(() => route.query.mode === 'view');
 
 const error = ref('');
 
@@ -77,10 +79,36 @@ function auditTagType(value: string): 'default' | 'success' | 'warning' | 'error
 
 function openAuditModal() {
   auditForm.value = {
-    action: auditInfo.value.audit_status === 'approved' ? 'reject' : 'approve',
+    action: 'approve',
     reason: ''
   };
   showAuditModal.value = true;
+}
+
+/** 只读预览：详情块内容概要文本（PRODUCT-AUDIT-FLOW 只读模式） */
+function blockSummary(b: Record<string, any>): string {
+  const type = String(b.type ?? '');
+  const text = (v: any): string => (v == null || v === '' ? '' : String(v));
+  const firstText = (arr: any[] | undefined, key: string): string =>
+    Array.isArray(arr) && arr.length ? text(arr[0][key]) : '';
+  switch (type) {
+    case 'rich_text':
+      return text(b.html)?.replace(/<[^>]+>/g, '')?.slice(0, 120) || '';
+    case 'image':
+      return Array.isArray(b.images) && b.images.length ? `${b.images.length} 张图片` : '';
+    case 'image_text':
+      return text(b.text)?.slice(0, 120) || '';
+    case 'spec_table':
+      return `${text(b.caption) || '规格表'}（${Array.isArray(b.rows) ? b.rows.length : 0} 行）`;
+    case 'features':
+      return Array.isArray(b.items) ? `${b.items.length} 个卖点` : '';
+    case 'faq':
+      return Array.isArray(b.items) ? `${b.items.length} 个 FAQ` : '';
+    case 'video':
+      return text(b.url)?.slice(0, 80) || '';
+    default:
+      return firstText(b.items, 'title') || text(b.caption) || '';
+  }
 }
 
 async function submitAudit() {
@@ -960,7 +988,7 @@ async function reloadVariants() {
   <div class="flex flex-col gap-4">
     <div class="flex items-center justify-between">
       <h2 class="text-lg font-semibold m-0">
-        {{ isEdit ? t('common.edit') + ' ' + t('common.product') : t('common.new') + ' ' + t('common.product') }}
+        {{ isEdit ? (readonly ? t('common.view') : t('common.edit')) + ' ' + t('common.product') : t('common.new') + ' ' + t('common.product') }}
       </h2>
       <NButton @click="$router.push('/products')">{{ $t('common.backToList') }}</NButton>
     </div>
@@ -1000,27 +1028,28 @@ async function reloadVariants() {
       <NCard :title="$t('common.basicInfo')" size="small" class="md:col-span-2">
         <NGrid :cols="2" :x-gap="16" :y-gap="12" responsive="screen">
           <NGi span="1 m:2">
-            <NFormItem :label="$t('common.sku')" required><NInput v-model:value="form.sku" /></NFormItem>
+            <NFormItem :label="$t('common.sku')" required><NInput v-model:value="form.sku" :disabled="readonly" /></NFormItem>
           </NGi>
           <NGi span="1 m:2">
             <NFormItem :label="$t('common.name')" required>
               <NInput
                 v-model:value="displayName"
+                :disabled="readonly"
                 :placeholder="currentLang !== 'zh-cn' ? `基准：${form.name || '（空）'}` : ''"
               />
             </NFormItem>
           </NGi>
           <NGi span="1">
-            <NFormItem :label="$t('page.productsDetail.slug')"><NInput v-model:value="form.slug" /></NFormItem>
+            <NFormItem :label="$t('page.productsDetail.slug')"><NInput v-model:value="form.slug" :disabled="readonly" /></NFormItem>
           </NGi>
           <NGi span="1">
             <NFormItem :label="$t('page.products.category')">
-              <NSelect v-model:value="form.category" :options="categoryOptions" />
+              <NSelect v-model:value="form.category" :options="categoryOptions" :disabled="readonly" />
             </NFormItem>
           </NGi>
           <NGi span="1">
             <NFormItem label="履约模式">
-              <NSelect v-model:value="form.fulfillment_mode" :options="fulfillmentOptions" />
+              <NSelect v-model:value="form.fulfillment_mode" :options="fulfillmentOptions" :disabled="readonly" />
             </NFormItem>
           </NGi>
           <NGi v-if="form.fulfillment_mode === 'dropship'" span="1">
@@ -1031,12 +1060,13 @@ async function reloadVariants() {
                 placeholder="选择供应商"
                 clearable
                 filterable
+                :disabled="readonly"
               />
             </NFormItem>
           </NGi>
           <NGi v-if="form.fulfillment_mode === 'dropship'" span="1">
             <NFormItem label="供应商 SKU">
-              <NInput v-model:value="form.supplier_sku" placeholder="供应商侧货号（可选）" />
+              <NInput v-model:value="form.supplier_sku" placeholder="供应商侧货号（可选）" :disabled="readonly" />
             </NFormItem>
           </NGi>
           <NGi span="1">
@@ -1047,6 +1077,7 @@ async function reloadVariants() {
                 placeholder="选择规格模板"
                 clearable
                 filterable
+                :disabled="readonly"
               />
             </NFormItem>
           </NGi>
@@ -1058,6 +1089,7 @@ async function reloadVariants() {
                 placeholder="选择品牌"
                 clearable
                 filterable
+                :disabled="readonly"
               />
             </NFormItem>
           </NGi>
@@ -1069,6 +1101,7 @@ async function reloadVariants() {
                 placeholder="选择分类（二级树）"
                 clearable
                 filterable
+                :disabled="readonly"
               />
             </NFormItem>
           </NGi>
@@ -1078,6 +1111,7 @@ async function reloadVariants() {
                 v-model:value="displayDesc"
                 type="textarea"
                 :rows="3"
+                :disabled="readonly"
                 :placeholder="currentLang !== 'zh-cn' ? `基准：${form.description || '（空）'}` : ''"
               />
             </NFormItem>
@@ -1103,34 +1137,42 @@ async function reloadVariants() {
               <span class="mr-1">审核备注:</span>{{ auditInfo.audit_reason }}
             </div>
           </div>
-          <NButton v-if="isEdit" size="small" type="primary" secondary @click="openAuditModal">审核</NButton>
+          <NButton
+            v-if="isEdit && auditInfo.audit_status === 'pending' && !readonly"
+            size="small"
+            type="primary"
+            secondary
+            @click="openAuditModal"
+          >
+            审核
+          </NButton>
         </div>
       </NCard>
 
       <!-- Pricing -->
       <NCard :title="$t('page.pricing.title')" size="small">
         <NFormItem :label="$t('page.products.price')">
-          <NInputNumber v-model:value="form.price" :min="0" :step="0.01" style="width: 100%" />
+          <NInputNumber v-model:value="form.price" :min="0" :step="0.01" style="width: 100%" :disabled="readonly" />
         </NFormItem>
         <NFormItem :label="$t('common.cost')">
-          <NInputNumber v-model:value="form.cost" :min="0" :step="0.01" style="width: 100%" />
+          <NInputNumber v-model:value="form.cost" :min="0" :step="0.01" style="width: 100%" :disabled="readonly" />
         </NFormItem>
       </NCard>
 
       <!-- Inventory -->
       <NCard :title="$t('common.inventory')" size="small">
         <NFormItem :label="$t('page.productsDetail.inventory')">
-          <NInputNumber v-model:value="form.inventory" :min="0" style="width: 100%" />
+          <NInputNumber v-model:value="form.inventory" :min="0" style="width: 100%" :disabled="readonly" />
         </NFormItem>
         <NFormItem :label="$t('page.productsDetail.aiGenerated')">
-          <NSwitch v-model:value="form.is_ai_generated" />
+          <NSwitch v-model:value="form.is_ai_generated" :disabled="readonly" />
         </NFormItem>
       </NCard>
 
       <!-- Tags -->
       <NCard title="标签" size="small" class="md:col-span-2">
         <NFormItem :label="$t('page.productsDetail.tagsComma')">
-          <NInput v-model:value="tagsString" @update:value="updateTags" />
+          <NInput v-model:value="tagsString" :disabled="readonly" @update:value="updateTags" />
         </NFormItem>
       </NCard>
 
@@ -1149,6 +1191,7 @@ async function reloadVariants() {
               v-model="images"
               :item-key="(item: any) => item.key || item.url"
               :animation="150"
+              :disabled="readonly"
               ghost-class="opacity-40"
               @end="onImagesDrop"
             >
@@ -1168,6 +1211,7 @@ async function reloadVariants() {
                     <NImage :src="img.url" width="140" height="140" style="object-fit: cover" />
                     <NTag v-if="img.isMain" size="tiny" type="success" class="absolute top-0.5 left-0.5">主图</NTag>
                     <NButton
+                      v-if="!readonly"
                       class="absolute top-0.5 right-0.5"
                       size="tiny"
                       circle
@@ -1188,7 +1232,7 @@ async function reloadVariants() {
 
         <!-- 选中图片操作条：alt / 设主图 / 裁剪 / 删除 -->
         <div
-          v-if="selectedIdx !== null && images[selectedIdx]"
+          v-if="!readonly && selectedIdx !== null && images[selectedIdx]"
           class="mb-4 flex flex-wrap items-center gap-2 rounded border border-blue-200 bg-blue-50 px-3 py-2 dark:border-blue-500/30 dark:bg-blue-500/10"
         >
           <span class="text-xs font-medium text-blue-600 dark:text-blue-300">已选中图片 #{{ selectedIdx + 1 }}</span>
@@ -1217,11 +1261,11 @@ async function reloadVariants() {
             accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml,image/bmp"
             :show-file-list="false"
             :custom-request="handleUpload"
-            :disabled="uploading"
+            :disabled="uploading || readonly"
           >
             <NButton :loading="uploading">{{ $t('common.uploadImages') }}</NButton>
           </NUpload>
-          <span v-if="isEdit" class="text-xs opacity-60">
+          <span v-if="isEdit && !readonly" class="text-xs opacity-60">
             {{ imagesSaving ? '正在自动保存…' : '拖拽排序、选中操作均自动保存' }}
           </span>
         </NSpace>
@@ -1235,16 +1279,32 @@ async function reloadVariants() {
 
       <!-- Structured detail blocks（当前编辑语言下编辑；zh-cn 为基准块，其他语言写入 detail_blocks_translations） -->
       <NCard title="商品详情块（结构化）" size="small" class="md:col-span-2">
-        <ProductDetailBlocks v-model:value="activeBlocks" />
-        <div v-if="currentLang !== 'zh-cn'" class="mt-2 text-xs opacity-60">
-          当前编辑语言块（C 端按语言整组回退基准语言）
-        </div>
+        <template v-if="readonly">
+          <div v-if="!activeBlocks.length" class="text-xs opacity-60">无详情块</div>
+          <div
+            v-for="(b, i) in activeBlocks"
+            :key="i"
+            class="mb-2 rounded border border-[var(--n-border-color)] px-3 py-2"
+          >
+            <div class="flex items-center gap-2">
+              <NTag size="small">{{ String(b.type ?? 'block') }}</NTag>
+              <span class="text-sm font-medium">{{ String(b.title ?? '') }}</span>
+            </div>
+            <div class="mt-1 text-xs opacity-70">{{ blockSummary(b) || '（无内容）' }}</div>
+          </div>
+        </template>
+        <template v-else>
+          <ProductDetailBlocks v-model:value="activeBlocks" />
+          <div v-if="currentLang !== 'zh-cn'" class="mt-2 text-xs opacity-60">
+            当前编辑语言块（C 端按语言整组回退基准语言）
+          </div>
+        </template>
       </NCard>
 
       <!-- Variants（编辑模式走独立接口，新建模式随商品创建一并上传） -->
       <NCard title="变体管理 Variants" size="small" class="md:col-span-2">
         <div class="mb-3">
-          <NButton size="small" type="primary" @click="openVariantModal()">新增变体</NButton>
+          <NButton v-if="!readonly" size="small" type="primary" @click="openVariantModal()">新增变体</NButton>
         </div>
         <NTable v-if="variants.length" size="small" :bordered="true" :single-line="false">
           <thead>
@@ -1272,8 +1332,10 @@ async function reloadVariants() {
               <td>{{ v.is_default ? '✓' : '' }}</td>
               <td>
                 <NSpace size="small">
-                  <NButton size="tiny" @click="openVariantModal(v)">编辑</NButton>
-                  <NButton size="tiny" type="error" @click="deleteVariant(v.id)">删除</NButton>
+                  <template v-if="!readonly">
+                    <NButton size="tiny" @click="openVariantModal(v)">编辑</NButton>
+                    <NButton size="tiny" type="error" @click="deleteVariant(v.id)">删除</NButton>
+                  </template>
                 </NSpace>
               </td>
             </tr>
@@ -1388,6 +1450,7 @@ async function reloadVariants() {
               maxlength="200"
               show-count
               clearable
+              :disabled="readonly"
             />
           </div>
           <div>
@@ -1399,6 +1462,7 @@ async function reloadVariants() {
               maxlength="300"
               show-count
               clearable
+              :disabled="readonly"
             />
           </div>
           <div>
@@ -1407,10 +1471,11 @@ async function reloadVariants() {
               v-model:value="displaySeoKeywords"
               placeholder="逗号分隔，例如：宠物,猫粮,狗玩具"
               clearable
+              :disabled="readonly"
             />
           </div>
           <div class="flex gap-2 items-center">
-            <template v-if="currentLang === 'zh-cn' && isEdit">
+            <template v-if="currentLang === 'zh-cn' && isEdit && !readonly">
               <NButton size="small" type="primary" :loading="seoSaving" @click="saveSeo">保存 SEO</NButton>
               <NButton size="small" :loading="seoLoading" @click="loadSeoScore">重新评分</NButton>
             </template>
@@ -1457,7 +1522,7 @@ async function reloadVariants() {
       </NCard>
 
       <!-- Danger Zone (edit only) -->
-      <NCard v-if="isEdit" :title="$t('common.dangerZone')" size="small" class="md:col-span-2">
+      <NCard v-if="isEdit && !readonly" :title="$t('common.dangerZone')" size="small" class="md:col-span-2">
         <NSpace>
           <NSelect
             v-model:value="statusChange"
@@ -1474,7 +1539,7 @@ async function reloadVariants() {
     </div>
 
     <div class="flex justify-end">
-      <NButton type="primary" :loading="saving" @click="save">{{ $t('common.save') }}</NButton>
+      <NButton v-if="!readonly" type="primary" :loading="saving" @click="save">{{ $t('common.save') }}</NButton>
     </div>
 
     <NModal v-model:show="showAuditModal" preset="card" title="商品审核" style="width: 480px">

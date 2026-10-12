@@ -25,6 +25,34 @@ from forge.infrastructure.persistence.repositories.product_repo import (
 )
 
 VALID_STATUSES = {"draft", "active", "inactive", "deleted"}
+# 审核内容字段（PRODUCT-AUDIT-FLOW 联动）：命中任一字段的内容修改均需重新审核。
+# 元数据字段（is_ai_generated/is_new/is_recommend/sort_order 等）不在此列，不触发回退。
+CONTENT_AUDIT_FIELDS = {
+    "sku",
+    "name",
+    "name_translations",
+    "slug",
+    "category",
+    "category_id",
+    "brand_id",
+    "product_type_id",
+    "description",
+    "description_translations",
+    "price",
+    "cost",
+    "inventory",
+    "fulfillment_mode",
+    "supplier_id",
+    "supplier_sku",
+    "tags",
+    "images",
+    "detail_blocks",
+    "detail_blocks_translations",
+    "seo_title",
+    "seo_description",
+    "seo_keywords",
+    "seo_translations",
+}
 ALLOWED_IMAGE_MIME = {"image/jpeg", "image/png", "image/webp"}
 MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
 
@@ -157,6 +185,14 @@ class ProductService:
 
     @staticmethod
     async def update_product(db: AsyncSession, product: ORMProduct, data: dict[str, Any]) -> ORMProduct:
+        # PRODUCT-AUDIT-FLOW 联动：内容字段被修改后回退待审核（pending），
+        # 并清空审核留痕，需重新审核通过后方可上架。
+        if ProductService._needs_reaudit(data) and (product.audit_status or "pending") != "pending":
+            data["audit_status"] = "pending"
+            data["audit_by"] = None
+            data["audited_at"] = None
+            data["audit_reason"] = None
+
         errors = ProductService._validate_base(data, partial=True)
         errors.update(ProductService._validate_active_gate(data, existing=product))
         if errors:
@@ -200,6 +236,13 @@ class ProductService:
                 "非法状态值",
                 {"status": f"status 必须为 {sorted(VALID_STATUSES)} 之一"},
             )
+        # PRODUCT-AUDIT-FLOW 联动：上架（active）必须审核通过（approved），
+        # 未审核/被驳回的商品禁止上架；驳回已上架商品不自动下架（驳回仅影响审核态）。
+        if status == "active" and (product.audit_status or "pending") != "approved":
+            raise ProductValidationError(
+                "商品未通过审核，无法上架",
+                {"audit_status": "审核通过（approved）后才能上架"},
+            )
         return await SQLAlchemyProductRepository.set_status(db, product, status)
 
     @staticmethod
@@ -215,7 +258,15 @@ class ProductService:
         - approve：状态置 approved，reason 可选（记入审核备注）
         - reject：状态置 rejected，reason 必填（供上传方整改）
         审核人与时间随每次审核落库，可追溯（PRODUCT-AUDIT-FLOW）。
+        状态机单向：仅 pending 可审核；approved/rejected 为终态，不可重复审核，
+        被驳回商品需编辑保存（内容字段修改）回退 pending 后重新审核。
         """
+        current = (product.audit_status or "pending")
+        if current != "pending":
+            raise ProductValidationError(
+                "当前审核状态不可重复审核",
+                {"audit_status": f"仅待审核（pending）商品可审核，当前为 {current}"},
+            )
         action = (action or "").strip().lower()
         if action not in {"approve", "reject"}:
             raise ProductValidationError(
@@ -239,6 +290,11 @@ class ProductService:
         product.audit_by = reviewer
         product.audited_at = datetime.now(UTC)
         return product
+
+    @staticmethod
+    def _needs_reaudit(data: dict[str, Any]) -> bool:
+        """判断本次更新是否命中审核内容字段（PRODUCT-AUDIT-FLOW 联动）。"""
+        return any(key in CONTENT_AUDIT_FIELDS for key in data)
 
     @staticmethod
     def normalize_images(
