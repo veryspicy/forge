@@ -588,7 +588,7 @@ function faqCommit(i: number): void {
 
         <!-- FAQ：一张卡片一对问答 -->
         <template v-else-if="block.type === 'faq'">
-          <NFormItem :label="hintMap.faq" :show-feedback="false">
+          <NFormItem :label="hintMap.faq" :show-feedback="false" class="faq-editor">
             <NSpace size="small" class="mb-2">
               <NButton size="tiny" dashed @click="faqAdd(i)">+ 添加问答</NButton>
               <span class="text-xs opacity-60">拖动 ⠿ 调整顺序，C 端按此顺序展示</span>
@@ -668,6 +668,11 @@ function faqCommit(i: number): void {
 </template>
 
 <style scoped>
+/* FAQ 编辑区：内容纵向堆叠，按钮行固定在块标题下、卡片顶部 */
+.faq-editor :deep(.n-form-item-blank) {
+  flex-direction: column;
+  align-items: stretch;
+}
 /* FAQ 列表：flex 横排 + 自动换行，卡片数量随容器宽度动态调整 */
 .faq-list {
   align-items: stretch;
