@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import Any
 
@@ -126,9 +127,10 @@ class SQLAlchemyProductRepository:
         return list(result.scalars().all())
 
     @staticmethod
-    async def list_by_ids(db: AsyncSession, ids: list[str]) -> list[ORMProduct]:
+    async def list_by_ids(db: AsyncSession, ids: Sequence[int | str]) -> list[ORMProduct]:
         """按 ID 批量查询，用于批量状态变更。"""
-        result = await db.execute(select(ORMProduct).where(ORMProduct.id.in_(ids)))
+        numeric_ids = [int(i) for i in ids]
+        result = await db.execute(select(ORMProduct).where(ORMProduct.id.in_(numeric_ids)))
         return list(result.scalars().all())
 
     @staticmethod
