@@ -453,7 +453,7 @@ function specCommit(i: number) {
                           quaternary
                           type="primary"
                           title="在该行下方插入行"
-                          @click="specInsertRow(i, r); specCommit(i)"
+                          @click="specInsertRow(i, r)"
                         >
                           ＋
                         </NButton>
