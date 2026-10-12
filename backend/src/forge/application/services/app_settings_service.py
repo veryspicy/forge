@@ -28,9 +28,7 @@ async def get_all_settings(db: AsyncSession) -> dict[str, Any]:
 
 async def get_setting(db: AsyncSession, key: str, default: Any = None) -> Any:
     """读取单个设置，未配置时返回 default。"""
-    row = (
-        await db.execute(select(ORMAppSetting).where(ORMAppSetting.key == key))
-    ).scalar_one_or_none()
+    row = (await db.execute(select(ORMAppSetting).where(ORMAppSetting.key == key))).scalar_one_or_none()
     return row.value if row is not None else default
 
 
@@ -41,9 +39,7 @@ async def set_setting(
     updated_by: str | None = None,
 ) -> ORMAppSetting:
     """写入单个设置（存在则更新，不存在则插入）。"""
-    row = (
-        await db.execute(select(ORMAppSetting).where(ORMAppSetting.key == key))
-    ).scalar_one_or_none()
+    row = (await db.execute(select(ORMAppSetting).where(ORMAppSetting.key == key))).scalar_one_or_none()
     if row is None:
         row = ORMAppSetting(key=key, value=value, updated_by=updated_by)
         db.add(row)
