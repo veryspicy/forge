@@ -1,7 +1,8 @@
-"""Unit tests for Admin Settings API (stub implementation: GET only)."""
+"""Unit tests for Admin Settings API (app_settings 表读写)."""
 
 from __future__ import annotations
 
+from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID
 
 from forge.main import dependencies
@@ -9,7 +10,11 @@ from forge.main import dependencies
 
 def _setup_auth(test_client):
     async def _fake_get_db():
-        yield None
+        db = AsyncMock()
+        result = MagicMock()
+        result.scalars.return_value.all.return_value = []
+        db.execute.return_value = result
+        yield db
 
     async def _fake_admin():
         return {"id": UUID("d290f1ee-6c54-4b01-90e6-d701748f0851"), "role": "super_admin", "roles": ["super_admin"]}
