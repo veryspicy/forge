@@ -386,7 +386,7 @@ function specCommit(i: number) {
         <!-- 规格表：所见即所得表格编辑 -->
         <template v-else-if="block.type === 'spec_table'">
           <div class="overflow-x-auto">
-            <table class="w-full border-collapse text-sm">
+            <table class="spec-table w-full border-collapse text-sm">
               <thead>
                 <tr>
                   <th
@@ -423,6 +423,7 @@ function specCommit(i: number) {
                       </NButton>
                     </div>
                   </th>
+                  <th class="border border-[var(--n-border-color)] bg-gray-100 p-1 spec-op-col"></th>
                 </tr>
               </thead>
               <tbody>
@@ -441,13 +442,8 @@ function specCommit(i: number) {
                         @blur="specCommit(i)"
                       />
                     </td>
-                  </tr>
-                  <tr class="spec-row-ops">
-                    <td
-                      :colspan="specState(i).cols.length"
-                      class="spec-row-ops-cell"
-                    >
-                      <NSpace size="small" :wrap="false" class="spec-row-ops-btns">
+                    <td class="border border-[var(--n-border-color)] p-1 align-middle spec-op-col">
+                      <NSpace size="small" :wrap="false" justify="center">
                         <NButton
                           size="tiny"
                           quaternary
@@ -476,7 +472,7 @@ function specCommit(i: number) {
           <NSpace size="small" class="mt-2">
             <NButton size="tiny" dashed @click="specAddCol(i); specCommit(i)">+ 添加列</NButton>
             <NButton size="tiny" dashed @click="specAddRow(i)">+ 添加行</NButton>
-            <span class="text-xs opacity-60">表头可直接改列名，列头 ＋/− 增删列；鼠标移到行间边框出现 ＋/− 增删行</span>
+            <span class="text-xs opacity-60">表头可直接改列名，列头 ＋/− 增删列；行末 ＋/− 增删行</span>
           </NSpace>
         </template>
 
@@ -537,33 +533,17 @@ function specCommit(i: number) {
 </template>
 
 <style scoped>
-/* 规格表：行操作条默认隐藏，仅当鼠标悬停到上一数据行或行间轨道时显示 */
-.spec-row-ops {
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.12s ease;
+/* 规格表：单元格内容默认居中；行末固定操作列 */
+.spec-table th,
+.spec-table td {
+  text-align: center;
 }
-.spec-data-row:hover + .spec-row-ops,
-.spec-row-ops:hover {
-  opacity: 1;
-  pointer-events: auto;
+.spec-table th .n-input__input-el,
+.spec-table td .n-input__input-el {
+  text-align: center;
 }
-.spec-row-ops-cell {
-  height: 10px;
-  padding: 0;
-  position: relative;
-  border: none;
-}
-.spec-row-ops-btns {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  /* 默认不可命中，避免透明区域误触；轨道可见时恢复命中 */
-  pointer-events: none;
-}
-.spec-row-ops:hover .spec-row-ops-btns,
-.spec-data-row:hover + .spec-row-ops .spec-row-ops-btns {
-  pointer-events: auto;
+.spec-op-col {
+  width: 76px;
+  white-space: nowrap;
 }
 </style>
