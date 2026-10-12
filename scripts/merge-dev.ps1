@@ -43,21 +43,34 @@ function Fail {
 function Invoke-Git {
     # PS 5.1: native command stderr under $ErrorActionPreference='Stop' raises
     # NativeCommandError and aborts the script (git fetch/push print to stderr).
+    # Capture both streams as text, print plainly, and return the exit code so
+    # callers never depend on $LASTEXITCODE being stable across pipelines.
     param([Parameter(ValueFromRemainingArguments = $true)][string[]]$GitArgs)
     $prev = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
     try {
-        & git @GitArgs 2>&1 | Out-Host
-        return $LASTEXITCODE
+        $lines = & git @GitArgs 2>&1
+        $code = $LASTEXITCODE
+        foreach ($line in $lines) {
+            if ($line -is [System.Management.Automation.ErrorRecord]) {
+                Write-Host $line.ToString()
+            } else {
+                Write-Host $line
+            }
+        }
+        $script:LastGitOutput = ($lines | ForEach-Object {
+            if ($_ -is [System.Management.Automation.ErrorRecord]) { $_.ToString() } else { $_ }
+        }) -join "`n"
+        return $code
     } finally {
         $ErrorActionPreference = $prev
     }
 }
 
 function Get-GitHubToken {
-    # Read PAT from git credential manager (same channel git uses)
-    $inputLines = "protocol=https`nhost=github.com`n"
-    $out = $inputLines | git credential fill 2>$null
+    # Read PAT from Git Credential Manager (git credential fill is unreliable
+    # on PS 5.1; GCM subcommand is the supported channel).
+    $out = @('protocol=https', 'host=github.com', '') | git credential-manager get 2>$null
     $pw = ($out | Where-Object { $_ -like 'password=*' }) -replace '^password=', ''
     if (-not $pw) { return $null }
     return $pw.Trim()
@@ -77,18 +90,25 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host '[merge-dev] Gate passed.' -ForegroundColor Green
 
 # ---------- sync & merge ----------
-Invoke-Git fetch origin | Out-Null
+$rc = Invoke-Git fetch origin
+if ($rc -ne 0) { Fail 'fetch origin failed during sync.' }
 $localDev = git rev-parse dev
 $originDev = git rev-parse origin/dev
 if ($localDev -ne $originDev) {
     Write-Host "[merge-dev] Fast-forwarding local dev to origin/dev ($($originDev.Substring(0,7)))..."
-    Invoke-Git checkout dev | Out-Null
-    Invoke-Git merge --ff-only origin/dev | Out-Null
-    if ($LASTEXITCODE -ne 0) { Fail 'Could not fast-forward dev to origin/dev.' }
+    $rc = Invoke-Git checkout dev
+    if ($rc -ne 0) { Fail 'checkout dev failed.' }
+    $rc = Invoke-Git merge --ff-only origin/dev
+    if ($rc -ne 0) { Fail 'Could not fast-forward dev to origin/dev.' }
 }
-Invoke-Git checkout dev | Out-Null
-Invoke-Git merge --no-ff $Branch -m "Merge $Branch into dev" | Out-Null
-if ($LASTEXITCODE -ne 0) {
+$rc = Invoke-Git checkout dev
+if ($rc -ne 0) { Fail 'checkout dev failed.' }
+$currentBranch = git branch --show-current
+if ($currentBranch -ne 'dev') {
+    Fail "Expected to be on 'dev' but on '$currentBranch'. Merge aborted - nothing changed."
+}
+$rc = Invoke-Git merge --no-ff $Branch -m "Merge $Branch into dev"
+if ($rc -ne 0) {
     Write-Host '[merge-dev] Merge conflicts detected. Resolve manually, do NOT run merge-dev again.' -ForegroundColor Yellow
     Fail 'Merge conflict. See git status.'
 }
@@ -117,13 +137,13 @@ if ($SkipPush) {
 
 # ---------- push ----------
 Write-Host '[merge-dev] Pushing dev to origin...'
-Invoke-Git push origin dev | Out-Null
-if ($LASTEXITCODE -ne 0) { Fail 'Push to origin/dev failed.' }
+$rc = Invoke-Git push origin dev
+if ($rc -ne 0) { Fail 'Push to origin/dev failed.' }
 
 # ---------- post-push sync check ----------
 # PS 5.1 can truncate push output; verify local dev and origin/dev actually match.
-Invoke-Git fetch origin | Out-Null
-if ($LASTEXITCODE -ne 0) { Fail 'fetch origin failed during post-push sync check.' }
+$rc = Invoke-Git fetch origin
+if ($rc -ne 0) { Fail 'fetch origin failed during post-push sync check.' }
 $localDev = git rev-parse dev
 $originDev = git rev-parse origin/dev
 if ($localDev -ne $originDev) {
