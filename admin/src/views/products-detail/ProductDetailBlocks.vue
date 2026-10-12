@@ -443,7 +443,7 @@ function specCommit(i: number) {
                       />
                     </td>
                     <td class="border border-[var(--n-border-color)] p-1 align-middle spec-op-col">
-                      <NSpace size="small" :wrap="false" justify="center">
+                      <NSpace size="small" :wrap="false" justify="center" class="spec-row-ops">
                         <NButton
                           size="tiny"
                           quaternary
@@ -472,7 +472,7 @@ function specCommit(i: number) {
           <NSpace size="small" class="mt-2">
             <NButton size="tiny" dashed @click="specAddCol(i); specCommit(i)">+ 添加列</NButton>
             <NButton size="tiny" dashed @click="specAddRow(i)">+ 添加行</NButton>
-            <span class="text-xs opacity-60">表头可直接改列名，列头 ＋/− 增删列；行末 ＋/− 增删行</span>
+            <span class="text-xs opacity-60">表头可直接改列名，列头 ＋/− 增删列；悬停行末显示 ＋/− 增删行</span>
           </NSpace>
         </template>
 
@@ -533,7 +533,7 @@ function specCommit(i: number) {
 </template>
 
 <style scoped>
-/* 规格表：单元格内容默认居中；行末固定操作列 */
+/* 规格表：单元格内容默认居中；行末 +/- 悬浮显示 */
 .spec-table th,
 .spec-table td {
   text-align: center;
@@ -542,8 +542,16 @@ function specCommit(i: number) {
 .spec-table td .n-input__input-el {
   text-align: center;
 }
+/* 行末操作列：默认隐藏，悬停行时显示 +/− */
 .spec-op-col {
   width: 76px;
   white-space: nowrap;
+}
+.spec-op-col .spec-row-ops {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.spec-data-row:hover .spec-op-col .spec-row-ops {
+  opacity: 1;
 }
 </style>
