@@ -594,7 +594,7 @@ function faqCommit(i: number): void {
               v-model="faqDrafts[i]"
               item-key="id"
               handle=".faq-drag-handle"
-              class="flex flex-col gap-2 mb-2"
+              class="faq-list flex flex-row flex-wrap gap-2 mb-2"
               ghost-class="faq-ghost"
               :animation="150"
               @start="faqDragStart"
@@ -668,8 +668,14 @@ function faqCommit(i: number): void {
 </template>
 
 <style scoped>
+/* FAQ 列表：横向排列、一行三张、自动换行 */
+.faq-list {
+  align-items: stretch;
+}
 /* FAQ 卡片：一张卡片承载一对问答 */
 .faq-card {
+  flex: 0 0 calc((100% - 16px) / 3);
+  min-width: 220px;
   border: 1px solid rgba(128, 128, 128, 0.24);
   border-radius: 6px;
   padding: 8px 10px;
