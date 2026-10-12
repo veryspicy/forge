@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { NButton, NFormItem, NInput, NSelect, NSpace, NTag } from 'naive-ui';
+import { VueDraggable } from 'vue-draggable-plus';
 import RichTextEditor from './RichTextEditor.vue';
 
 /**
@@ -14,6 +15,7 @@ import RichTextEditor from './RichTextEditor.vue';
  * - rich_text：富文本 Tiptap 所见即所得 + Markdown 源码双模式（RichTextEditor.vue）
  * - features：卖点一行一条，逐行编辑
  * - spec_table：轻量表格编辑（列头 + 单元格，支持多列）
+ * - faq：卡片式编辑，一张卡片一对问答（问题 + 答案分栏）
  */
 
 type Block = Record<string, any>;
@@ -44,7 +46,7 @@ const layoutOptions = [
 
 const hintMap: Record<string, string> = {
   image: '每行一个图片 URL',
-  faq: '每行 `问题|答案`'
+  faq: '一张卡片一对问答，问题与答案分栏填写'
 };
 
 const local = ref<Block[]>([]);
@@ -58,6 +60,21 @@ const featDrafts = ref<Record<number, string[]>>({});
 
 /** 规格表：列头与单元格草稿（块下标 -> { cols: string[]; rows: { id: number; cells: string[] }[] }） */
 const specDrafts = ref<Record<number, { cols: string[]; rows: { id: number; cells: string[] }[] }>>({});
+
+/** FAQ：一张卡片一对问答（块下标 -> 卡片草稿数组） */
+const faqDrafts = ref<Record<number, { id: number; question: string; answer: string }[]>>({});
+let faqRowSeq = 0;
+/** 拖拽排序进行中标记：拖拽期间挂起 faqCommit，避免输入框 blur 触发 commit 打断排序 */
+let faqDragging = false;
+
+function faqDragStart(): void {
+  faqDragging = true;
+}
+
+function faqDragEnd(i: number): void {
+  faqDragging = false;
+  faqCommit(i);
+}
 
 let specRowSeq = 0;
 
@@ -79,6 +96,7 @@ watch(
     drafts.value = {};
     featDrafts.value = {};
     specDrafts.value = {};
+    faqDrafts.value = {};
   },
   { immediate: true, deep: true }
 );
@@ -150,6 +168,7 @@ function remove(i: number): void {
   drafts.value = {};
   featDrafts.value = {};
   specDrafts.value = {};
+  faqDrafts.value = {};
 }
 
 function move(i: number, delta: number): void {
@@ -160,12 +179,14 @@ function move(i: number, delta: number): void {
   arr[i] = arr[j];
   arr[j] = tmp;
   drafts.value = {};
+  faqDrafts.value = {};
 }
 
 function changeType(i: number, type: string): void {
   const title = local.value[i]?.title;
   local.value[i] = { type, ...(title ? { title } : {}) };
   drafts.value = {};
+  faqDrafts.value = {};
 }
 
 /* ---------------- 富文本 ---------------- */
@@ -295,9 +316,7 @@ function specCommit(i: number) {
   if (cols.length === 1) cols.push('值');
   const rows = s.rows
     .map(r => {
-      const cells = r.cells
-        .map((c, j) => (keep[j] ? c.trim() : null))
-        .filter((c): c is string => c !== null);
+      const cells = r.cells.map((c, j) => (keep[j] ? c.trim() : null)).filter((c): c is string => c !== null);
       while (cells.length < cols.length) cells.push('');
       return { id: r.id, cells: cells.slice(0, cols.length) };
     })
@@ -312,6 +331,42 @@ function specCommit(i: number) {
   local.value[i].columns = cols.length ? cols : undefined;
   local.value[i].rows = rows;
   Reflect.deleteProperty(specDrafts.value, i);
+}
+
+/* ---------------- FAQ：一张卡片一对问答 ---------------- */
+
+function faqState(i: number): { id: number; question: string; answer: string }[] {
+  const d = faqDrafts.value[i];
+  if (d) return d;
+  const block = local.value[i] || {};
+  const items = Array.isArray(block.items) ? block.items : [];
+  const arr = items.map((x: any) => {
+    const obj = x && typeof x === 'object' ? x : { question: String(x ?? ''), answer: '' };
+    return { id: ++faqRowSeq, question: String(obj.question ?? ''), answer: String(obj.answer ?? '') };
+  });
+  faqDrafts.value[i] = arr;
+  return arr;
+}
+
+function faqAdd(i: number): void {
+  const arr = faqState(i);
+  arr.push({ id: ++faqRowSeq, question: '', answer: '' });
+  faqDrafts.value[i] = [...arr];
+}
+
+function faqRemove(i: number, j: number): void {
+  const arr = faqState(i);
+  arr.splice(j, 1);
+  faqDrafts.value[i] = [...arr];
+}
+
+function faqCommit(i: number): void {
+  if (faqDragging) return;
+  const arr = (faqDrafts.value[i] || [])
+    .map(x => ({ question: x.question.trim(), answer: x.answer.trim() }))
+    .filter(x => x.question !== '' || x.answer !== '');
+  if (local.value[i]) local.value[i].items = arr;
+  Reflect.deleteProperty(faqDrafts.value, i);
 }
 </script>
 
@@ -404,11 +459,7 @@ function specCommit(i: number) {
                       placeholder="列名"
                       @blur="specCommit(i)"
                     />
-                    <NSpace
-                      size="small"
-                      :wrap="false"
-                      class="spec-col-ops"
-                    >
+                    <NSpace size="small" :wrap="false" class="spec-col-ops">
                       <NButton
                         size="tiny"
                         quaternary
@@ -535,16 +586,56 @@ function specCommit(i: number) {
           </NSpace>
         </template>
 
-        <!-- FAQ -->
+        <!-- FAQ：一张卡片一对问答 -->
         <template v-else-if="block.type === 'faq'">
-          <NFormItem :label="hintMap.faq" :show-feedback="false">
-            <NInput
-              type="textarea"
-              :rows="4"
-              :value="arrText(i, 'items')"
-              @update:value="(v: string) => setDraft(i, 'items', v)"
-              @blur="commitDraft(i, 'items')"
-            />
+          <NFormItem :label="hintMap.faq" :show-feedback="false" class="faq-editor">
+            <NSpace size="small" class="mb-2">
+              <NButton size="tiny" dashed @click="faqAdd(i)">+ 添加问答</NButton>
+              <span class="text-xs opacity-60">拖动 ⠿ 调整顺序，C 端按此顺序展示</span>
+            </NSpace>
+            <VueDraggable
+              v-if="faqState(i).length >= 0"
+              v-model="faqDrafts[i]"
+              item-key="id"
+              handle=".faq-drag-handle"
+              class="faq-list flex flex-row flex-wrap gap-2 mb-2"
+              ghost-class="faq-ghost"
+              :animation="150"
+              @start="faqDragStart"
+              @end="faqDragEnd(i)"
+            >
+              <div v-for="(item, j) in faqState(i)" :key="item.id" class="faq-card">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="faq-drag-handle" title="拖动调整顺序">⠿</span>
+                  <span class="text-xs opacity-40">Q{{ j + 1 }}</span>
+                  <NButton
+                    size="tiny"
+                    quaternary
+                    type="error"
+                    title="删除该问答"
+                    @click="
+                      faqRemove(i, j);
+                      faqCommit(i);
+                    "
+                  >
+                    −
+                  </NButton>
+                </div>
+                <NInput
+                  v-model:value="faqState(i)[j].question"
+                  placeholder="问题，如：这款猫粮适合幼猫吗？"
+                  @blur="faqCommit(i)"
+                />
+                <NInput
+                  v-model:value="faqState(i)[j].answer"
+                  type="textarea"
+                  :rows="2"
+                  placeholder="答案"
+                  class="mt-1"
+                  @blur="faqCommit(i)"
+                />
+              </div>
+            </VueDraggable>
           </NFormItem>
         </template>
 
@@ -577,6 +668,41 @@ function specCommit(i: number) {
 </template>
 
 <style scoped>
+/* FAQ 编辑区：内容纵向堆叠，按钮行固定在块标题下、卡片顶部 */
+.faq-editor :deep(.n-form-item-blank) {
+  flex-direction: column;
+  align-items: stretch;
+}
+/* FAQ 列表：flex 横排 + 自动换行，卡片数量随容器宽度动态调整 */
+.faq-list {
+  align-items: stretch;
+}
+/* FAQ 卡片：宽度随内容与容器伸缩；窄屏自动变单列 */
+.faq-card {
+  flex: 1 1 280px;
+  min-width: 240px;
+  max-width: 400px;
+  border: 1px solid rgba(128, 128, 128, 0.24);
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: rgba(128, 128, 128, 0.04);
+}
+/* 拖拽手柄：可抓取指示 + 拖动中的占位卡片 */
+.faq-drag-handle {
+  cursor: grab;
+  color: rgba(128, 128, 128, 0.5);
+  font-size: 12px;
+  line-height: 1;
+  user-select: none;
+}
+.faq-drag-handle:active {
+  cursor: grabbing;
+}
+.faq-ghost {
+  opacity: 0.4;
+  border-style: dashed;
+}
+
 /* 规格表：单元格内容默认居中；行末 +/- 悬浮显示 */
 .spec-table th,
 .spec-table td {
