@@ -13,6 +13,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from forge.application.services.app_settings_service import is_product_audit_enabled
 from forge.infrastructure.persistence.models import ORMProduct, ORMProductVariant
 from forge.infrastructure.persistence.repositories.catalog_repo import (
     BrandRepository,
@@ -185,9 +186,13 @@ class ProductService:
 
     @staticmethod
     async def update_product(db: AsyncSession, product: ORMProduct, data: dict[str, Any]) -> ORMProduct:
-        # PRODUCT-AUDIT-FLOW 联动：内容字段被修改后回退待审核（pending），
-        # 并清空审核留痕，需重新审核通过后方可上架。
-        if ProductService._needs_reaudit(data) and (product.audit_status or "pending") != "pending":
+        # PRODUCT-AUDIT-FLOW 联动：审核开启时，内容字段修改回退待审核（pending）
+        # 并清空审核留痕，需重新审核通过后方可上架；审核开关关闭（默认）时跳过。
+        if (
+            await is_product_audit_enabled(db)
+            and ProductService._needs_reaudit(data)
+            and (product.audit_status or "pending") != "pending"
+        ):
             data["audit_status"] = "pending"
             data["audit_by"] = None
             data["audited_at"] = None
@@ -236,9 +241,14 @@ class ProductService:
                 "非法状态值",
                 {"status": f"status 必须为 {sorted(VALID_STATUSES)} 之一"},
             )
-        # PRODUCT-AUDIT-FLOW 联动：上架（active）必须审核通过（approved），
-        # 未审核/被驳回的商品禁止上架；驳回已上架商品不自动下架（驳回仅影响审核态）。
-        if status == "active" and (product.audit_status or "pending") != "approved":
+        # PRODUCT-AUDIT-FLOW 联动：审核开启时，上架（active）必须审核通过（approved），
+        # 未审核/被驳回的商品禁止上架；审核开关关闭（默认）时允许直接上架。
+        # 驳回已上架商品不自动下架（驳回仅影响审核态）。
+        if (
+            status == "active"
+            and await is_product_audit_enabled(db)
+            and (product.audit_status or "pending") != "approved"
+        ):
             raise ProductValidationError(
                 "商品未通过审核，无法上架",
                 {"audit_status": "审核通过（approved）后才能上架"},
@@ -261,6 +271,11 @@ class ProductService:
         状态机单向：仅 pending 可审核；approved/rejected 为终态，不可重复审核，
         被驳回商品需编辑保存（内容字段修改）回退 pending 后重新审核。
         """
+        if not await is_product_audit_enabled(db):
+            raise ProductValidationError(
+                "审核功能已关闭",
+                {"audit_status": "商品审核开关未开启，无需审核"},
+            )
         current = product.audit_status or "pending"
         if current != "pending":
             raise ProductValidationError(

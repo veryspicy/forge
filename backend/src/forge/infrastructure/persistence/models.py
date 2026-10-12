@@ -51,6 +51,7 @@ __all__ = [
     "ORMSiteProfile",
     "ORMResource",
     "ORMResourceRef",
+    "ORMAppSetting",
 ]
 
 
@@ -1065,6 +1066,33 @@ class ORMSystemConfig(Base):
             "key": self.key,
             "value": self.value or {},
             "is_secret": bool(self.is_secret),
+            "updated_by": self.updated_by,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class ORMAppSetting(Base):
+    """应用级运行期设置（KV）。
+
+    用于存放可在 Admin 后台修改、且需持久化的业务开关/配置，
+    如商品审核开关（``product_audit_enabled``）。
+
+    - key: 配置键（如 ``product_audit_enabled``），主键
+    - value: 配置值（JSON 可序列化：布尔 / 数字 / 字符串 / 对象）
+    """
+
+    __tablename__ = "app_settings"
+
+    key = Column(String(100), primary_key=True)
+    value = Column(JSONB, nullable=False, default=dict)
+    updated_by = Column(String(100), nullable=True)
+    created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+    updated_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "key": self.key,
+            "value": self.value,
             "updated_by": self.updated_by,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

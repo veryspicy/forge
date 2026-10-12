@@ -13,6 +13,7 @@ const localSettings = reactive({
   currency: 'USD',
   region: 'AE',
   language: 'en',
+  product_audit_enabled: false,
   order_settings: {
     auto_review: false,
     max_items_per_order: 10,
@@ -132,6 +133,14 @@ onMounted(loadSettings);
           <NFormItem :label="$t('page.settings.expiryHours')">
             <NInputNumber v-model:value="localSettings.order_settings.expiry_hours" :min="1" style="width: 100%" />
           </NFormItem>
+        </NCard>
+
+        <!-- Product Audit Switch（PRODUCT-AUDIT-FLOW 开关化） -->
+        <NCard title="商品审核" size="small" class="md:col-span-2">
+          <div class="flex items-center justify-between">
+            <span class="text-sm text-gray-500">启用商品发布审核流程（默认关闭，对齐自营单商家模式）</span>
+            <NSwitch v-model:value="localSettings.product_audit_enabled" />
+          </div>
         </NCard>
 
         <!-- Notifications -->

@@ -59,6 +59,18 @@ const auditForm = ref<{ action: 'approve' | 'reject'; reason: string }>({
   reason: ''
 });
 
+// 商品审核开关（PRODUCT-AUDIT-FLOW 开关化）：关闭（默认）时隐藏审核信息卡与审核入口
+const auditEnabled = ref(false);
+
+async function loadAuditSwitch() {
+  try {
+    const res = await get('/api/admin/v1/settings/');
+    auditEnabled.value = !!((res as any)?.data?.product_audit_enabled ?? false);
+  } catch {
+    auditEnabled.value = false;
+  }
+}
+
 function auditLabel(value: string): string {
   const map: Record<string, string> = {
     pending: '待审核',
@@ -543,6 +555,7 @@ function updateTags() {
 }
 
 onMounted(async () => {
+  loadAuditSwitch();
   loadCatalogOptions();
   loadSuppliers();
   if (!isEdit.value) return;
@@ -1151,8 +1164,8 @@ async function reloadVariants() {
         </NGrid>
       </NCard>
 
-      <!-- Product Audit -->
-      <NCard title="商品审核" size="small" class="md:col-span-2">
+      <!-- Product Audit（PRODUCT-AUDIT-FLOW 开关化：关闭时整卡隐藏） -->
+      <NCard v-if="auditEnabled" title="商品审核" size="small" class="md:col-span-2">
         <div class="flex items-center justify-between">
           <div class="flex flex-col gap-2">
             <div class="flex items-center gap-3">

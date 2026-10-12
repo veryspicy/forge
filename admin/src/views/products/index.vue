@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, h } from 'vue';
+import { ref, computed, onMounted, h } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import {
@@ -48,6 +48,18 @@ const importResult = ref<{
   failed: number;
   errors: Array<{ row: number; sku: string; error: string }>;
 } | null>(null);
+
+// 商品审核开关（PRODUCT-AUDIT-FLOW 开关化）：关闭（默认）时列表彻底隐藏审核列/审核按钮
+const auditEnabled = ref(false);
+
+async function loadAuditSwitch() {
+  try {
+    const res = await get('/api/admin/v1/settings/');
+    auditEnabled.value = !!((res as any)?.data?.product_audit_enabled ?? false);
+  } catch {
+    auditEnabled.value = false;
+  }
+}
 
 // SKU 抽屉状态
 const showSkuDrawer = ref(false);
@@ -399,7 +411,7 @@ async function updateSortOrder(row: any, value: number | null) {
   }
 }
 
-const columns: DataTableColumns<any> = [
+const baseColumns: DataTableColumns<any> = [
   { type: 'selection', width: 40 },
   { title: '编号', key: 'id', width: 80, render: row => h('span', { style: 'color: var(--n-text-color-3)' }, row.id) },
   {
@@ -466,7 +478,7 @@ const columns: DataTableColumns<any> = [
               h(NSwitch, {
                 size: 'small',
                 value: row.status === 'active',
-                disabled: row.status === 'deleted' || row.status === 'draft' || row.audit_status !== 'approved',
+                disabled: row.status === 'deleted' || row.status === 'draft' || (auditEnabled.value && row.audit_status !== 'approved'),
                 'on-update:value': () => toggleStatus(row)
               }),
               h('span', { style: 'color:var(--n-text-color-3);font-size:12px' }, '上架')
@@ -522,8 +534,11 @@ const columns: DataTableColumns<any> = [
       )
   },
   { title: '销量', key: 'sales', width: 80, render: row => row.sales ?? 0 },
-  {
-    title: '审核状态',
+];
+
+// 审核状态列：仅在商品审核开关开启时注入列表（PRODUCT-AUDIT-FLOW 开关化）
+const auditStatusColumn: DataTableColumns<any>[number] = {
+  title: '审核状态',
     key: 'audit_status',
     width: 110,
     render: row =>
@@ -552,9 +567,11 @@ const columns: DataTableColumns<any> = [
           ]
         }
       )
-  },
-  {
-    title: t('page.suppliers.actions'),
+};
+
+// 操作列：恒展示
+const actionsColumn: DataTableColumns<any>[number] = {
+  title: t('page.suppliers.actions'),
     key: 'actions',
     width: 190,
     render: row =>
@@ -592,8 +609,16 @@ const columns: DataTableColumns<any> = [
           ]
         }
       )
+};
+
+const columns = computed<DataTableColumns<any>>(() => {
+  const cols: DataTableColumns<any> = [...baseColumns];
+  if (auditEnabled.value) {
+    cols.push(auditStatusColumn);
   }
-];
+  cols.push(actionsColumn);
+  return cols;
+});
 
 async function loadProducts() {
   loading.value = true;
@@ -706,7 +731,10 @@ async function onImportFile(event: Event) {
   }
 }
 
-onMounted(loadProducts);
+onMounted(() => {
+  loadAuditSwitch();
+  loadProducts();
+});
 </script>
 
 <template>
