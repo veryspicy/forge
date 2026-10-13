@@ -586,13 +586,18 @@ const actionsColumn: DataTableColumns<any>[number] = {
                 size: 'small',
                 quaternary: true,
                 type: 'primary',
-                onClick: () => router.push(`/products/${row.id}?mode=view`)
+                onClick: () => window.open(`/products/${row.id}`, '_blank', 'noopener')
               },
               { default: () => '查看' }
             ),
             h(
               NButton,
-              { size: 'small', quaternary: true, type: 'primary', onClick: () => router.push(`/products/${row.id}`) },
+              {
+                size: 'small',
+                quaternary: true,
+                type: 'primary',
+                onClick: () => router.push(`/products/${row.id}?mode=view`)
+              },
               { default: () => t('common.edit') }
             ),
             h(
