@@ -882,8 +882,59 @@ function removeTranslation(k: string) {
         </NButton>
       </div>
 
+      <!-- 0. 店铺设置 -->
+      <div v-if="activeConfigKey === 'store'" class="flex flex-col gap-3">
+        <FieldLabel
+          label="店铺名称"
+          name="brand.name"
+          type="string"
+          range="≤ 50 字符"
+          example="Forge"
+          desc="店铺名称（品牌名），全局展示于页头/页脚及浏览器标题。"
+        />
+        <NInput v-model:value="config.brand.name" placeholder="请输入店铺名称" />
+        <FieldLabel
+          label="默认货币"
+          name="currencies[0]"
+          type="string (ISO 4217)"
+          range="3 位大写字母代码"
+          example="USD"
+          desc="默认结算/展示货币；与货币面板第一个货币保持一致。"
+        />
+        <NInput v-model:value="config.currencies[0]" placeholder="默认货币代码 (如 USD, CNY, EUR)" />
+        <FieldLabel
+          label="默认语言"
+          name="i18n.defaultLocale"
+          type="string"
+          range="en / zh / de / fr / ar"
+          example="en"
+          desc="站点默认展示语言，与 i18n 多语言面板的默认语言联动。"
+        />
+        <NSelect v-model:value="config.i18n.defaultLocale" :options="localeOptions" size="small" />
+        <FieldLabel
+          label="销售区域"
+          name="regions[]"
+          type="array<string>"
+          range="两位大写国家/地区代码"
+          example="['US','EU','CN']"
+          desc="允许销售/配送的国家或地区代码列表。"
+        />
+        <div v-for="(region, idx) in config.regions" :key="idx" class="flex items-center gap-2">
+          <ConfigCard content-padding="6px 10px" class="flex-1">
+            <NInput v-model:value="config.regions[idx]" size="small" placeholder="区域代码 (如 US, EU, CN)" />
+          </ConfigCard>
+          <NButton size="tiny" quaternary type="error" class="shrink-0" @click="config.regions.splice(idx, 1)">
+            <template #icon><SvgIcon icon="mdi:close" /></template>
+          </NButton>
+        </div>
+        <NButton size="small" dashed @click="config.regions.push('')">
+          <template #icon><SvgIcon icon="mdi:plus" /></template>
+          添加区域
+        </NButton>
+      </div>
+
       <!-- 1. 品牌配置 -->
-      <div v-if="activeConfigKey === 'brand'" class="flex flex-col gap-3">
+      <div v-else-if="activeConfigKey === 'brand'" class="flex flex-col gap-3">
         <!-- 品牌预览卡片：Logo + 品牌名称/标语 -->
         <ConfigCard title="品牌预览">
           <div class="flex items-center gap-3">
@@ -2198,6 +2249,102 @@ function removeTranslation(k: string) {
           />
           <NButton size="small" class="shrink-0" @click="addFlag">添加</NButton>
         </div>
+      </div>
+
+      <!-- 信任标识 -->
+      <div v-else-if="activeConfigKey === 'trustBadges'" class="flex flex-col gap-3">
+        <FieldLabel
+          label="信任标识"
+          name="trustBadges.<block>.<field>"
+          type="boolean | number"
+          range="enabled: true|false；threshold/days: 非负整数"
+          example="{ freeShipping: { enabled: true, threshold: 50 } }"
+          desc="C 端商品详情/购物车/订单展示的信任保障标识；免邮阈值读 freeShipping.threshold。"
+        />
+        <ConfigCard title="免邮服务" content-padding="12px">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-sm text-gray-700 dark:text-gray-200">启用免邮（满额免运费）</span>
+            <NSwitch v-model:value="config.trustBadges.freeShipping.enabled" />
+          </div>
+          <div
+            class="mt-2 flex items-center justify-between gap-2"
+            :class="{ 'pointer-events-none opacity-40': !config.trustBadges.freeShipping.enabled }"
+          >
+            <span class="text-sm text-gray-600 dark:text-gray-300">免邮阈值（金额）</span>
+            <NInputNumber v-model:value="config.trustBadges.freeShipping.threshold" size="small" :min="0" />
+          </div>
+        </ConfigCard>
+        <ConfigCard title="退换货保障" content-padding="12px">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-sm text-gray-700 dark:text-gray-200">启用退换货保障</span>
+            <NSwitch v-model:value="config.trustBadges.returns.enabled" />
+          </div>
+          <div
+            class="mt-2 flex items-center justify-between gap-2"
+            :class="{ 'pointer-events-none opacity-40': !config.trustBadges.returns.enabled }"
+          >
+            <span class="text-sm text-gray-600 dark:text-gray-300">退换货天数</span>
+            <NInputNumber v-model:value="config.trustBadges.returns.days" size="small" :min="1" />
+          </div>
+        </ConfigCard>
+        <ConfigCard title="安全结账" content-padding="12px">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-sm text-gray-700 dark:text-gray-200">启用安全结账标识</span>
+            <NSwitch v-model:value="config.trustBadges.secureCheckout.enabled" />
+          </div>
+        </ConfigCard>
+      </div>
+
+      <!-- 商品审核 -->
+      <div v-else-if="activeConfigKey === 'productAudit'" class="flex flex-col gap-3">
+        <FieldLabel
+          label="商品审核开关"
+          name="productAudit.enabled"
+          type="boolean"
+          range="true | false"
+          example="false"
+          desc="开启后，新商品需经管理员审核通过后才在前台可见。"
+        />
+        <ConfigCard content-padding="8px 12px">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-sm text-gray-700 dark:text-gray-200">商品审核</span>
+            <NSwitch v-model:value="config.productAudit.enabled" />
+          </div>
+        </ConfigCard>
+      </div>
+
+      <!-- 订单设置 -->
+      <div v-else-if="activeConfigKey === 'orderSettings'" class="flex flex-col gap-3">
+        <FieldLabel
+          label="订单设置"
+          name="orderSettings.<field>"
+          type="boolean | number | string"
+          range="见各字段说明"
+          example="{ autoReview: false, maxItemsPerOrder: 10 }"
+          desc="订单流程相关配置；autoReview 开启后订单自动确认，无需人工审核。"
+        />
+        <ConfigCard title="订单基础设置" content-padding="12px">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-sm text-gray-700 dark:text-gray-200">自动确认订单（免人工审核）</span>
+            <NSwitch v-model:value="config.orderSettings.autoReview" />
+          </div>
+          <div class="mt-2 flex items-center justify-between gap-2">
+            <span class="text-sm text-gray-600 dark:text-gray-300">单笔订单商品上限</span>
+            <NInputNumber v-model:value="config.orderSettings.maxItemsPerOrder" size="small" :min="1" />
+          </div>
+          <div class="mt-2 flex items-center justify-between gap-2">
+            <span class="text-sm text-gray-600 dark:text-gray-300">默认结算货币</span>
+            <NInput v-model:value="config.orderSettings.defaultCurrency" size="small" placeholder="USD" />
+          </div>
+          <div class="mt-2 flex items-center justify-between gap-2">
+            <span class="text-sm text-gray-600 dark:text-gray-300">订单号前缀</span>
+            <NInput v-model:value="config.orderSettings.orderPrefix" size="small" placeholder="PAI" />
+          </div>
+          <div class="mt-2 flex items-center justify-between gap-2">
+            <span class="text-sm text-gray-600 dark:text-gray-300">订单有效时长（小时）</span>
+            <NInputNumber v-model:value="config.orderSettings.expiryHours" size="small" :min="1" />
+          </div>
+        </ConfigCard>
       </div>
 
       <!-- 10. 商品排序 -->

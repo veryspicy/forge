@@ -4,6 +4,7 @@ import { get as httpGet, put as httpPut } from '@/service/api/helper';
 
 /** 站点配置项的 key 列表（按用户需求排序） */
 export const SITE_CONFIG_ITEMS = [
+  { key: 'store', label: '店铺设置', icon: 'mdi:store' },
   { key: 'brand', label: '品牌', icon: 'mdi:tag-text' },
   { key: 'theme', label: '主题', icon: 'mdi:palette' },
   { key: 'navigation', label: '导航', icon: 'mdi:menu' },
@@ -13,6 +14,9 @@ export const SITE_CONFIG_ITEMS = [
   { key: 'seo', label: 'SEO', icon: 'mdi:magnify' },
   { key: 'i18n', label: 'i18n 多语言', icon: 'mdi:translate' },
   { key: 'featureFlags', label: '功能开关', icon: 'mdi:toggle-switch' },
+  { key: 'trustBadges', label: '信任标识', icon: 'mdi:shield-check' },
+  { key: 'productAudit', label: '商品审核', icon: 'mdi:clipboard-check-outline' },
+  { key: 'orderSettings', label: '订单设置', icon: 'mdi:cart-cog' },
   { key: 'products', label: '商品排序', icon: 'mdi:sort' },
   { key: 'currencies', label: '货币', icon: 'mdi:cash' }
 ] as const;
@@ -302,6 +306,29 @@ const DEFAULT_SITE_CONFIG = {
     default_sort: 'default'
   } as { default_sort: string },
   currencies: ['USD'] as string[],
+  trustBadges: {
+    freeShipping: { enabled: true, threshold: 50 },
+    returns: { enabled: true, days: 30 },
+    secureCheckout: { enabled: true }
+  } as {
+    freeShipping: { enabled: boolean; threshold: number };
+    returns: { enabled: boolean; days: number };
+    secureCheckout: { enabled: boolean };
+  },
+  productAudit: { enabled: false } as { enabled: boolean },
+  orderSettings: {
+    autoReview: false,
+    maxItemsPerOrder: 10,
+    defaultCurrency: 'USD',
+    orderPrefix: 'PAI',
+    expiryHours: 24
+  } as {
+    autoReview: boolean;
+    maxItemsPerOrder: number;
+    defaultCurrency: string;
+    orderPrefix: string;
+    expiryHours: number;
+  },
   homeHero: {
     useCarousel: false,
     hero: {
