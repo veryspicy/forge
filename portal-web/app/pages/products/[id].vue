@@ -146,21 +146,21 @@
             </button>
           </div>
 
-          <!-- Trust Badges -->
-          <div class="mt-6 grid grid-cols-3 gap-2 text-center">
-            <div class="flex flex-col items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-2.5">
+          <!-- Trust Badges（店铺级配置渲染：app_settings.trust_badges） -->
+          <div v-if="anyTrustBadgeEnabled" class="mt-6 grid gap-2 text-center" :class="trustBadgeGridClass">
+            <div v-if="trustFreeShippingEnabled" class="flex flex-col items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-2.5">
               <svg class="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h8m-8 0a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm8 0a2 2 0 1 0 4 0 2 2 0 0 0-4 0zm-8 3v6m8-6v6m-10 0h12a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2z" />
               </svg>
-              <span class="text-xs font-medium text-gray-700">{{ $t('products.trustFreeShipping') }}</span>
+              <span class="text-xs font-medium text-gray-700">{{ freeShippingText }}</span>
             </div>
-            <div class="flex flex-col items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-2.5">
+            <div v-if="trustReturnsEnabled" class="flex flex-col items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-2.5">
               <svg class="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v6h6M20 20v-6h-6M4 16a8 8 0 0 0 14.1 2.5M20 8A8 8 0 0 0 5.9 5.5" />
               </svg>
-              <span class="text-xs font-medium text-gray-700">{{ $t('products.trustReturns') }}</span>
+              <span class="text-xs font-medium text-gray-700">{{ returnsText }}</span>
             </div>
-            <div class="flex flex-col items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-2.5">
+            <div v-if="trustSecureEnabled" class="flex flex-col items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-2.5">
               <svg class="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm7-3a7 7 0 1 1-14 0 7 7 0 0 1 14 0z" />
               </svg>
@@ -307,6 +307,31 @@ const relatedProducts = ref<any[]>([])
 const productReviews = ref<any[]>([])
 const reviewsLoading = ref(false)
 const reviewSummary = ref<any>(null)
+
+// Trust Badges 店铺级配置（app_settings.trust_badges，由详情接口随 product 下发）
+const trustBadges = computed(() => (product.value?.trust_badges as any) ?? null)
+const trustFreeShippingEnabled = computed(() => trustBadges.value?.free_shipping?.enabled !== false)
+const trustFreeShippingThreshold = computed(() => Number(trustBadges.value?.free_shipping?.threshold ?? 50))
+const trustReturnsEnabled = computed(() => trustBadges.value?.returns?.enabled !== false)
+const trustReturnsDays = computed(() => Number(trustBadges.value?.returns?.days ?? 30))
+const trustSecureEnabled = computed(() => trustBadges.value?.secure_checkout?.enabled !== false)
+const anyTrustBadgeEnabled = computed(
+  () => trustFreeShippingEnabled.value || trustReturnsEnabled.value || trustSecureEnabled.value
+)
+const trustBadgeGridClass = computed(() => {
+  const n = [trustFreeShippingEnabled.value, trustReturnsEnabled.value, trustSecureEnabled.value].filter(Boolean).length
+  if (n <= 1) return 'grid-cols-1'
+  if (n === 2) return 'grid-cols-2'
+  return 'grid-cols-3'
+})
+const freeShippingText = computed(() => {
+  const price = Number(product.value?.price ?? 0)
+  const threshold = trustFreeShippingThreshold.value
+  return price >= threshold
+    ? t('products.trustFreeShipping')
+    : t('products.trustFreeShippingOver', { threshold })
+})
+const returnsText = computed(() => t('products.trustReturnsDays', { days: trustReturnsDays.value }))
 
 // 语言映射：C 端 locale(zh/en/ar/de/fr) → 后端翻译 key（zh-cn/es/de 等）
 const backendLocaleKey = computed(() => {

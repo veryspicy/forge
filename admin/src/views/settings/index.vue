@@ -14,6 +14,11 @@ const localSettings = reactive({
   region: 'AE',
   language: 'en',
   product_audit_enabled: false,
+  trust_badges: {
+    free_shipping: { enabled: true, threshold: 50 },
+    returns: { enabled: true, days: 30 },
+    secure_checkout: { enabled: true }
+  },
   order_settings: {
     auto_review: false,
     max_items_per_order: 10,
@@ -53,6 +58,11 @@ async function loadSettings() {
         admin_email: '',
         order_alerts: true,
         ...res.data.notifications
+      };
+      localSettings.trust_badges = {
+        free_shipping: { enabled: true, threshold: 50, ...res.data.trust_badges?.free_shipping },
+        returns: { enabled: true, days: 30, ...res.data.trust_badges?.returns },
+        secure_checkout: { enabled: true, ...res.data.trust_badges?.secure_checkout }
       };
     }
   } catch (e) {
@@ -110,6 +120,48 @@ onMounted(loadSettings);
               </NFormItem>
             </NGi>
           </NGrid>
+
+          <!-- Trust Badges（店铺级信任标识配置，随站点配置保存） -->
+          <div class="mt-4 border-t pt-4">
+            <div class="mb-3 text-sm font-medium">Trust Badges</div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div class="flex flex-col gap-2">
+                <div class="flex h-8 items-center justify-between">
+                  <span class="text-sm">Free Shipping</span>
+                  <NSwitch v-model:value="localSettings.trust_badges.free_shipping.enabled" />
+                </div>
+                <NFormItem label="免邮阈值 ($)">
+                  <NInputNumber
+                    v-model:value="localSettings.trust_badges.free_shipping.threshold"
+                    :min="0"
+                    style="width: 100%"
+                  />
+                </NFormItem>
+              </div>
+              <div class="flex flex-col gap-2">
+                <div class="flex h-8 items-center justify-between">
+                  <span class="text-sm">Returns</span>
+                  <NSwitch v-model:value="localSettings.trust_badges.returns.enabled" />
+                </div>
+                <NFormItem label="退换天数">
+                  <NInputNumber
+                    v-model:value="localSettings.trust_badges.returns.days"
+                    :min="0"
+                    style="width: 100%"
+                  />
+                </NFormItem>
+              </div>
+              <div class="flex flex-col gap-2">
+                <div class="flex h-8 items-center justify-between">
+                  <span class="text-sm">Secure Checkout</span>
+                  <NSwitch v-model:value="localSettings.trust_badges.secure_checkout.enabled" />
+                </div>
+                <NFormItem label=" ">
+                  <div class="h-8" aria-hidden="true"></div>
+                </NFormItem>
+              </div>
+            </div>
+          </div>
         </NCard>
 
         <!-- Order Settings -->

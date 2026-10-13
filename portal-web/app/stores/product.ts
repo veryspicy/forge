@@ -58,6 +58,12 @@ interface Product {
   main_image?: string;
   image_details?: ProductImageDetail[];
   suitable_for?: string[];
+  /** 店铺级信任标识配置（app_settings.trust_badges，仅详情接口返回） */
+  trust_badges?: {
+    free_shipping?: { enabled?: boolean; threshold?: number };
+    returns?: { enabled?: boolean; days?: number };
+    secure_checkout?: { enabled?: boolean };
+  };
 }
 
 interface ProductFilters {

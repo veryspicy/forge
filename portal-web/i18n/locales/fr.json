@@ -207,7 +207,9 @@
     "addToCartFailed": "Échec de l'ajout au panier, veuillez réessayer.",
     "detailsTitle": "Détails du produit",
     "trustFreeShipping": "Livraison gratuite",
+    "trustFreeShippingOver": "Livraison gratuite dès ${threshold}",
     "trustReturns": "Retours 30 jours",
+    "trustReturnsDays": "Retours sous {days} jours",
     "trustSecure": "Paiement sécurisé",
     "videoNotSupported": "Votre navigateur ne prend pas en charge la lecture vidéo."
   },

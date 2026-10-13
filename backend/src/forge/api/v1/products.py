@@ -11,6 +11,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from forge.application.services.app_settings_service import get_trust_badges
 from forge.infrastructure.persistence.models import ORMProduct
 from forge.infrastructure.persistence.repositories.product_repo import SQLAlchemyProductRepository
 from forge.infrastructure.persistence.repositories.site_profile_repo import SQLAlchemySiteProfileRepository
@@ -197,6 +198,8 @@ async def get_public_product(
     if product is None or product.status != "active":
         raise HTTPException(status_code=404, detail="Product not found")
     data = _public_item(product.to_dict(), detail=True)
+    # 信任标识配置（店铺级）：C 端详情页渲染 Free Shipping / Returns / Secure Checkout 徽章
+    data["trust_badges"] = await get_trust_badges(db)
     # 变体（含展示名多语言）：C 端变体选择器消费
     variants = await SQLAlchemyProductRepository.list_variants(db, int(product.id))
     data["variants"] = [_public_variant(v.to_dict()) for v in variants]

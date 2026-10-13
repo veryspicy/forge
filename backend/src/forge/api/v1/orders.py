@@ -28,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from forge.api.errors import APIError, ErrorCode
 from forge.api.v1.auth import get_current_user
+from forge.application.services.app_settings_service import get_free_shipping_threshold
 from forge.application.services.payment_gateway import get_payment_gateway
 from forge.infrastructure.persistence.models import ORMOrder, ORMShipment
 from forge.infrastructure.persistence.repositories.order_repo import (
@@ -229,12 +230,14 @@ async def create_order(
     """创建订单：服务端计价快照 + 扣减库存；状态 pending(unpaid)，随后经 pay 接口支付。"""
     owner_id = await _current_owner_id(user_claims, db)
     lines: list[dict[str, object]] = [{"product_id": it.product_id, "quantity": it.quantity} for it in payload.items]
+    free_shipping_threshold = await get_free_shipping_threshold(db)
     order = await SQLAlchemyCustomerOrderRepository.create_order(
         db,
         owner_id,
         lines,
         payload.shipping_address,
         payment_method=payload.payment_method,
+        free_shipping_threshold=free_shipping_threshold,
     )
     await db.commit()
     await db.refresh(order, attribute_names=["items"])

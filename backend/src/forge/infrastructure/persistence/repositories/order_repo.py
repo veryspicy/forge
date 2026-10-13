@@ -320,7 +320,6 @@ _DELETABLE_STATUSES = {"delivered", "cancelled"}
 _EDITABLE_SHIPPING_STATUSES = {"pending", "confirmed", "processing"}
 # Admin review flow guard (stored statuses are lowercase)
 _ADMIN_REVIEWABLE_STATUSES = {"confirmed"}
-_FREE_SHIPPING_THRESHOLD = 50
 _FLAT_SHIPPING = 5
 _DEFAULT_CURRENCY = "USD"
 # 履约模式（PLAN-DUAL-FULFILLMENT）：self=自采购（占本地库存）；dropship=一件代发（不占本地库存）
@@ -598,8 +597,11 @@ class SQLAlchemyCustomerOrderRepository:
         lines: list[dict[str, object]],
         shipping_address: dict[str, object] | None,
         payment_method: str | None = None,
+        free_shipping_threshold: Decimal | None = None,
     ) -> ORMOrder:
         """Create an order with server-side price snapshots and inventory deduction.
+
+        free_shipping_threshold: 店铺级免邮阈值（app_settings.trust_badges）；None 表示免邮关闭。
 
         Raises:
             APIError: PRODUCT_UNAVAILABLE / INSUFFICIENT_STOCK / ORDER_EMPTY on validation failure.
@@ -687,7 +689,14 @@ class SQLAlchemyCustomerOrderRepository:
             if item_mode != _FULFILLMENT_DROPSHIP and product.inventory is not None:
                 product.inventory = cast(Any, product.inventory - quantity)
 
-        shipping_cost = Decimal("0") if subtotal > _FREE_SHIPPING_THRESHOLD else Decimal(str(_FLAT_SHIPPING))
+        # 免邮判定：None 表示免邮关闭；阈值有效且小计超过阈值才免邮（与 cart.py 保持一致）
+        shipping_cost = (
+            Decimal("0")
+            if free_shipping_threshold is not None
+            and free_shipping_threshold > 0
+            and subtotal > free_shipping_threshold
+            else Decimal(str(_FLAT_SHIPPING))
+        )
         order.subtotal = cast(Any, subtotal)
         order.shipping_cost = cast(Any, shipping_cost)
         order.total = cast(Any, subtotal + shipping_cost)
