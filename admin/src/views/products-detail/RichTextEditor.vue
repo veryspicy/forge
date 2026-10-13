@@ -277,11 +277,12 @@ function openPreview() {
 </template>
 
 <style scoped>
-/* 富文本编辑/预览内容媒体约束：图片/视频限宽 640 保持比例居中，不随窗口放大 */
+/* 富文本编辑/预览内容媒体约束：图片/视频铺满内容区（小图放大、大图限宽 900）保持比例居中 */
 .rich-content :deep(img),
 .rich-content :deep(video) {
-  max-width: min(100%, 640px);
-  height: auto;
+  width: 100% !important;
+  max-width: min(100%, 900px);
+  height: auto !important;
   display: block;
   margin: 0.75rem auto;
   border-radius: 0.5rem;
