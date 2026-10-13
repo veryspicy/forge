@@ -7,7 +7,7 @@ rich_text(title/html/align) / image(title/images/caption) / image_text(title/ima
   <div class="space-y-10">
     <template v-for="(block, idx) in blocks" :key="idx">
       <!-- 富文本 -->
-      <section v-if="block.type === 'rich_text'" class="prose max-w-none" :class="alignClass(block.align)">
+      <section v-if="block.type === 'rich_text'" class="prose max-w-none rich-content" :class="alignClass(block.align)">
         <h2 v-if="block.title" class="text-xl font-bold text-gray-900 mb-3">{{ block.title }}</h2>
         <div v-if="block.html" class="text-gray-700 leading-relaxed" v-html="block.html" />
       </section>
@@ -201,3 +201,15 @@ function rowCells(row: Record<string, string>): string[] {
   return keys.map((k) => row[k])
 }
 </script>
+
+<style scoped>
+/* 富文本渲染内容媒体约束：图片/视频限宽 640 保持比例居中，不随窗口放大 */
+.rich-content :deep(img),
+.rich-content :deep(video) {
+  max-width: min(100%, 640px);
+  height: auto;
+  display: block;
+  margin: 0.75rem auto;
+  border-radius: 0.5rem;
+}
+</style>

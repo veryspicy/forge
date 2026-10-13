@@ -237,7 +237,7 @@ function openPreview() {
           🎬
         </button>
       </div>
-      <div class="border border-t-0 border-gray-200 rounded-b-md bg-white p-3 min-h-[200px] max-h-[45vh] overflow-auto prose prose-sm max-w-none">
+      <div class="border border-t-0 border-gray-200 rounded-b-md bg-white p-3 min-h-[200px] max-h-[45vh] overflow-auto prose prose-sm max-w-none rich-content">
         <EditorContent :editor="editor" />
       </div>
     </template>
@@ -272,6 +272,18 @@ function openPreview() {
 
   <!-- 只读预览视图（rich 模式） -->
   <NModal v-model:show="previewShow" preset="card" title="预览" style="width: 760px">
-    <div class="max-h-[60vh] overflow-auto prose prose-sm max-w-none" v-html="previewHtml" />
+    <div class="max-h-[60vh] overflow-auto prose prose-sm max-w-none rich-content" v-html="previewHtml" />
   </NModal>
 </template>
+
+<style scoped>
+/* 富文本编辑/预览内容媒体约束：图片/视频限宽 640 保持比例居中，不随窗口放大 */
+.rich-content :deep(img),
+.rich-content :deep(video) {
+  max-width: min(100%, 640px);
+  height: auto;
+  display: block;
+  margin: 0.75rem auto;
+  border-radius: 0.5rem;
+}
+</style>

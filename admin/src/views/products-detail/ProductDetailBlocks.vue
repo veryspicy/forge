@@ -407,7 +407,7 @@ function faqCommit(i: number): void {
             >
               <div
                 :ref="el => setPreviewEl(i, el)"
-                class="prose prose-sm max-w-none px-3 py-2 text-sm leading-relaxed overflow-hidden transition-[max-height]"
+                class="prose prose-sm max-w-none rich-content px-3 py-2 text-sm leading-relaxed overflow-hidden transition-[max-height]"
                 :class="previewExpanded[i] ? 'max-h-[60vh] overflow-y-auto' : 'max-h-32'"
                 v-html="block.html"
               />
@@ -769,5 +769,14 @@ function faqCommit(i: number): void {
 }
 .spec-col-ops .n-button {
   border: none;
+}
+/* 富文本渲染内容媒体约束：图片/视频限宽 640 保持比例居中，不随窗口放大 */
+.rich-content :deep(img),
+.rich-content :deep(video) {
+  max-width: min(100%, 640px);
+  height: auto;
+  display: block;
+  margin: 0.75rem auto;
+  border-radius: 0.5rem;
 }
 </style>
