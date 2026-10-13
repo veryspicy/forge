@@ -11,10 +11,10 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from forge.application.services.app_settings_service import get_trust_badges
 from forge.infrastructure.persistence.models import ORMProduct
 from forge.infrastructure.persistence.repositories.product_repo import SQLAlchemyProductRepository
 from forge.infrastructure.persistence.repositories.site_profile_repo import SQLAlchemySiteProfileRepository
+from forge.infrastructure.site_config_service import get_trust_badges
 from forge.main.dependencies import get_db
 
 router = APIRouter()

@@ -28,7 +28,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from forge.api.errors import APIError, ErrorCode
 from forge.api.v1.auth import get_current_user
-from forge.application.services.app_settings_service import get_free_shipping_threshold
 from forge.application.services.payment_gateway import get_payment_gateway
 from forge.infrastructure.persistence.models import ORMOrder, ORMShipment
 from forge.infrastructure.persistence.repositories.order_repo import (
@@ -36,6 +35,7 @@ from forge.infrastructure.persistence.repositories.order_repo import (
     _order_to_dict,
 )
 from forge.infrastructure.persistence.repositories.user_repo import SQLAlchemyUserRepository
+from forge.infrastructure.site_config_service import get_free_shipping_threshold
 from forge.main.dependencies import get_db
 
 router = APIRouter(prefix="/orders", tags=["C-end Orders"])

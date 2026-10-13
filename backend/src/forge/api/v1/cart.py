@@ -21,11 +21,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from forge.api.errors import APIError, ErrorCode
 from forge.api.v1.auth import get_current_user
-from forge.application.services.app_settings_service import get_free_shipping_threshold
 from forge.infrastructure.persistence.models import ORMCartItem, ORMProduct
 from forge.infrastructure.persistence.repositories.cart_repo import SQLAlchemyCartRepository
 from forge.infrastructure.persistence.repositories.product_repo import SQLAlchemyProductRepository
 from forge.infrastructure.persistence.repositories.user_repo import SQLAlchemyUserRepository
+from forge.infrastructure.site_config_service import get_free_shipping_threshold
 from forge.main.dependencies import get_db
 
 router = APIRouter(prefix="/cart", tags=["C-end Cart"])

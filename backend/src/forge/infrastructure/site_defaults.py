@@ -225,6 +225,24 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "products": {
         "default_sort": "default",
     },
+    # 店铺级信任标识（迁移自 admin app_settings trust_badges）
+    "trustBadges": {
+        "freeShipping": {"enabled": True, "threshold": 50},
+        "returns": {"enabled": True, "days": 30},
+        "secureCheckout": {"enabled": True},
+    },
+    # 商品审核开关（迁移自 admin app_settings product_audit_enabled，默认关闭）
+    "productAudit": {
+        "enabled": False,
+    },
+    # 订单设置（迁移自 admin app_settings order_settings）
+    "orderSettings": {
+        "autoReview": False,
+        "maxItemsPerOrder": 10,
+        "defaultCurrency": "USD",
+        "orderPrefix": "PAI",
+        "expiryHours": 24,
+    },
     "currencies": ["USD"],
     "regions": [],
     "sections": [

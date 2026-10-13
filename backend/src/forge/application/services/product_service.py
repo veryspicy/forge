@@ -13,7 +13,6 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from forge.application.services.app_settings_service import is_product_audit_enabled
 from forge.infrastructure.persistence.models import ORMProduct, ORMProductVariant
 from forge.infrastructure.persistence.repositories.catalog_repo import (
     BrandRepository,
@@ -24,6 +23,7 @@ from forge.infrastructure.persistence.repositories.catalog_repo import (
 from forge.infrastructure.persistence.repositories.product_repo import (
     SQLAlchemyProductRepository,
 )
+from forge.infrastructure.site_config_service import is_product_audit_enabled
 
 VALID_STATUSES = {"draft", "active", "inactive", "deleted"}
 # 审核内容字段（PRODUCT-AUDIT-FLOW 联动）：命中任一字段的内容修改均需重新审核。
