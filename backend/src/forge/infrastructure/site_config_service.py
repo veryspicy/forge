@@ -56,12 +56,35 @@ async def get_site_config(db: AsyncSession) -> dict[str, Any]:
     return merge_for_response(profile.config if profile is not None else None)  # type: ignore[arg-type]
 
 
+def _to_public_trust_badges(block: dict[str, Any]) -> dict[str, Any]:
+    """将站点配置 camelCase 的 trustBadges 转换为 C 端契约（snake_case，与 app_settings 旧格式一致）。
+
+    旧 app_settings 结构为 free_shipping / returns / secure_checkout，portal-web [id].vue
+    等消费方均按 snake_case 读取；站点设置存储为 freeShipping / returns / secureCheckout，
+    此处做字段映射避免前端契约破坏。
+    """
+    free_shipping = block.get("freeShipping")
+    returns = block.get("returns")
+    secure_checkout = block.get("secureCheckout")
+    result: dict[str, Any] = {}
+    if isinstance(free_shipping, dict):
+        result["free_shipping"] = free_shipping
+    if isinstance(returns, dict):
+        result["returns"] = returns
+    if isinstance(secure_checkout, dict):
+        result["secure_checkout"] = secure_checkout
+    return result
+
+
 async def get_trust_badges(db: AsyncSession) -> dict[str, Any]:
-    """信任标识配置：优先站点配置 trustBadges；存量缺失该块时回退 app_settings。"""
+    """信任标识配置：优先站点配置 trustBadges；存量缺失该块时回退 app_settings。
+
+    返回给 C 端时统一为 snake_case 契约（free_shipping / returns / secure_checkout）。
+    """
     block = await _read_block(db, "trustBadges")
     if block is None:
         return await _legacy_trust_badges(db)
-    return block
+    return _to_public_trust_badges(block)
 
 
 async def get_free_shipping_threshold(db: AsyncSession) -> Decimal | None:
