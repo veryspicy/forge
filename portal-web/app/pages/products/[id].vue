@@ -2,7 +2,7 @@
 <template>
   <div>
     <!-- Breadcrumb -->
-    <nav class="text-sm text-gray-500 mb-6">
+    <nav class="max-w-6xl mx-auto text-sm text-gray-500 mb-6">
       <NuxtLink :to="localePath('/')" class="hover:text-primary-600">{{ $t('common.home') }}</NuxtLink>
       <span class="mx-2">/</span>
       <NuxtLink :to="localePath('/products')" class="hover:text-primary-600">{{ $t('common.products') }}</NuxtLink>
