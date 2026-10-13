@@ -69,7 +69,11 @@ function setPreviewEl(i: number, el: unknown): void {
 function refreshPreview(i: number): void {
   const el = previewEls.value[i];
   if (!el) return;
-  previewOverflow.value = { ...previewOverflow.value, [i]: el.scrollHeight > el.clientHeight + 1 };
+  const overflow = el.scrollHeight > el.clientHeight + 1;
+  // 幂等更新：结果不变时保持原对象引用，避免 ref 回调在每次渲染被调用时触发无限重渲染
+  if (previewOverflow.value[i] !== overflow) {
+    previewOverflow.value = { ...previewOverflow.value, [i]: overflow };
+  }
 }
 
 function togglePreview(i: number): void {
