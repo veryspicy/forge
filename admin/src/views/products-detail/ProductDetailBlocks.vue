@@ -21,7 +21,22 @@ import RichTextEditor from './RichTextEditor.vue';
 type Block = Record<string, any>;
 
 const props = defineProps<{ value: Block[] | null | undefined }>();
-const emit = defineEmits<{ (e: 'update:value', v: Block[]): void }>();
+const emit = defineEmits<{
+  (e: 'update:value', v: Block[]): void;
+  (e: 'resources', ids: string[]): void;
+}>();
+
+/** 已登记/上传的资源 ID（供父级保存时 syncRefs 追引用） */
+const registeredResourceIds = ref<string[]>([]);
+
+function collectResource(item: any): void {
+  const id = item?.id;
+  if (!id) return;
+  if (!registeredResourceIds.value.includes(id)) {
+    registeredResourceIds.value = [...registeredResourceIds.value, id];
+    emit('resources', registeredResourceIds.value);
+  }
+}
 
 const typeOptions = [
   { label: '富文本', value: 'rich_text' },
@@ -134,55 +149,6 @@ watch(
   },
   { deep: true }
 );
-
-function dkey(i: number, k: string): string {
-  return `${i}:${k}`;
-}
-
-function arrText(i: number, k: string): string {
-  const draft = drafts.value[dkey(i, k)];
-  if (draft !== undefined) return draft;
-  const v = (local.value[i] || {})[k];
-  if (!Array.isArray(v)) return '';
-  return v.map((x: any) => (typeof x === 'string' ? x : rowToText(x))).join('\n');
-}
-
-function setDraft(i: number, k: string, text: string): void {
-  drafts.value = { ...drafts.value, [dkey(i, k)]: text };
-}
-
-function commitDraft(i: number, k: string): void {
-  const key = dkey(i, k);
-  const text = drafts.value[key];
-  if (text === undefined) return;
-  const lines = text
-    .split('\n')
-    .map(s => s.trim())
-    .filter(Boolean);
-  const block = local.value[i] || {};
-  let parsed: any[];
-  if (k === 'items' && block.type === 'faq') {
-    parsed = lines.map(line => {
-      const idx = line.indexOf('|');
-      return idx === -1
-        ? { question: line, answer: '' }
-        : { question: line.slice(0, idx).trim(), answer: line.slice(idx + 1).trim() };
-    });
-  } else {
-    parsed = lines;
-  }
-  block[k] = parsed;
-  drafts.value = Object.fromEntries(Object.entries(drafts.value).filter(([draftKey]) => draftKey !== key));
-}
-
-function rowToText(x: any): string {
-  if (x && typeof x === 'object') {
-    if ('question' in x || 'answer' in x) return `${x.question ?? ''}|${x.answer ?? ''}`;
-    if ('label' in x || 'value' in x) return `${x.label ?? ''}=${x.value ?? ''}`;
-    return Object.values(x).join(' | ');
-  }
-  return String(x ?? '');
-}
 
 function add(): void {
   local.value.push({ type: 'rich_text', title: '' });
@@ -431,6 +397,7 @@ function faqCommit(i: number): void {
             :title="block.title || ''"
             @update:show="(v: boolean) => (v ? undefined : (richEditor = { show: false, idx: -1 }))"
             @save="saveRichHtml"
+            @register="collectResource"
           />
           <!-- 预览态：渲染式迷你预览 -->
           <template v-else>
@@ -478,14 +445,8 @@ function faqCommit(i: number): void {
 
         <!-- 图片 -->
         <template v-else-if="block.type === 'image'">
-          <NFormItem :label="hintMap.image" :show-feedback="false">
-            <NInput
-              type="textarea"
-              :rows="3"
-              :value="arrText(i, 'images')"
-              @update:value="(v: string) => setDraft(i, 'images', v)"
-              @blur="commitDraft(i, 'images')"
-            />
+          <NFormItem label="图片（支持多张）" :show-feedback="false">
+            <ResourceInput v-model="block.images" type="image" multiple @register="collectResource" />
           </NFormItem>
           <NFormItem label="图片说明" :show-feedback="false">
             <NInput v-model:value="block.caption" />
@@ -494,8 +455,8 @@ function faqCommit(i: number): void {
 
         <!-- 图文 -->
         <template v-else-if="block.type === 'image_text'">
-          <NFormItem label="图片 URL" :show-feedback="false">
-            <NInput v-model:value="block.image" placeholder="https://..." />
+          <NFormItem label="图片" :show-feedback="false">
+            <ResourceInput v-model="block.image" type="image" @register="collectResource" />
           </NFormItem>
           <NFormItem label="正文（支持简单 HTML）" :show-feedback="false">
             <NInput v-model:value="block.html" type="textarea" :rows="3" />
@@ -705,11 +666,16 @@ function faqCommit(i: number): void {
 
         <!-- 视频 -->
         <template v-else-if="block.type === 'video'">
-          <NFormItem label="视频 URL" :show-feedback="false">
-            <NInput v-model:value="block.url" placeholder="https://.../demo.mp4" />
+          <NFormItem label="视频" :show-feedback="false">
+            <ResourceInput
+              v-model="block.url"
+              type="video"
+              placeholder="粘贴视频 URL，如 https://.../demo.mp4"
+              @register="collectResource"
+            />
           </NFormItem>
-          <NFormItem label="封面图 URL" :show-feedback="false">
-            <NInput v-model:value="block.poster" />
+          <NFormItem label="封面图" :show-feedback="false">
+            <ResourceInput v-model="block.poster" type="image" @register="collectResource" />
           </NFormItem>
         </template>
       </div>

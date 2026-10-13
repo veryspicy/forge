@@ -5,6 +5,8 @@ import StarterKitDefault from '@tiptap/starter-kit';
 import PlaceholderDefault from '@tiptap/extension-placeholder';
 import ImageDefault from '@tiptap/extension-image';
 import TextAlignDefault from '@tiptap/extension-text-align';
+import { Video as VideoDefault } from './tiptapVideo';
+import ResourceInput from '@/components/ResourceInput.vue';
 import { marked } from 'marked';
 import { NButton, NModal, NSpace, NInput, NTag, NRadioGroup, NRadioButton } from 'naive-ui';
 
@@ -19,18 +21,26 @@ const props = defineProps<{ show: boolean; html: string; title: string; inline?:
 const emit = defineEmits<{
   (e: 'update:show', v: boolean): void;
   (e: 'save', html: string): void;
+  (e: 'register', item: { id: string; url: string; [key: string]: any }): void;
 }>();
 
 const mode = ref<'rich' | 'md'>('rich');
 const mdText = ref('');
+
+// 媒体插入弹层：图片 / 视频统一走 ResourceInput 三入口（上传 / 粘贴 URL / 资源库）
+const mediaPop = ref<{ type: 'image' | 'video'; show: boolean }>({ type: 'image', show: false });
+const mediaUrl = ref('');
+const previewShow = ref(false);
+const previewHtml = ref('');
 
 const editor = useEditor({
   content: props.html || '',
   extensions: [
     StarterKitDefault,
     PlaceholderDefault.configure({ placeholder: '输入正文，支持标题、列表、引用、代码块…' }),
-    ImageDefault.configure({ inline: false, allowBase64: true }),
-    TextAlignDefault.configure({ types: ['heading', 'paragraph'], alignments: ['left', 'center', 'right'] })
+    ImageDefault.configure({ inline: false, allowBase64: false }),
+    TextAlignDefault.configure({ types: ['heading', 'paragraph'], alignments: ['left', 'center', 'right'] }),
+    VideoDefault
   ]
 });
 
@@ -88,10 +98,31 @@ const toolbar = computed(() => {
   ];
 });
 
-function insertImage() {
-  const url = window.prompt('图片 URL');
+function openMedia(type: 'image' | 'video') {
+  mediaUrl.value = '';
+  mediaPop.value = { type, show: true };
+}
+
+function applyMedia() {
+  const url = mediaUrl.value.trim();
   if (!url || !editor.value) return;
-  editor.value.chain().focus().setImage({ src: url }).run();
+  if (mediaPop.value.type === 'image') {
+    editor.value.chain().focus().setImage({ src: url }).run();
+  } else {
+    editor.value.chain().focus().setVideo({ src: url }).run();
+  }
+  mediaPop.value.show = false;
+  mediaUrl.value = '';
+}
+
+/** 预览按钮：md 模式切回富文本渲染；rich 模式打开只读 HTML 预览视图 */
+function openPreview() {
+  if (mode.value === 'md') {
+    toRich();
+    return;
+  }
+  previewHtml.value = editor.value?.getHTML() || '';
+  previewShow.value = true;
 }
 </script>
 
@@ -129,9 +160,17 @@ function insertImage() {
           type="button"
           class="min-w-7 h-7 px-1.5 rounded text-xs hover:bg-gray-200"
           title="插入图片"
-          @click="insertImage"
+          @click="openMedia('image')"
         >
           🖼
+        </button>
+        <button
+          type="button"
+          class="min-w-7 h-7 px-1.5 rounded text-xs hover:bg-gray-200"
+          title="插入视频"
+          @click="openMedia('video')"
+        >
+          🎬
         </button>
       </div>
       <div class="border border-t-0 border-gray-200 rounded-b-md bg-white p-3 min-h-[240px] max-h-[50vh] overflow-auto prose prose-sm max-w-none">
@@ -152,7 +191,7 @@ function insertImage() {
     <template #footer>
       <NSpace justify="end">
         <NButton @click="close">取消</NButton>
-        <NButton @click="mode === 'md' ? toRich() : undefined">预览（切回富文本）</NButton>
+        <NButton @click="openPreview">{{ mode === 'md' ? '预览（切回富文本）' : '预览' }}</NButton>
         <NButton type="primary" @click="confirm">保存</NButton>
       </NSpace>
     </template>
@@ -185,9 +224,17 @@ function insertImage() {
           type="button"
           class="min-w-7 h-7 px-1.5 rounded text-xs hover:bg-gray-200"
           title="插入图片"
-          @click="insertImage"
+          @click="openMedia('image')"
         >
           🖼
+        </button>
+        <button
+          type="button"
+          class="min-w-7 h-7 px-1.5 rounded text-xs hover:bg-gray-200"
+          title="插入视频"
+          @click="openMedia('video')"
+        >
+          🎬
         </button>
       </div>
       <div class="border border-t-0 border-gray-200 rounded-b-md bg-white p-3 min-h-[200px] max-h-[45vh] overflow-auto prose prose-sm max-w-none">
@@ -207,8 +254,24 @@ function insertImage() {
 
     <div class="flex justify-end gap-2">
       <NButton size="small" @click="close">取消</NButton>
-      <NButton size="small" @click="mode === 'md' ? toRich() : undefined">预览（切回富文本）</NButton>
+      <NButton size="small" @click="openPreview">{{ mode === 'md' ? '预览（切回富文本）' : '预览' }}</NButton>
       <NButton size="small" type="primary" @click="confirm">保存</NButton>
     </div>
   </div>
+
+  <!-- 媒体插入弹层（三入口） -->
+  <NModal v-model:show="mediaPop.show" preset="card" :title="`插入${mediaPop.type === 'image' ? '图片' : '视频'}`" style="width: 640px">
+    <ResourceInput v-model="mediaUrl" :type="mediaPop.type" @register="(it: any) => emit('register', it)" />
+    <template #footer>
+      <NSpace justify="end">
+        <NButton size="small" @click="mediaPop.show = false">取消</NButton>
+        <NButton size="small" type="primary" :disabled="!mediaUrl.trim()" @click="applyMedia">插入</NButton>
+      </NSpace>
+    </template>
+  </NModal>
+
+  <!-- 只读预览视图（rich 模式） -->
+  <NModal v-model:show="previewShow" preset="card" title="预览" style="width: 760px">
+    <div class="max-h-[60vh] overflow-auto prose prose-sm max-w-none" v-html="previewHtml" />
+  </NModal>
 </template>
