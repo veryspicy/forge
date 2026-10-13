@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { nextTick, ref, watch } from 'vue';
 import { NButton, NFormItem, NInput, NSelect, NSpace, NTag } from 'naive-ui';
 import { VueDraggable } from 'vue-draggable-plus';
 import RichTextEditor from './RichTextEditor.vue';
@@ -21,7 +21,22 @@ import RichTextEditor from './RichTextEditor.vue';
 type Block = Record<string, any>;
 
 const props = defineProps<{ value: Block[] | null | undefined }>();
-const emit = defineEmits<{ (e: 'update:value', v: Block[]): void }>();
+const emit = defineEmits<{
+  (e: 'update:value', v: Block[]): void;
+  (e: 'resources', ids: string[]): void;
+}>();
+
+/** 已登记/上传的资源 ID（供父级保存时 syncRefs 追引用） */
+const registeredResourceIds = ref<string[]>([]);
+
+function collectResource(item: any): void {
+  const id = item?.id;
+  if (!id) return;
+  if (!registeredResourceIds.value.includes(id)) {
+    registeredResourceIds.value = [...registeredResourceIds.value, id];
+    emit('resources', registeredResourceIds.value);
+  }
+}
 
 const typeOptions = [
   { label: '富文本', value: 'rich_text' },
@@ -52,8 +67,33 @@ const hintMap: Record<string, string> = {
 const local = ref<Block[]>([]);
 const drafts = ref<Record<string, string>>({});
 
-/** 富文本编辑器弹窗 */
+/** 富文本编辑器内联展开（块下标） */
 const richEditor = ref<{ show: boolean; idx: number }>({ show: false, idx: -1 });
+
+/** 富文本渲染式预览：限高展开/收起 */
+const previewExpanded = ref<Record<number, boolean>>({});
+const previewEls = ref<Record<number, HTMLElement | null>>({});
+const previewOverflow = ref<Record<number, boolean>>({});
+
+function setPreviewEl(i: number, el: unknown): void {
+  if (!el || !(el instanceof HTMLElement)) return;
+  previewEls.value[i] = el;
+  nextTick(() => refreshPreview(i));
+}
+
+function refreshPreview(i: number): void {
+  const el = previewEls.value[i];
+  if (!el) return;
+  const overflow = el.scrollHeight > el.clientHeight + 1;
+  // 幂等更新：结果不变时保持原对象引用，避免 ref 回调在每次渲染被调用时触发无限重渲染
+  if (previewOverflow.value[i] !== overflow) {
+    previewOverflow.value = { ...previewOverflow.value, [i]: overflow };
+  }
+}
+
+function togglePreview(i: number): void {
+  previewExpanded.value = { ...previewExpanded.value, [i]: !previewExpanded.value[i] };
+}
 
 /** 卖点：一行一条（块下标 -> 字符串数组草稿） */
 const featDrafts = ref<Record<number, string[]>>({});
@@ -110,55 +150,6 @@ watch(
   { deep: true }
 );
 
-function dkey(i: number, k: string): string {
-  return `${i}:${k}`;
-}
-
-function arrText(i: number, k: string): string {
-  const draft = drafts.value[dkey(i, k)];
-  if (draft !== undefined) return draft;
-  const v = (local.value[i] || {})[k];
-  if (!Array.isArray(v)) return '';
-  return v.map((x: any) => (typeof x === 'string' ? x : rowToText(x))).join('\n');
-}
-
-function setDraft(i: number, k: string, text: string): void {
-  drafts.value = { ...drafts.value, [dkey(i, k)]: text };
-}
-
-function commitDraft(i: number, k: string): void {
-  const key = dkey(i, k);
-  const text = drafts.value[key];
-  if (text === undefined) return;
-  const lines = text
-    .split('\n')
-    .map(s => s.trim())
-    .filter(Boolean);
-  const block = local.value[i] || {};
-  let parsed: any[];
-  if (k === 'items' && block.type === 'faq') {
-    parsed = lines.map(line => {
-      const idx = line.indexOf('|');
-      return idx === -1
-        ? { question: line, answer: '' }
-        : { question: line.slice(0, idx).trim(), answer: line.slice(idx + 1).trim() };
-    });
-  } else {
-    parsed = lines;
-  }
-  block[k] = parsed;
-  drafts.value = Object.fromEntries(Object.entries(drafts.value).filter(([draftKey]) => draftKey !== key));
-}
-
-function rowToText(x: any): string {
-  if (x && typeof x === 'object') {
-    if ('question' in x || 'answer' in x) return `${x.question ?? ''}|${x.answer ?? ''}`;
-    if ('label' in x || 'value' in x) return `${x.label ?? ''}=${x.value ?? ''}`;
-    return Object.values(x).join(' | ');
-  }
-  return String(x ?? '');
-}
-
 function add(): void {
   local.value.push({ type: 'rich_text', title: '' });
 }
@@ -199,13 +190,12 @@ function saveRichHtml(html: string) {
   const i = richEditor.value.idx;
   if (i >= 0 && local.value[i]) local.value[i].html = html;
   richEditor.value = { show: false, idx: -1 };
+  if (i >= 0) nextTick(() => refreshPreview(i));
 }
 
-function stripHtmlForPreview(html: string): string {
-  if (!html) return '';
-  const div = document.createElement('div');
-  div.innerHTML = html;
-  return (div.textContent || '').trim().slice(0, 120);
+function clearRichHtml(i: number): void {
+  if (local.value[i]) local.value[i].html = '';
+  nextTick(() => refreshPreview(i));
 }
 
 /* ---------------- 卖点：一行一条 ---------------- */
@@ -396,32 +386,67 @@ function faqCommit(i: number): void {
           <NInput v-model:value="block.title" placeholder="可选，用于详情页小标题" />
         </NFormItem>
 
-        <!-- 富文本：Tiptap + Markdown -->
+        <!-- 富文本：渲染式预览 + 内联编辑（Tiptap + Markdown） -->
         <template v-if="block.type === 'rich_text'">
-          <div class="flex items-center justify-between gap-2">
-            <div class="text-sm opacity-80">
-              {{ block.html ? stripHtmlForPreview(block.html) + '…' : '（空）' }}
+          <!-- 编辑态：内联展开编辑器 -->
+          <RichTextEditor
+            v-if="richEditor.show && richEditor.idx === i"
+            inline
+            :show="true"
+            :html="block.html || ''"
+            :title="block.title || ''"
+            @update:show="(v: boolean) => (v ? undefined : (richEditor = { show: false, idx: -1 }))"
+            @save="saveRichHtml"
+            @register="collectResource"
+          />
+          <!-- 预览态：渲染式迷你预览 -->
+          <template v-else>
+            <div
+              v-if="block.html"
+              class="rounded-md border border-[var(--n-border-color)] bg-gray-50/70 overflow-hidden"
+            >
+              <div
+                :ref="el => setPreviewEl(i, el)"
+                class="prose prose-sm max-w-none rich-content px-3 py-2 text-sm leading-relaxed overflow-hidden transition-[max-height]"
+                :class="previewExpanded[i] ? 'max-h-[60vh] overflow-y-auto' : 'max-h-32'"
+                v-html="block.html"
+              />
+              <div v-if="previewOverflow[i]" class="border-t border-[var(--n-border-color)]">
+                <NButton size="tiny" quaternary type="primary" @click="togglePreview(i)">
+                  {{ previewExpanded[i] ? '收起' : '展开全文' }}
+                </NButton>
+              </div>
             </div>
-            <NSpace size="small">
-              <NButton size="small" type="primary" quaternary @click="openRichEditor(i)">富文本编辑</NButton>
-              <NButton v-if="block.html" size="small" quaternary @click="block.html = ''">清空</NButton>
-            </NSpace>
-          </div>
+            <div v-else class="text-sm opacity-50 py-1">（空）</div>
+          </template>
+
           <NFormItem label="对齐" :show-feedback="false" class="mt-2">
             <NSelect v-model:value="block.align" :options="alignOptions" style="width: 160px" clearable />
           </NFormItem>
+
+          <!-- 底部固定操作栏 -->
+          <div
+            class="mt-2 flex items-center justify-end gap-2 border-t border-[var(--n-border-color)] pt-2"
+          >
+            <NButton
+              v-if="!richEditor.show || richEditor.idx !== i"
+              size="small"
+              type="primary"
+              quaternary
+              @click="openRichEditor(i)"
+            >
+              富文本编辑
+            </NButton>
+            <NButton v-if="block.html" size="small" quaternary type="error" @click="clearRichHtml(i)">
+              清空
+            </NButton>
+          </div>
         </template>
 
         <!-- 图片 -->
         <template v-else-if="block.type === 'image'">
-          <NFormItem :label="hintMap.image" :show-feedback="false">
-            <NInput
-              type="textarea"
-              :rows="3"
-              :value="arrText(i, 'images')"
-              @update:value="(v: string) => setDraft(i, 'images', v)"
-              @blur="commitDraft(i, 'images')"
-            />
+          <NFormItem label="图片（支持多张）" :show-feedback="false">
+            <ResourceInput v-model="block.images" type="image" multiple @register="collectResource" />
           </NFormItem>
           <NFormItem label="图片说明" :show-feedback="false">
             <NInput v-model:value="block.caption" />
@@ -430,8 +455,8 @@ function faqCommit(i: number): void {
 
         <!-- 图文 -->
         <template v-else-if="block.type === 'image_text'">
-          <NFormItem label="图片 URL" :show-feedback="false">
-            <NInput v-model:value="block.image" placeholder="https://..." />
+          <NFormItem label="图片" :show-feedback="false">
+            <ResourceInput v-model="block.image" type="image" @register="collectResource" />
           </NFormItem>
           <NFormItem label="正文（支持简单 HTML）" :show-feedback="false">
             <NInput v-model:value="block.html" type="textarea" :rows="3" />
@@ -641,11 +666,16 @@ function faqCommit(i: number): void {
 
         <!-- 视频 -->
         <template v-else-if="block.type === 'video'">
-          <NFormItem label="视频 URL" :show-feedback="false">
-            <NInput v-model:value="block.url" placeholder="https://.../demo.mp4" />
+          <NFormItem label="视频" :show-feedback="false">
+            <ResourceInput
+              v-model="block.url"
+              type="video"
+              placeholder="粘贴视频 URL，如 https://.../demo.mp4"
+              @register="collectResource"
+            />
           </NFormItem>
-          <NFormItem label="封面图 URL" :show-feedback="false">
-            <NInput v-model:value="block.poster" />
+          <NFormItem label="封面图" :show-feedback="false">
+            <ResourceInput v-model="block.poster" type="image" @register="collectResource" />
           </NFormItem>
         </template>
       </div>
@@ -656,14 +686,6 @@ function faqCommit(i: number): void {
       <NButton dashed size="small" @click="add">+ 添加详情块</NButton>
       <span class="text-xs opacity-60 self-center">最多 50 块；与简介互补，详情页按顺序渲染</span>
     </NSpace>
-
-    <RichTextEditor
-      :show="richEditor.show"
-      :html="richEditor.idx >= 0 ? local[richEditor.idx]?.html || '' : ''"
-      :title="richEditor.idx >= 0 ? local[richEditor.idx]?.title || '' : ''"
-      @update:show="(v: boolean) => (v ? undefined : (richEditor = { show: false, idx: -1 }))"
-      @save="saveRichHtml"
-    />
   </div>
 </template>
 
@@ -747,5 +769,15 @@ function faqCommit(i: number): void {
 }
 .spec-col-ops .n-button {
   border: none;
+}
+/* 富文本渲染内容媒体约束：图片/视频铺满内容区（小图放大、大图限宽 1080）保持比例居中 */
+.rich-content :deep(img),
+.rich-content :deep(video) {
+  width: 100% !important;
+  max-width: min(100%, 1080px);
+  height: auto !important;
+  display: block;
+  margin: 0.75rem auto;
+  border-radius: 0.5rem;
 }
 </style>

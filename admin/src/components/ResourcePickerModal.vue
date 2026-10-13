@@ -155,6 +155,22 @@ watch(
 );
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize)));
+
+/** 上传 accept 与提示文案按资源类型动态化（RESOURCE-TYPE-ACCEPT） */
+const acceptStr = computed(() => {
+  const map: Record<string, string> = {
+    image: 'image/*',
+    video: 'video/*',
+    audio: 'audio/*',
+    document: '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.zip'
+  };
+  return map[props.type] || 'image/*';
+});
+
+const uploadHint = computed(() => {
+  const map: Record<string, string> = { image: '图片', video: '视频', audio: '音频', document: '文件' };
+  return map[props.type] || '资源';
+});
 </script>
 
 <template>
@@ -222,10 +238,10 @@ const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize))
       </NTabPane>
 
       <NTabPane name="upload" tab="上传新资源">
-        <NUpload :show-file-list="false" accept="image/*" :custom-request="handleUpload" class="py-6">
+        <NUpload :show-file-list="false" :accept="acceptStr" :custom-request="handleUpload" class="py-6">
           <NUploadDragger class="flex flex-col items-center justify-center gap-2 py-10">
             <div class="text-sm text-gray-500">
-              {{ uploading ? '上传中…' : '点击或拖拽图片到此处上传' }}
+              {{ uploading ? '上传中…' : `点击或拖拽${uploadHint}到此处上传` }}
             </div>
             <div class="text-xs text-gray-400">上传后自动加入已选列表</div>
           </NUploadDragger>

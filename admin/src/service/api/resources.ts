@@ -14,6 +14,15 @@ export const resourceApi = {
       'Content-Type': 'multipart/form-data'
     });
   },
+  /** 登记外部 URL 为资源（幂等：同站点同 URL 复用已有记录） */
+  registerExternal: (params: { url: string; name?: string; fileType?: string; directory?: string; tags?: string[] }) =>
+    post('/api/admin/v1/resources/register-external', {
+      name: params.name || '',
+      url: params.url,
+      file_type: params.fileType || undefined,
+      directory: params.directory || '',
+      tags: params.tags || []
+    }),
   /** 列表 */
   list: (params: {
     type?: string;

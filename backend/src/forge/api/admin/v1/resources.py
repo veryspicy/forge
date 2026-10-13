@@ -287,6 +287,94 @@ async def upload_resource(
 
 
 # ---------------------------------------------------------------------------
+# 外部资源登记
+# ---------------------------------------------------------------------------
+class RegisterExternalRequest(BaseModel):
+    name: str = ""
+    url: str
+    file_type: str | None = None
+    directory: str = ""
+    tags: list[str] = []
+
+
+@router.post("/register-external")
+async def register_external_resource(
+    body: RegisterExternalRequest,
+    admin: dict[str, object] = Depends(require_permission("resources", "upload")),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, object]:
+    """登记外部 URL 为资源（不写入 MinIO）：支持图片/视频/文档等，前端粘贴外链时落库以便 syncRefs 追踪。"""
+    if not admin:
+        raise HTTPException(status_code=401, detail="未登录")
+
+    url = (body.url or "").strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="URL 不能为空")
+    if not (url.startswith("http://") or url.startswith("https://")):
+        raise HTTPException(status_code=400, detail="仅支持 http/https 外部 URL")
+
+    # 未显式指定 file_type 时按扩展名推导
+    file_type = (body.file_type or "").strip() or "document"
+    if file_type == "document":
+        path = url.split("?", 1)[0].split("#", 1)[0]
+        ext = ("." + path.rsplit(".", 1)[-1]).lower() if "." in path.rsplit("/", 1)[-1] else ""
+        if ext in ALLOWED_EXT["image"]:
+            file_type = "image"
+        elif ext in ALLOWED_EXT["video"]:
+            file_type = "video"
+        elif ext in ALLOWED_EXT["audio"]:
+            file_type = "audio"
+
+    site_id = await _resolve_upload_site_id(db, admin, None)
+    site_id_uuid = uuid.UUID(site_id)
+
+    # 幂等：同站点同 URL 已存在（未删除）时复用既有记录，避免重复登记
+    existing = (
+        await db.execute(
+            select(ORMResource).where(
+                ORMResource.site_id == site_id_uuid,
+                ORMResource.url == url,
+                ORMResource.deleted_at.is_(None),
+            )
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        data = await _attach_tags(db, _serialize(existing))
+        return {"data": data}
+
+    # created_by：admin["sub"] 是 email，需查 admin_users 表取 UUID
+    created_by = None
+    if admin.get("sub"):
+        au = (await db.execute(select(ORMAdminUser).where(ORMAdminUser.email == admin["sub"]))).scalar_one_or_none()
+        if au is not None:
+            created_by = au.id
+
+    res = ORMResource(
+        site_id=site_id_uuid,
+        bucket="",
+        object_key="",
+        url=url,
+        file_type=file_type,
+        mime="",
+        file_size=0,
+        sha256=None,
+        name=(body.name or url).strip(),
+        directory=(body.directory or "").strip(),
+        created_by=created_by,
+    )
+    db.add(res)
+    await db.flush()
+
+    if body.tags:
+        await _save_tags(db, res.id, body.tags)  # type: ignore[arg-type]
+
+    await db.commit()
+    await db.refresh(res)
+    data = await _attach_tags(db, _serialize(res))
+    return {"data": data}
+
+
+# ---------------------------------------------------------------------------
 # 列表
 # ---------------------------------------------------------------------------
 class ResourceListResponse(BaseModel):

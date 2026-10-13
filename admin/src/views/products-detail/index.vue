@@ -162,6 +162,9 @@ const uploading = ref(false);
 const tagsString = ref('');
 const statusChange = ref<string | null>(null);
 
+/** 详情块内上传/登记的资源 ID（由 ProductDetailBlocks 上报，保存时随 syncRefs 追踪引用） */
+const detailResourceIds = ref<string[]>([]);
+
 const images = ref<
   {
     key: string;
@@ -874,7 +877,10 @@ async function save() {
 
 /** 保存后同步产品图片资源引用（失败不阻塞保存主流程） */
 async function syncProductRefs(productId: string) {
-  const resourceIds = images.value.map(i => i.resourceId).filter(Boolean) as string[];
+  const resourceIds = [
+    ...images.value.map(i => i.resourceId).filter(Boolean),
+    ...detailResourceIds.value
+  ] as string[];
   if (!resourceIds.length) return;
   try {
     await resourceApi.syncRefs({
@@ -1348,7 +1354,7 @@ async function reloadVariants() {
           </div>
         </template>
         <template v-else>
-          <ProductDetailBlocks v-model:value="activeBlocks" />
+          <ProductDetailBlocks v-model:value="activeBlocks" @resources="(ids: string[]) => (detailResourceIds = ids)" />
           <div v-if="currentLang !== 'zh-cn'" class="mt-2 text-xs opacity-60">
             当前编辑语言块（C 端按语言整组回退基准语言）
           </div>
