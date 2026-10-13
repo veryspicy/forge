@@ -36,8 +36,13 @@ const { t } = useI18n();
 const router = useRouter();
 const message = useMessage();
 const isEdit = computed(() => !!route.params.id);
-/** 只读预览模式：列表「查看」跳转 ?mode=view，表单全部禁用编辑（PRODUCT-AUDIT-FLOW） */
-const readonly = computed(() => route.query.mode === 'view');
+/** 只读预览模式：?mode=view 进入默认预览；「开始编辑」可切换解除只读（PRODUCT-VIEW-EDIT-MODE） */
+const editingEnabled = ref(false);
+const readonly = computed(() => route.query.mode === 'view' && !editingEnabled.value);
+
+function startEdit() {
+  editingEnabled.value = true;
+}
 
 const error = ref('');
 
@@ -1031,7 +1036,10 @@ async function reloadVariants() {
             : t('common.new') + ' ' + t('common.product')
         }}
       </h2>
-      <NButton @click="$router.push('/products')">{{ $t('common.backToList') }}</NButton>
+      <div class="flex items-center gap-2">
+        <NButton v-if="readonly" type="primary" @click="startEdit">开始编辑</NButton>
+        <NButton @click="$router.push('/products')">{{ $t('common.backToList') }}</NButton>
+      </div>
     </div>
 
     <div v-if="error" class="bg-red-50 text-red-600 p-3 rounded text-sm">{{ error }}</div>
