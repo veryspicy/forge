@@ -239,7 +239,6 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "orderSettings": {
         "autoReview": False,
         "maxItemsPerOrder": 10,
-        "defaultCurrency": "USD",
         "orderPrefix": "PAI",
         "expiryHours": 24,
     },
@@ -367,10 +366,23 @@ def merge_for_save(user_payload_config: dict[str, object]) -> dict[str, object]:
     return deep_merge(DEFAULT_CONFIG, normalized)
 
 
+def _strip_legacy_keys(merged: dict[str, object]) -> dict[str, object]:
+    """Remove keys that no longer have a canonical home (pure cleanup).
+
+    ``orderSettings.defaultCurrency`` was removed in the 3-group refactor
+    (it duplicated ``currencies[0]`` and had no backend consumer). Old rows
+    may still carry it, so strip it from every response.
+    """
+    order = merged.get("orderSettings")
+    if isinstance(order, dict):
+        order.pop("defaultCurrency", None)
+    return merged
+
+
 def merge_for_response(stored_config: dict[str, object] | None) -> dict[str, object]:
     """Given raw DB JSON (profile.config), produce frontend-safe response.
 
     Guarantees every canonical key exists with a sensible default.
     """
     merged = deep_merge(DEFAULT_CONFIG, stored_config or {})
-    return _normalize_aliases(merged)
+    return _strip_legacy_keys(_normalize_aliases(merged))

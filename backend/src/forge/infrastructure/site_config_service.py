@@ -29,7 +29,6 @@ from forge.infrastructure.site_defaults import merge_for_response
 _DEFAULT_ORDER_SETTINGS: dict[str, Any] = {
     "autoReview": False,
     "maxItemsPerOrder": 10,
-    "defaultCurrency": "USD",
     "orderPrefix": "PAI",
     "expiryHours": 24,
 }
@@ -118,4 +117,7 @@ async def get_order_settings(db: AsyncSession) -> dict[str, Any]:
     block = await _read_block(db, "orderSettings")
     if block is None:
         return _DEFAULT_ORDER_SETTINGS
+    # 兼容旧数据：defaultCurrency 已移除（与 currencies[0] 重复且无消费方）
+    if isinstance(block, dict):
+        block.pop("defaultCurrency", None)
     return block
