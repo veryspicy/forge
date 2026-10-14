@@ -22,8 +22,8 @@ export const SITE_CONFIG_ITEMS = [
   { key: 'seo', label: 'SEO', icon: 'mdi:magnify', group: 'display' },
   { key: 'i18n', label: '多语言翻译', icon: 'mdi:translate', group: 'display' },
   { key: 'featureFlags', label: '功能开关', icon: 'mdi:toggle-switch', group: 'rules' },
-  { key: 'productRules', label: '商品规则', icon: 'mdi:clipboard-text-search', group: 'rules' },
-  { key: 'orderSettings', label: '订单规则', icon: 'mdi:cart-cog', group: 'rules' }
+  { key: 'productRules', label: '商品规则', icon: 'mdi:clipboard-clock-outline', group: 'rules' },
+  { key: 'orderSettings', label: '订单规则', icon: 'mdi:cart', group: 'rules' }
 ] as const;
 
 export type SiteConfigKey = (typeof SITE_CONFIG_ITEMS)[number]['key'];
