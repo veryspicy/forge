@@ -28,17 +28,15 @@ rich_text(title/html/align) / image(title/images/caption) / image_text(title/ima
       </section>
 
       <!-- 图文 -->
-      <section v-else-if="block.type === 'image_text'" class="grid md:grid-cols-2 gap-6 items-center" :class="block.layout === 'right' ? 'md:[direction:rtl]' : ''">
-        <div class="md:[direction:ltr]">
-          <img
-            v-if="normalizedImage(block.image)"
-            :src="normalizedImage(block.image)"
-            :alt="block.title || ''"
-            class="w-full h-auto rounded-xl object-cover bg-gray-100"
-            loading="lazy"
-          />
-        </div>
-        <div class="md:[direction:ltr]">
+      <section v-else-if="block.type === 'image_text'" class="mx-auto max-w-4xl">
+        <img
+          v-if="normalizedImage(block.image)"
+          :src="normalizedImage(block.image)"
+          :alt="block.title || ''"
+          class="w-full aspect-square object-cover rounded-xl mx-auto"
+          loading="lazy"
+        />
+        <div class="mt-4">
           <h2 v-if="block.title" class="text-xl font-bold text-gray-900 mb-3">{{ block.title }}</h2>
           <div v-if="block.html" class="text-gray-700 leading-relaxed" v-html="block.html" />
         </div>

@@ -29,7 +29,7 @@
         <div>
           <!-- Main Image -->
           <div
-            class="bg-gray-100 rounded-xl overflow-hidden h-80 md:h-96 flex items-center justify-center cursor-zoom-in"
+            class="bg-white rounded-xl overflow-hidden aspect-square cursor-zoom-in"
             @click="openLightbox(0)"
           >
             <img
@@ -50,7 +50,7 @@
               :class="activeImage === img ? 'border-primary-500' : 'border-gray-200 hover:border-gray-400'"
               @click="activeImage = img"
             >
-              <img :src="img" :alt="imageAlt(img, idx)" class="w-full h-full object-cover" >
+              <img :src="img" :alt="imageAlt(img, idx)" class="w-full h-full object-contain bg-white" >
             </button>
           </div>
         </div>
