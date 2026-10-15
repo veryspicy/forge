@@ -158,21 +158,21 @@
             </button>
           </div>
 
-          <!-- Trust Badges -->
-          <div class="mt-6 grid grid-cols-3 gap-2 text-center">
-            <div class="flex flex-col items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-2.5">
+          <!-- Trust Badges（按店铺设置 store.trust_badges 开关控制） -->
+          <div v-if="showTrustBadges" class="mt-6 grid grid-cols-3 gap-2 text-center">
+            <div v-if="trustBadgeFreeShipping" class="flex flex-col items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-2.5">
               <svg class="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h8m-8 0a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm8 0a2 2 0 1 0 4 0 2 2 0 0 0-4 0zm-8 3v6m8-6v6m-10 0h12a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2z" />
               </svg>
               <span class="text-xs font-medium text-gray-700">{{ $t('products.trustFreeShipping') }}</span>
             </div>
-            <div class="flex flex-col items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-2.5">
+            <div v-if="trustBadgeReturns" class="flex flex-col items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-2.5">
               <svg class="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v6h6M20 20v-6h-6M4 16a8 8 0 0 0 14.1 2.5M20 8A8 8 0 0 0 5.9 5.5" />
               </svg>
               <span class="text-xs font-medium text-gray-700">{{ $t('products.trustReturns') }}</span>
             </div>
-            <div class="flex flex-col items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-2.5">
+            <div v-if="trustBadgeSecure" class="flex flex-col items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-2.5">
               <svg class="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm7-3a7 7 0 1 1-14 0 7 7 0 0 1 14 0z" />
               </svg>
@@ -433,6 +433,18 @@ const activeImageAlt = computed(() => {
 })
 
 const descriptionTooLong = computed(() => (displayDescription.value?.length || 0) > 300)
+
+// 信任标识：按店铺设置 store.trust_badges 的 enabled 开关控制展示
+const trustBadges = computed(() => product.value?.trust_badges)
+const showTrustBadges = computed(
+  () =>
+    !!trustBadges.value?.free_shipping?.enabled ||
+    !!trustBadges.value?.returns?.enabled ||
+    !!trustBadges.value?.secure_checkout?.enabled
+)
+const trustBadgeFreeShipping = computed(() => !!trustBadges.value?.free_shipping?.enabled)
+const trustBadgeReturns = computed(() => !!trustBadges.value?.returns?.enabled)
+const trustBadgeSecure = computed(() => !!trustBadges.value?.secure_checkout?.enabled)
 
 function openLightbox(idx: number) {
   if (!lightboxImages.value.length) return

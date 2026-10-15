@@ -17,6 +17,13 @@ export interface DetailBlockImage {
   alt?: string;
 }
 
+// 信任标识（店铺设置 store.trust_badges，C 端按 enabled 控制展示）
+export interface TrustBadges {
+  free_shipping?: { enabled?: boolean; threshold?: number };
+  returns?: { days?: number; enabled?: boolean };
+  secure_checkout?: { enabled?: boolean };
+}
+
 export interface DetailBlock {
   type: "rich_text" | "image" | "image_text" | "spec_table" | "features" | "faq" | "video" | string;
   title?: string;
@@ -58,6 +65,7 @@ interface Product {
   description_translations?: Record<string, string>;
   detail_blocks?: DetailBlock[];
   detail_blocks_translations?: Record<string, DetailBlock[]>;
+  trust_badges?: TrustBadges;
   seo_title?: string;
   seo_description?: string;
   seo_keywords?: string;
