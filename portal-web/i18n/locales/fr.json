@@ -209,7 +209,9 @@
     "trustFreeShipping": "Livraison gratuite",
     "trustReturns": "Retours 30 jours",
     "trustSecure": "Paiement sécurisé",
-    "videoNotSupported": "Votre navigateur ne prend pas en charge la lecture vidéo."
+    "videoNotSupported": "Votre navigateur ne prend pas en charge la lecture vidéo.",
+    "readMore": "Voir plus",
+    "showLess": "Voir moins"
   },
   "cart": {
     "title": "Panier",

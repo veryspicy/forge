@@ -15,9 +15,9 @@ rich_text(title/html/align) / image(title/images/caption) / image_text(title/ima
       <!-- 图片 -->
       <section v-else-if="block.type === 'image'">
         <h2 v-if="block.title" class="text-xl font-bold text-gray-900 mb-3">{{ block.title }}</h2>
-        <div v-if="block.images && block.images.length" class="grid gap-4" :class="block.images.length > 1 ? 'sm:grid-cols-2' : ''">
+        <div v-if="normalizedImages(block.images).length" class="grid gap-4" :class="normalizedImages(block.images).length > 1 ? 'sm:grid-cols-2' : ''">
           <figure
-            v-for="(img, i) in block.images"
+            v-for="(img, i) in normalizedImages(block.images)"
             :key="i"
             class="rounded-xl overflow-hidden bg-gray-100"
           >
@@ -31,8 +31,8 @@ rich_text(title/html/align) / image(title/images/caption) / image_text(title/ima
       <section v-else-if="block.type === 'image_text'" class="grid md:grid-cols-2 gap-6 items-center" :class="block.layout === 'right' ? 'md:[direction:rtl]' : ''">
         <div class="md:[direction:ltr]">
           <img
-            v-if="block.image"
-            :src="block.image"
+            v-if="normalizedImage(block.image)"
+            :src="normalizedImage(block.image)"
             :alt="block.title || ''"
             class="w-full h-auto rounded-xl object-cover bg-gray-100"
             loading="lazy"
@@ -135,6 +135,22 @@ function alignClass(align?: string) {
   if (align === 'center') return 'text-center'
   if (align === 'right') return 'text-right'
   return ''
+}
+
+// 图片字段归一化：字符串直接返回；{ url, ... } 对象取 url
+function normalizedImage(v: unknown): string {
+  if (typeof v === 'string') return v
+  if (v && typeof v === 'object') {
+    const obj = v as Record<string, unknown>
+    const u = obj.url ?? obj.src
+    return typeof u === 'string' ? u : ''
+  }
+  return ''
+}
+
+function normalizedImages(v: unknown): string[] {
+  if (!Array.isArray(v)) return []
+  return v.map(normalizedImage).filter(Boolean)
 }
 
 function asText(v: unknown): string {

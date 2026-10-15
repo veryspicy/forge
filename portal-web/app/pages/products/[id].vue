@@ -2,7 +2,7 @@
 <template>
   <div>
     <!-- Breadcrumb -->
-    <nav class="max-w-6xl mx-auto text-sm text-gray-500 mb-6">
+    <nav class="max-w-6xl mx-auto text-sm text-gray-500 pt-6 mb-6">
       <NuxtLink :to="localePath('/')" class="hover:text-primary-600">{{ $t('common.home') }}</NuxtLink>
       <span class="mx-2">/</span>
       <NuxtLink :to="localePath('/products')" class="hover:text-primary-600">{{ $t('common.products') }}</NuxtLink>
@@ -28,12 +28,15 @@
         <!-- Image Gallery -->
         <div>
           <!-- Main Image -->
-          <div class="bg-gray-100 rounded-xl overflow-hidden h-80 md:h-96 flex items-center justify-center">
+          <div
+            class="bg-gray-100 rounded-xl overflow-hidden h-80 md:h-96 flex items-center justify-center cursor-zoom-in"
+            @click="openLightbox(0)"
+          >
             <img
               v-if="activeImage"
               :src="activeImage"
               :alt="activeImageAlt"
-              class="w-full h-full object-cover"
+              class="w-full h-full object-contain"
             >
             <span v-else class="text-gray-400">{{ $t('products.noImage') }}</span>
           </div>
@@ -98,7 +101,16 @@
           </div>
 
           <!-- Description (localized) -->
-          <p v-if="displayDescription" class="mt-5 text-gray-600 leading-relaxed">{{ displayDescription }}</p>
+          <div v-if="displayDescription" class="mt-5">
+            <p class="text-gray-600 leading-relaxed" :class="descriptionExpanded ? '' : 'line-clamp-3'">{{ displayDescription }}</p>
+            <button
+              v-if="descriptionTooLong"
+              class="mt-1 text-sm text-primary-600 hover:underline"
+              @click="descriptionExpanded = !descriptionExpanded"
+            >
+              {{ descriptionExpanded ? $t('products.showLess') : $t('products.readMore') }}
+            </button>
+          </div>
 
           <!-- Variants -->
           <div v-if="product.variants && product.variants.length > 0" class="mt-5">
@@ -274,6 +286,46 @@
         </div>
       </section>
     </div>
+
+    <!-- Lightbox -->
+    <div
+      v-if="lightboxOpen"
+      class="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
+      @click.self="closeLightbox"
+    >
+      <button
+        class="absolute top-4 right-4 text-white/90 hover:text-white text-3xl leading-none p-2"
+        aria-label="Close"
+        @click="closeLightbox"
+      >
+        &times;
+      </button>
+      <button
+        v-if="lightboxImages.length > 1"
+        class="absolute left-4 text-white/90 hover:text-white text-4xl leading-none p-2"
+        aria-label="Previous"
+        @click="prevLightbox"
+      >
+        &#8249;
+      </button>
+      <img
+        v-if="lightboxImages.length"
+        :src="lightboxImages[lightboxIndex]"
+        :alt="imageAlt(lightboxImages[lightboxIndex], lightboxIndex)"
+        class="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
+      >
+      <button
+        v-if="lightboxImages.length > 1"
+        class="absolute right-4 text-white/90 hover:text-white text-4xl leading-none p-2"
+        aria-label="Next"
+        @click="nextLightbox"
+      >
+        &#8250;
+      </button>
+      <span v-if="lightboxImages.length > 1" class="absolute bottom-4 text-white/80 text-sm">
+        {{ lightboxIndex + 1 }} / {{ lightboxImages.length }}
+      </span>
+    </div>
   </div>
 </template>
 
@@ -307,6 +359,10 @@ const relatedProducts = ref<any[]>([])
 const productReviews = ref<any[]>([])
 const reviewsLoading = ref(false)
 const reviewSummary = ref<any>(null)
+const descriptionExpanded = ref(false)
+const lightboxOpen = ref(false)
+const lightboxIndex = ref(0)
+const lightboxImages = computed(() => product.value?.images || [])
 
 // 语言映射：C 端 locale(zh/en/ar/de/fr) → 后端翻译 key（zh-cn/es/de 等）
 const backendLocaleKey = computed(() => {
@@ -375,6 +431,30 @@ const activeImageAlt = computed(() => {
   if (!product.value || !activeImage.value) return displayName.value
   return imageAlt(activeImage.value, 0)
 })
+
+const descriptionTooLong = computed(() => (displayDescription.value?.length || 0) > 300)
+
+function openLightbox(idx: number) {
+  if (!lightboxImages.value.length) return
+  lightboxIndex.value = idx
+  lightboxOpen.value = true
+}
+
+function closeLightbox() {
+  lightboxOpen.value = false
+}
+
+function prevLightbox() {
+  const len = lightboxImages.value.length
+  if (!len) return
+  lightboxIndex.value = (lightboxIndex.value - 1 + len) % len
+}
+
+function nextLightbox() {
+  const len = lightboxImages.value.length
+  if (!len) return
+  lightboxIndex.value = (lightboxIndex.value + 1) % len
+}
 
 // SEO：seo_translations[locale] 优先，回退基准 seo_*；JSON-LD Product schema
 useSeoMeta({
@@ -515,4 +595,23 @@ onMounted(async () => {
     (p) => p.id !== route.params.id
   ).slice(0, 4)
 })
+
+onMounted(() => {
+  window.addEventListener('keydown', onLightboxKeydown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', onLightboxKeydown)
+})
+
+function onLightboxKeydown(e: KeyboardEvent) {
+  if (!lightboxOpen.value) return
+  if (e.key === 'Escape') {
+    closeLightbox()
+  } else if (e.key === 'ArrowLeft') {
+    prevLightbox()
+  } else if (e.key === 'ArrowRight') {
+    nextLightbox()
+  }
+}
 </script>

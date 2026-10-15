@@ -209,7 +209,9 @@
     "trustFreeShipping": "شحن مجاني",
     "trustReturns": "إرجاع خلال 30 يوم",
     "trustSecure": "دفع آمن",
-    "videoNotSupported": "متصفحك لا يدعم تشغيل الفيديو."
+    "videoNotSupported": "متصفحك لا يدعم تشغيل الفيديو.",
+    "readMore": "اقرأ المزيد",
+    "showLess": "عرض أقل"
   },
   "cart": {
     "title": "سلة التسوق",

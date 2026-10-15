@@ -10,14 +10,21 @@ export interface ProductImageDetail {
   sort?: number;
 }
 
+export interface DetailBlockImage {
+  url?: string;
+  src?: string;
+  resource_id?: string | number;
+  alt?: string;
+}
+
 export interface DetailBlock {
   type: "rich_text" | "image" | "image_text" | "spec_table" | "features" | "faq" | "video" | string;
   title?: string;
   html?: string;
   align?: string;
-  images?: string[];
+  images?: (string | DetailBlockImage)[];
   caption?: string;
-  image?: string;
+  image?: string | DetailBlockImage;
   layout?: string;
   columns?: string[];
   rows?: string[];

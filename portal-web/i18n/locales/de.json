@@ -209,7 +209,9 @@
     "trustFreeShipping": "Kostenloser Versand",
     "trustReturns": "30 Tage Rückgabe",
     "trustSecure": "Sicherer Checkout",
-    "videoNotSupported": "Ihr Browser unterstützt keine Video-Wiedergabe."
+    "videoNotSupported": "Ihr Browser unterstützt keine Video-Wiedergabe.",
+    "readMore": "Mehr anzeigen",
+    "showLess": "Weniger anzeigen"
   },
   "cart": {
     "title": "Warenkorb",

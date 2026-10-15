@@ -212,7 +212,9 @@
     "trustFreeShipping": "免运费",
     "trustReturns": "30 天退换",
     "trustSecure": "安全支付",
-    "videoNotSupported": "您的浏览器不支持视频播放。"
+    "videoNotSupported": "您的浏览器不支持视频播放。",
+    "readMore": "查看更多",
+    "showLess": "收起"
   },
   "cart": {
     "title": "购物车",

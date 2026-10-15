@@ -212,7 +212,9 @@
     "trustFreeShipping": "Free Shipping",
     "trustReturns": "30-Day Returns",
     "trustSecure": "Secure Checkout",
-    "videoNotSupported": "Your browser does not support the video tag."
+    "videoNotSupported": "Your browser does not support the video tag.",
+    "readMore": "Read more",
+    "showLess": "Show less"
   },
   "cart": {
     "title": "Shopping Cart",
