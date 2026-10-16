@@ -14,6 +14,19 @@ from forge.infrastructure.persistence.models import ORMAppSetting
 # 默认设置：未落库时使用的兜底值（种子仅保证 product_audit_enabled 存在）
 DEFAULT_SETTINGS: dict[str, Any] = {
     "product_audit_enabled": False,
+    # 店铺级购物区展示配置（C 端详情接口注入 trust_badges / shopping_info 消费）
+    # 运费金额与免邮阈值联动：商品价 >= threshold 时购物区展示"免运费"，否则展示 fee
+    "trust_badges": {
+        "free_shipping": {"enabled": True, "threshold": 49.0, "fee": 6.99},
+        "returns": {"enabled": True, "days": 30, "buyer_pays_shipping": True},
+        "secure_checkout": {"enabled": True},
+    },
+    # 购物信息：预计送达（处理天数 + 运输区间天数，后端算日期区间）、进口费、付款方式
+    "shopping_info": {
+        "delivery": {"enabled": True, "handling_days": 2, "transit_min_days": 5, "transit_max_days": 10},
+        "import_fee": {"enabled": False, "amount": None, "label": ""},
+        "payment_methods": {"enabled": True, "methods": ["card", "paypal", "apple_pay", "google_pay"]},
+    },
 }
 
 

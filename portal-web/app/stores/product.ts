@@ -19,9 +19,29 @@ export interface DetailBlockImage {
 
 // 信任标识（店铺设置 store.trust_badges，C 端按 enabled 控制展示）
 export interface TrustBadges {
-  free_shipping?: { enabled?: boolean; threshold?: number };
-  returns?: { days?: number; enabled?: boolean };
+  free_shipping?: { enabled?: boolean; threshold?: number; fee?: number };
+  returns?: { days?: number; enabled?: boolean; buyer_pays_shipping?: boolean };
   secure_checkout?: { enabled?: boolean };
+}
+
+// 购物信息（店铺设置 store.shopping_info，C 端购物区按 enabled 控制展示）
+export interface ShoppingInfo {
+  delivery?: {
+    enabled?: boolean;
+    handling_days?: number;
+    transit_min_days?: number;
+    transit_max_days?: number;
+    estimated_dates?: { from?: string; to?: string };
+  };
+  import_fee?: {
+    enabled?: boolean;
+    amount?: number;
+    label?: string;
+  };
+  payment_methods?: {
+    enabled?: boolean;
+    methods?: string[];
+  };
 }
 
 export interface DetailBlock {
@@ -66,6 +86,7 @@ interface Product {
   detail_blocks?: DetailBlock[];
   detail_blocks_translations?: Record<string, DetailBlock[]>;
   trust_badges?: TrustBadges;
+  shopping_info?: ShoppingInfo;
   seo_title?: string;
   seo_description?: string;
   seo_keywords?: string;

@@ -100,18 +100,6 @@
             <span class="text-sm font-medium">{{ inventoryLabel }}</span>
           </div>
 
-          <!-- Description (localized) -->
-          <div v-if="displayDescription" class="mt-5">
-            <p class="text-gray-600 leading-relaxed" :class="descriptionExpanded ? '' : 'line-clamp-3'">{{ displayDescription }}</p>
-            <button
-              v-if="descriptionTooLong"
-              class="mt-1 text-sm text-primary-600 hover:underline"
-              @click="descriptionExpanded = !descriptionExpanded"
-            >
-              {{ descriptionExpanded ? $t('products.showLess') : $t('products.readMore') }}
-            </button>
-          </div>
-
           <!-- Variants -->
           <div v-if="product.variants && product.variants.length > 0" class="mt-5">
             <p class="text-sm font-medium text-gray-700 mb-2">{{ $t('products.options') }}:</p>
@@ -180,6 +168,55 @@
             </div>
           </div>
 
+          <!-- Shopping Info（店铺设置 store.shopping_info，垂直列表：运费/送达/退货/进口费/付款方式） -->
+          <ul v-if="showShoppingInfo" class="mt-6 space-y-3 text-sm">
+            <li v-if="shippingLine" class="flex items-start gap-2.5">
+              <svg class="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h8m-8 0a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm8 0a2 2 0 1 0 4 0 2 2 0 0 0-4 0zm-8 3v6m8-6v6m-10 0h12a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2z" />
+              </svg>
+              <div>
+                <p class="text-gray-500">{{ $t('products.shippingFee') }}</p>
+                <p class="text-gray-900 font-medium">{{ shippingLine }}</p>
+              </div>
+            </li>
+            <li v-if="deliveryLine" class="flex items-start gap-2.5">
+              <svg class="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m0 0h4a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h4z" />
+              </svg>
+              <div>
+                <p class="text-gray-500">{{ $t('products.deliveryEstimate') }}</p>
+                <p class="text-gray-900 font-medium">{{ deliveryLine }}</p>
+              </div>
+            </li>
+            <li v-if="returnsLine" class="flex items-start gap-2.5">
+              <svg class="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v6h6M20 20v-6h-6M4 16a8 8 0 0 0 14.1 2.5M20 8A8 8 0 0 0 5.9 5.5" />
+              </svg>
+              <div>
+                <p class="text-gray-500">{{ $t('products.returnPolicy') }}</p>
+                <p class="text-gray-900 font-medium">{{ returnsLine }}</p>
+              </div>
+            </li>
+            <li v-if="importFeeLine" class="flex items-start gap-2.5">
+              <svg class="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 3l1.9 5.7a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3L12 3z" />
+              </svg>
+              <div>
+                <p class="text-gray-500">{{ $t('products.importFee') }}</p>
+                <p class="text-gray-900 font-medium">{{ importFeeLine }}</p>
+              </div>
+            </li>
+            <li v-if="paymentLine" class="flex items-start gap-2.5">
+              <svg class="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 6h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zm3 8h5" />
+              </svg>
+              <div>
+                <p class="text-gray-500">{{ $t('products.paymentMethods') }}</p>
+                <p class="text-gray-900 font-medium">{{ paymentLine }}</p>
+              </div>
+            </li>
+          </ul>
+
           <!-- Pet Suitability Tags -->
           <div v-if="product.breed_groups && product.breed_groups.length > 0" class="mt-5">
             <p class="text-sm font-medium text-gray-700 mb-2">{{ $t('products.suitableFor') }}:</p>
@@ -212,7 +249,7 @@
         </div>
       </div>
 
-      <!-- Structured Detail Blocks -->
+      <!-- Structured Detail Blocks（商品介绍等文案由详情块承载，避免与 description 重复渲染） -->
       <section v-if="detailBlocks.length" class="mt-16">
         <h2 class="text-2xl font-bold text-gray-900 mb-6">{{ $t('products.detailsTitle') }}</h2>
         <DetailBlocks :blocks="detailBlocks" />
@@ -359,7 +396,6 @@ const relatedProducts = ref<any[]>([])
 const productReviews = ref<any[]>([])
 const reviewsLoading = ref(false)
 const reviewSummary = ref<any>(null)
-const descriptionExpanded = ref(false)
 const lightboxOpen = ref(false)
 const lightboxIndex = ref(0)
 const lightboxImages = computed(() => product.value?.images || [])
@@ -432,8 +468,6 @@ const activeImageAlt = computed(() => {
   return imageAlt(activeImage.value, 0)
 })
 
-const descriptionTooLong = computed(() => (displayDescription.value?.length || 0) > 300)
-
 // 信任标识：按店铺设置 store.trust_badges 的 enabled 开关控制展示
 const trustBadges = computed(() => product.value?.trust_badges)
 const showTrustBadges = computed(
@@ -445,6 +479,68 @@ const showTrustBadges = computed(
 const trustBadgeFreeShipping = computed(() => !!trustBadges.value?.free_shipping?.enabled)
 const trustBadgeReturns = computed(() => !!trustBadges.value?.returns?.enabled)
 const trustBadgeSecure = computed(() => !!trustBadges.value?.secure_checkout?.enabled)
+
+// 购物信息：按店铺设置 store.shopping_info 各 enabled 开关控制展示
+const shoppingInfo = computed(() => product.value?.shopping_info)
+
+const shippingLine = computed(() => {
+  const fs = trustBadges.value?.free_shipping
+  if (!fs?.enabled) return ''
+  if (fs.threshold != null && fs.threshold > 0) {
+    return t('products.shippingFreeOver', { amount: formatPrice(fs.threshold) })
+  }
+  if (fs.fee != null && fs.fee > 0) {
+    return t('products.shippingFlatRate', { amount: formatPrice(fs.fee) })
+  }
+  return ''
+})
+
+const deliveryLine = computed(() => {
+  const d = shoppingInfo.value?.delivery
+  if (!d?.enabled) return ''
+  if (d.estimated_dates?.from && d.estimated_dates?.to) {
+    return t('products.deliveryRange', { from: d.estimated_dates.from, to: d.estimated_dates.to })
+  }
+  const minDays = (d.handling_days || 0) + (d.transit_min_days || 0)
+  const maxDays = (d.handling_days || 0) + (d.transit_max_days || 0)
+  if (maxDays > 0) {
+    return minDays === maxDays
+      ? t('products.deliveryDays', { count: minDays })
+      : t('products.deliveryDaysRange', { min: minDays, max: maxDays })
+  }
+  return ''
+})
+
+const returnsLine = computed(() => {
+  const r = trustBadges.value?.returns
+  if (!r?.enabled) return ''
+  const base = r.days ? t('products.returnsDays', { days: r.days }) : t('products.returnsAllowed')
+  return r.buyer_pays_shipping ? `${base} · ${t('products.buyerPaysReturnShipping')}` : base
+})
+
+const importFeeLine = computed(() => {
+  const f = shoppingInfo.value?.import_fee
+  if (!f?.enabled) return ''
+  const amount = f.amount != null && f.amount > 0 ? formatPrice(f.amount) : ''
+  if (f.label) return amount ? `${f.label} ${amount}` : f.label
+  return amount ? t('products.importFeeAmount', { amount }) : t('products.importFeeIncluded')
+})
+
+const paymentLine = computed(() => {
+  const p = shoppingInfo.value?.payment_methods
+  if (!p?.enabled || !p.methods?.length) return ''
+  const labels: Record<string, string> = {
+    card: t('products.paymentCard'),
+    paypal: 'PayPal',
+    apple_pay: 'Apple Pay',
+    google_pay: 'Google Pay',
+  }
+  return p.methods.map((m) => labels[m] || m).join(', ')
+})
+
+const showShoppingInfo = computed(
+  () => !!shippingLine.value || !!deliveryLine.value || !!returnsLine.value || !!importFeeLine.value || !!paymentLine.value
+)
 
 function openLightbox(idx: number) {
   if (!lightboxImages.value.length) return

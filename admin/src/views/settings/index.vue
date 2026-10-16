@@ -21,7 +21,17 @@ const localSettings = reactive({
     order_prefix: 'PAI',
     expiry_hours: 24
   },
-  notifications: { email_enabled: true, admin_email: '', order_alerts: true }
+  notifications: { email_enabled: true, admin_email: '', order_alerts: true },
+  trust_badges: {
+    free_shipping: { enabled: true, threshold: 49, fee: 6.99 },
+    returns: { enabled: true, days: 30, buyer_pays_shipping: true },
+    secure_checkout: { enabled: true }
+  },
+  shopping_info: {
+    delivery: { enabled: true, handling_days: 2, transit_min_days: 5, transit_max_days: 10 },
+    import_fee: { enabled: false, amount: null, label: '' },
+    payment_methods: { enabled: true, methods: ['card', 'paypal', 'apple_pay', 'google_pay'] }
+  }
 });
 
 const currencyOptions = [
@@ -34,6 +44,7 @@ const langOptions = [
   { label: 'English', value: 'en' },
   { label: 'Arabic', value: 'ar' }
 ];
+const paymentOptions = ['card', 'paypal', 'apple_pay', 'google_pay'].map((v) => ({ label: v, value: v }));
 
 async function loadSettings() {
   try {
@@ -53,6 +64,18 @@ async function loadSettings() {
         admin_email: '',
         order_alerts: true,
         ...res.data.notifications
+      };
+      localSettings.trust_badges = {
+        free_shipping: { enabled: true, threshold: 49, fee: 6.99 },
+        returns: { enabled: true, days: 30, buyer_pays_shipping: true },
+        secure_checkout: { enabled: true },
+        ...res.data.trust_badges
+      };
+      localSettings.shopping_info = {
+        delivery: { enabled: true, handling_days: 2, transit_min_days: 5, transit_max_days: 10 },
+        import_fee: { enabled: false, amount: null, label: '' },
+        payment_methods: { enabled: true, methods: ['card', 'paypal', 'apple_pay', 'google_pay'] },
+        ...res.data.shopping_info
       };
     }
   } catch (e) {
@@ -140,6 +163,103 @@ onMounted(loadSettings);
           <div class="flex items-center justify-between">
             <span class="text-sm text-gray-500">启用商品发布审核流程（默认关闭，对齐自营单商家模式）</span>
             <NSwitch v-model:value="localSettings.product_audit_enabled" />
+          </div>
+        </NCard>
+
+        <!-- Shopping Info & Trust Badges（C 端详情页购物区展示配置，阶段1） -->
+        <NCard :title="$t('page.settings.shoppingDisplay')" size="small" class="md:col-span-2">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <p class="text-sm font-medium text-gray-500 mb-2">{{ $t('page.settings.freeShipping') }}</p>
+              <NFormItem :label="$t('page.settings.freeShipping')">
+                <NSwitch v-model:value="localSettings.trust_badges.free_shipping.enabled" />
+              </NFormItem>
+              <NFormItem :label="$t('page.settings.freeShippingThreshold')">
+                <NInputNumber
+                  v-model:value="localSettings.trust_badges.free_shipping.threshold"
+                  :min="0"
+                  style="width: 100%"
+                />
+              </NFormItem>
+              <NFormItem :label="$t('page.settings.shippingFee')">
+                <NInputNumber
+                  v-model:value="localSettings.trust_badges.free_shipping.fee"
+                  :min="0"
+                  style="width: 100%"
+                />
+              </NFormItem>
+              <p class="text-sm font-medium text-gray-500 mb-2 mt-4">{{ $t('page.settings.returnsBadge') }}</p>
+              <NFormItem :label="$t('page.settings.returnsBadge')">
+                <NSwitch v-model:value="localSettings.trust_badges.returns.enabled" />
+              </NFormItem>
+              <NFormItem :label="$t('page.settings.returnDays')">
+                <NInputNumber
+                  v-model:value="localSettings.trust_badges.returns.days"
+                  :min="0"
+                  style="width: 100%"
+                />
+              </NFormItem>
+              <NFormItem :label="$t('page.settings.buyerPaysReturnShipping')">
+                <NSwitch v-model:value="localSettings.trust_badges.returns.buyer_pays_shipping" />
+              </NFormItem>
+              <p class="text-sm font-medium text-gray-500 mb-2 mt-4">{{ $t('page.settings.secureCheckout') }}</p>
+              <NFormItem :label="$t('page.settings.secureCheckout')">
+                <NSwitch v-model:value="localSettings.trust_badges.secure_checkout.enabled" />
+              </NFormItem>
+            </div>
+            <div>
+              <p class="text-sm font-medium text-gray-500 mb-2">{{ $t('page.settings.deliveryEstimate') }}</p>
+              <NFormItem :label="$t('page.settings.deliveryEstimate')">
+                <NSwitch v-model:value="localSettings.shopping_info.delivery.enabled" />
+              </NFormItem>
+              <NFormItem :label="$t('page.settings.handlingDays')">
+                <NInputNumber
+                  v-model:value="localSettings.shopping_info.delivery.handling_days"
+                  :min="0"
+                  style="width: 100%"
+                />
+              </NFormItem>
+              <NFormItem :label="$t('page.settings.transitMinDays')">
+                <NInputNumber
+                  v-model:value="localSettings.shopping_info.delivery.transit_min_days"
+                  :min="0"
+                  style="width: 100%"
+                />
+              </NFormItem>
+              <NFormItem :label="$t('page.settings.transitMaxDays')">
+                <NInputNumber
+                  v-model:value="localSettings.shopping_info.delivery.transit_max_days"
+                  :min="0"
+                  style="width: 100%"
+                />
+              </NFormItem>
+              <p class="text-sm font-medium text-gray-500 mb-2 mt-4">{{ $t('page.settings.importFee') }}</p>
+              <NFormItem :label="$t('page.settings.importFee')">
+                <NSwitch v-model:value="localSettings.shopping_info.import_fee.enabled" />
+              </NFormItem>
+              <NFormItem :label="$t('page.settings.importFeeAmount')">
+                <NInputNumber
+                  v-model:value="localSettings.shopping_info.import_fee.amount"
+                  :min="0"
+                  placeholder="0.00"
+                  style="width: 100%"
+                />
+              </NFormItem>
+              <NFormItem :label="$t('page.settings.importFeeLabel')">
+                <NInput v-model:value="localSettings.shopping_info.import_fee.label" type="text" />
+              </NFormItem>
+              <p class="text-sm font-medium text-gray-500 mb-2 mt-4">{{ $t('page.settings.paymentMethods') }}</p>
+              <NFormItem :label="$t('page.settings.paymentMethods')">
+                <NSwitch v-model:value="localSettings.shopping_info.payment_methods.enabled" />
+              </NFormItem>
+              <NFormItem :label="$t('page.settings.paymentOptions')">
+                <NSelect
+                  v-model:value="localSettings.shopping_info.payment_methods.methods"
+                  multiple
+                  :options="paymentOptions"
+                />
+              </NFormItem>
+            </div>
           </div>
         </NCard>
 

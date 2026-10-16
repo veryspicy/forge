@@ -6,11 +6,13 @@
 
 from __future__ import annotations
 
+from datetime import date, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from forge.application.services.app_settings_service import DEFAULT_SETTINGS, get_setting
 from forge.infrastructure.persistence.models import ORMProduct
 from forge.infrastructure.persistence.repositories.product_repo import SQLAlchemyProductRepository
 from forge.infrastructure.persistence.repositories.site_profile_repo import SQLAlchemySiteProfileRepository
@@ -107,6 +109,26 @@ def _sort_key(sort: str) -> str:
     return _SORT_ALIASES.get(sort, sort)
 
 
+def _as_int(value: Any, default: int = 0) -> int:
+    """安全整数转换，配置脏数据时回退默认值。"""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _delivery_estimate(delivery: dict[str, Any]) -> list[str]:
+    """预计送达日期区间：处理天数 + 运输区间天数（基于服务器本地日期，ISO 格式）。"""
+    handling = _as_int(delivery.get("handling_days"))
+    transit_min = _as_int(delivery.get("transit_min_days"))
+    transit_max = max(_as_int(delivery.get("transit_max_days")), transit_min)
+    today = date.today()
+    return [
+        (today + timedelta(days=handling + transit_min)).isoformat(),
+        (today + timedelta(days=handling + transit_max)).isoformat(),
+    ]
+
+
 @router.get("/products")
 async def list_public_products(
     page: int = Query(default=1, ge=1),
@@ -197,6 +219,15 @@ async def get_public_product(
     if product is None or product.status != "active":
         raise HTTPException(status_code=404, detail="Product not found")
     data = _public_item(product.to_dict(), detail=True)
+    # 购物区展示配置注入：信任标识 + 购物信息（运费/预计送达/退货/付款方式），
+    # 复用 app_settings KV（店铺级配置），零额外请求零新表
+    data["trust_badges"] = (await get_setting(db, "trust_badges", DEFAULT_SETTINGS.get("trust_badges"))) or {}
+    shopping_info = dict((await get_setting(db, "shopping_info", DEFAULT_SETTINGS.get("shopping_info"))) or {})
+    delivery = dict(shopping_info.get("delivery") or {})
+    if delivery.get("enabled"):
+        delivery["estimated_dates"] = _delivery_estimate(delivery)
+        shopping_info["delivery"] = delivery
+    data["shopping_info"] = shopping_info
     # 变体（含展示名多语言）：C 端变体选择器消费
     variants = await SQLAlchemyProductRepository.list_variants(db, int(product.id))
     data["variants"] = [_public_variant(v.to_dict()) for v in variants]
