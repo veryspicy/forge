@@ -78,7 +78,7 @@ export function useSiteProfile() {
       } catch { /* ignore */ }
       const nav = (r.navigation || r.nav || []) as NavItem[]
       return {
-        brand: { name: 'Forge', tagline: '', nameColor: 'auto', logo: null, ...(r.brand || {}) },
+        brand: { name: 'Forge', tagline: '', nameColor: 'auto', favicon: '', logo: null, ...(r.brand || {}) },
         theme: { preset: 'forge', primaryColor: '#4f46e5', primaryLight: '', primaryDark: '', secondaryColor: '', accentColor: '', fontHeading: 'Inter', fontBody: 'Inter', ...(r.theme || {}) },
         navigation: nav.map((n, i) => ({ ...n, order: n.order ?? i, visible: n.visible ?? true })),
         sections: (r.sections || []) as Section[],
@@ -314,6 +314,8 @@ export interface SiteProfile {
     name: string
     tagline: string
     nameColor?: string
+    /** C 端浏览器标签页图标（favicon）URL */
+    favicon?: string
     logo: { type: string; data: string } | null
   }
   theme: {

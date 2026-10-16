@@ -2,25 +2,35 @@ import { reactive, ref } from 'vue';
 import { defineStore } from 'pinia';
 import { get as httpGet, put as httpPut } from '@/service/api/helper';
 
-/** 站点配置项的 key 列表（按用户需求排序） */
+/** 站点配置分组（3 组：店铺基础 / 页面展示 / 经营规则） */
+export const SITE_CONFIG_GROUPS = [
+  { key: 'shop', label: '店铺基础' },
+  { key: 'display', label: '页面展示' },
+  { key: 'rules', label: '经营规则' }
+] as const;
+
+export type SiteConfigGroupKey = (typeof SITE_CONFIG_GROUPS)[number]['key'];
+
+/** 站点配置项的 key 列表（3 组 11 项，每项必须带 icon） */
 export const SITE_CONFIG_ITEMS = [
-  { key: 'brand', label: '品牌', icon: 'mdi:tag-text' },
-  { key: 'theme', label: '主题', icon: 'mdi:palette' },
-  { key: 'navigation', label: '导航', icon: 'mdi:menu' },
-  { key: 'categories', label: '分类', icon: 'mdi:shape' },
-  { key: 'footer', label: '页脚链接', icon: 'mdi:page-layout-footer' },
-  { key: 'homeHero', label: '轮播/英雄图', icon: 'mdi:view-carousel' },
-  { key: 'seo', label: 'SEO', icon: 'mdi:magnify' },
-  { key: 'i18n', label: 'i18n 多语言', icon: 'mdi:translate' },
-  { key: 'featureFlags', label: '功能开关', icon: 'mdi:toggle-switch' },
-  { key: 'products', label: '商品排序', icon: 'mdi:sort' },
-  { key: 'currencies', label: '货币', icon: 'mdi:cash' }
+  { key: 'store', label: '店铺设置', icon: 'mdi:store', group: 'shop' },
+  { key: 'theme', label: '主题', icon: 'mdi:palette', group: 'display' },
+  { key: 'navigation', label: '导航', icon: 'mdi:menu', group: 'display' },
+  { key: 'categories', label: '分类', icon: 'mdi:shape', group: 'display' },
+  { key: 'footer', label: '页脚链接', icon: 'mdi:page-layout-footer', group: 'display' },
+  { key: 'homeHero', label: '首页区块', icon: 'mdi:view-carousel', group: 'display' },
+  { key: 'seo', label: 'SEO', icon: 'mdi:magnify', group: 'display' },
+  { key: 'i18n', label: '多语言翻译', icon: 'mdi:translate', group: 'display' },
+  { key: 'featureFlags', label: '功能开关', icon: 'mdi:toggle-switch', group: 'rules' },
+  { key: 'productRules', label: '商品规则', icon: 'mdi:clipboard-clock-outline', group: 'rules' },
+  { key: 'orderSettings', label: '订单规则', icon: 'mdi:cart', group: 'rules' },
+  { key: 'shoppingInfo', label: '购物信息', icon: 'mdi:shopping-outline', group: 'rules' }
 ] as const;
 
 export type SiteConfigKey = (typeof SITE_CONFIG_ITEMS)[number]['key'];
 
 const DEFAULT_SITE_CONFIG = {
-  brand: { name: 'Forge', tagline: '', logo: { type: 'text', data: '' } },
+  brand: { name: 'Forge', tagline: '', favicon: '', logo: { type: 'text', data: '' } },
   theme: {
     preset: 'forge' as string,
     primaryColor: '#18a058',
@@ -302,6 +312,41 @@ const DEFAULT_SITE_CONFIG = {
     default_sort: 'default'
   } as { default_sort: string },
   currencies: ['USD'] as string[],
+  trustBadges: {
+    freeShipping: { enabled: true, threshold: 50 },
+    returns: { enabled: true, days: 30 },
+    secureCheckout: { enabled: true }
+  } as {
+    freeShipping: { enabled: boolean; threshold: number };
+    returns: { enabled: boolean; days: number };
+    secureCheckout: { enabled: boolean };
+  },
+  productAudit: { enabled: false } as { enabled: boolean },
+  orderSettings: {
+    autoReview: false,
+    maxItemsPerOrder: 10,
+    orderPrefix: 'PAI',
+    expiryHours: 24
+  } as {
+    autoReview: boolean;
+    maxItemsPerOrder: number;
+    orderPrefix: string;
+    expiryHours: number;
+  },
+  shoppingInfo: {
+    delivery: { enabled: true, handlingDays: 2, transitMinDays: 5, transitMaxDays: 10 },
+    importFee: { enabled: false, amount: null as number | null, label: '' },
+    paymentMethods: { enabled: true, methods: ['card', 'paypal', 'apple_pay', 'google_pay'] }
+  } as {
+    delivery: {
+      enabled: boolean;
+      handlingDays: number;
+      transitMinDays: number;
+      transitMaxDays: number;
+    };
+    importFee: { enabled: boolean; amount: number | null; label: string };
+    paymentMethods: { enabled: boolean; methods: string[] };
+  },
   homeHero: {
     useCarousel: false,
     hero: {

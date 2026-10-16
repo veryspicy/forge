@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { NButton, NTooltip } from 'naive-ui';
-import { useDiyStore, SITE_CONFIG_ITEMS } from '@/store/modules/diy';
+import { useDiyStore, SITE_CONFIG_GROUPS, SITE_CONFIG_ITEMS } from '@/store/modules/diy';
 import PropertyPanel from './modules/PropertyPanel.vue';
 
 const store = useDiyStore();
+const siteConfigGroups = SITE_CONFIG_GROUPS;
 const siteConfigItems = SITE_CONFIG_ITEMS;
+
+/** 按分组过滤站点配置项 */
+function groupedItems(groupKey: string) {
+  return siteConfigItems.filter(item => item.group === groupKey);
+}
 
 // ========== 左右面板可见性 ==========
 const leftPanelVisible = ref(true);
@@ -300,21 +306,30 @@ onBeforeUnmount(() => {
         <SvgIcon icon="mdi:cog-outline" class="text-18px text-green-600" />
         <span class="text-sm font-semibold">站点配置</span>
       </div>
-      <div class="flex flex-1 flex-col gap-1 overflow-y-auto p-2">
-        <div
-          v-for="item in siteConfigItems"
-          :key="item.key"
-          class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm transition-colors"
-          :class="
-            store.activeSiteConfigItem === item.key
-              ? 'bg-green-50 text-green-700 font-medium dark:bg-green-900/20 dark:text-green-400'
-              : 'hover:bg-gray-50 dark:hover:bg-gray-800'
-          "
-          @click="store.selectSiteConfigItem(item.key)"
-        >
-          <SvgIcon :icon="item.icon" class="text-14px shrink-0" />
-          <span>{{ item.label }}</span>
-        </div>
+      <div class="flex flex-1 flex-col overflow-y-auto p-2">
+        <template v-for="group in siteConfigGroups" :key="group.key">
+          <div
+            class="px-2 pt-3 pb-1 text-[11px] font-medium tracking-wide text-gray-400 uppercase dark:text-gray-500"
+          >
+            {{ group.label }}
+          </div>
+          <div class="flex flex-col gap-1">
+            <div
+              v-for="item in groupedItems(group.key)"
+              :key="item.key"
+              class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm transition-colors"
+              :class="
+                store.activeSiteConfigItem === item.key
+                  ? 'bg-green-50 text-green-700 font-medium dark:bg-green-900/20 dark:text-green-400'
+                  : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+              "
+              @click="store.selectSiteConfigItem(item.key)"
+            >
+              <SvgIcon :icon="item.icon" class="text-14px shrink-0" />
+              <span>{{ item.label }}</span>
+            </div>
+          </div>
+        </template>
       </div>
     </div>
 

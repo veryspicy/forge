@@ -35,6 +35,7 @@ from forge.infrastructure.persistence.repositories.order_repo import (
     _order_to_dict,
 )
 from forge.infrastructure.persistence.repositories.user_repo import SQLAlchemyUserRepository
+from forge.infrastructure.site_config_service import get_free_shipping_threshold
 from forge.main.dependencies import get_db
 
 router = APIRouter(prefix="/orders", tags=["C-end Orders"])
@@ -229,12 +230,14 @@ async def create_order(
     """创建订单：服务端计价快照 + 扣减库存；状态 pending(unpaid)，随后经 pay 接口支付。"""
     owner_id = await _current_owner_id(user_claims, db)
     lines: list[dict[str, object]] = [{"product_id": it.product_id, "quantity": it.quantity} for it in payload.items]
+    free_shipping_threshold = await get_free_shipping_threshold(db)
     order = await SQLAlchemyCustomerOrderRepository.create_order(
         db,
         owner_id,
         lines,
         payload.shipping_address,
         payment_method=payload.payment_method,
+        free_shipping_threshold=free_shipping_threshold,
     )
     await db.commit()
     await db.refresh(order, attribute_names=["items"])

@@ -12,10 +12,10 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from forge.application.services.app_settings_service import DEFAULT_SETTINGS, get_setting
 from forge.infrastructure.persistence.models import ORMProduct
 from forge.infrastructure.persistence.repositories.product_repo import SQLAlchemyProductRepository
 from forge.infrastructure.persistence.repositories.site_profile_repo import SQLAlchemySiteProfileRepository
+from forge.infrastructure.site_config_service import get_shopping_info, get_trust_badges
 from forge.main.dependencies import get_db
 
 router = APIRouter()
@@ -219,10 +219,11 @@ async def get_public_product(
     if product is None or product.status != "active":
         raise HTTPException(status_code=404, detail="Product not found")
     data = _public_item(product.to_dict(), detail=True)
-    # 购物区展示配置注入：信任标识 + 购物信息（运费/预计送达/退货/付款方式），
-    # 复用 app_settings KV（店铺级配置），零额外请求零新表
-    data["trust_badges"] = (await get_setting(db, "trust_badges", DEFAULT_SETTINGS.get("trust_badges"))) or {}
-    shopping_info = dict((await get_setting(db, "shopping_info", DEFAULT_SETTINGS.get("shopping_info"))) or {})
+    # 信任标识配置（店铺级）：C 端详情页渲染 Free Shipping / Returns / Secure Checkout 徽章
+    # 优先读站点配置 trustBadges，存量缺失时回退 app_settings
+    data["trust_badges"] = await get_trust_badges(db)
+    # 购物信息（运费/预计送达/进口费/付款方式）：优先读站点配置 shoppingInfo，存量缺失时回退 app_settings
+    shopping_info = dict(await get_shopping_info(db))
     delivery = dict(shopping_info.get("delivery") or {})
     if delivery.get("enabled"):
         delivery["estimated_dates"] = _delivery_estimate(delivery)

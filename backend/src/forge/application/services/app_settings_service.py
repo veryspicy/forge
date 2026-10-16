@@ -4,6 +4,7 @@
 （如商品审核开关 product_audit_enabled）使用。
 """
 
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import select
@@ -28,6 +29,33 @@ DEFAULT_SETTINGS: dict[str, Any] = {
         "payment_methods": {"enabled": True, "methods": ["card", "paypal", "apple_pay", "google_pay"]},
     },
 }
+
+
+async def get_trust_badges(db: AsyncSession) -> dict[str, Any]:
+    """读取信任标识配置（未落库或字段缺失时以默认值兜底，保证结构完整）。"""
+    raw = await get_setting(db, "trust_badges", None)
+    if not isinstance(raw, dict):
+        return dict(DEFAULT_SETTINGS["trust_badges"])
+    merged = dict(DEFAULT_SETTINGS["trust_badges"])
+    for key, value in raw.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = {**merged[key], **value}
+        else:
+            merged[key] = value
+    return merged
+
+
+async def get_free_shipping_threshold(db: AsyncSession) -> Decimal | None:
+    """免邮阈值：trust_badges.free_shipping.threshold（默认 50）；enabled=False 或阈值<=0 时返回 None（免邮关闭）。"""
+    tb = await get_trust_badges(db)
+    try:
+        fs = tb["free_shipping"]
+        if not bool(fs.get("enabled", True)):
+            return None
+        threshold = Decimal(str(fs.get("threshold", 50)))
+    except (KeyError, TypeError, ValueError):
+        return Decimal("50")
+    return threshold if threshold > 0 else None
 
 
 async def get_all_settings(db: AsyncSession) -> dict[str, Any]:

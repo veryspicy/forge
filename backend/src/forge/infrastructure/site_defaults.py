@@ -225,6 +225,29 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "products": {
         "default_sort": "default",
     },
+    # 店铺级信任标识（迁移自 admin app_settings trust_badges）
+    "trustBadges": {
+        "freeShipping": {"enabled": True, "threshold": 50},
+        "returns": {"enabled": True, "days": 30},
+        "secureCheckout": {"enabled": True},
+    },
+    # 购物信息（组3 经营规则）：预计送达/进口费/付款方式，C 端详情页消费
+    "shoppingInfo": {
+        "delivery": {"enabled": True, "handlingDays": 2, "transitMinDays": 5, "transitMaxDays": 10},
+        "importFee": {"enabled": False, "amount": None, "label": ""},
+        "paymentMethods": {"enabled": True, "methods": ["card", "paypal", "apple_pay", "google_pay"]},
+    },
+    # 商品审核开关（迁移自 admin app_settings product_audit_enabled，默认关闭）
+    "productAudit": {
+        "enabled": False,
+    },
+    # 订单设置（迁移自 admin app_settings order_settings）
+    "orderSettings": {
+        "autoReview": False,
+        "maxItemsPerOrder": 10,
+        "orderPrefix": "PAI",
+        "expiryHours": 24,
+    },
     "currencies": ["USD"],
     "regions": [],
     "sections": [
@@ -349,10 +372,23 @@ def merge_for_save(user_payload_config: dict[str, object]) -> dict[str, object]:
     return deep_merge(DEFAULT_CONFIG, normalized)
 
 
+def _strip_legacy_keys(merged: dict[str, object]) -> dict[str, object]:
+    """Remove keys that no longer have a canonical home (pure cleanup).
+
+    ``orderSettings.defaultCurrency`` was removed in the 3-group refactor
+    (it duplicated ``currencies[0]`` and had no backend consumer). Old rows
+    may still carry it, so strip it from every response.
+    """
+    order = merged.get("orderSettings")
+    if isinstance(order, dict):
+        order.pop("defaultCurrency", None)
+    return merged
+
+
 def merge_for_response(stored_config: dict[str, object] | None) -> dict[str, object]:
     """Given raw DB JSON (profile.config), produce frontend-safe response.
 
     Guarantees every canonical key exists with a sensible default.
     """
     merged = deep_merge(DEFAULT_CONFIG, stored_config or {})
-    return _normalize_aliases(merged)
+    return _strip_legacy_keys(_normalize_aliases(merged))
