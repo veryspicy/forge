@@ -149,8 +149,12 @@ const images = ref<
 >([]);
 const pendingFiles = ref<File[]>([]);
 const imagesSaving = ref(false);
-/** 当前选中的图片下标（点击选中高亮边框，操作集中在选中操作条） */
+/** 当前选中的图片下标（点击选中高亮边框） */
 const selectedIdx = ref<number | null>(null);
+/** 主图是否由人工指定（true 后拖拽不再自动跟随第一位；初始按后端返回的主图位置判定） */
+const mainImageManual = ref(false);
+/** 正在内联编辑 alt 的图片下标 */
+const editingAlt = ref<number | null>(null);
 /** 图片裁剪弹窗 */
 const editorModal = ref({ show: false, idx: -1 });
 /** 资源库选择弹窗（商品图片区「从资源库选择」入口） */
@@ -582,6 +586,9 @@ onMounted(async () => {
         resourceId: i.resource_id || '',
         isMain: !!i.is_main
       }));
+    // 主图默认跟随第一位；若后端返回的主图不在首位说明曾人工指定，锁定人工模式
+    const mainIdx = images.value.findIndex(i => i.isMain);
+    mainImageManual.value = mainIdx > 0;
     variants.value = p.variants || [];
     auditInfo.value = {
       audit_status: p.audit_status || 'pending',
@@ -627,6 +634,10 @@ async function handleUpload({ file: fileItem }: any) {
   } else {
     pendingFiles.value.push(file);
     images.value.push({ key: '', url: URL.createObjectURL(file), alt: '', alt_translations: {} });
+  }
+  // 无主图时首图默认主图（与后端 normalize_images 规则一致）
+  if (images.value.length && !images.value.some(i => i.isMain)) {
+    images.value[0].isMain = true;
   }
   uploading.value = false;
 }
@@ -690,7 +701,8 @@ function selectImage(idx: number) {
 
 /** 拖拽排序结束后：主图跟随第一位（第一张默认主图规则），随后自动保存 */
 function onImagesReorder() {
-  if (images.value.length) {
+  // 未人工指定主图时，拖拽后排第一位的自动成为主图；人工指定后不再自动跟随
+  if (!mainImageManual.value && images.value.length) {
     images.value = images.value.map((img, i) => ({ ...img, isMain: i === 0 }));
   }
   onImagesDrop();
@@ -707,6 +719,7 @@ function onImagesDrop() {
 
 /** 指定主图：整组唯一（通过选中操作条触发） */
 function setMainImage(idx: number) {
+  mainImageManual.value = true;
   images.value = images.value.map((img, i) => ({ ...img, isMain: i === idx }));
   if (isEdit.value) onImagesDrop();
 }
@@ -1267,7 +1280,7 @@ async function reloadVariants() {
                 class="relative w-[140px] rounded-md overflow-hidden border transition-all duration-300 cursor-pointer select-none"
                 :class="
                   img.isMain
-                    ? 'ring-2 ring-[var(--n-primary-color)] border-[var(--n-primary-color)]'
+                    ? 'ring-2 ring-[rgb(var(--primary-color))] border-[rgb(var(--primary-color))]'
                     : selectedIdx === idx
                       ? 'ring-2 ring-blue-500 border-blue-500'
                       : String(img.resourceId) === highlightResource
@@ -1276,63 +1289,84 @@ async function reloadVariants() {
                 "
                 @click="selectImage(idx)"
               >
+                <!-- 顶部操作栏：主图标签 + 设为主图 / 编辑 / 删除 -->
                 <div
-                  v-if="img.isMain"
-                  class="flex h-5 items-center justify-center bg-[var(--n-primary-color)] text-[10px] font-medium leading-none text-white"
+                  class="flex h-6 items-center justify-between gap-1 border-b border-[var(--n-border-color)] bg-[var(--n-color-2)] px-1"
                 >
-                  主图
+                  <div class="flex min-w-0 flex-1 items-center">
+                    <span
+                      v-if="img.isMain"
+                      class="truncate rounded-sm bg-[rgb(var(--primary-color))] px-1.5 py-px text-[10px] font-medium leading-4 text-white"
+                    >主图</span>
+                    <NButton
+                      v-else-if="!readonly"
+                      size="tiny"
+                      circle
+                      quaternary
+                      class="!text-gray-500 hover:!text-[rgb(var(--primary-color))]"
+                      title="设为主图"
+                      @click.stop="setMainImage(idx)"
+                    >
+                      <template #icon>
+                        <icon-mdi-crown-outline class="text-sm" />
+                      </template>
+                    </NButton>
+                  </div>
+                  <div class="flex shrink-0 items-center">
+                    <NButton
+                      v-if="!readonly"
+                      size="tiny"
+                      circle
+                      quaternary
+                      class="!text-gray-500 hover:!text-[rgb(var(--primary-color))]"
+                      title="编辑图片"
+                      @click.stop="openEditor(idx)"
+                    >
+                      <template #icon>
+                        <icon-mdi-image-edit-outline class="text-sm" />
+                      </template>
+                    </NButton>
+                    <NButton
+                      v-if="!readonly"
+                      size="tiny"
+                      circle
+                      quaternary
+                      class="!text-gray-500 hover:!text-red-500"
+                      title="删除"
+                      @click.stop="removeImage(idx)"
+                    >
+                      <template #icon>
+                        <icon-mdi-delete-outline class="text-sm" />
+                      </template>
+                    </NButton>
+                  </div>
                 </div>
                 <div class="relative">
                   <NImage :src="img.url" width="140" height="140" style="object-fit: cover" />
-                  <NButton
-                    v-if="!readonly"
-                    class="group absolute top-0.5 right-0.5 !border-transparent !bg-white/80 hover:!bg-red-500/90"
-                    size="tiny"
-                    circle
-                    quaternary
-                    @click.stop="removeImage(idx)"
-                  >
-                    <template #icon>
-                      <icon-mdi-delete-outline class="text-base !text-gray-500 group-hover:!text-white" />
-                    </template>
-                  </NButton>
                 </div>
                 <div class="px-1 py-1 text-center text-xs">
-                  {{ imageAlt(img) || '无 alt' }}
+                  <NInput
+                    v-if="editingAlt === idx"
+                    size="tiny"
+                    :value="imageAlt(img)"
+                    placeholder="alt（自动保存）"
+                    autofocus
+                    @update:value="setImageAlt(idx, $event)"
+                    @blur="editingAlt = null"
+                    @keyup.enter="editingAlt = null"
+                  />
+                  <span
+                    v-else
+                    class="block truncate px-0.5 text-center text-[var(--n-text-color-3)] hover:text-[rgb(var(--primary-color))]"
+                    title="点击编辑 alt"
+                    @click.stop="editingAlt = idx"
+                  >
+                    {{ imageAlt(img) || '无 alt' }}
+                  </span>
                 </div>
               </div>
             </template>
           </VueDraggable>
-        </div>
-
-        <!-- 选中图片操作条：alt / 设主图 / 裁剪 / 删除 -->
-        <div
-          v-if="!readonly && selectedIdx !== null && images[selectedIdx]"
-          class="mb-4 flex flex-wrap items-center gap-2 rounded border border-blue-200 bg-blue-50 px-3 py-2 dark:border-blue-500/30 dark:bg-blue-500/10"
-        >
-          <span class="text-xs font-medium text-blue-600 dark:text-blue-300">已选中图片 #{{ selectedIdx + 1 }}</span>
-          <NInput
-            :value="imageAlt(images[selectedIdx])"
-            size="small"
-            placeholder="alt 文本（当前语言，自动保存）"
-            class="!w-64"
-            @update:value="setImageAlt(selectedIdx, $event)"
-          />
-          <NButton
-            size="small"
-            :type="images[selectedIdx].isMain ? 'success' : 'default'"
-            :disabled="!!images[selectedIdx].isMain"
-            @click="setMainImage(selectedIdx)"
-          >
-            {{ images[selectedIdx].isMain ? '主图' : '设为主图' }}
-          </NButton>
-          <NButton size="small" @click="openEditor(selectedIdx)">编辑图片</NButton>
-          <NButton size="small" type="error" @click="removeImage(selectedIdx)">
-            <template #icon>
-              <icon-mdi-delete-outline />
-            </template>
-            删除
-          </NButton>
         </div>
 
         <NSpace size="small" align="center">
