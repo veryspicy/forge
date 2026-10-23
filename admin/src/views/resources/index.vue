@@ -391,18 +391,14 @@ function renderTrashPurgeVNode(list: ResourceItem[]) {
         .slice(0, 5)
         .map(rf => rf.ref_label || rf.ref_type || rf.ref_id)
         .join('、');
-      return h(
-        'div',
-        { class: 'mb-1 rounded bg-orange-50 px-2 py-1 dark:bg-orange-900/20' },
-        [
-          h('span', { class: 'text-orange-600 dark:text-orange-300' }, item.name),
-          h(
-            'span',
-            { class: 'ml-1 text-gray-500 dark:text-gray-400' },
-            `（${refs.length} 处引用：${labels}${refs.length > 5 ? '…' : ''}）`
-          )
-        ]
-      );
+      return h('div', { class: 'mb-1 rounded bg-orange-50 px-2 py-1 dark:bg-orange-900/20' }, [
+        h('span', { class: 'text-orange-600 dark:text-orange-300' }, item.name),
+        h(
+          'span',
+          { class: 'ml-1 text-gray-500 dark:text-gray-400' },
+          `（${refs.length} 处引用：${labels}${refs.length > 5 ? '…' : ''}）`
+        )
+      ]);
     }),
     h(
       'div',
@@ -948,11 +944,7 @@ function renderRefListVNode(resourceId: string, refs: RefInfo[], dialogApi: any,
     router.push(target);
   };
   return h('div', { class: 'text-left text-xs' }, [
-    h(
-      'div',
-      { class: 'mb-1 text-gray-500 dark:text-gray-400' },
-      `该资源被以下位置引用（共 ${refs.length} 处）：`
-    ),
+    h('div', { class: 'mb-1 text-gray-500 dark:text-gray-400' }, `该资源被以下位置引用（共 ${refs.length} 处）：`),
     ...refs.map(rf => {
       const label = rf.ref_label || rf.ref_type || rf.ref_id;
       if (!REF_ROUTE_MAP[rf.ref_type]) {
@@ -1648,7 +1640,8 @@ onBeforeUnmount(() => {
         <pre
           v-else-if="previewType === 'text'"
           class="max-h-[70vh] w-full overflow-auto rounded-md border bg-gray-50 p-4 text-left text-xs"
-        >{{ previewText }}</pre>
+          >{{ previewText }}</pre
+        >
         <div
           v-else-if="previewType === 'zip'"
           class="max-h-[70vh] w-full overflow-auto rounded-md border bg-gray-50 p-4 text-left text-sm"

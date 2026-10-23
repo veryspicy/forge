@@ -134,13 +134,7 @@ onBeforeUnmount(() => {
  Remote icon timed out: render an invisible 1em placeholder so layout does
          not break and the parent Transition can commit its final DOM. 
 -->
-    <svg
-      aria-hidden="true"
-      width="1em"
-      height="1em"
-      viewBox="0 0 24 24"
-      v-bind="bindAttrs"
-    />
+    <svg aria-hidden="true" width="1em" height="1em" viewBox="0 0 24 24" v-bind="bindAttrs" />
   </template>
   <template v-else>
     <Icon v-if="icon" :icon="icon" v-bind="bindAttrs" />

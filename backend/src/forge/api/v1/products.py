@@ -77,6 +77,38 @@ def _public_variant(variant: dict[str, Any]) -> dict[str, Any]:
     return {k: variant.get(k) for k in _PUBLIC_VARIANT_FIELDS}
 
 
+def _normalize_block_resource(value: Any) -> Any:
+    """详情块资源字段归一化：历史对象 {url, resource_id} 收敛为 URL 字符串（读取侧兜底）。"""
+    if isinstance(value, dict):
+        url = value.get("url") or value.get("src")
+        if isinstance(url, str) and url.strip():
+            return url.strip()
+        return value
+    if isinstance(value, list):
+        return [_normalize_block_resource(v) for v in value]
+    return value
+
+
+def _public_detail_blocks(blocks: Any) -> Any:
+    """C 端详情块兜底：image_text.image / image.images / video.url/poster 等资源字段
+    若为历史对象格式则取 url，保证老数据无需重存即可正常渲染。"""
+    if not isinstance(blocks, list):
+        return blocks
+    normalized: list[dict[str, Any]] = []
+    for block in blocks:
+        if not isinstance(block, dict):
+            normalized.append(block)
+            continue
+        entry = dict(block)
+        for field in ("image", "url", "poster"):
+            if field in entry:
+                entry[field] = _normalize_block_resource(entry[field])
+        if "images" in entry:
+            entry["images"] = _normalize_block_resource(entry["images"])
+        normalized.append(entry)
+    return normalized
+
+
 def _public_item(item: dict[str, Any], *, detail: bool = False) -> dict[str, Any]:
     fields = _PUBLIC_DETAIL_FIELDS if detail else _PUBLIC_FIELDS
     data = {k: item.get(k) for k in fields}
@@ -100,6 +132,7 @@ def _public_item(item: dict[str, Any], *, detail: bool = False) -> dict[str, Any
             for idx, img in enumerate(images)
             if isinstance(img, dict) and img.get("url")
         ]
+        data["detail_blocks"] = _public_detail_blocks(data.get("detail_blocks"))
     return data
 
 

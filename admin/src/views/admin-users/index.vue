@@ -268,7 +268,12 @@ onMounted(() => {
         </div>
         <div v-if="!formUser?.id">
           <div class="text-sm mb-1 text-[var(--n-text-color-3)]">密码</div>
-          <NInput v-model:value="formPassword" type="password" placeholder="至少6位" :input-props="{ autocomplete: 'new-password' }" />
+          <NInput
+            v-model:value="formPassword"
+            type="password"
+            placeholder="至少6位"
+            :input-props="{ autocomplete: 'new-password' }"
+          />
         </div>
         <div>
           <div class="text-sm mb-1 text-[var(--n-text-color-3)]">显示名称</div>

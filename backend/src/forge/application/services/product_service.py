@@ -403,6 +403,12 @@ class ProductService:
                     entry[field] = [ProductService._clean_block_value(item) for item in value]
                 elif isinstance(value, str):
                     entry[field] = value.strip()
+                elif isinstance(value, dict):
+                    # 兼容历史对象格式资源字段（如 image_text.image = {url, resource_id}）
+                    # 契约统一为字符串 URL，旧数据保存时自动收敛
+                    url = value.get("url") or value.get("src")
+                    if isinstance(url, str) and url.strip():
+                        entry[field] = url.strip()
             cleaned.append(entry)
         return cleaned
 

@@ -87,16 +87,8 @@ export default defineNuxtConfig({
       "/api/images/**": {
         proxy: { to: `${backendUrl}/api/images/**` },
       },
-      "/uploads/**": {
-        proxy: { to: `${backendUrl}/uploads/**` },
-      },
-      "/minio/**": {
-        proxy: { to: `${backendUrl}/minio/**` },
-      },
-    },
-    devProxy: {
-      "/uploads": { target: backendUrl, changeOrigin: true },
-      "/minio": { target: backendUrl, changeOrigin: true },
+      // /minio/**、/uploads/** 由 server/routes/*/[...path].ts 流式代理处理
+      // （routeRules 通配替换在 dev/prod 均存在路径改写风险，弃用；devProxy 与 server route 并存时 Nuxt 优先 devProxy，一并移除）
     },
   },
 

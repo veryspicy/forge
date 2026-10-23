@@ -231,8 +231,7 @@ const columns: DataTableColumns<any> = [
     key: 'payment_status',
     render: row => {
       const refunded = Number(row.refunded_amount || 0);
-      const suffix =
-        refunded > 0 ? t('page.orders.refundedSuffix', { amount: refunded.toFixed(2) }) : '';
+      const suffix = refunded > 0 ? t('page.orders.refundedSuffix', { amount: refunded.toFixed(2) }) : '';
       return `${paymentLabel(row.payment_status)}${suffix}`;
     }
   },
@@ -528,12 +527,7 @@ onMounted(fetch);
         style="width: 160px"
         @update:value="fetch"
       />
-      <NSelect
-        :value="viewValue"
-        :options="viewOptions"
-        style="width: 140px"
-        @update:value="switchView"
-      />
+      <NSelect :value="viewValue" :options="viewOptions" style="width: 140px" @update:value="switchView" />
       <NButton v-if="!archivedView" secondary :loading="loading" @click="exportCsv">
         {{ $t('page.orders.export') }}
       </NButton>
@@ -556,9 +550,9 @@ onMounted(fetch);
         {{
           archivedView
             ? $t('page.archive.restoreConfirmBatch', {
-              n: checkedKeys.length,
-              target: $t('page.archive.targetOrder')
-            })
+                n: checkedKeys.length,
+                target: $t('page.archive.targetOrder')
+              })
             : $t('page.archive.confirmBatch', { n: checkedKeys.length, target: $t('page.archive.targetOrder') })
         }}
       </NPopconfirm>

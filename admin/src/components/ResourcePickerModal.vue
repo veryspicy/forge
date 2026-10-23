@@ -208,7 +208,13 @@ const uploadHint = computed(() => {
                 @click="toggleSelect(item)"
               >
                 <div class="flex h-24 items-center justify-center overflow-hidden rounded bg-gray-50">
-                  <NImage v-if="isImage(item)" :src="previewUrl(item)" object-fit="contain" class="h-full w-full" />
+                  <NImage
+                    v-if="isImage(item)"
+                    :src="previewUrl(item)"
+                    :fallback-src="item.url"
+                    object-fit="contain"
+                    class="h-full w-full"
+                  />
                   <div v-else class="text-xs text-gray-400">
                     {{ item.file_type || '文件' }}
                   </div>

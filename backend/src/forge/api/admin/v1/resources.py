@@ -249,7 +249,15 @@ async def upload_resource(
                 img = src_img.convert("RGB")
             thumb_buf = BytesIO()
             img.save(thumb_buf, format="JPEG", quality=82)
-            thumb_key = f"site/{site_id}/resources/thumbs/{res_uuid}.jpg"
+            # 缩略图键名必须与 _derive_thumb_url 推导一致：{object_key_dir}/thumbs/{stem}.jpg
+            # 旧实现用 res_uuid（带连字符）命名，与 upload_bytes 内部生成的 object_key stem（无连字符）不一致，导致缩略图 404
+            if object_key:
+                key_dir, key_file = object_key.rsplit("/", 1)
+                key_stem = key_file.rsplit(".", 1)[0]
+            else:
+                key_dir = f"site/{site_id}/resources"
+                key_stem = str(res_uuid)
+            thumb_key = f"{key_dir}/thumbs/{key_stem}.jpg"
             minio.upload_object(thumb_buf.getvalue(), thumb_key, content_type="image/jpeg")
         except Exception as exc:  # noqa: BLE001 — 缩略图失败不阻塞上传
             logger.warning("thumbnail generation failed: %s", exc)

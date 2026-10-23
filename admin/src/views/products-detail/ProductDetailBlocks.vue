@@ -108,9 +108,7 @@ function clone(v: any): Block[] {
 
 function typeLabel(type: string): string {
   return typeOptions.find(o => o.value === type)?.label || type;
-}
-
-// 外部值变化时同步到本地副本；内容一致则不重置，避免打断编辑
+}// 外部值变化时同步到本地副本；内容一致则不重置，避免打断编辑
 watch(
   () => props.value,
   v => {

@@ -47,13 +47,25 @@ const uploading = ref(false);
 const items = computed<string[]>({
   get: () => {
     const v = props.modelValue;
-    if (props.multiple) return Array.isArray(v) ? v : [];
-    return typeof v === 'string' && v ? [v] : [];
+    if (props.multiple) return Array.isArray(v) ? v.map(toUrlStr).filter(Boolean) : [];
+    const s = toUrlStr(v);
+    return s ? [s] : [];
   },
   set: (arr: string[]) => {
-    emit('update:modelValue', props.multiple ? arr : arr[0] ?? '');
+    emit('update:modelValue', props.multiple ? arr : (arr[0] ?? ''));
   }
 });
+
+/** 资源值归一化：字符串直返；历史对象 { url, resource_id } 取 url，保证编辑态回显旧数据 */
+function toUrlStr(v: unknown): string {
+  if (typeof v === 'string') return v;
+  if (v && typeof v === 'object') {
+    const obj = v as Record<string, unknown>;
+    const u = obj.url ?? obj.src;
+    return typeof u === 'string' ? u : '';
+  }
+  return '';
+}
 
 const acceptStr = computed(() => {
   const map: Record<string, string> = {

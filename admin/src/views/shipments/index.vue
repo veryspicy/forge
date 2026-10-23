@@ -1,18 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import { ref, computed, onMounted, h } from 'vue';
-import {
-  NButton,
-  NDataTable,
-  NInput,
-  NModal,
-  NForm,
-  NFormItem,
-  NPopconfirm,
-  NSelect,
-  NSpace,
-  NTag
-} from 'naive-ui';
+import { NButton, NDataTable, NInput, NModal, NForm, NFormItem, NPopconfirm, NSelect, NSpace, NTag } from 'naive-ui';
 import { get, post, patch, del } from '@/service/api/helper';
 import { useAuthStore } from '@/store/modules/auth';
 import type { DataTableColumns } from 'naive-ui';
@@ -99,32 +88,37 @@ const columns: DataTableColumns<any> = [
     title: t('page.suppliers.actions'),
     key: 'actions',
     render: row =>
-      h(NSpace, { size: 4, align: 'center' }, {
-        default: () => [
-          h(NButton, { size: 'small', onClick: () => openModal(row) }, { default: () => t('common.edit') }),
-          canArchive.value
-            ? h(
-                NPopconfirm,
-                {
-                  onPositiveClick: () =>
-                    archivedView.value ? restoreShipments([row.id]) : archiveShipments([row.id])
-                },
-                {
-                  trigger: () =>
-                    h(
-                      NButton,
-                      { size: 'small', quaternary: true, type: archivedView.value ? 'primary' : 'error' },
-                      { default: () => t(archivedView.value ? 'page.archive.restore' : 'page.archive.action') }
-                    ),
-                  default: () =>
-                    t(archivedView.value ? 'page.archive.restoreConfirm' : 'page.archive.confirm', {
-                      target: t('page.archive.targetShipment')
-                    })
-                }
-              )
-            : null
-        ].filter(Boolean)
-      })
+      h(
+        NSpace,
+        { size: 4, align: 'center' },
+        {
+          default: () =>
+            [
+              h(NButton, { size: 'small', onClick: () => openModal(row) }, { default: () => t('common.edit') }),
+              canArchive.value
+                ? h(
+                    NPopconfirm,
+                    {
+                      onPositiveClick: () =>
+                        archivedView.value ? restoreShipments([row.id]) : archiveShipments([row.id])
+                    },
+                    {
+                      trigger: () =>
+                        h(
+                          NButton,
+                          { size: 'small', quaternary: true, type: archivedView.value ? 'primary' : 'error' },
+                          { default: () => t(archivedView.value ? 'page.archive.restore' : 'page.archive.action') }
+                        ),
+                      default: () =>
+                        t(archivedView.value ? 'page.archive.restoreConfirm' : 'page.archive.confirm', {
+                          target: t('page.archive.targetShipment')
+                        })
+                    }
+                  )
+                : null
+            ].filter(Boolean)
+        }
+      )
   }
 ];
 
@@ -310,9 +304,9 @@ onMounted(fetch);
           {{
             archivedView
               ? $t('page.archive.restoreConfirmBatch', {
-                n: checkedKeys.length,
-                target: $t('page.archive.targetShipment')
-              })
+                  n: checkedKeys.length,
+                  target: $t('page.archive.targetShipment')
+                })
               : $t('page.archive.confirmBatch', { n: checkedKeys.length, target: $t('page.archive.targetShipment') })
           }}
         </NPopconfirm>

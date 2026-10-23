@@ -71,7 +71,7 @@ function close() {
 }
 
 function confirm() {
-  const html = mode.value === 'md' ? (marked.parse(mdText.value || '') as string) : (editor.value?.getHTML() || '');
+  const html = mode.value === 'md' ? (marked.parse(mdText.value || '') as string) : editor.value?.getHTML() || '';
   emit('save', html);
   close();
 }
@@ -85,16 +85,61 @@ const toolbar = computed(() => {
     { key: 'bold', label: 'B', active: e.isActive('bold'), run: () => e.chain().focus().toggleBold().run() },
     { key: 'italic', label: 'I', active: e.isActive('italic'), run: () => e.chain().focus().toggleItalic().run() },
     { key: 'strike', label: 'S', active: e.isActive('strike'), run: () => e.chain().focus().toggleStrike().run() },
-    { key: 'h2', label: 'H2', active: e.isActive('heading', { level: 2 }), run: () => e.chain().focus().toggleHeading({ level: 2 }).run() },
-    { key: 'h3', label: 'H3', active: e.isActive('heading', { level: 3 }), run: () => e.chain().focus().toggleHeading({ level: 3 }).run() },
-    { key: 'bullet', label: '• 列表', active: e.isActive('bulletList'), run: () => e.chain().focus().toggleBulletList().run() },
-    { key: 'ordered', label: '1. 列表', active: e.isActive('orderedList'), run: () => e.chain().focus().toggleOrderedList().run() },
-    { key: 'quote', label: '❝', active: e.isActive('blockquote'), run: () => e.chain().focus().toggleBlockquote().run() },
-    { key: 'code', label: '</>', active: e.isActive('codeBlock'), run: () => e.chain().focus().toggleCodeBlock().run() },
+    {
+      key: 'h2',
+      label: 'H2',
+      active: e.isActive('heading', { level: 2 }),
+      run: () => e.chain().focus().toggleHeading({ level: 2 }).run()
+    },
+    {
+      key: 'h3',
+      label: 'H3',
+      active: e.isActive('heading', { level: 3 }),
+      run: () => e.chain().focus().toggleHeading({ level: 3 }).run()
+    },
+    {
+      key: 'bullet',
+      label: '• 列表',
+      active: e.isActive('bulletList'),
+      run: () => e.chain().focus().toggleBulletList().run()
+    },
+    {
+      key: 'ordered',
+      label: '1. 列表',
+      active: e.isActive('orderedList'),
+      run: () => e.chain().focus().toggleOrderedList().run()
+    },
+    {
+      key: 'quote',
+      label: '❝',
+      active: e.isActive('blockquote'),
+      run: () => e.chain().focus().toggleBlockquote().run()
+    },
+    {
+      key: 'code',
+      label: '</>',
+      active: e.isActive('codeBlock'),
+      run: () => e.chain().focus().toggleCodeBlock().run()
+    },
     { key: 'hr', label: '—', run: () => e.chain().focus().setHorizontalRule().run() },
-    { key: 'align-left', label: '左', active: e.isActive({ textAlign: 'left' }), run: () => e.chain().focus().setTextAlign('left').run() },
-    { key: 'align-center', label: '中', active: e.isActive({ textAlign: 'center' }), run: () => e.chain().focus().setTextAlign('center').run() },
-    { key: 'align-right', label: '右', active: e.isActive({ textAlign: 'right' }), run: () => e.chain().focus().setTextAlign('right').run() }
+    {
+      key: 'align-left',
+      label: '左',
+      active: e.isActive({ textAlign: 'left' }),
+      run: () => e.chain().focus().setTextAlign('left').run()
+    },
+    {
+      key: 'align-center',
+      label: '中',
+      active: e.isActive({ textAlign: 'center' }),
+      run: () => e.chain().focus().setTextAlign('center').run()
+    },
+    {
+      key: 'align-right',
+      label: '右',
+      active: e.isActive({ textAlign: 'right' }),
+      run: () => e.chain().focus().setTextAlign('right').run()
+    }
   ];
 });
 
@@ -173,7 +218,9 @@ function openPreview() {
           🎬
         </button>
       </div>
-      <div class="border border-t-0 border-gray-200 rounded-b-md bg-white p-3 min-h-[240px] max-h-[50vh] overflow-auto prose prose-sm max-w-none">
+      <div
+        class="border border-t-0 border-gray-200 rounded-b-md bg-white p-3 min-h-[240px] max-h-[50vh] overflow-auto prose prose-sm max-w-none"
+      >
         <EditorContent :editor="editor" />
       </div>
     </template>
@@ -237,7 +284,9 @@ function openPreview() {
           🎬
         </button>
       </div>
-      <div class="border border-t-0 border-gray-200 rounded-b-md bg-white p-3 min-h-[200px] max-h-[45vh] overflow-auto prose prose-sm max-w-none rich-content">
+      <div
+        class="border border-t-0 border-gray-200 rounded-b-md bg-white p-3 min-h-[200px] max-h-[45vh] overflow-auto prose prose-sm max-w-none rich-content"
+      >
         <EditorContent :editor="editor" />
       </div>
     </template>
@@ -260,7 +309,12 @@ function openPreview() {
   </div>
 
   <!-- 媒体插入弹层（三入口） -->
-  <NModal v-model:show="mediaPop.show" preset="card" :title="`插入${mediaPop.type === 'image' ? '图片' : '视频'}`" style="width: 640px">
+  <NModal
+    v-model:show="mediaPop.show"
+    preset="card"
+    :title="`插入${mediaPop.type === 'image' ? '图片' : '视频'}`"
+    style="width: 640px"
+  >
     <ResourceInput v-model="mediaUrl" :type="mediaPop.type" @register="(it: any) => emit('register', it)" />
     <template #footer>
       <NSpace justify="end">
