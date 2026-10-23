@@ -1266,26 +1266,35 @@ async function reloadVariants() {
                 :key="img.key || img.url"
                 class="relative w-[140px] rounded-md overflow-hidden border transition-all duration-300 cursor-pointer select-none"
                 :class="
-                  selectedIdx === idx
-                    ? 'ring-2 ring-blue-500 border-blue-500'
-                    : String(img.resourceId) === highlightResource
-                      ? 'ring-2 ring-green-500 border-green-500'
-                      : 'border-[var(--n-border-color)]'
+                  img.isMain
+                    ? 'ring-2 ring-[var(--n-primary-color)] border-[var(--n-primary-color)]'
+                    : selectedIdx === idx
+                      ? 'ring-2 ring-blue-500 border-blue-500'
+                      : String(img.resourceId) === highlightResource
+                        ? 'ring-2 ring-green-500 border-green-500'
+                        : 'border-[var(--n-border-color)]'
                 "
                 @click="selectImage(idx)"
               >
+                <div
+                  v-if="img.isMain"
+                  class="flex h-5 items-center justify-center bg-[var(--n-primary-color)] text-[10px] font-medium leading-none text-white"
+                >
+                  主图
+                </div>
                 <div class="relative">
                   <NImage :src="img.url" width="140" height="140" style="object-fit: cover" />
-                  <NTag v-if="img.isMain" size="tiny" type="success" class="absolute top-0.5 left-0.5">主图</NTag>
                   <NButton
                     v-if="!readonly"
-                    class="absolute top-0.5 right-0.5"
+                    class="group absolute top-0.5 right-0.5 !border-transparent !bg-white/80 hover:!bg-red-500/90"
                     size="tiny"
                     circle
-                    type="error"
+                    quaternary
                     @click.stop="removeImage(idx)"
                   >
-                    &times;
+                    <template #icon>
+                      <icon-mdi-delete-outline class="text-base !text-gray-500 group-hover:!text-white" />
+                    </template>
                   </NButton>
                 </div>
                 <div class="px-1 py-1 text-center text-xs">
@@ -1318,7 +1327,12 @@ async function reloadVariants() {
             {{ images[selectedIdx].isMain ? '主图' : '设为主图' }}
           </NButton>
           <NButton size="small" @click="openEditor(selectedIdx)">编辑图片</NButton>
-          <NButton size="small" type="error" @click="removeImage(selectedIdx)">删除</NButton>
+          <NButton size="small" type="error" @click="removeImage(selectedIdx)">
+            <template #icon>
+              <icon-mdi-delete-outline />
+            </template>
+            删除
+          </NButton>
         </div>
 
         <NSpace size="small" align="center">
