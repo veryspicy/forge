@@ -31,6 +31,7 @@ import { VueDraggable } from 'vue-draggable-plus';
 import ProductDetailBlocks from './ProductDetailBlocks.vue';
 import DetailBlockCanvas from './DetailBlockCanvas.vue';
 import ProductImageEditor from './ProductImageEditor.vue';
+import ResourcePickerModal, { type ResourceItem } from '@/components/ResourcePickerModal.vue';
 
 const route = useRoute();
 const { t } = useI18n();
@@ -152,6 +153,8 @@ const imagesSaving = ref(false);
 const selectedIdx = ref<number | null>(null);
 /** 图片裁剪弹窗 */
 const editorModal = ref({ show: false, idx: -1 });
+/** 资源库选择弹窗（商品图片区「从资源库选择」入口） */
+const pickerShow = ref(false);
 /** 拖拽排序自动保存节流计时器 */
 let imagesSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -654,9 +657,43 @@ async function removeImage(idx: number) {
   if (isEdit.value) onImagesDrop();
 }
 
+/** 打开资源库选择弹窗 */
+function openResourcePicker() {
+  pickerShow.value = true;
+}
+
+/** 从资源库选中图片后追加到商品图片列表（去重按 resourceId），随后自动保存整组 */
+function onPickerConfirm(items: ResourceItem[]) {
+  const existing = new Set(images.value.map(i => String(i.resourceId || '')));
+  for (const it of items) {
+    if (existing.has(String(it.id))) continue;
+    existing.add(String(it.id));
+    images.value.push({
+      key: '',
+      url: it.url || '',
+      alt: it.name || '',
+      alt_translations: {},
+      resourceId: String(it.id)
+    });
+  }
+  // 无主图时首图默认主图（与后端 normalize_images 规则一致，前端即时反馈）
+  if (images.value.length && !images.value.some(i => i.isMain)) {
+    images.value[0].isMain = true;
+  }
+  if (isEdit.value) onImagesDrop();
+}
+
 /** 点击选中图片（再次点击取消选中） */
 function selectImage(idx: number) {
   selectedIdx.value = selectedIdx.value === idx ? null : idx;
+}
+
+/** 拖拽排序结束后：主图跟随第一位（第一张默认主图规则），随后自动保存 */
+function onImagesReorder() {
+  if (images.value.length) {
+    images.value = images.value.map((img, i) => ({ ...img, isMain: i === 0 }));
+  }
+  onImagesDrop();
 }
 
 /** 拖拽排序结束后自动保存（节流 400ms，避免连续拖拽频繁请求） */
@@ -848,10 +885,7 @@ async function save() {
 
 /** 保存后同步产品图片资源引用（失败不阻塞保存主流程） */
 async function syncProductRefs(productId: string) {
-  const resourceIds = [
-    ...images.value.map(i => i.resourceId).filter(Boolean),
-    ...detailResourceIds.value
-  ] as string[];
+  const resourceIds = [...images.value.map(i => i.resourceId).filter(Boolean), ...detailResourceIds.value] as string[];
   if (!resourceIds.length) return;
   try {
     await resourceApi.syncRefs({
@@ -1217,48 +1251,49 @@ async function reloadVariants() {
           <NButton size="tiny" quaternary @click="clearHighlight">清除高亮</NButton>
         </div>
         <div v-if="images.length" class="mb-4">
-          <div class="flex flex-wrap gap-3">
-            <VueDraggable
-              v-model="images"
-              :item-key="(item: any) => item.key || item.url"
-              :animation="150"
-              :disabled="readonly"
-              ghost-class="opacity-40"
-              @end="onImagesDrop"
-            >
-              <template #item="{ element: img, index: idx }">
-                <div
-                  class="relative w-[140px] rounded-md overflow-hidden border transition-all duration-300 cursor-pointer select-none"
-                  :class="
-                    selectedIdx === idx
-                      ? 'ring-2 ring-blue-500 border-blue-500'
-                      : String(img.resourceId) === highlightResource
-                        ? 'ring-2 ring-green-500 border-green-500'
-                        : 'border-[var(--n-border-color)]'
-                  "
-                  @click="selectImage(idx)"
-                >
-                  <div class="relative">
-                    <NImage :src="img.url" width="140" height="140" style="object-fit: cover" />
-                    <NTag v-if="img.isMain" size="tiny" type="success" class="absolute top-0.5 left-0.5">主图</NTag>
-                    <NButton
-                      v-if="!readonly"
-                      class="absolute top-0.5 right-0.5"
-                      size="tiny"
-                      circle
-                      type="error"
-                      @click.stop="removeImage(idx)"
-                    >
-                      &times;
-                    </NButton>
-                  </div>
-                  <div class="px-1 py-1 text-center text-xs">
-                    {{ imageAlt(img) || '无 alt' }}
-                  </div>
+          <VueDraggable
+            v-model="images"
+            :item-key="(item: any) => item.key || item.url"
+            :animation="150"
+            :disabled="readonly"
+            ghost-class="opacity-40"
+            class="flex flex-wrap gap-3"
+            @end="onImagesReorder"
+          >
+            <template #default>
+              <div
+                v-for="(img, idx) in images"
+                :key="img.key || img.url"
+                class="relative w-[140px] rounded-md overflow-hidden border transition-all duration-300 cursor-pointer select-none"
+                :class="
+                  selectedIdx === idx
+                    ? 'ring-2 ring-blue-500 border-blue-500'
+                    : String(img.resourceId) === highlightResource
+                      ? 'ring-2 ring-green-500 border-green-500'
+                      : 'border-[var(--n-border-color)]'
+                "
+                @click="selectImage(idx)"
+              >
+                <div class="relative">
+                  <NImage :src="img.url" width="140" height="140" style="object-fit: cover" />
+                  <NTag v-if="img.isMain" size="tiny" type="success" class="absolute top-0.5 left-0.5">主图</NTag>
+                  <NButton
+                    v-if="!readonly"
+                    class="absolute top-0.5 right-0.5"
+                    size="tiny"
+                    circle
+                    type="error"
+                    @click.stop="removeImage(idx)"
+                  >
+                    &times;
+                  </NButton>
                 </div>
-              </template>
-            </VueDraggable>
-          </div>
+                <div class="px-1 py-1 text-center text-xs">
+                  {{ imageAlt(img) || '无 alt' }}
+                </div>
+              </div>
+            </template>
+          </VueDraggable>
         </div>
 
         <!-- 选中图片操作条：alt / 设主图 / 裁剪 / 删除 -->
@@ -1296,11 +1331,22 @@ async function reloadVariants() {
           >
             <NButton v-if="!readonly" :loading="uploading">{{ $t('common.uploadImages') }}</NButton>
           </NUpload>
+          <NButton v-if="!readonly" size="small" :disabled="uploading" @click="openResourcePicker">
+            从资源库选择
+          </NButton>
           <span v-if="isEdit && !readonly" class="text-xs opacity-60">
             {{ imagesSaving ? '正在自动保存…' : '拖拽排序、选中操作均自动保存' }}
           </span>
         </NSpace>
       </NCard>
+
+      <ResourcePickerModal
+        v-model:show="pickerShow"
+        :multiple="true"
+        type="image"
+        title="从资源库选择商品图片"
+        @confirm="onPickerConfirm"
+      />
 
       <ProductImageEditor
         v-model:show="editorModal.show"
