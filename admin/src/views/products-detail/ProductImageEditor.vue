@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue';
-import Cropper from 'cropperjs';
+import Cropper, { CropperCanvas, CropperImage, CropperSelection } from 'cropperjs';
 import { NButton, NModal, NSpace, NRadioGroup, NRadioButton } from 'naive-ui';
+
+// cropperjs v2 为 Web Component 架构，需手动注册自定义元素后模板标签才生效
+if (typeof customElements !== 'undefined') {
+  customElements.define('cropper-canvas', CropperCanvas);
+  customElements.define('cropper-image', CropperImage);
+  customElements.define('cropper-selection', CropperSelection);
+}
 
 /**
  * 图片裁剪组件（CROPPER.JS v2）。
@@ -104,8 +111,8 @@ function close() {
   >
     <div ref="containerRef" class="w-full overflow-hidden rounded-lg bg-black">
       <CropperCanvas background class="cropper-canvas-host">
-        <CropperImage :src="props.imageUrl" alt="待裁剪图片" />
-        <CropperSelection initial-coverage="0.8" outlined movable resizable />
+        <CropperImage :src="props.imageUrl" alt="待裁剪图片"></CropperImage>
+        <CropperSelection initial-coverage="0.8" outlined movable resizable></CropperSelection>
       </CropperCanvas>
     </div>
 
