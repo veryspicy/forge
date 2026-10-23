@@ -1012,5 +1012,34 @@ admin / portal 重建后，旧标签页持有的是**指向旧容器的失效连
 
 ---
 
+## 22. Admin 拖拽组件插槽规范（vue-draggable-plus，强制）
+
+> **背景**：2026-10-23 排查「admin 商品图片区空白、C 端正常」时发现：products-detail/index.vue 误用 vuedraggable 的 `<template #item="{ element, index }">` 旧 API，但项目实际使用的 vue-draggable-plus 0.6.1 组件内部只调用 default 插槽（`e.default?.call(e, u)`），#item 插槽被静默忽略——组件拿到完整数据数组却渲染出空容器，页面无任何报错。
+
+### 22.1 触发条件
+
+- 在 admin/ 中使用 `<VueDraggable>`（vue-draggable-plus）编写拖拽列表
+- 排查"拖拽列表有数据但渲染为空 / 子节点数量为 0 / 无报错"类问题
+
+### 22.2 执行步骤（正确做法）
+
+1. **必须使用 default 插槽 + v-for 自渲染列表项**：
+   ```html
+   <VueDraggable v-model="images" :item-key="(item) => item.key || item.url" :animation="150">
+     <template #default>
+       <div v-for="(img, idx) in images" :key="img.key || img.url"> ... </div>
+     </template>
+   </VueDraggable>
+   ```
+2. 项目内其它组件（ProductDetailBlocks、PropertyPanel、ai-config）均按此写法，新增拖拽列表一律对齐
+3. 排查此类问题时直接核对组件源码渲染逻辑（`node_modules/vue-draggable-plus/dist` 中是否 `call(e.default)`），再对照模板插槽名
+
+### 22.3 禁止事项
+
+- **禁止**在 VueDraggable 中使用 `<template #item="{ element, index }">`（vuedraggable 旧 API）——插槽名不匹配被静默忽略，容器为空且无报错
+- **禁止**看到"组件拿到数据、DOM 为空"就归咎于请求/缓存/构建，先核对插槽 API 与组件版本
+
+**反例（2026-10-23）**：products-detail/index.vue 图片区误用 #item 插槽，商品 37 的 images 数组 9 条数据正常（接口/DB/MinIO 全通、无 JS 报错）但图片区渲染 0 张；改为 default 插槽 + v-for 后重建 admin，9 张图正常渲染。
+
 *最后更新：2026-10-23*
 
