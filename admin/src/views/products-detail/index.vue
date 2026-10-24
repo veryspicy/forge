@@ -1224,7 +1224,7 @@ async function reloadVariants() {
           v-if="highlightResource"
           class="mb-3 flex items-center justify-between gap-2 rounded bg-green-50 px-3 py-2 text-xs text-green-600 dark:bg-green-900/20 dark:text-green-300"
         >
-          <span>{{ highlightMatched ? '已定位到引用图片（绿色边框高亮）' : '未在当前图片列表中找到该引用图片' }}</span>
+          <span>{{ highlightMatched ? '已定位到引用图片' : '未在当前图片列表中找到该引用图片' }}</span>
           <NButton size="tiny" quaternary @click="clearHighlight">清除高亮</NButton>
         </div>
         <div v-if="images.length" class="mb-4">
@@ -1245,9 +1245,7 @@ async function reloadVariants() {
                 :class="
                   selectedIdx === idx
                     ? 'ring-2 ring-blue-500 border-blue-500'
-                    : String(img.resourceId) === highlightResource
-                      ? 'ring-2 ring-green-500 border-green-500'
-                      : 'border-[var(--n-border-color)]'
+                    : 'border-[var(--n-border-color)]'
                 "
                 @click="selectImage(idx)"
               >
