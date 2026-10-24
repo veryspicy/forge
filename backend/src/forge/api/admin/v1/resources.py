@@ -30,6 +30,7 @@ except ImportError:  # pragma: no cover
 
 from forge.infrastructure.persistence.models import (
     ORMAdminUser,
+    ORMProduct,
     ORMResource,
     ORMResourceRef,
     ORMResourceTag,
@@ -249,8 +250,8 @@ async def upload_resource(
                 img = src_img.convert("RGB")
             thumb_buf = BytesIO()
             img.save(thumb_buf, format="JPEG", quality=82)
-            # 缩略图键名必须与 _derive_thumb_url 推导一致：{object_key_dir}/thumbs/{stem}.jpg
-            # 旧实现用 res_uuid（带连字符）命名，与 upload_bytes 内部生成的 object_key stem（无连字符）不一致，导致缩略图 404
+            # 缩略图键名必须与 _derive_thumb_url 推导一致（object_key 目录 + thumbs/stem）
+            # 旧实现用 res_uuid（带连字符）命名，与 upload_bytes 内部生成的无连字符 stem 不一致，导致 404
             if object_key:
                 key_dir, key_file = object_key.rsplit("/", 1)
                 key_stem = key_file.rsplit(".", 1)[0]
@@ -1031,21 +1032,25 @@ async def cleanup_invalid_resource_refs(
 # ---------------------------------------------------------------------------
 # 重命名
 # ---------------------------------------------------------------------------
-class RenamePayload(BaseModel):
-    name: str
+class ResourceUpdatePayload(BaseModel):
+    """资源更新：可单独更新 name 或外链 url（外链资源 object_key 为空才允许改 url）。"""
+
+    name: str | None = None
+    url: str | None = None
 
 
 @router.patch("/{resource_id}")
-async def rename_resource(
+async def update_resource(
     resource_id: str,
-    payload: RenamePayload,
+    payload: ResourceUpdatePayload,
     admin: dict[str, object] = Depends(require_permission("resources", "manage")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, object]:
     name = (payload.name or "").strip()
-    if not name:
-        raise HTTPException(status_code=400, detail="名称不能为空")
-    if len(name) > 255:
+    url = (payload.url or "").strip()
+    if not name and not url:
+        raise HTTPException(status_code=400, detail="name 或 url 至少提供一个")
+    if name and len(name) > 255:
         raise HTTPException(status_code=400, detail="名称过长")
 
     try:
@@ -1057,10 +1062,69 @@ async def rename_resource(
     if res is None:
         raise HTTPException(status_code=404, detail="资源不存在")
 
-    res.name = name  # type: ignore[assignment]
+    if name:
+        res.name = name  # type: ignore[assignment]
+
+    if url:
+        # 仅允许外链资源（未上传 MinIO，object_key 为空）更新 URL；本地上传资源的地址由文件决定
+        if res.object_key:
+            raise HTTPException(status_code=400, detail="仅外链资源支持更新 URL")
+        if not (url.startswith("http://") or url.startswith("https://")):
+            raise HTTPException(status_code=400, detail="仅支持 http/https 外部 URL")
+        # 幂等冲突：同站点同 URL 已被其他活跃资源占用时拒绝
+        conflict = (
+            await db.execute(
+                select(ORMResource).where(
+                    ORMResource.site_id == res.site_id,
+                    ORMResource.url == url,
+                    ORMResource.deleted_at.is_(None),
+                    ORMResource.id != rid,
+                )
+            )
+        ).scalar_one_or_none()
+        if conflict is not None:
+            raise HTTPException(status_code=409, detail="该 URL 已被其他资源占用")
+        res.url = url  # type: ignore[assignment]
+        # 同步更新引用该资源的商品图片 url 快照（resource_id 关联），避免引用处继续使用旧外链
+        await _sync_product_image_urls(db, rid, url)
+
     await db.commit()
     await db.refresh(res)
     return {"data": _serialize(res)}
+
+
+async def _sync_product_image_urls(db: AsyncSession, resource_id: uuid.UUID, new_url: str) -> None:
+    """更新资源 URL 后，将商品 images 中引用该 resource_id 的条目 url 快照同步为新值。"""
+    refs = (
+        (
+            await db.execute(
+                select(ORMResourceRef).where(
+                    ORMResourceRef.resource_id == resource_id,
+                    ORMResourceRef.ref_type.in_(["product", "products"]),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for ref in refs:
+        try:
+            product = (
+                await db.execute(select(ORMProduct).where(ORMProduct.id == uuid.UUID(str(ref.ref_id))))
+            ).scalar_one_or_none()
+        except ValueError:
+            continue
+        if product is None:
+            continue
+        images: list[dict[str, object]] = product.images if isinstance(product.images, list) else []
+        changed = False
+        for img in images:
+            if img.get("resource_id") == str(resource_id) and img.get("url") != new_url:
+                img["url"] = new_url
+                changed = True
+        if changed:
+            product.images = images  # type: ignore[assignment]
+            await db.flush()
 
 
 # ---------------------------------------------------------------------------
