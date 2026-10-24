@@ -21,7 +21,6 @@ import {
   NSwitch,
   NTable,
   NTag,
-  NUpload,
   useMessage
 } from 'naive-ui';
 import { useI18n } from 'vue-i18n';
@@ -606,41 +605,6 @@ onMounted(async () => {
     error.value = t('common.loadFailed');
   }
 });
-
-async function handleUpload({ file: fileItem }: any) {
-  uploading.value = true;
-  error.value = '';
-  const file = fileItem.file as File;
-
-  if (isEdit.value) {
-    const formData = new FormData();
-    formData.append('file', file);
-    try {
-      const res = await post(`/api/admin/v1/products/${route.params.id}/upload-image`, formData, {
-        'Content-Type': 'multipart/form-data'
-      });
-      const uploaded = (res.data?.data?.images || res.data?.images || []).slice(-1)[0];
-      if (uploaded)
-        images.value.push({
-          key: uploaded.key || '',
-          url: uploaded.url || '',
-          alt: uploaded.alt || '',
-          alt_translations: uploaded.alt_translations || {},
-          resourceId: uploaded.resource_id || ''
-        });
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || t('common.uploadFailed') + ': ' + file.name;
-    }
-  } else {
-    pendingFiles.value.push(file);
-    images.value.push({ key: '', url: URL.createObjectURL(file), alt: '', alt_translations: {} });
-  }
-  // 无主图时首图默认主图（与后端 normalize_images 规则一致）
-  if (images.value.length && !images.value.some(i => i.isMain)) {
-    images.value[0].isMain = true;
-  }
-  uploading.value = false;
-}
 
 async function removeImage(idx: number) {
   if (isEdit.value) {
@@ -1279,13 +1243,11 @@ async function reloadVariants() {
                 :key="img.key || img.url"
                 class="relative w-[140px] rounded-md overflow-hidden border transition-all duration-300 cursor-pointer select-none"
                 :class="
-                  img.isMain
-                    ? 'ring-2 ring-[rgb(var(--primary-color))] border-[rgb(var(--primary-color))]'
-                    : selectedIdx === idx
-                      ? 'ring-2 ring-blue-500 border-blue-500'
-                      : String(img.resourceId) === highlightResource
-                        ? 'ring-2 ring-green-500 border-green-500'
-                        : 'border-[var(--n-border-color)]'
+                  selectedIdx === idx
+                    ? 'ring-2 ring-blue-500 border-blue-500'
+                    : String(img.resourceId) === highlightResource
+                      ? 'ring-2 ring-green-500 border-green-500'
+                      : 'border-[var(--n-border-color)]'
                 "
                 @click="selectImage(idx)"
               >
@@ -1370,17 +1332,8 @@ async function reloadVariants() {
         </div>
 
         <NSpace size="small" align="center">
-          <NUpload
-            :multiple="true"
-            accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml,image/bmp"
-            :show-file-list="false"
-            :custom-request="handleUpload"
-            :disabled="uploading || readonly"
-          >
-            <NButton v-if="!readonly" :loading="uploading">{{ $t('common.uploadImages') }}</NButton>
-          </NUpload>
-          <NButton v-if="!readonly" size="small" :disabled="uploading" @click="openResourcePicker">
-            从资源库选择
+          <NButton v-if="!readonly" :loading="uploading" @click="openResourcePicker">
+            {{ $t('common.uploadImages') }}
           </NButton>
           <span v-if="isEdit && !readonly" class="text-xs opacity-60">
             {{ imagesSaving ? '正在自动保存…' : '拖拽排序、选中操作均自动保存' }}
@@ -1392,7 +1345,7 @@ async function reloadVariants() {
         v-model:show="pickerShow"
         :multiple="true"
         type="image"
-        title="从资源库选择商品图片"
+        title="上传图片"
         @confirm="onPickerConfirm"
       />
 

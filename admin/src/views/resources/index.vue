@@ -58,6 +58,8 @@ const selectedIds = ref<Set<string>>(new Set());
 const currentDetail = ref<ResourceItem | null>(null);
 const currentRefs = ref<RefInfo[]>([]);
 const renameValue = ref('');
+const urlValue = ref('');
+const urlSaving = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
 const folderInput = ref<HTMLInputElement | null>(null);
 const dragActive = ref(false);
@@ -767,6 +769,7 @@ function toggleSelect(id: string) {
 async function selectDetail(r: ResourceItem) {
   currentDetail.value = r;
   renameValue.value = r.name;
+  urlValue.value = r.url || '';
   currentRefs.value = [];
   try {
     const res = await resourceApi.detail(r.id);
@@ -774,8 +777,29 @@ async function selectDetail(r: ResourceItem) {
     currentDetail.value = data;
     currentRefs.value = data?.refs ?? [];
     renameValue.value = data?.name ?? r.name;
+    urlValue.value = data?.url ?? r.url ?? '';
   } catch {
     currentRefs.value = [];
+  }
+}
+
+async function doUpdateUrl() {
+  if (!currentDetail.value) return;
+  const url = urlValue.value.trim();
+  if (!/^https?:\/\//.test(url)) {
+    message.warning('请输入 http/https 开头的 URL');
+    return;
+  }
+  urlSaving.value = true;
+  try {
+    await resourceApi.updateUrl(currentDetail.value.id, url);
+    message.success('URL 已更新，引用处已同步');
+    currentDetail.value.url = url;
+    await Promise.all([loadList(), loadMeta()]);
+  } catch (e: any) {
+    message.error(`更新失败: ${e?.message || e}`);
+  } finally {
+    urlSaving.value = false;
   }
 }
 
@@ -1494,6 +1518,16 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
+        <!-- 更新 URL（仅外链资源 object_key 为空） -->
+        <div v-if="!currentDetail.object_key" class="mb-3">
+          <div class="mb-1 text-xs text-gray-500">URL（外链，可更新）</div>
+          <div class="flex items-center gap-1">
+            <NInput v-model:value="urlValue" size="small" placeholder="https://..." />
+            <NButton size="small" :loading="urlSaving" @click="doUpdateUrl">更新</NButton>
+          </div>
+          <div class="mt-1 text-[10px] text-gray-400">更新后引用该资源的商品图片地址将同步刷新</div>
+        </div>
+
         <!-- 元信息 -->
         <div class="mb-3 space-y-2 text-xs">
           <div class="flex justify-between">
@@ -1640,8 +1674,7 @@ onBeforeUnmount(() => {
         <pre
           v-else-if="previewType === 'text'"
           class="max-h-[70vh] w-full overflow-auto rounded-md border bg-gray-50 p-4 text-left text-xs"
-          >{{ previewText }}</pre
-        >
+        >{{ previewText }}</pre>
         <div
           v-else-if="previewType === 'zip'"
           class="max-h-[70vh] w-full overflow-auto rounded-md border bg-gray-50 p-4 text-left text-sm"
