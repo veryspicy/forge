@@ -1012,5 +1012,59 @@ admin / portal 重建后，旧标签页持有的是**指向旧容器的失效连
 
 ---
 
-*最后更新：2026-10-23*
+## 23. Podman Machine 环境运维约束（强制）
+
+> **背景**：podman machine（wsl 后端）的 ext4.vhdx 默认落在系统盘用户目录且动态扩展，`build --no-cache` 会产生大量中间层镜像使 vhdx 只增不缩，是系统盘主要占用源之一。2026-10 实测 vhdx 膨胀至 117.3 GB，系统盘可用仅 25.6 GB（8.9%），逼近处置水位。本章固化 machine 存储位置、重建、清理与监控约束。
+
+### 23.1 machine 存储位置纪律（系统盘排除）
+
+**铁律**：podman machine 的默认存储**必须排除系统盘（C 盘）**，系统盘严禁作为 machine vhdx 的存放位置。
+
+**执行步骤**：
+
+1. 用户未指定存储位置时，**必须先询问用户是否要指定位置**，禁止默认将 machine 建在系统盘用户目录
+2. 用户已指定位置时，machine init / 重建必须落在该指定位置
+3. **当前用户（老板）的指定**：存储位置 `F:\podman-machine`，网络模式 User mode networking（`UserModeNetworking=true`）
+4. **禁止迁移策略**：本章不提供 vhdx 迁移方案（如 `wsl --export/import` 搬家、compact 后迁移等）；位置不符时走 §23.2 重建流程，重建前必须先备份
+
+**反例（2026-10）**：默认路径 `C:\Users\<user>\.local\share\containers\podman\machine\wsl\wsldist\podman-machine-default\ext4.vhdx` 膨胀至 117.3 GB，系统盘仅剩 25.6 GB（8.9%）。
+
+### 23.2 machine 重建纪律（高风险）
+
+**铁律**：`podman machine rm`（或 `wsl --unregister`）会删除整个发行版，内部所有容器、镜像、Local Volumes 数据**全部丢失**。
+
+**执行步骤**：
+
+1. 重建前必须备份：卷数据用 `podman volume export` 或容器内打包；仅存本地的镜像先 `podman save` 导出
+2. 重建属于 🔴 高风险操作，执行前必须向用户说明影响并**获得明确授权**
+3. 重建后核对：machine 存储落在指定位置（§23.1）、`UserModeNetworking=true`、端口与 system connection 正常（ssh 端口可能被重分配，需更新 connection）
+
+**反例**：曾出现 podman machine 启动后 ssh 端口冲突被重分配（56736→51528），未更新 system connection 导致后续命令失败。
+
+### 23.3 无用容器与镜像清理
+
+**触发条件**：磁盘水位告警、长时间未清理、`build --no-cache` 大量构建后。
+
+**执行步骤**：
+
+1. 先用 `podman system df` 查镜像/容器/卷的 SIZE 与 RECLAIMABLE，确认占用来源
+2. 回收悬空镜像与无用对象：`podman system prune`（必要时加 `--volumes`，但须先确认卷无业务数据）
+3. 关键陷阱：prune 后 vhdx **物理文件不会自动缩小**，要真正归还宿主磁盘需容器内 `fstrim` + `wsl --shutdown` + 压缩 vhdx（`optimize-vhd` / diskpart compact）
+4. 清理动作涉及容器/镜像删除，执行前按 §21 核对影响范围
+
+### 23.4 磁盘水位与 machine 监控
+
+**触发条件**：每次环境操作会话、每周例行检查。
+
+**执行步骤**：
+
+1. 系统盘水位：可用 <15% 必须评估处置，<10% 必须立即处置并告知用户
+2. 监控重点：`podman system df` 占用、machine vhdx 大小（主要占用源）、无用容器/镜像堆积
+3. 水位与占用情况必须在会话中如实同步给用户，禁止用"环境优化""整理"等中性词掩盖删除/清理动作
+
+**反例**：仅凭 `build --no-cache` 成功就宣布环境健康，未核对磁盘水位，导致系统盘逼近 <10% 处置线才被发现。
+
+---
+
+*最后更新：2026-10-24*
 
