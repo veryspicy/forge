@@ -494,11 +494,7 @@ class ProductService:
     async def remove_image(db: AsyncSession, product: ORMProduct, key: str) -> ORMProduct:
         # 兼容新旧：按 key（历史快照）或 resource_id（收敛后引用）匹配删除
         images_list = list(product.images or [])
-        images = [
-            img
-            for img in images_list
-            if img.get("key") != key and str(img.get("resource_id") or "") != key
-        ]
+        images = [img for img in images_list if img.get("key") != key and str(img.get("resource_id") or "") != key]
         if len(images) == len(images_list):
             raise ProductValidationError("图片不存在", {"key": key})
         if images and not any(img.get("is_main") for img in images):
@@ -530,11 +526,7 @@ class ProductService:
         resource_ids = [rid for rid in resource_ids if rid]
         by_id: dict[str, ORMResource] = {}
         if resource_ids:
-            rows = (
-                (await db.execute(select(ORMResource).where(ORMResource.id.in_(resource_ids))))
-                .scalars()
-                .all()
-            )
+            rows = (await db.execute(select(ORMResource).where(ORMResource.id.in_(resource_ids)))).scalars().all()
             by_id = {str(r.id): r for r in rows}
         resolved: list[dict[str, Any]] = []
         for img in images:
