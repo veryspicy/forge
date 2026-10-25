@@ -11,6 +11,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from forge.application.services.product_service import ProductService
 from forge.infrastructure.persistence.models import ORMProduct
 from forge.infrastructure.persistence.repositories.product_repo import SQLAlchemyProductRepository
 from forge.infrastructure.persistence.repositories.site_profile_repo import SQLAlchemySiteProfileRepository
@@ -171,6 +172,8 @@ async def list_public_products(
             status="active",
             sort_by=sort_by,
         )
+    # images 收敛为 resource_id 引用后，此处批量 join 资源表回填 url（列表一次查询）
+    await ProductService.resolve_products_images(db, result["items"])
     result["items"] = [_public_item(p) for p in result["items"]]
     return result
 
@@ -229,7 +232,9 @@ async def get_public_product(
             product = await SQLAlchemyProductRepository.get_by_id(db, pid)
     if product is None or product.status != "active":
         raise HTTPException(status_code=404, detail="Product not found")
-    data = _public_item(product.to_dict(), detail=True)
+    data = product.to_dict()
+    data["images"] = await ProductService.resolve_image_resources(db, data.get("images") or [])
+    data = _public_item(data, detail=True)
     # 变体（含展示名多语言）：C 端变体选择器消费
     variants = await SQLAlchemyProductRepository.list_variants(db, int(product.id))
     data["variants"] = [_public_variant(v.to_dict()) for v in variants]

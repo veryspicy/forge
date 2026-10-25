@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
 import csv
 import io
 import uuid
@@ -245,9 +244,10 @@ def _serialize_image(image: dict[str, Any]) -> dict[str, Any]:
     return data
 
 
-def _serialize_product(product: ORMProduct) -> dict[str, Any]:
+async def _serialize_product(db: AsyncSession, product: ORMProduct) -> dict[str, Any]:
     data: dict[str, Any] = product.to_dict()
-    data["images"] = [_serialize_image(i) for i in (product.images or [])]  # type: ignore[union-attr]
+    images = await ProductService.resolve_image_resources(db, list(product.images or []))
+    data["images"] = [_serialize_image(i) for i in images]
     return data
 
 
@@ -291,7 +291,7 @@ async def create_product(
 
     await db.commit()
     await db.refresh(product)
-    return {"data": _serialize_product(product)}
+    return {"data": await _serialize_product(db, product)}
 
 
 # ---------------------------------------------------------------------------
@@ -322,6 +322,7 @@ async def list_products(
         status=status,
         sort_by=sort_by,
     )
+    await ProductService.resolve_products_images(db, result["items"])
     result["items"] = [_normalize_images_in_dict(p) for p in result["items"]]
     return result
 
@@ -595,7 +596,7 @@ async def get_product(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     product = await _get_product_or_404(db, product_id)
-    data = _serialize_product(product)
+    data = await _serialize_product(db, product)
     variants = await SQLAlchemyProductRepository.list_variants(db, int(product.id))
     data["variants"] = [v.to_dict() for v in variants]
     return {"data": data}
@@ -639,7 +640,7 @@ async def update_product(
 
     await db.commit()
     await db.refresh(product)
-    return {"data": _serialize_product(product)}
+    return {"data": await _serialize_product(db, product)}
 
 
 # ---------------------------------------------------------------------------
@@ -712,7 +713,7 @@ async def set_product_status(
 
     await db.commit()
     await db.refresh(product)
-    return {"data": _serialize_product(product)}
+    return {"data": await _serialize_product(db, product)}
 
 
 # ---------------------------------------------------------------------------
@@ -767,7 +768,7 @@ async def audit_product(
 
     await db.commit()
     await db.refresh(product)
-    return {"data": _serialize_product(product)}
+    return {"data": await _serialize_product(db, product)}
 
 
 # ---------------------------------------------------------------------------
@@ -820,12 +821,8 @@ async def upload_product_image(
     await db.flush()
 
     image = {
-        "key": image_key,
-        "url": url,
-        "sort": 0,
-        "is_main": False,
-        "alt": alt,
         "resource_id": str(resource.id),
+        "alt": alt,
     }
     try:
         product = await ProductService.add_image(db, product, image, is_main=is_main, alt=alt)
@@ -834,7 +831,7 @@ async def upload_product_image(
 
     await db.commit()
     await db.refresh(product)
-    return {"data": _serialize_product(product)}
+    return {"data": await _serialize_product(db, product)}
 
 
 # ---------------------------------------------------------------------------
@@ -846,7 +843,6 @@ async def delete_product_image(
     key: str,
     admin: dict[str, Any] = Depends(require_permission("products", "edit")),
     db: AsyncSession = Depends(get_db),
-    minio: MinioService = Depends(get_minio_service),
 ) -> dict[str, Any]:
     if not admin:
         raise HTTPException(status_code=401, detail="未登录")
@@ -857,13 +853,10 @@ async def delete_product_image(
     except ProductValidationError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from None
 
-    # 删除 MinIO 对象（失败不阻塞 DB 更新）
-    with contextlib.suppress(Exception):
-        minio.remove_object(key)
-
+    # 只解除引用，不物理删除 MinIO 对象：图片归资源表统一管理（真相源）
     await db.commit()
     await db.refresh(product)
-    return {"data": _serialize_product(product)}
+    return {"data": await _serialize_product(db, product)}
 
 
 # ---------------------------------------------------------------------------
@@ -887,7 +880,7 @@ async def update_product_images(
 
     await db.commit()
     await db.refresh(product)
-    return {"data": _serialize_product(product)}
+    return {"data": await _serialize_product(db, product)}
 
 
 # ---------------------------------------------------------------------------

@@ -29,7 +29,6 @@ import { resourceApi } from '@/service/api/resources';
 import { VueDraggable } from 'vue-draggable-plus';
 import ProductDetailBlocks from './ProductDetailBlocks.vue';
 import DetailBlockCanvas from './DetailBlockCanvas.vue';
-import ProductImageEditor from './ProductImageEditor.vue';
 import ResourcePickerModal, { type ResourceItem } from '@/components/ResourcePickerModal.vue';
 
 const route = useRoute();
@@ -154,8 +153,6 @@ const selectedIdx = ref<number | null>(null);
 const mainImageManual = ref(false);
 /** 正在内联编辑 alt 的图片下标 */
 const editingAlt = ref<number | null>(null);
-/** 图片裁剪弹窗 */
-const editorModal = ref({ show: false, idx: -1 });
 /** 资源库选择弹窗（商品图片区「从资源库选择」入口） */
 const pickerShow = ref(false);
 /** 拖拽排序自动保存节流计时器 */
@@ -709,52 +706,6 @@ function setImageAlt(idx: number, value: string) {
   onImagesDrop();
 }
 
-/** 打开裁剪弹窗 */
-function openEditor(idx: number) {
-  editorModal.value = { show: true, idx };
-}
-
-/** 裁剪完成：上传新图并替换当前条目，随后自动保存整组 */
-async function onEditorSave(payload: { file: File; dataUrl: string }) {
-  if (!isEdit.value) return;
-  const idx = editorModal.value.idx;
-  if (idx < 0 || !images.value[idx]) return;
-  const oldKey = images.value[idx].key;
-  uploading.value = true;
-  error.value = '';
-  try {
-    const formData = new FormData();
-    formData.append('file', payload.file);
-    const res = await post(`/api/admin/v1/products/${route.params.id}/upload-image`, formData, {
-      'Content-Type': 'multipart/form-data'
-    });
-    const uploaded = (res.data?.data?.images || res.data?.images || []).slice(-1)[0];
-    if (!uploaded) throw new Error('上传返回为空');
-    if (oldKey) {
-      try {
-        await del(`/api/admin/v1/products/${route.params.id}/images/${encodeURIComponent(oldKey)}`);
-      } catch {
-        /* 旧图删除失败不阻塞替换 */
-      }
-    }
-    images.value[idx] = {
-      key: uploaded.key || '',
-      url: payload.dataUrl || uploaded.url || '',
-      alt: uploaded.alt || images.value[idx].alt || '',
-      alt_translations: uploaded.alt_translations || images.value[idx].alt_translations || {},
-      resourceId: uploaded.resource_id || '',
-      isMain: !!images.value[idx].isMain
-    };
-    await saveImages();
-    images.value[idx].url = uploaded.url || images.value[idx].url || '';
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || '裁剪图片保存失败';
-  } finally {
-    uploading.value = false;
-    editorModal.value = { show: false, idx: -1 };
-  }
-}
-
 /** 保存图片整组（排序 / 主图 / alt），拖拽与选中操作后自动触发 */
 async function saveImages() {
   if (!isEdit.value || !images.value.length) return;
@@ -1278,19 +1229,6 @@ async function reloadVariants() {
                       size="tiny"
                       circle
                       quaternary
-                      class="!text-gray-500 hover:!text-[rgb(var(--primary-color))]"
-                      title="编辑图片"
-                      @click.stop="openEditor(idx)"
-                    >
-                      <template #icon>
-                        <icon-mdi-image-edit-outline class="text-sm" />
-                      </template>
-                    </NButton>
-                    <NButton
-                      v-if="!readonly"
-                      size="tiny"
-                      circle
-                      quaternary
                       class="!text-gray-500 hover:!text-red-500"
                       title="删除"
                       @click.stop="removeImage(idx)"
@@ -1345,12 +1283,6 @@ async function reloadVariants() {
         type="image"
         title="上传图片"
         @confirm="onPickerConfirm"
-      />
-
-      <ProductImageEditor
-        v-model:show="editorModal.show"
-        :image-url="editorModal.show && editorModal.idx >= 0 ? images[editorModal.idx]?.url || '' : ''"
-        @save="onEditorSave"
       />
 
       <!-- Structured detail blocks（当前编辑语言下编辑；zh-cn 为基准块，其他语言写入 detail_blocks_translations） -->

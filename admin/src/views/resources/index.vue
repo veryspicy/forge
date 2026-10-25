@@ -3,6 +3,7 @@ import { h, ref, watch, onMounted, onBeforeUnmount, computed } from 'vue';
 import { useDialog, useMessage } from 'naive-ui';
 import { useRouter } from 'vue-router';
 import { resourceApi } from '@/service/api/resources';
+import ProductImageEditor from '@/components/ProductImageEditor.vue';
 import { marked } from 'marked';
 import { renderAsync } from 'docx-preview';
 import JSZip from 'jszip';
@@ -81,6 +82,8 @@ const uploadTotal = ref(0);
 const uploadDone = ref(0);
 const previewVisible = ref(false);
 const previewUrl = ref('');
+const editorVisible = ref(false);
+const editorSaving = ref(false);
 type PreviewType = 'image' | 'video' | 'audio' | 'pdf' | 'docx' | 'md' | 'text' | 'zip' | 'other';
 const previewType = ref<PreviewType>('other');
 const previewText = ref('');
@@ -831,6 +834,45 @@ async function doRename() {
     await Promise.all([loadList(), loadMeta()]);
   } catch (e: any) {
     message.error(`重命名失败: ${e?.message || e}`);
+  }
+}
+
+/** 打开图片编辑器（仅图片资源；编辑入口已从商品详情收敛到资源管理页） */
+function openImageEditor() {
+  if (!currentDetail.value || !isPreviewableImage(currentDetail.value)) return;
+  editorVisible.value = true;
+}
+
+/** 图片编辑保存：裁剪产物上传为新资源，引用商品切换，旧资源保留 */
+async function onImageEditorSave(payload: { file: File; dataUrl: string }) {
+  if (!currentDetail.value) return;
+  const rid = currentDetail.value.id;
+  editorSaving.value = true;
+  try {
+    const res = (await resourceApi.replaceImage(rid, payload.file)) as any;
+    const data = res?.data?.data ?? res?.data ?? res;
+    const meta = res?.data?.meta ?? res?.meta ?? {};
+    message.success(meta?.message || '图片已替换');
+    if (data?.id) {
+      currentDetail.value = {
+        ...currentDetail.value,
+        id: data.id,
+        url: data.url || payload.dataUrl,
+        thumb_url: data.thumb_url || data.url || payload.dataUrl,
+        name: data.name || currentDetail.value.name,
+        file_size: data.file_size ?? currentDetail.value.file_size,
+        mime: data.mime || currentDetail.value.mime,
+        object_key: data.object_key || currentDetail.value.object_key
+      };
+      renameValue.value = data.name || renameValue.value;
+      urlValue.value = data.url || '';
+    }
+    editorVisible.value = false;
+    await Promise.all([loadList(), loadMeta()]);
+  } catch (e: any) {
+    message.error(`图片编辑保存失败: ${e?.message || e}`);
+  } finally {
+    editorSaving.value = false;
   }
 }
 
@@ -1599,6 +1641,17 @@ onBeforeUnmount(() => {
 
         <!-- 操作 -->
         <div class="flex flex-col gap-2">
+          <NButton
+            v-if="isPreviewableImage(currentDetail)"
+            size="small"
+            secondary
+            block
+            :loading="editorSaving"
+            @click="openImageEditor"
+          >
+            <template #icon><SvgIcon icon="mdi:image-edit-outline" class="text-14px" /></template>
+            编辑图片
+          </NButton>
           <div class="flex items-center gap-2">
             <NButton size="small" type="primary" block @click="copyUrl(currentDetail.url)">
               <template #icon><SvgIcon icon="mdi:content-copy" class="text-14px" /></template>
@@ -1690,6 +1743,12 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </NModal>
+
+    <ProductImageEditor
+      v-model:show="editorVisible"
+      :image-url="editorVisible && currentDetail ? currentDetail.url || '' : ''"
+      @save="onImageEditorSave"
+    />
 
     <NModal v-model:show="moveDialogVisible" preset="card" title="移动到目录" style="width: 420px">
       <NSelect

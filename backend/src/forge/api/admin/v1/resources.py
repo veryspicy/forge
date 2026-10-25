@@ -1085,21 +1085,87 @@ async def update_resource(
         if conflict is not None:
             raise HTTPException(status_code=409, detail="该 URL 已被其他资源占用")
         res.url = url  # type: ignore[assignment]
-        # 同步更新引用该资源的商品图片 url 快照（resource_id 关联），避免引用处继续使用旧外链
-        await _sync_product_image_urls(db, rid, url)
+        # 商品图片 url 由资源表 join 解析（images 仅存 resource_id 引用），无需同步快照
 
     await db.commit()
     await db.refresh(res)
     return {"data": _serialize(res)}
 
 
-async def _sync_product_image_urls(db: AsyncSession, resource_id: uuid.UUID, new_url: str) -> None:
-    """更新资源 URL 后，将商品 images 中引用该 resource_id 的条目 url 快照同步为新值。"""
+# ---------------------------------------------------------------------------
+# 商品图片替换（裁剪产物换新资源）：编辑入口已收敛至资源管理页
+# ---------------------------------------------------------------------------
+@router.post("/{resource_id}/replace-image")
+async def replace_product_image(
+    resource_id: str,
+    file: UploadFile = File(...),
+    admin: dict[str, object] = Depends(require_permission("resources", "manage")),
+    db: AsyncSession = Depends(get_db),
+    minio: MinioService = Depends(get_minio_service),
+) -> dict[str, object]:
+    """用裁剪/编辑产物替换图片：上传新资源，商品引用切到新资源，旧资源保留（软删前仍可追溯）。
+
+    语义：编辑生成新素材，不破坏共享引用（旧资源可能被其他商品/详情块引用）。
+    """
+    if not admin:
+        raise HTTPException(status_code=401, detail="未登录")
+
+    try:
+        rid = uuid.UUID(resource_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="无效的资源 ID") from None
+
+    res = (
+        await db.execute(select(ORMResource).where(ORMResource.id == rid, ORMResource.deleted_at.is_(None)))
+    ).scalar_one_or_none()
+    if res is None:
+        raise HTTPException(status_code=404, detail="资源不存在")
+
+    mime = file.content_type or "application/octet-stream"
+    filename = (file.filename or "file").strip()
+    ext = ("." + filename.rsplit(".", 1)[-1]).lower() if "." in filename else ""
+    if _detect_file_type(ext, mime) != "image":
+        raise HTTPException(status_code=400, detail="仅支持图片文件")
+    content = await file.read()
+    if len(content) > SIZE_LIMIT["image"]:
+        raise HTTPException(status_code=400, detail="图片大小不能超过 10MB")
+    ext_map = {
+        ".png": ".png",
+        ".jpg": ".jpg",
+        ".jpeg": ".jpg",
+        ".webp": ".webp",
+        ".gif": ".gif",
+        ".bmp": ".bmp",
+        ".ico": ".ico",
+        ".svg": ".svg",
+    }
+    out_ext = ext_map.get(ext.lower(), ".png" if mime.startswith("image/png") else ".jpg")
+
+    site_id = res.site_id
+    image_key = f"site/{site_id}/resources/{rid}/{uuid.uuid4().hex}{out_ext}"
+    url = minio.upload_object(content, image_key, content_type=mime)
+
+    bucket = getattr(minio, "_bucket", "") or ""
+    new_resource = ORMResource(
+        site_id=site_id,
+        bucket=bucket,
+        object_key=image_key,
+        url=url,
+        file_type="image",
+        mime=mime,
+        file_size=len(content),
+        name=f"{res.name or 'image'} (编辑版)".strip(),
+        directory=res.directory or f"products/{rid}",
+    )
+    db.add(new_resource)
+    await db.flush()
+
+    # 商品引用切到新资源；旧快照字段（url/key）若存在则同步替换，避免展示断裂
     refs = (
         (
             await db.execute(
                 select(ORMResourceRef).where(
-                    ORMResourceRef.resource_id == resource_id,
+                    ORMResourceRef.resource_id == rid,
                     ORMResourceRef.ref_type.in_(["product", "products"]),
                 )
             )
@@ -1107,6 +1173,7 @@ async def _sync_product_image_urls(db: AsyncSession, resource_id: uuid.UUID, new
         .scalars()
         .all()
     )
+    updated_products = 0
     for ref in refs:
         try:
             product = (
@@ -1119,12 +1186,30 @@ async def _sync_product_image_urls(db: AsyncSession, resource_id: uuid.UUID, new
         images: list[dict[str, object]] = product.images if isinstance(product.images, list) else []
         changed = False
         for img in images:
-            if img.get("resource_id") == str(resource_id) and img.get("url") != new_url:
-                img["url"] = new_url
+            if img.get("resource_id") == str(rid):
+                img["resource_id"] = str(new_resource.id)
+                if img.get("url") is not None:
+                    img["url"] = url
+                if img.get("key") is not None:
+                    img["key"] = image_key
                 changed = True
         if changed:
             product.images = images  # type: ignore[assignment]
-            await db.flush()
+            updated_products += 1
+
+    # resource_ref 同步指向新资源（保留引用计数归属），旧资源解除商品引用但保留记录
+    for ref in refs:
+        ref.resource_id = new_resource.id
+
+    await db.commit()
+    await db.refresh(new_resource)
+    return {
+        "data": _serialize(new_resource),
+        "meta": {
+            "message": f"替换成功，已更新 {updated_products} 个商品的引用",
+            "updated_products": updated_products,
+        },
+    }
 
 
 # ---------------------------------------------------------------------------
