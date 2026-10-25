@@ -44,21 +44,14 @@ def upgrade() -> None:
 
     # 1) 默认 site_id：取资源表出现最多的站点；空表时取 active 站点配置
     default_site = bind.execute(
-        sa.text(
-            "SELECT site_id FROM resource WHERE deleted_at IS NULL "
-            "GROUP BY site_id ORDER BY count(*) DESC LIMIT 1"
-        )
+        sa.text("SELECT site_id FROM resource WHERE deleted_at IS NULL GROUP BY site_id ORDER BY count(*) DESC LIMIT 1")
     ).scalar()
     if default_site is None:
         default_site = bind.execute(
-            sa.text(
-                "SELECT id FROM site_profiles WHERE is_active = TRUE ORDER BY created_at LIMIT 1"
-            )
+            sa.text("SELECT id FROM site_profiles WHERE is_active = TRUE ORDER BY created_at LIMIT 1")
         ).scalar()
     if default_site is None:
-        default_site = bind.execute(
-            sa.text("SELECT id FROM site_profiles ORDER BY created_at LIMIT 1")
-        ).scalar()
+        default_site = bind.execute(sa.text("SELECT id FROM site_profiles ORDER BY created_at LIMIT 1")).scalar()
     if default_site is None:
         raise RuntimeError("未找到站点配置，无法为外链资源指定 site_id")
 
@@ -85,8 +78,7 @@ def upgrade() -> None:
                 # 复用同 URL 活跃资源
                 rid = bind.execute(
                     sa.text(
-                        "SELECT id FROM resource WHERE url = :url AND deleted_at IS NULL "
-                        "ORDER BY created_at LIMIT 1"
+                        "SELECT id FROM resource WHERE url = :url AND deleted_at IS NULL ORDER BY created_at LIMIT 1"
                     ),
                     {"url": url},
                 ).scalar()
@@ -101,7 +93,7 @@ def upgrade() -> None:
                     ).scalar()
                 if rid is None:
                     # 登记新资源：有 key 视为 MinIO 对象，无 key 视为外链（object_key 留空）
-                    name = (key.rsplit("/", 1)[-1] or url.rsplit("/", 1)[-1] or "image")
+                    name = key.rsplit("/", 1)[-1] or url.rsplit("/", 1)[-1] or "image"
                     bind.execute(
                         sa.text(
                             "INSERT INTO resource "
@@ -157,10 +149,7 @@ def upgrade() -> None:
 
     # 4) 兜底：清理无引用商品但仍存在的孤儿 product refs（数据一致性）
     op.execute(
-        sa.text(
-            "DELETE FROM resource_ref WHERE ref_type = 'product' AND ref_id NOT IN "
-            "(SELECT id::text FROM products)"
-        )
+        sa.text("DELETE FROM resource_ref WHERE ref_type = 'product' AND ref_id NOT IN (SELECT id::text FROM products)")
     )
 
 
