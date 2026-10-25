@@ -359,14 +359,14 @@ const langOptions = [
 /** 全局编辑语言：顶部语言标签切换；zh-cn 为基准语言（走主列），其余语言写 *_translations[lang] */
 const currentLang = ref('zh-cn');
 
-/** 变体属性按当前语言展示（基准语言走 attributes，其他语言走 translations 回退基准） */
-function variantAttrsText(v: any): string {
+/** 变体属性按当前语言展开为键值对（基准语言走 attributes，其他语言走 translations 回退基准） */
+function variantAttrs(v: any): { key: string; value: string }[] {
   const base = v.attributes || {};
-  if (currentLang.value === 'zh-cn') return JSON.stringify(base);
+  if (currentLang.value === 'zh-cn') {
+    return Object.entries(base).map(([k, val]) => ({ key: k, value: String(val ?? '') }));
+  }
   const map = (v.attributes_translations || {})[currentLang.value] || {};
-  const localized: Record<string, any> = {};
-  for (const [k, val] of Object.entries(base)) localized[k] = map[k] ?? val;
-  return JSON.stringify(localized);
+  return Object.entries(base).map(([k, val]) => ({ key: k, value: String(map[k] ?? val ?? '') }));
 }
 
 function langStatus(lang: string): boolean {
@@ -1384,7 +1384,14 @@ async function reloadVariants() {
             <tr v-for="v in variants" :key="v.id">
               <td>{{ variantDisplayNameOf(v) }}</td>
               <td>{{ v.sku }}</td>
-              <td class="text-xs opacity-70">{{ variantAttrsText(v) }}</td>
+              <td>
+                <NSpace v-if="variantAttrs(v).length" size="small" :wrap="true">
+                  <NTag v-for="a in variantAttrs(v)" :key="a.key" size="small" :bordered="false">
+                    {{ a.key }}: {{ a.value }}
+                  </NTag>
+                </NSpace>
+                <span v-else class="text-xs opacity-50">-</span>
+              </td>
               <td>{{ v.price }}</td>
               <td>{{ v.cost }}</td>
               <td>{{ v.inventory }}</td>
