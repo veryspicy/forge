@@ -585,8 +585,10 @@ const local: App.I18n.Schema = {
       viewPlaceholder: 'View',
       action: 'Archive',
       actionBatch: 'Batch archive',
-      confirm: 'Archive this {target}? It will no longer appear in lists or the dashboard, and can be restored from the "Archived" view.',
-      confirmBatch: 'Archive the selected {n} {target}(s)? They will no longer appear in lists or the dashboard, and can be restored from the "Archived" view.',
+      confirm:
+        'Archive this {target}? It will no longer appear in lists or the dashboard, and can be restored from the "Archived" view.',
+      confirmBatch:
+        'Archive the selected {n} {target}(s)? They will no longer appear in lists or the dashboard, and can be restored from the "Archived" view.',
       done: 'Archived {n} {target}(s)',
       skipped: '{n} {target}(s) were already archived',
       missing: '{n} {target}(s) not found, skipped',

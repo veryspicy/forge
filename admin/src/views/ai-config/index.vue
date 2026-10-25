@@ -523,16 +523,14 @@ onMounted(loadStore);
             <span class="drag-handle cursor-move text-[var(--n-text-color-3)]" title="drag">⋮⋮</span>
             <span class="truncate font-medium">{{ item.name }}</span>
             <NTag size="tiny" :bordered="false">{{ typeLabel(item.type) }}</NTag>
-            <NTag v-if="item.id === store.active_id" size="tiny" type="success">{{ t('page.modelManagement.active') }}</NTag>
+            <NTag v-if="item.id === store.active_id" size="tiny" type="success">
+              {{ t('page.modelManagement.active') }}
+            </NTag>
             <NTag v-if="!item.enabled" size="tiny" type="warning">{{ t('page.modelManagement.disabled') }}</NTag>
           </div>
         </template>
         <template #header-extra>
-          <NSwitch
-            size="small"
-            :value="item.enabled"
-            @update:value="(value: boolean) => toggleProvider(item, value)"
-          />
+          <NSwitch size="small" :value="item.enabled" @update:value="(value: boolean) => toggleProvider(item, value)" />
         </template>
 
         <div class="flex flex-col gap-1 text-xs text-[var(--n-text-color-3)]">
@@ -541,7 +539,11 @@ onMounted(loadStore);
           <div>
             {{ t('page.modelManagement.apiKey') }}:
             <NTag :type="item.api_key_set ? 'success' : 'warning'" size="tiny" :bordered="false">
-              {{ item.api_key_set ? item.api_key_masked || t('page.modelManagement.apiKeyConfigured') : t('page.modelManagement.apiKeyMissing') }}
+              {{
+                item.api_key_set
+                  ? item.api_key_masked || t('page.modelManagement.apiKeyConfigured')
+                  : t('page.modelManagement.apiKeyMissing')
+              }}
             </NTag>
           </div>
           <div>
@@ -554,7 +556,9 @@ onMounted(loadStore);
             {{ t('page.modelManagement.lastTest') }}:
             <template v-if="item.last_test?.at">
               <NTag :type="statusTagType(item.last_test.status)" size="tiny" :bordered="false">
-                {{ item.last_test.status === 'ok' ? t('page.modelManagement.testOk') : t('page.modelManagement.testFail') }}
+                {{
+                  item.last_test.status === 'ok' ? t('page.modelManagement.testOk') : t('page.modelManagement.testFail')
+                }}
               </NTag>
               <span class="ml-1">{{ item.last_test.latency_ms ?? 0 }} ms</span>
             </template>
@@ -595,7 +599,9 @@ onMounted(loadStore);
 
     <NDrawer v-model:show="drawer.show" placement="right" :width="620" resizable :min-width="460" :max-width="900">
       <NDrawerContent
-        :title="drawer.mode === 'create' ? t('page.modelManagement.addProvider') : t('page.modelManagement.editProvider')"
+        :title="
+          drawer.mode === 'create' ? t('page.modelManagement.addProvider') : t('page.modelManagement.editProvider')
+        "
         closable
       >
         <NForm label-placement="top" size="small">
@@ -689,7 +695,9 @@ onMounted(loadStore);
                   class="mt-2"
                   type="password"
                   show-password-on="click"
-                  :placeholder="upstream.api_key_set ? upstream.api_key_masked : t('page.modelManagement.apiKeyPlaceholder')"
+                  :placeholder="
+                    upstream.api_key_set ? upstream.api_key_masked : t('page.modelManagement.apiKeyPlaceholder')
+                  "
                 />
               </div>
               <NButton size="small" dashed @click="addUpstream">{{ t('page.modelManagement.addUpstream') }}</NButton>
@@ -704,7 +712,9 @@ onMounted(loadStore);
         <div v-if="drawer.result" class="rounded bg-[var(--n-action-color)] p-3 text-xs break-all">
           <div class="flex flex-wrap items-center gap-2">
             <NTag :type="statusTagType(drawer.result.status)" size="small">
-              {{ drawer.result.status === 'ok' ? t('page.modelManagement.testOk') : t('page.modelManagement.testFail') }}
+              {{
+                drawer.result.status === 'ok' ? t('page.modelManagement.testOk') : t('page.modelManagement.testFail')
+              }}
             </NTag>
             <span class="text-[var(--n-text-color-3)]">{{ drawer.result.latency_ms }} ms</span>
             <span class="text-[var(--n-text-color-3)]">
@@ -714,12 +724,14 @@ onMounted(loadStore);
           <p class="mt-1">{{ drawer.result.detail }}</p>
           <div v-if="drawer.result.endpoints?.length" class="mt-1 flex flex-col gap-1">
             <div v-for="endpoint in drawer.result.endpoints" :key="endpoint.label">
-              {{ endpoint.label }} · {{ endpoint.status === 'ok' ? t('page.modelManagement.testOk') : t('page.modelManagement.testFail') }}
-              · {{ endpoint.detail }}
+              {{ endpoint.label }} ·
+              {{ endpoint.status === 'ok' ? t('page.modelManagement.testOk') : t('page.modelManagement.testFail') }} ·
+              {{ endpoint.detail }}
             </div>
           </div>
           <p v-if="drawer.result.reply" class="mt-1">
-            <b>{{ t('page.modelManagement.reply') }}:</b> {{ drawer.result.reply }}
+            <b>{{ t('page.modelManagement.reply') }}:</b>
+            {{ drawer.result.reply }}
           </p>
         </div>
 

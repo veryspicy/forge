@@ -61,6 +61,10 @@ const activeTab = ref<'library' | 'upload'>('library');
 // 上传态
 const uploading = ref(false);
 
+// URL 外链态
+const urlInput = ref('');
+const urlRegistering = ref(false);
+
 const previewUrl = (item: ResourceItem) => item.thumb_url || item.url;
 
 const isImage = (item: ResourceItem) => item.file_type === 'image';
@@ -132,6 +136,39 @@ async function handleUpload({ file, onFinish, onError }: any) {
   }
 }
 
+async function registerUrl() {
+  const url = urlInput.value.trim();
+  if (!url) return;
+  if (!/^https?:\/\//.test(url)) {
+    message.error('请输入 http/https 开头的 URL');
+    return;
+  }
+  urlRegistering.value = true;
+  try {
+    const res = await resourceApi.registerExternal({ url, fileType: props.type || undefined });
+    const data = res?.data?.data || res?.data;
+    if (!data?.id) throw new Error('no id');
+    const item: ResourceItem = {
+      id: data.id,
+      url: data.url,
+      thumb_url: data.thumb_url,
+      name: data.name,
+      file_type: data.file_type
+    };
+    if (props.multiple) {
+      if (!isSelected(item)) selected.value = [...selected.value, item];
+    } else {
+      selected.value = [item];
+    }
+    message.success('外链已登记并加入已选');
+    urlInput.value = '';
+  } catch (e: any) {
+    message.error(`登记失败: ${e?.message || e}`);
+  } finally {
+    urlRegistering.value = false;
+  }
+}
+
 function handleConfirm() {
   emit('confirm', [...selected.value]);
   close();
@@ -148,6 +185,7 @@ watch(
       selected.value = [];
       page.value = 1;
       keyword.value = '';
+      urlInput.value = '';
       activeTab.value = 'library';
       fetchList();
     }
@@ -208,7 +246,13 @@ const uploadHint = computed(() => {
                 @click="toggleSelect(item)"
               >
                 <div class="flex h-24 items-center justify-center overflow-hidden rounded bg-gray-50">
-                  <NImage v-if="isImage(item)" :src="previewUrl(item)" object-fit="contain" class="h-full w-full" />
+                  <NImage
+                    v-if="isImage(item)"
+                    :src="previewUrl(item)"
+                    :fallback-src="item.url"
+                    object-fit="contain"
+                    class="h-full w-full"
+                  />
                   <div v-else class="text-xs text-gray-400">
                     {{ item.file_type || '文件' }}
                   </div>
@@ -246,6 +290,29 @@ const uploadHint = computed(() => {
             <div class="text-xs text-gray-400">上传后自动加入已选列表</div>
           </NUploadDragger>
         </NUpload>
+      </NTabPane>
+
+      <NTabPane name="url" tab="URL 外链">
+        <div class="py-6">
+          <NInput
+            v-model:value="urlInput"
+            placeholder="粘贴图片 URL（http/https）"
+            clearable
+            @keyup.enter="registerUrl"
+          />
+          <div class="mt-2 flex items-center justify-between">
+            <span class="text-xs text-gray-400">外链将自动登记到资源管理器统一管理，后续可更新地址</span>
+            <NButton
+              size="small"
+              type="primary"
+              :loading="urlRegistering"
+              :disabled="!urlInput.trim()"
+              @click="registerUrl"
+            >
+              登记并选用
+            </NButton>
+          </div>
+        </div>
       </NTabPane>
     </NTabs>
 

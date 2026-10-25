@@ -258,58 +258,67 @@ const columns: DataTableColumns<any> = [
     key: 'actions',
     width: 300,
     render: row =>
-      h(NSpace, { size: 4 }, {
-        default: () => [
-          h(NButton, { size: 'tiny', onClick: () => openDetail(row) }, { default: () => t('page.returns.detail') }),
-          h(
-            NButton,
-            { size: 'tiny', quaternary: true, type: 'primary', onClick: () => goOrder(row) },
-            { default: () => t('page.returns.openOrder') }
-          ),
-          // 已归档记录只保留查看与恢复入口，不再展示推进流程的操作
-          !archivedView.value && row.status === 'requested'
-            ? h(
+      h(
+        NSpace,
+        { size: 4 },
+        {
+          default: () =>
+            [
+              h(NButton, { size: 'tiny', onClick: () => openDetail(row) }, { default: () => t('page.returns.detail') }),
+              h(
                 NButton,
-                { size: 'tiny', type: 'primary', onClick: () => openReview(row) },
-                { default: () => t('page.returns.review') }
-              )
-            : null,
-          !archivedView.value && row.status === 'approved'
-            ? h(NButton, { size: 'tiny', onClick: () => doReceive(row) }, { default: () => t('page.returns.receive') })
-            : null,
-          !archivedView.value && row.status === 'received'
-            ? h(
-                NButton,
-                { size: 'tiny', type: 'primary', onClick: () => openRefund(row) },
-                { default: () => t('page.returns.refund') }
-              )
-            : null,
-          !archivedView.value && ['requested', 'approved', 'received'].includes(row.status)
-            ? h(NButton, { size: 'tiny', onClick: () => doClose(row) }, { default: () => t('page.returns.close') })
-            : null,
-          canArchive.value
-            ? h(
-                NPopconfirm,
-                {
-                  onPositiveClick: () =>
-                    archivedView.value ? restoreReturns([row.return_number]) : archiveReturns([row.return_number])
-                },
-                {
-                  trigger: () =>
-                    h(
-                      NButton,
-                      { size: 'tiny', quaternary: true, type: archivedView.value ? 'primary' : 'error' },
-                      { default: () => t(archivedView.value ? 'page.archive.restore' : 'page.archive.action') }
-                    ),
-                  default: () =>
-                    t(archivedView.value ? 'page.archive.restoreConfirm' : 'page.archive.confirm', {
-                      target: t('page.archive.targetReturn')
-                    })
-                }
-              )
-            : null
-        ].filter(Boolean)
-      })
+                { size: 'tiny', quaternary: true, type: 'primary', onClick: () => goOrder(row) },
+                { default: () => t('page.returns.openOrder') }
+              ),
+              // 已归档记录只保留查看与恢复入口，不再展示推进流程的操作
+              !archivedView.value && row.status === 'requested'
+                ? h(
+                    NButton,
+                    { size: 'tiny', type: 'primary', onClick: () => openReview(row) },
+                    { default: () => t('page.returns.review') }
+                  )
+                : null,
+              !archivedView.value && row.status === 'approved'
+                ? h(
+                    NButton,
+                    { size: 'tiny', onClick: () => doReceive(row) },
+                    { default: () => t('page.returns.receive') }
+                  )
+                : null,
+              !archivedView.value && row.status === 'received'
+                ? h(
+                    NButton,
+                    { size: 'tiny', type: 'primary', onClick: () => openRefund(row) },
+                    { default: () => t('page.returns.refund') }
+                  )
+                : null,
+              !archivedView.value && ['requested', 'approved', 'received'].includes(row.status)
+                ? h(NButton, { size: 'tiny', onClick: () => doClose(row) }, { default: () => t('page.returns.close') })
+                : null,
+              canArchive.value
+                ? h(
+                    NPopconfirm,
+                    {
+                      onPositiveClick: () =>
+                        archivedView.value ? restoreReturns([row.return_number]) : archiveReturns([row.return_number])
+                    },
+                    {
+                      trigger: () =>
+                        h(
+                          NButton,
+                          { size: 'tiny', quaternary: true, type: archivedView.value ? 'primary' : 'error' },
+                          { default: () => t(archivedView.value ? 'page.archive.restore' : 'page.archive.action') }
+                        ),
+                      default: () =>
+                        t(archivedView.value ? 'page.archive.restoreConfirm' : 'page.archive.confirm', {
+                          target: t('page.archive.targetReturn')
+                        })
+                    }
+                  )
+                : null
+            ].filter(Boolean)
+        }
+      )
   }
 ];
 
@@ -529,13 +538,21 @@ onMounted(() => {
       <NDrawerContent :title="t('page.returns.detail')" closable>
         <NDescriptions v-if="current" :column="1" label-placement="left" bordered size="small">
           <NDescriptionsItem :label="t('page.returns.returnNumber')">{{ current.return_number }}</NDescriptionsItem>
-          <NDescriptionsItem :label="t('page.returns.orderNumber')">{{ current.order_number || '-' }}</NDescriptionsItem>
+          <NDescriptionsItem :label="t('page.returns.orderNumber')">
+            {{ current.order_number || '-' }}
+          </NDescriptionsItem>
           <NDescriptionsItem :label="t('page.returns.status')">
             {{ statusLabels[current.status] || current.status }}
           </NDescriptionsItem>
-          <NDescriptionsItem :label="t('page.returns.reason')">{{ returnReasonLabel(current.reason, t) }}</NDescriptionsItem>
-          <NDescriptionsItem :label="t('page.returns.refundAmount')">{{ money(current.refund_amount) }}</NDescriptionsItem>
-          <NDescriptionsItem :label="t('page.returns.refundMethod')">{{ current.refund_method || '-' }}</NDescriptionsItem>
+          <NDescriptionsItem :label="t('page.returns.reason')">
+            {{ returnReasonLabel(current.reason, t) }}
+          </NDescriptionsItem>
+          <NDescriptionsItem :label="t('page.returns.refundAmount')">
+            {{ money(current.refund_amount) }}
+          </NDescriptionsItem>
+          <NDescriptionsItem :label="t('page.returns.refundMethod')">
+            {{ current.refund_method || '-' }}
+          </NDescriptionsItem>
           <NDescriptionsItem :label="t('page.returns.requestedAt')">{{ fmt(current.requested_at) }}</NDescriptionsItem>
           <NDescriptionsItem :label="t('page.returns.deadline')">{{ fmt(current.deadline_at) }}</NDescriptionsItem>
           <NDescriptionsItem :label="t('page.returns.carrier')">{{ current.carrier || '-' }}</NDescriptionsItem>
@@ -552,13 +569,7 @@ onMounted(() => {
           </NButton>
         </div>
         <div class="mt-4 text-sm font-medium">{{ t('page.returns.items') }}</div>
-        <NDataTable
-          class="mt-2"
-          :columns="itemColumns"
-          :data="current?.items || []"
-          :bordered="false"
-          size="small"
-        />
+        <NDataTable class="mt-2" :columns="itemColumns" :data="current?.items || []" :bordered="false" size="small" />
       </NDrawerContent>
     </NDrawer>
 
@@ -594,14 +605,14 @@ onMounted(() => {
 
     <!-- 退款弹窗 -->
     <NModal v-model:show="showRefund" preset="card" :title="t('page.returns.refund')" style="width: 480px">
-      <div class="text-sm mb-3">
-        {{ t('page.returns.refundAmount') }}：{{ money(refundRow?.refund_amount) }}
-      </div>
+      <div class="text-sm mb-3">{{ t('page.returns.refundAmount') }}：{{ money(refundRow?.refund_amount) }}</div>
       <NInput v-model:value="refundNote" type="textarea" :rows="3" :placeholder="t('page.returns.note')" />
       <template #footer>
         <NSpace justify="end">
           <NButton @click="showRefund = false">{{ t('common.cancel') }}</NButton>
-          <NButton type="primary" :loading="submitting" @click="submitRefund">{{ t('page.returns.refundAction') }}</NButton>
+          <NButton type="primary" :loading="submitting" @click="submitRefund">
+            {{ t('page.returns.refundAction') }}
+          </NButton>
         </NSpace>
       </template>
     </NModal>

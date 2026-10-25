@@ -30,6 +30,7 @@ except ImportError:  # pragma: no cover
 
 from forge.infrastructure.persistence.models import (
     ORMAdminUser,
+    ORMProduct,
     ORMResource,
     ORMResourceRef,
     ORMResourceTag,
@@ -249,7 +250,15 @@ async def upload_resource(
                 img = src_img.convert("RGB")
             thumb_buf = BytesIO()
             img.save(thumb_buf, format="JPEG", quality=82)
-            thumb_key = f"site/{site_id}/resources/thumbs/{res_uuid}.jpg"
+            # 缩略图键名必须与 _derive_thumb_url 推导一致（object_key 目录 + thumbs/stem）
+            # 旧实现用 res_uuid（带连字符）命名，与 upload_bytes 内部生成的无连字符 stem 不一致，导致 404
+            if object_key:
+                key_dir, key_file = object_key.rsplit("/", 1)
+                key_stem = key_file.rsplit(".", 1)[0]
+            else:
+                key_dir = f"site/{site_id}/resources"
+                key_stem = str(res_uuid)
+            thumb_key = f"{key_dir}/thumbs/{key_stem}.jpg"
             minio.upload_object(thumb_buf.getvalue(), thumb_key, content_type="image/jpeg")
         except Exception as exc:  # noqa: BLE001 — 缩略图失败不阻塞上传
             logger.warning("thumbnail generation failed: %s", exc)
@@ -1023,21 +1032,25 @@ async def cleanup_invalid_resource_refs(
 # ---------------------------------------------------------------------------
 # 重命名
 # ---------------------------------------------------------------------------
-class RenamePayload(BaseModel):
-    name: str
+class ResourceUpdatePayload(BaseModel):
+    """资源更新：可单独更新 name 或外链 url（外链资源 object_key 为空才允许改 url）。"""
+
+    name: str | None = None
+    url: str | None = None
 
 
 @router.patch("/{resource_id}")
-async def rename_resource(
+async def update_resource(
     resource_id: str,
-    payload: RenamePayload,
+    payload: ResourceUpdatePayload,
     admin: dict[str, object] = Depends(require_permission("resources", "manage")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, object]:
     name = (payload.name or "").strip()
-    if not name:
-        raise HTTPException(status_code=400, detail="名称不能为空")
-    if len(name) > 255:
+    url = (payload.url or "").strip()
+    if not name and not url:
+        raise HTTPException(status_code=400, detail="name 或 url 至少提供一个")
+    if name and len(name) > 255:
         raise HTTPException(status_code=400, detail="名称过长")
 
     try:
@@ -1049,10 +1062,154 @@ async def rename_resource(
     if res is None:
         raise HTTPException(status_code=404, detail="资源不存在")
 
-    res.name = name  # type: ignore[assignment]
+    if name:
+        res.name = name  # type: ignore[assignment]
+
+    if url:
+        # 仅允许外链资源（未上传 MinIO，object_key 为空）更新 URL；本地上传资源的地址由文件决定
+        if res.object_key:
+            raise HTTPException(status_code=400, detail="仅外链资源支持更新 URL")
+        if not (url.startswith("http://") or url.startswith("https://")):
+            raise HTTPException(status_code=400, detail="仅支持 http/https 外部 URL")
+        # 幂等冲突：同站点同 URL 已被其他活跃资源占用时拒绝
+        conflict = (
+            await db.execute(
+                select(ORMResource).where(
+                    ORMResource.site_id == res.site_id,
+                    ORMResource.url == url,
+                    ORMResource.deleted_at.is_(None),
+                    ORMResource.id != rid,
+                )
+            )
+        ).scalar_one_or_none()
+        if conflict is not None:
+            raise HTTPException(status_code=409, detail="该 URL 已被其他资源占用")
+        res.url = url  # type: ignore[assignment]
+        # 商品图片 url 由资源表 join 解析（images 仅存 resource_id 引用），无需同步快照
+
     await db.commit()
     await db.refresh(res)
     return {"data": _serialize(res)}
+
+
+# ---------------------------------------------------------------------------
+# 商品图片替换（裁剪产物换新资源）：编辑入口已收敛至资源管理页
+# ---------------------------------------------------------------------------
+@router.post("/{resource_id}/replace-image")
+async def replace_product_image(
+    resource_id: str,
+    file: UploadFile = File(...),
+    admin: dict[str, object] = Depends(require_permission("resources", "manage")),
+    db: AsyncSession = Depends(get_db),
+    minio: MinioService = Depends(get_minio_service),
+) -> dict[str, object]:
+    """用裁剪/编辑产物替换图片：上传新资源，商品引用切到新资源，旧资源保留（软删前仍可追溯）。
+
+    语义：编辑生成新素材，不破坏共享引用（旧资源可能被其他商品/详情块引用）。
+    """
+    if not admin:
+        raise HTTPException(status_code=401, detail="未登录")
+
+    try:
+        rid = uuid.UUID(resource_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="无效的资源 ID") from None
+
+    res = (
+        await db.execute(select(ORMResource).where(ORMResource.id == rid, ORMResource.deleted_at.is_(None)))
+    ).scalar_one_or_none()
+    if res is None:
+        raise HTTPException(status_code=404, detail="资源不存在")
+
+    mime = file.content_type or "application/octet-stream"
+    filename = (file.filename or "file").strip()
+    ext = ("." + filename.rsplit(".", 1)[-1]).lower() if "." in filename else ""
+    if _detect_file_type(ext, mime) != "image":
+        raise HTTPException(status_code=400, detail="仅支持图片文件")
+    content = await file.read()
+    if len(content) > SIZE_LIMIT["image"]:
+        raise HTTPException(status_code=400, detail="图片大小不能超过 10MB")
+    ext_map = {
+        ".png": ".png",
+        ".jpg": ".jpg",
+        ".jpeg": ".jpg",
+        ".webp": ".webp",
+        ".gif": ".gif",
+        ".bmp": ".bmp",
+        ".ico": ".ico",
+        ".svg": ".svg",
+    }
+    out_ext = ext_map.get(ext.lower(), ".png" if mime.startswith("image/png") else ".jpg")
+
+    site_id = res.site_id
+    image_key = f"site/{site_id}/resources/{rid}/{uuid.uuid4().hex}{out_ext}"
+    url = minio.upload_object(content, image_key, content_type=mime)
+
+    bucket = getattr(minio, "_bucket", "") or ""
+    new_resource = ORMResource(
+        site_id=site_id,
+        bucket=bucket,
+        object_key=image_key,
+        url=url,
+        file_type="image",
+        mime=mime,
+        file_size=len(content),
+        name=f"{res.name or 'image'} (编辑版)".strip(),
+        directory=res.directory or f"products/{rid}",
+    )
+    db.add(new_resource)
+    await db.flush()
+
+    # 商品引用切到新资源；旧快照字段（url/key）若存在则同步替换，避免展示断裂
+    refs = (
+        (
+            await db.execute(
+                select(ORMResourceRef).where(
+                    ORMResourceRef.resource_id == rid,
+                    ORMResourceRef.ref_type.in_(["product", "products"]),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    updated_products = 0
+    for ref in refs:
+        try:
+            product = (
+                await db.execute(select(ORMProduct).where(ORMProduct.id == uuid.UUID(str(ref.ref_id))))
+            ).scalar_one_or_none()
+        except ValueError:
+            continue
+        if product is None:
+            continue
+        images: list[dict[str, object]] = product.images if isinstance(product.images, list) else []
+        changed = False
+        for img in images:
+            if img.get("resource_id") == str(rid):
+                img["resource_id"] = str(new_resource.id)
+                if img.get("url") is not None:
+                    img["url"] = url
+                if img.get("key") is not None:
+                    img["key"] = image_key
+                changed = True
+        if changed:
+            product.images = images  # type: ignore[assignment]
+            updated_products += 1
+
+    # resource_ref 同步指向新资源（保留引用计数归属），旧资源解除商品引用但保留记录
+    for ref in refs:
+        ref.resource_id = new_resource.id
+
+    await db.commit()
+    await db.refresh(new_resource)
+    return {
+        "data": _serialize(new_resource),
+        "meta": {
+            "message": f"替换成功，已更新 {updated_products} 个商品的引用",
+            "updated_products": updated_products,
+        },
+    }
 
 
 # ---------------------------------------------------------------------------

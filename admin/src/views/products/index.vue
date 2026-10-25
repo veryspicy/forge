@@ -478,7 +478,10 @@ const baseColumns: DataTableColumns<any> = [
               h(NSwitch, {
                 size: 'small',
                 value: row.status === 'active',
-                disabled: row.status === 'deleted' || row.status === 'draft' || (auditEnabled.value && row.audit_status !== 'approved'),
+                disabled:
+                  row.status === 'deleted' ||
+                  row.status === 'draft' ||
+                  (auditEnabled.value && row.audit_status !== 'approved'),
                 'on-update:value': () => toggleStatus(row)
               }),
               h('span', { style: 'color:var(--n-text-color-3);font-size:12px' }, '上架')
@@ -533,87 +536,87 @@ const baseColumns: DataTableColumns<any> = [
         `${row.total_inventory ?? 0}`
       )
   },
-  { title: '销量', key: 'sales', width: 80, render: row => row.sales ?? 0 },
+  { title: '销量', key: 'sales', width: 80, render: row => row.sales ?? 0 }
 ];
 
 // 审核状态列：仅在商品审核开关开启时注入列表（PRODUCT-AUDIT-FLOW 开关化）
 const auditStatusColumn: DataTableColumns<any>[number] = {
   title: '审核状态',
-    key: 'audit_status',
-    width: 110,
-    render: row =>
-      h(
-        NSpace,
-        { size: 4, align: 'center' },
-        {
-          default: () => [
-            h(
-              NTag,
-              { size: 'small', bordered: false, type: auditTagType(row.audit_status) },
-              { default: () => auditLabel(row) }
-            ),
-            row.audit_status === 'pending'
-              ? h(
-                  NButton,
-                  {
-                    size: 'tiny',
-                    quaternary: true,
-                    type: 'primary',
-                    onClick: () => openAuditModal(row)
-                  },
-                  { default: () => '审核' }
-                )
-              : null
-          ]
-        }
-      )
+  key: 'audit_status',
+  width: 110,
+  render: row =>
+    h(
+      NSpace,
+      { size: 4, align: 'center' },
+      {
+        default: () => [
+          h(
+            NTag,
+            { size: 'small', bordered: false, type: auditTagType(row.audit_status) },
+            { default: () => auditLabel(row) }
+          ),
+          row.audit_status === 'pending'
+            ? h(
+                NButton,
+                {
+                  size: 'tiny',
+                  quaternary: true,
+                  type: 'primary',
+                  onClick: () => openAuditModal(row)
+                },
+                { default: () => '审核' }
+              )
+            : null
+        ]
+      }
+    )
 };
 
 // 操作列：恒展示
 const actionsColumn: DataTableColumns<any>[number] = {
   title: t('page.suppliers.actions'),
-    key: 'actions',
-    width: 190,
-    render: row =>
-      h(
-        NSpace,
-        { size: 8, align: 'center' },
-        {
-          default: () => [
-            h(
-              NButton,
-              {
-                size: 'small',
-                quaternary: true,
-                type: 'primary',
-                onClick: () => window.open(`/products/${row.id}`, '_blank', 'noopener')
-              },
-              { default: () => '查看' }
-            ),
-            h(
-              NButton,
-              {
-                size: 'small',
-                quaternary: true,
-                type: 'primary',
-                onClick: () => router.push(`/products/${row.id}?mode=view`)
-              },
-              { default: () => t('common.edit') }
-            ),
-            h(
-              NPopconfirm,
-              {
-                onPositiveClick: () => deleteProduct(row)
-              },
-              {
-                trigger: () =>
-                  h(NButton, { size: 'small', quaternary: true, type: 'error' }, { default: () => t('common.delete') }),
-                default: () => t('page.products.deleteConfirm')
-              }
-            )
-          ]
-        }
-      )
+  key: 'actions',
+  width: 190,
+  render: row =>
+    h(
+      NSpace,
+      { size: 8, align: 'center' },
+      {
+        default: () => [
+          h(
+            NButton,
+            {
+              size: 'small',
+              quaternary: true,
+              type: 'primary',
+              onClick: () => window.open(`/products/${row.id}`, '_blank', 'noopener')
+            },
+            { default: () => '查看' }
+          ),
+          h(
+            NButton,
+            {
+              size: 'small',
+              quaternary: true,
+              type: 'primary',
+              onClick: () => router.push(`/products/${row.id}?mode=view`)
+            },
+            { default: () => t('common.edit') }
+          ),
+          h(
+            NPopconfirm,
+            {
+              onPositiveClick: () => deleteProduct(row)
+            },
+            {
+              trigger: () =>
+                h(NButton, { size: 'small', quaternary: true, type: 'error' }, { default: () => t('common.delete') }),
+              default: () => t('page.products.deleteConfirm')
+            }
+          )
+        ]
+      }
+    )
 };
 
 const columns = computed<DataTableColumns<any>>(() => {

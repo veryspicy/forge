@@ -11,10 +11,11 @@ import unicodedata
 from datetime import UTC, datetime
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from forge.application.services.app_settings_service import is_product_audit_enabled
-from forge.infrastructure.persistence.models import ORMProduct, ORMProductVariant
+from forge.infrastructure.persistence.models import ORMProduct, ORMProductVariant, ORMResource
 from forge.infrastructure.persistence.repositories.catalog_repo import (
     BrandRepository,
     CategoryRepository,
@@ -315,10 +316,11 @@ class ProductService:
     def normalize_images(
         images: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
-        """清洗图片数组：结构对齐、主图唯一、url 必填、sort 唯一。
+        """清洗图片数组：结构对齐、主图唯一、resource_id 或 url 必填、sort 唯一。
 
-        行业标准（Shopify/Chewy）要求商品图必须可寻址：
-        - url 缺失或为空 → 抛业务异常（不允许无地址图片）
+        行业标准（Shopify/Chewy）要求商品图必须可寻址，寻址方式二选一：
+        - 优先 resource_id：资源表为全站素材真相源，商品表只存引用（去冗余 url/key 快照）
+        - 历史兼容：无 resource_id 时保留 url（与 key 快照），迁移脚本会补全引用关系
         - sort 缺失按序号补齐，重复自动顺延，保证前端拖拽排序稳定
         - is_main 恰好一个；未指定主图时 sort 最小者为主图
         """
@@ -331,8 +333,12 @@ class ProductService:
             if not isinstance(img, dict):
                 raise ProductValidationError("图片格式错误", {"images": f"第 {idx + 1} 张图片必须是对象"})
             url = str(img.get("url") or "").strip()
-            if not url:
-                raise ProductValidationError("图片格式错误", {"images": f"第 {idx + 1} 张图片缺少 url"})
+            resource_id = str(img.get("resource_id") or "").strip()
+            if not url and not resource_id:
+                raise ProductValidationError(
+                    "图片格式错误",
+                    {"images": f"第 {idx + 1} 张图片缺少 resource_id 或 url"},
+                )
             raw_sort = img.get("sort")
             try:
                 sort = int(raw_sort) if raw_sort is not None else idx
@@ -344,18 +350,25 @@ class ProductService:
             while sort in used_sorts:
                 sort += 1
             used_sorts.add(sort)
-            entry = {
-                "key": str(img.get("key", "")),
-                "url": url,
-                "sort": sort,
-                "is_main": bool(img.get("is_main", False)),
-                "alt": str(img.get("alt", "")),
-            }
+            # 有 resource_id 时收敛为纯引用（url/key 由资源表 join 解析），无则保留快照兼容历史
+            if resource_id:
+                entry: dict[str, Any] = {
+                    "resource_id": resource_id,
+                    "sort": sort,
+                    "is_main": bool(img.get("is_main", False)),
+                    "alt": str(img.get("alt", "")),
+                }
+            else:
+                entry = {
+                    "key": str(img.get("key", "")),
+                    "url": url,
+                    "sort": sort,
+                    "is_main": bool(img.get("is_main", False)),
+                    "alt": str(img.get("alt", "")),
+                }
             alt_translations = img.get("alt_translations")
             if isinstance(alt_translations, dict) and alt_translations:
                 entry["alt_translations"] = {str(k): str(v) for k, v in alt_translations.items() if str(v).strip()}
-            if img.get("resource_id"):
-                entry["resource_id"] = str(img["resource_id"])
             if entry["is_main"]:
                 if main_seen:
                     entry["is_main"] = False
@@ -403,6 +416,12 @@ class ProductService:
                     entry[field] = [ProductService._clean_block_value(item) for item in value]
                 elif isinstance(value, str):
                     entry[field] = value.strip()
+                elif isinstance(value, dict):
+                    # 兼容历史对象格式资源字段（如 image_text.image = {url, resource_id}）
+                    # 契约统一为字符串 URL，旧数据保存时自动收敛
+                    url = value.get("url") or value.get("src")
+                    if isinstance(url, str) and url.strip():
+                        entry[field] = url.strip()
             cleaned.append(entry)
         return cleaned
 
@@ -449,22 +468,34 @@ class ProductService:
         if is_main:
             for img in images:
                 img["is_main"] = False
-        entry = {
-            "key": image["key"],
-            "url": image["url"],
-            "sort": len(images),
-            "is_main": is_main or len(images) == 0,
-            "alt": alt,
-        }
+        # 有 resource_id 时收敛为纯引用，避免冗余 url/key 快照（资源表为真相源）
         if image.get("resource_id"):
-            entry["resource_id"] = image["resource_id"]
+            entry = {
+                "resource_id": str(image["resource_id"]),
+                "sort": len(images),
+                "is_main": is_main or len(images) == 0,
+                "alt": alt,
+            }
+        else:
+            entry = {
+                "key": image["key"],
+                "url": image["url"],
+                "sort": len(images),
+                "is_main": is_main or len(images) == 0,
+                "alt": alt,
+            }
+        alt_translations = image.get("alt_translations")
+        if isinstance(alt_translations, dict) and alt_translations:
+            entry["alt_translations"] = alt_translations
         images.append(entry)
         return await SQLAlchemyProductRepository.update_images(db, product, images)
 
     @staticmethod
     async def remove_image(db: AsyncSession, product: ORMProduct, key: str) -> ORMProduct:
-        images = [img for img in (product.images or []) if img.get("key") != key]  # type: ignore[union-attr]
-        if len(images) == len(product.images or []):
+        # 兼容新旧：按 key（历史快照）或 resource_id（收敛后引用）匹配删除
+        images_list = list(product.images or [])
+        images = [img for img in images_list if img.get("key") != key and str(img.get("resource_id") or "") != key]
+        if len(images) == len(images_list):
             raise ProductValidationError("图片不存在", {"key": key})
         if images and not any(img.get("is_main") for img in images):
             images.sort(key=lambda i: int(i.get("sort", 0)))
@@ -478,6 +509,54 @@ class ProductService:
             raise ProductValidationError("图片格式错误", {"images": "images 必须是数组"})
         normalized = ProductService.normalize_images(images)
         return await SQLAlchemyProductRepository.update_images(db, product, normalized)
+
+    @staticmethod
+    async def resolve_image_resources(
+        db: AsyncSession,
+        images: list[dict[str, Any]] | None,
+    ) -> list[dict[str, Any]]:
+        """按 resource_id join 资源表，回填 url/key 供序列化输出。
+
+        商品表 images 收敛后只存引用，前端与 C 端仍依赖 url 回显，
+        此处以资源表为真相源一次性解析；资源缺失时回退原快照（若存在），保证不断链。
+        """
+        if not images:
+            return []
+        resource_ids = [str(i.get("resource_id") or "").strip() for i in images]
+        resource_ids = [rid for rid in resource_ids if rid]
+        by_id: dict[str, ORMResource] = {}
+        if resource_ids:
+            rows = (await db.execute(select(ORMResource).where(ORMResource.id.in_(resource_ids)))).scalars().all()
+            by_id = {str(r.id): r for r in rows}
+        resolved: list[dict[str, Any]] = []
+        for img in images:
+            entry = dict(img)
+            rid = str(img.get("resource_id") or "").strip()
+            res = by_id.get(rid)
+            if res is not None:
+                entry["url"] = res.url or ""
+                entry["key"] = res.object_key or ""
+            entry.setdefault("url", "")
+            entry.setdefault("key", "")
+            resolved.append(entry)
+        return resolved
+
+    @staticmethod
+    async def resolve_products_images(
+        db: AsyncSession,
+        items: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """批量版本：商品列表/详情 dict 一次 join 全部图片引用，原地回填 items。"""
+        flat: list[tuple[int, int, dict[str, Any]]] = []
+        for item_idx, item in enumerate(items):
+            for img_idx, img in enumerate(item.get("images") or []):
+                flat.append((item_idx, img_idx, img))
+        if not flat:
+            return items
+        resolved = await ProductService.resolve_image_resources(db, [f[2] for f in flat])
+        for (item_idx, img_idx, _), entry in zip(flat, resolved, strict=True):
+            items[item_idx]["images"][img_idx] = entry
+        return items
 
     @staticmethod
     def _validate_base(data: dict[str, Any], partial: bool = False) -> dict[str, str]:

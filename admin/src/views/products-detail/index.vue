@@ -21,7 +21,6 @@ import {
   NSwitch,
   NTable,
   NTag,
-  NUpload,
   useMessage
 } from 'naive-ui';
 import { useI18n } from 'vue-i18n';
@@ -29,7 +28,8 @@ import { get, post, patch, del } from '@/service/api/helper';
 import { resourceApi } from '@/service/api/resources';
 import { VueDraggable } from 'vue-draggable-plus';
 import ProductDetailBlocks from './ProductDetailBlocks.vue';
-import ProductImageEditor from './ProductImageEditor.vue';
+import DetailBlockCanvas from './DetailBlockCanvas.vue';
+import ResourcePickerModal, { type ResourceItem } from '@/components/ResourcePickerModal.vue';
 
 const route = useRoute();
 const { t } = useI18n();
@@ -102,36 +102,6 @@ function openAuditModal() {
   showAuditModal.value = true;
 }
 
-/** 只读预览：详情块内容概要文本（PRODUCT-AUDIT-FLOW 只读模式） */
-function blockSummary(b: Record<string, any>): string {
-  const type = String(b.type ?? '');
-  const text = (v: any): string => (v == null || v === '' ? '' : String(v));
-  const firstText = (arr: any[] | undefined, key: string): string =>
-    Array.isArray(arr) && arr.length ? text(arr[0][key]) : '';
-  switch (type) {
-    case 'rich_text':
-      return (
-        text(b.html)
-          ?.replace(/<[^>]+>/g, '')
-          ?.slice(0, 120) || ''
-      );
-    case 'image':
-      return Array.isArray(b.images) && b.images.length ? `${b.images.length} 张图片` : '';
-    case 'image_text':
-      return text(b.text)?.slice(0, 120) || '';
-    case 'spec_table':
-      return `${text(b.caption) || '规格表'}（${Array.isArray(b.rows) ? b.rows.length : 0} 行）`;
-    case 'features':
-      return Array.isArray(b.items) ? `${b.items.length} 个卖点` : '';
-    case 'faq':
-      return Array.isArray(b.items) ? `${b.items.length} 个 FAQ` : '';
-    case 'video':
-      return text(b.url)?.slice(0, 80) || '';
-    default:
-      return firstText(b.items, 'title') || text(b.caption) || '';
-  }
-}
-
 async function submitAudit() {
   if (!route.params.id) return;
   if (auditForm.value.action === 'reject' && !auditForm.value.reason.trim()) {
@@ -177,10 +147,14 @@ const images = ref<
 >([]);
 const pendingFiles = ref<File[]>([]);
 const imagesSaving = ref(false);
-/** 当前选中的图片下标（点击选中高亮边框，操作集中在选中操作条） */
+/** 当前选中的图片下标（点击选中高亮边框） */
 const selectedIdx = ref<number | null>(null);
-/** 图片裁剪弹窗 */
-const editorModal = ref({ show: false, idx: -1 });
+/** 主图是否由人工指定（true 后拖拽不再自动跟随第一位；初始按后端返回的主图位置判定） */
+const mainImageManual = ref(false);
+/** 正在内联编辑 alt 的图片下标 */
+const editingAlt = ref<number | null>(null);
+/** 资源库选择弹窗（商品图片区「从资源库选择」入口） */
+const pickerShow = ref(false);
 /** 拖拽排序自动保存节流计时器 */
 let imagesSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -359,14 +333,14 @@ const langOptions = [
 /** 全局编辑语言：顶部语言标签切换；zh-cn 为基准语言（走主列），其余语言写 *_translations[lang] */
 const currentLang = ref('zh-cn');
 
-/** 变体属性按当前语言展示（基准语言走 attributes，其他语言走 translations 回退基准） */
-function variantAttrsText(v: any): string {
+/** 变体属性按当前语言展开为键值对（基准语言走 attributes，其他语言走 translations 回退基准） */
+function variantAttrs(v: any): { key: string; value: string }[] {
   const base = v.attributes || {};
-  if (currentLang.value === 'zh-cn') return JSON.stringify(base);
+  if (currentLang.value === 'zh-cn') {
+    return Object.entries(base).map(([k, val]) => ({ key: k, value: String(val ?? '') }));
+  }
   const map = (v.attributes_translations || {})[currentLang.value] || {};
-  const localized: Record<string, any> = {};
-  for (const [k, val] of Object.entries(base)) localized[k] = map[k] ?? val;
-  return JSON.stringify(localized);
+  return Object.entries(base).map(([k, val]) => ({ key: k, value: String(map[k] ?? val ?? '') }));
 }
 
 function langStatus(lang: string): boolean {
@@ -608,6 +582,9 @@ onMounted(async () => {
         resourceId: i.resource_id || '',
         isMain: !!i.is_main
       }));
+    // 主图默认跟随第一位；若后端返回的主图不在首位说明曾人工指定，锁定人工模式
+    const mainIdx = images.value.findIndex(i => i.isMain);
+    mainImageManual.value = mainIdx > 0;
     variants.value = p.variants || [];
     auditInfo.value = {
       audit_status: p.audit_status || 'pending',
@@ -625,37 +602,6 @@ onMounted(async () => {
     error.value = t('common.loadFailed');
   }
 });
-
-async function handleUpload({ file: fileItem }: any) {
-  uploading.value = true;
-  error.value = '';
-  const file = fileItem.file as File;
-
-  if (isEdit.value) {
-    const formData = new FormData();
-    formData.append('file', file);
-    try {
-      const res = await post(`/api/admin/v1/products/${route.params.id}/upload-image`, formData, {
-        'Content-Type': 'multipart/form-data'
-      });
-      const uploaded = (res.data?.data?.images || res.data?.images || []).slice(-1)[0];
-      if (uploaded)
-        images.value.push({
-          key: uploaded.key || '',
-          url: uploaded.url || '',
-          alt: uploaded.alt || '',
-          alt_translations: uploaded.alt_translations || {},
-          resourceId: uploaded.resource_id || ''
-        });
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || t('common.uploadFailed') + ': ' + file.name;
-    }
-  } else {
-    pendingFiles.value.push(file);
-    images.value.push({ key: '', url: URL.createObjectURL(file), alt: '', alt_translations: {} });
-  }
-  uploading.value = false;
-}
 
 async function removeImage(idx: number) {
   if (isEdit.value) {
@@ -683,9 +629,44 @@ async function removeImage(idx: number) {
   if (isEdit.value) onImagesDrop();
 }
 
+/** 打开资源库选择弹窗 */
+function openResourcePicker() {
+  pickerShow.value = true;
+}
+
+/** 从资源库选中图片后追加到商品图片列表（去重按 resourceId），随后自动保存整组 */
+function onPickerConfirm(items: ResourceItem[]) {
+  const existing = new Set(images.value.map(i => String(i.resourceId || '')));
+  for (const it of items) {
+    if (existing.has(String(it.id))) continue;
+    existing.add(String(it.id));
+    images.value.push({
+      key: '',
+      url: it.url || '',
+      alt: it.name || '',
+      alt_translations: {},
+      resourceId: String(it.id)
+    });
+  }
+  // 无主图时首图默认主图（与后端 normalize_images 规则一致，前端即时反馈）
+  if (images.value.length && !images.value.some(i => i.isMain)) {
+    images.value[0].isMain = true;
+  }
+  if (isEdit.value) onImagesDrop();
+}
+
 /** 点击选中图片（再次点击取消选中） */
 function selectImage(idx: number) {
   selectedIdx.value = selectedIdx.value === idx ? null : idx;
+}
+
+/** 拖拽排序结束后：主图跟随第一位（第一张默认主图规则），随后自动保存 */
+function onImagesReorder() {
+  // 未人工指定主图时，拖拽后排第一位的自动成为主图；人工指定后不再自动跟随
+  if (!mainImageManual.value && images.value.length) {
+    images.value = images.value.map((img, i) => ({ ...img, isMain: i === 0 }));
+  }
+  onImagesDrop();
 }
 
 /** 拖拽排序结束后自动保存（节流 400ms，避免连续拖拽频繁请求） */
@@ -699,6 +680,7 @@ function onImagesDrop() {
 
 /** 指定主图：整组唯一（通过选中操作条触发） */
 function setMainImage(idx: number) {
+  mainImageManual.value = true;
   images.value = images.value.map((img, i) => ({ ...img, isMain: i === idx }));
   if (isEdit.value) onImagesDrop();
 }
@@ -722,52 +704,6 @@ function setImageAlt(idx: number, value: string) {
     img.alt_translations[currentLang.value] = value;
   }
   onImagesDrop();
-}
-
-/** 打开裁剪弹窗 */
-function openEditor(idx: number) {
-  editorModal.value = { show: true, idx };
-}
-
-/** 裁剪完成：上传新图并替换当前条目，随后自动保存整组 */
-async function onEditorSave(payload: { file: File; dataUrl: string }) {
-  if (!isEdit.value) return;
-  const idx = editorModal.value.idx;
-  if (idx < 0 || !images.value[idx]) return;
-  const oldKey = images.value[idx].key;
-  uploading.value = true;
-  error.value = '';
-  try {
-    const formData = new FormData();
-    formData.append('file', payload.file);
-    const res = await post(`/api/admin/v1/products/${route.params.id}/upload-image`, formData, {
-      'Content-Type': 'multipart/form-data'
-    });
-    const uploaded = (res.data?.data?.images || res.data?.images || []).slice(-1)[0];
-    if (!uploaded) throw new Error('上传返回为空');
-    if (oldKey) {
-      try {
-        await del(`/api/admin/v1/products/${route.params.id}/images/${encodeURIComponent(oldKey)}`);
-      } catch {
-        /* 旧图删除失败不阻塞替换 */
-      }
-    }
-    images.value[idx] = {
-      key: uploaded.key || '',
-      url: payload.dataUrl || uploaded.url || '',
-      alt: uploaded.alt || images.value[idx].alt || '',
-      alt_translations: uploaded.alt_translations || images.value[idx].alt_translations || {},
-      resourceId: uploaded.resource_id || '',
-      isMain: !!images.value[idx].isMain
-    };
-    await saveImages();
-    images.value[idx].url = uploaded.url || images.value[idx].url || '';
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || '裁剪图片保存失败';
-  } finally {
-    uploading.value = false;
-    editorModal.value = { show: false, idx: -1 };
-  }
 }
 
 /** 保存图片整组（排序 / 主图 / alt），拖拽与选中操作后自动触发 */
@@ -877,10 +813,7 @@ async function save() {
 
 /** 保存后同步产品图片资源引用（失败不阻塞保存主流程） */
 async function syncProductRefs(productId: string) {
-  const resourceIds = [
-    ...images.value.map(i => i.resourceId).filter(Boolean),
-    ...detailResourceIds.value
-  ] as string[];
+  const resourceIds = [...images.value.map(i => i.resourceId).filter(Boolean), ...detailResourceIds.value] as string[];
   if (!resourceIds.length) return;
   try {
     await resourceApi.syncRefs({
@@ -1242,99 +1175,114 @@ async function reloadVariants() {
           v-if="highlightResource"
           class="mb-3 flex items-center justify-between gap-2 rounded bg-green-50 px-3 py-2 text-xs text-green-600 dark:bg-green-900/20 dark:text-green-300"
         >
-          <span>{{ highlightMatched ? '已定位到引用图片（绿色边框高亮）' : '未在当前图片列表中找到该引用图片' }}</span>
+          <span>{{ highlightMatched ? '已定位到引用图片' : '未在当前图片列表中找到该引用图片' }}</span>
           <NButton size="tiny" quaternary @click="clearHighlight">清除高亮</NButton>
         </div>
         <div v-if="images.length" class="mb-4">
-          <div class="flex flex-wrap gap-3">
-            <VueDraggable
-              v-model="images"
-              :item-key="(item: any) => item.key || item.url"
-              :animation="150"
-              :disabled="readonly"
-              ghost-class="opacity-40"
-              @end="onImagesDrop"
-            >
-              <template #item="{ element: img, index: idx }">
+          <VueDraggable
+            v-model="images"
+            :item-key="(item: any) => item.key || item.url"
+            :animation="150"
+            :disabled="readonly"
+            ghost-class="opacity-40"
+            class="flex flex-wrap gap-3"
+            @end="onImagesReorder"
+          >
+            <template #default>
+              <div
+                v-for="(img, idx) in images"
+                :key="img.key || img.url"
+                class="relative w-[140px] rounded-md overflow-hidden border transition-all duration-300 cursor-pointer select-none"
+                :class="
+                  selectedIdx === idx
+                    ? 'ring-2 ring-blue-500 border-blue-500'
+                    : 'border-[var(--n-border-color)]'
+                "
+                @click="selectImage(idx)"
+              >
+                <!-- 顶部操作栏：主图标签 + 设为主图 / 编辑 / 删除 -->
                 <div
-                  class="relative w-[140px] rounded-md overflow-hidden border transition-all duration-300 cursor-pointer select-none"
-                  :class="
-                    selectedIdx === idx
-                      ? 'ring-2 ring-blue-500 border-blue-500'
-                      : String(img.resourceId) === highlightResource
-                        ? 'ring-2 ring-green-500 border-green-500'
-                        : 'border-[var(--n-border-color)]'
-                  "
-                  @click="selectImage(idx)"
+                  class="flex h-6 items-center justify-between gap-1 border-b border-[var(--n-border-color)] bg-[var(--n-color-2)] px-1"
                 >
-                  <div class="relative">
-                    <NImage :src="img.url" width="140" height="140" style="object-fit: cover" />
-                    <NTag v-if="img.isMain" size="tiny" type="success" class="absolute top-0.5 left-0.5">主图</NTag>
+                  <div class="flex min-w-0 flex-1 items-center">
+                    <span
+                      v-if="img.isMain"
+                      class="truncate rounded-sm bg-[rgb(var(--primary-color))] px-1.5 py-px text-[10px] font-medium leading-4 text-white"
+                    >主图</span>
                     <NButton
-                      v-if="!readonly"
-                      class="absolute top-0.5 right-0.5"
+                      v-else-if="!readonly"
                       size="tiny"
                       circle
-                      type="error"
-                      @click.stop="removeImage(idx)"
+                      quaternary
+                      class="!text-gray-500 hover:!text-[rgb(var(--primary-color))]"
+                      title="设为主图"
+                      @click.stop="setMainImage(idx)"
                     >
-                      &times;
+                      <template #icon>
+                        <icon-mdi-crown-outline class="text-sm" />
+                      </template>
                     </NButton>
                   </div>
-                  <div class="px-1 py-1 text-center text-xs">
-                    {{ imageAlt(img) || '无 alt' }}
+                  <div class="flex shrink-0 items-center">
+                    <NButton
+                      v-if="!readonly"
+                      size="tiny"
+                      circle
+                      quaternary
+                      class="!text-gray-500 hover:!text-red-500"
+                      title="删除"
+                      @click.stop="removeImage(idx)"
+                    >
+                      <template #icon>
+                        <icon-mdi-delete-outline class="text-sm" />
+                      </template>
+                    </NButton>
                   </div>
                 </div>
-              </template>
-            </VueDraggable>
-          </div>
-        </div>
-
-        <!-- 选中图片操作条：alt / 设主图 / 裁剪 / 删除 -->
-        <div
-          v-if="!readonly && selectedIdx !== null && images[selectedIdx]"
-          class="mb-4 flex flex-wrap items-center gap-2 rounded border border-blue-200 bg-blue-50 px-3 py-2 dark:border-blue-500/30 dark:bg-blue-500/10"
-        >
-          <span class="text-xs font-medium text-blue-600 dark:text-blue-300">已选中图片 #{{ selectedIdx + 1 }}</span>
-          <NInput
-            :value="imageAlt(images[selectedIdx])"
-            size="small"
-            placeholder="alt 文本（当前语言，自动保存）"
-            class="!w-64"
-            @update:value="setImageAlt(selectedIdx, $event)"
-          />
-          <NButton
-            size="small"
-            :type="images[selectedIdx].isMain ? 'success' : 'default'"
-            :disabled="!!images[selectedIdx].isMain"
-            @click="setMainImage(selectedIdx)"
-          >
-            {{ images[selectedIdx].isMain ? '主图' : '设为主图' }}
-          </NButton>
-          <NButton size="small" @click="openEditor(selectedIdx)">编辑图片</NButton>
-          <NButton size="small" type="error" @click="removeImage(selectedIdx)">删除</NButton>
+                <div class="relative">
+                  <NImage :src="img.url" width="140" height="140" style="object-fit: cover" />
+                </div>
+                <div class="px-1 py-1 text-center text-xs">
+                  <NInput
+                    v-if="editingAlt === idx"
+                    size="tiny"
+                    :value="imageAlt(img)"
+                    placeholder="alt（自动保存）"
+                    autofocus
+                    @update:value="setImageAlt(idx, $event)"
+                    @blur="editingAlt = null"
+                    @keyup.enter="editingAlt = null"
+                  />
+                  <span
+                    v-else
+                    class="block truncate px-0.5 text-center text-[var(--n-text-color-3)] hover:text-[rgb(var(--primary-color))]"
+                    title="点击编辑 alt"
+                    @click.stop="editingAlt = idx"
+                  >
+                    {{ imageAlt(img) || '无 alt' }}
+                  </span>
+                </div>
+              </div>
+            </template>
+          </VueDraggable>
         </div>
 
         <NSpace size="small" align="center">
-          <NUpload
-            :multiple="true"
-            accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml,image/bmp"
-            :show-file-list="false"
-            :custom-request="handleUpload"
-            :disabled="uploading || readonly"
-          >
-            <NButton v-if="!readonly" :loading="uploading">{{ $t('common.uploadImages') }}</NButton>
-          </NUpload>
+          <NButton v-if="!readonly" :loading="uploading" @click="openResourcePicker">
+            {{ $t('common.uploadImages') }}
+          </NButton>
           <span v-if="isEdit && !readonly" class="text-xs opacity-60">
             {{ imagesSaving ? '正在自动保存…' : '拖拽排序、选中操作均自动保存' }}
           </span>
         </NSpace>
       </NCard>
 
-      <ProductImageEditor
-        v-model:show="editorModal.show"
-        :image-url="editorModal.show && editorModal.idx >= 0 ? images[editorModal.idx]?.url || '' : ''"
-        @save="onEditorSave"
+      <ResourcePickerModal
+        v-model:show="pickerShow"
+        :multiple="true"
+        type="image"
+        title="上传图片"
+        @confirm="onPickerConfirm"
       />
 
       <!-- Structured detail blocks（当前编辑语言下编辑；zh-cn 为基准块，其他语言写入 detail_blocks_translations） -->
@@ -1344,13 +1292,9 @@ async function reloadVariants() {
           <div
             v-for="(b, i) in activeBlocks"
             :key="i"
-            class="mb-2 rounded border border-[var(--n-border-color)] px-3 py-2"
+            class="mb-4 rounded-lg border border-[var(--n-border-color)] p-4"
           >
-            <div class="flex items-center gap-2">
-              <NTag size="small">{{ String(b.type ?? 'block') }}</NTag>
-              <span class="text-sm font-medium">{{ String(b.title ?? '') }}</span>
-            </div>
-            <div class="mt-1 text-xs opacity-70">{{ blockSummary(b) || '（无内容）' }}</div>
+            <DetailBlockCanvas :block="b" />
           </div>
         </template>
         <template v-else>
@@ -1384,7 +1328,14 @@ async function reloadVariants() {
             <tr v-for="v in variants" :key="v.id">
               <td>{{ variantDisplayNameOf(v) }}</td>
               <td>{{ v.sku }}</td>
-              <td class="text-xs opacity-70">{{ variantAttrsText(v) }}</td>
+              <td>
+                <NSpace v-if="variantAttrs(v).length" size="small" :wrap="true">
+                  <NTag v-for="a in variantAttrs(v)" :key="a.key" size="small" :bordered="false">
+                    {{ a.key }}: {{ a.value }}
+                  </NTag>
+                </NSpace>
+                <span v-else class="text-xs opacity-50">-</span>
+              </td>
               <td>{{ v.price }}</td>
               <td>{{ v.cost }}</td>
               <td>{{ v.inventory }}</td>

@@ -11,6 +11,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from forge.application.services.product_service import ProductService
 from forge.infrastructure.persistence.models import ORMProduct
 from forge.infrastructure.persistence.repositories.product_repo import SQLAlchemyProductRepository
 from forge.infrastructure.persistence.repositories.site_profile_repo import SQLAlchemySiteProfileRepository
@@ -77,6 +78,38 @@ def _public_variant(variant: dict[str, Any]) -> dict[str, Any]:
     return {k: variant.get(k) for k in _PUBLIC_VARIANT_FIELDS}
 
 
+def _normalize_block_resource(value: Any) -> Any:
+    """详情块资源字段归一化：历史对象 {url, resource_id} 收敛为 URL 字符串（读取侧兜底）。"""
+    if isinstance(value, dict):
+        url = value.get("url") or value.get("src")
+        if isinstance(url, str) and url.strip():
+            return url.strip()
+        return value
+    if isinstance(value, list):
+        return [_normalize_block_resource(v) for v in value]
+    return value
+
+
+def _public_detail_blocks(blocks: Any) -> Any:
+    """C 端详情块兜底：image_text.image / image.images / video.url/poster 等资源字段
+    若为历史对象格式则取 url，保证老数据无需重存即可正常渲染。"""
+    if not isinstance(blocks, list):
+        return blocks
+    normalized: list[dict[str, Any]] = []
+    for block in blocks:
+        if not isinstance(block, dict):
+            normalized.append(block)
+            continue
+        entry = dict(block)
+        for field in ("image", "url", "poster"):
+            if field in entry:
+                entry[field] = _normalize_block_resource(entry[field])
+        if "images" in entry:
+            entry["images"] = _normalize_block_resource(entry["images"])
+        normalized.append(entry)
+    return normalized
+
+
 def _public_item(item: dict[str, Any], *, detail: bool = False) -> dict[str, Any]:
     fields = _PUBLIC_DETAIL_FIELDS if detail else _PUBLIC_FIELDS
     data = {k: item.get(k) for k in fields}
@@ -100,6 +133,7 @@ def _public_item(item: dict[str, Any], *, detail: bool = False) -> dict[str, Any
             for idx, img in enumerate(images)
             if isinstance(img, dict) and img.get("url")
         ]
+        data["detail_blocks"] = _public_detail_blocks(data.get("detail_blocks"))
     return data
 
 
@@ -138,6 +172,8 @@ async def list_public_products(
             status="active",
             sort_by=sort_by,
         )
+    # images 收敛为 resource_id 引用后，此处批量 join 资源表回填 url（列表一次查询）
+    await ProductService.resolve_products_images(db, result["items"])
     result["items"] = [_public_item(p) for p in result["items"]]
     return result
 
@@ -196,7 +232,9 @@ async def get_public_product(
             product = await SQLAlchemyProductRepository.get_by_id(db, pid)
     if product is None or product.status != "active":
         raise HTTPException(status_code=404, detail="Product not found")
-    data = _public_item(product.to_dict(), detail=True)
+    data = product.to_dict()
+    data["images"] = await ProductService.resolve_image_resources(db, data.get("images") or [])
+    data = _public_item(data, detail=True)
     # 变体（含展示名多语言）：C 端变体选择器消费
     variants = await SQLAlchemyProductRepository.list_variants(db, int(product.id))
     data["variants"] = [_public_variant(v.to_dict()) for v in variants]

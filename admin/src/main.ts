@@ -18,10 +18,7 @@ import App from './App.vue';
 // /@vite/client (Vite HMR runtime) which returns 404 in production. Gate on DEV
 // mode so production builds avoid spurious network requests and the validator does
 // not run inside a production bundle (it is only meaningful for local development).
-const setupVueRootValidator = async (
-  app: VueApp,
-  options: { lang: 'zh' | 'en' }
-) => {
+const setupVueRootValidator = async (app: VueApp, options: { lang: 'zh' | 'en' }) => {
   if (!import.meta.env.DEV) return;
   try {
     const mod = await import('vite-plugin-vue-transition-root-validator/client');

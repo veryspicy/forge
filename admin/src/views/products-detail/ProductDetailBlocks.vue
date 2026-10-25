@@ -1,21 +1,23 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
 import { NButton, NFormItem, NInput, NSelect, NSpace, NTag } from 'naive-ui';
 import { VueDraggable } from 'vue-draggable-plus';
 import RichTextEditor from './RichTextEditor.vue';
+import DetailBlockCanvas from './DetailBlockCanvas.vue';
 
 /**
- * 商品结构化详情块编辑器（PRODUCT-DETAIL-BLOCKS）。
+ * 商品结构化详情块编辑器（PRODUCT-DETAIL-BLOCKS）——画布式 WYSIWYG（方案 A）。
  *
  * 与后端 `ProductService.DETAIL_BLOCK_FIELDS` 白名单严格对齐：
  * rich_text(title/html/align) / image(title/images/caption) / image_text(title/image/html/layout)
  * / spec_table(title/columns/rows) / features(title/items) / faq(title/items) / video(title/url/poster)
  *
- * 交互升级（向 Shopify/Chewy 靠拢）：
- * - rich_text：富文本 Tiptap 所见即所得 + Markdown 源码双模式（RichTextEditor.vue）
- * - features：卖点一行一条，逐行编辑
- * - spec_table：轻量表格编辑（列头 + 单元格，支持多列）
- * - faq：卡片式编辑，一张卡片一对问答（问题 + 答案分栏）
+ * 交互范式（向 Shopify/Chewy 靠拢）：
+ * - 画布容器模拟 C 端商品详情页宽度；每块在画布中渲染为 C 端最终效果（DetailBlockCanvas 与
+ *   portal-web DetailBlocks.vue 同构、视觉对齐，编辑态即 C 端最终效果）
+ * - 块外壳 hover 显示悬浮操作栏（上移/下移/类型切换/删除），点击块选中展开内联编辑面板
+ * - 编辑面板复用各类型编辑控件：rich_text（Tiptap 内联 + Markdown）、features（逐行）、
+ *   spec_table（悬浮层行列增删）、faq（卡片式 + 拖拽排序）
  */
 
 type Block = Record<string, any>;
@@ -67,33 +69,15 @@ const hintMap: Record<string, string> = {
 const local = ref<Block[]>([]);
 const drafts = ref<Record<string, string>>({});
 
+/** 当前选中编辑的块下标（-1 = 无选中，全部渲染态） */
+const selectedIdx = ref(-1);
+
+function toggleSelect(i: number): void {
+  selectedIdx.value = selectedIdx.value === i ? -1 : i;
+}
+
 /** 富文本编辑器内联展开（块下标） */
 const richEditor = ref<{ show: boolean; idx: number }>({ show: false, idx: -1 });
-
-/** 富文本渲染式预览：限高展开/收起 */
-const previewExpanded = ref<Record<number, boolean>>({});
-const previewEls = ref<Record<number, HTMLElement | null>>({});
-const previewOverflow = ref<Record<number, boolean>>({});
-
-function setPreviewEl(i: number, el: unknown): void {
-  if (!el || !(el instanceof HTMLElement)) return;
-  previewEls.value[i] = el;
-  nextTick(() => refreshPreview(i));
-}
-
-function refreshPreview(i: number): void {
-  const el = previewEls.value[i];
-  if (!el) return;
-  const overflow = el.scrollHeight > el.clientHeight + 1;
-  // 幂等更新：结果不变时保持原对象引用，避免 ref 回调在每次渲染被调用时触发无限重渲染
-  if (previewOverflow.value[i] !== overflow) {
-    previewOverflow.value = { ...previewOverflow.value, [i]: overflow };
-  }
-}
-
-function togglePreview(i: number): void {
-  previewExpanded.value = { ...previewExpanded.value, [i]: !previewExpanded.value[i] };
-}
 
 /** 卖点：一行一条（块下标 -> 字符串数组草稿） */
 const featDrafts = ref<Record<number, string[]>>({});
@@ -124,15 +108,14 @@ function clone(v: any): Block[] {
 
 function typeLabel(type: string): string {
   return typeOptions.find(o => o.value === type)?.label || type;
-}
-
-// 外部值变化时同步到本地副本；内容一致则不重置，避免打断编辑
+}// 外部值变化时同步到本地副本；内容一致则不重置，避免打断编辑
 watch(
   () => props.value,
   v => {
     const next = clone(v);
     if (JSON.stringify(next) === JSON.stringify(local.value)) return;
     local.value = next;
+    selectedIdx.value = -1;
     drafts.value = {};
     featDrafts.value = {};
     specDrafts.value = {};
@@ -156,6 +139,8 @@ function add(): void {
 
 function remove(i: number): void {
   local.value.splice(i, 1);
+  if (selectedIdx.value === i) selectedIdx.value = -1;
+  else if (selectedIdx.value > i) selectedIdx.value -= 1;
   drafts.value = {};
   featDrafts.value = {};
   specDrafts.value = {};
@@ -169,6 +154,8 @@ function move(i: number, delta: number): void {
   const tmp = arr[i];
   arr[i] = arr[j];
   arr[j] = tmp;
+  if (selectedIdx.value === i) selectedIdx.value = j;
+  else if (selectedIdx.value === j) selectedIdx.value = i;
   drafts.value = {};
   faqDrafts.value = {};
 }
@@ -190,12 +177,10 @@ function saveRichHtml(html: string) {
   const i = richEditor.value.idx;
   if (i >= 0 && local.value[i]) local.value[i].html = html;
   richEditor.value = { show: false, idx: -1 };
-  if (i >= 0) nextTick(() => refreshPreview(i));
 }
 
 function clearRichHtml(i: number): void {
   if (local.value[i]) local.value[i].html = '';
-  nextTick(() => refreshPreview(i));
 }
 
 /* ---------------- 卖点：一行一条 ---------------- */
@@ -362,186 +347,123 @@ function faqCommit(i: number): void {
 
 <template>
   <div>
-    <div v-if="local.length" class="flex flex-col gap-3 mb-3">
-      <div v-for="(block, i) in local" :key="i" class="rounded-md border border-[var(--n-border-color)] p-3">
-        <div class="flex items-center justify-between gap-2 mb-2">
-          <NSpace size="small" align="center">
+    <div class="mb-2 text-xs opacity-60">
+      画布预览与 C 端商品详情页渲染一致；点击块展开编辑，悬停块显示操作栏
+    </div>
+
+    <div v-if="local.length" class="canvas-shell">
+      <div
+        v-for="(block, i) in local"
+        :key="i"
+        class="canvas-block"
+        :class="{ 'canvas-block-active': selectedIdx === i }"
+        @click="toggleSelect(i)"
+      >
+        <!-- 悬浮操作栏（hover / 选中时显示） -->
+        <div class="canvas-ops" @click.stop>
+          <NSpace size="small" align="center" :wrap="false">
             <NTag size="small" type="info">{{ i + 1 }} · {{ typeLabel(block.type) }}</NTag>
             <NSelect
-              size="small"
-              style="width: 130px"
+              size="tiny"
+              style="width: 120px"
               :value="block.type"
               :options="typeOptions"
               @update:value="(v: string) => changeType(i, v)"
             />
-          </NSpace>
-          <NSpace size="small">
             <NButton size="tiny" :disabled="i === 0" @click="move(i, -1)">上移</NButton>
             <NButton size="tiny" :disabled="i === local.length - 1" @click="move(i, 1)">下移</NButton>
             <NButton size="tiny" type="error" @click="remove(i)">删除</NButton>
           </NSpace>
         </div>
 
-        <NFormItem label="块标题" :show-feedback="false">
-          <NInput v-model:value="block.title" placeholder="可选，用于详情页小标题" />
-        </NFormItem>
+        <!-- 画布渲染（C 端同构，编辑态即最终效果） -->
+        <DetailBlockCanvas v-if="selectedIdx !== i" :block="block" />
 
-        <!-- 富文本：渲染式预览 + 内联编辑（Tiptap + Markdown） -->
-        <template v-if="block.type === 'rich_text'">
-          <!-- 编辑态：内联展开编辑器 -->
-          <RichTextEditor
-            v-if="richEditor.show && richEditor.idx === i"
-            inline
-            :show="true"
-            :html="block.html || ''"
-            :title="block.title || ''"
-            @update:show="(v: boolean) => (v ? undefined : (richEditor = { show: false, idx: -1 }))"
-            @save="saveRichHtml"
-            @register="collectResource"
-          />
-          <!-- 预览态：渲染式迷你预览 -->
-          <template v-else>
-            <div
-              v-if="block.html"
-              class="rounded-md border border-[var(--n-border-color)] bg-gray-50/70 overflow-hidden"
-            >
-              <div
-                :ref="el => setPreviewEl(i, el)"
-                class="prose prose-sm max-w-none rich-content px-3 py-2 text-sm leading-relaxed overflow-hidden transition-[max-height]"
-                :class="previewExpanded[i] ? 'max-h-[60vh] overflow-y-auto' : 'max-h-32'"
-                v-html="block.html"
-              />
-              <div v-if="previewOverflow[i]" class="border-t border-[var(--n-border-color)]">
-                <NButton size="tiny" quaternary type="primary" @click="togglePreview(i)">
-                  {{ previewExpanded[i] ? '收起' : '展开全文' }}
-                </NButton>
+        <!-- 编辑面板（选中展开） -->
+        <div v-else class="canvas-edit-panel" @click.stop>
+          <div class="mb-2 flex items-center justify-between">
+            <span class="text-xs font-medium opacity-70">编辑「{{ typeLabel(block.type) }}」</span>
+            <NButton size="tiny" quaternary type="primary" @click="selectedIdx = -1">完成</NButton>
+          </div>
+
+          <NFormItem label="块标题" :show-feedback="false">
+            <NInput v-model:value="block.title" placeholder="可选，用于详情页小标题" />
+          </NFormItem>
+
+          <!-- 富文本：Tiptap + Markdown 双模式内联编辑 -->
+          <template v-if="block.type === 'rich_text'">
+            <RichTextEditor
+              v-if="richEditor.show && richEditor.idx === i"
+              inline
+              :show="true"
+              :html="block.html || ''"
+              :title="block.title || ''"
+              @update:show="(v: boolean) => (v ? undefined : (richEditor = { show: false, idx: -1 }))"
+              @save="saveRichHtml"
+              @register="collectResource"
+            />
+            <template v-else>
+              <NFormItem label="对齐" :show-feedback="false">
+                <NSelect v-model:value="block.align" :options="alignOptions" style="width: 160px" clearable />
+              </NFormItem>
+              <div class="mt-2 flex items-center justify-end gap-2 border-t border-[var(--n-border-color)] pt-2">
+                <NButton size="small" type="primary" quaternary @click="openRichEditor(i)">富文本编辑</NButton>
+                <NButton v-if="block.html" size="small" quaternary type="error" @click="clearRichHtml(i)">清空</NButton>
               </div>
-            </div>
-            <div v-else class="text-sm opacity-50 py-1">（空）</div>
+            </template>
           </template>
 
-          <NFormItem label="对齐" :show-feedback="false" class="mt-2">
-            <NSelect v-model:value="block.align" :options="alignOptions" style="width: 160px" clearable />
-          </NFormItem>
+          <!-- 图片 -->
+          <template v-else-if="block.type === 'image'">
+            <NFormItem label="图片（支持多张）" :show-feedback="false">
+              <ResourceInput v-model="block.images" type="image" multiple @register="collectResource" />
+            </NFormItem>
+            <NFormItem label="图片说明" :show-feedback="false">
+              <NInput v-model:value="block.caption" />
+            </NFormItem>
+          </template>
 
-          <!-- 底部固定操作栏 -->
-          <div
-            class="mt-2 flex items-center justify-end gap-2 border-t border-[var(--n-border-color)] pt-2"
-          >
-            <NButton
-              v-if="!richEditor.show || richEditor.idx !== i"
-              size="small"
-              type="primary"
-              quaternary
-              @click="openRichEditor(i)"
-            >
-              富文本编辑
-            </NButton>
-            <NButton v-if="block.html" size="small" quaternary type="error" @click="clearRichHtml(i)">
-              清空
-            </NButton>
-          </div>
-        </template>
+          <!-- 图文 -->
+          <template v-else-if="block.type === 'image_text'">
+            <NFormItem label="图片" :show-feedback="false">
+              <ResourceInput v-model="block.image" type="image" @register="collectResource" />
+            </NFormItem>
+            <NFormItem label="正文（支持简单 HTML）" :show-feedback="false">
+              <NInput v-model:value="block.html" type="textarea" :rows="3" />
+            </NFormItem>
+            <NFormItem label="版式" :show-feedback="false">
+              <NSelect v-model:value="block.layout" :options="layoutOptions" style="width: 160px" clearable />
+            </NFormItem>
+          </template>
 
-        <!-- 图片 -->
-        <template v-else-if="block.type === 'image'">
-          <NFormItem label="图片（支持多张）" :show-feedback="false">
-            <ResourceInput v-model="block.images" type="image" multiple @register="collectResource" />
-          </NFormItem>
-          <NFormItem label="图片说明" :show-feedback="false">
-            <NInput v-model:value="block.caption" />
-          </NFormItem>
-        </template>
-
-        <!-- 图文 -->
-        <template v-else-if="block.type === 'image_text'">
-          <NFormItem label="图片" :show-feedback="false">
-            <ResourceInput v-model="block.image" type="image" @register="collectResource" />
-          </NFormItem>
-          <NFormItem label="正文（支持简单 HTML）" :show-feedback="false">
-            <NInput v-model:value="block.html" type="textarea" :rows="3" />
-          </NFormItem>
-          <NFormItem label="版式" :show-feedback="false">
-            <NSelect v-model:value="block.layout" :options="layoutOptions" style="width: 160px" clearable />
-          </NFormItem>
-        </template>
-
-        <!-- 规格表：所见即所得表格编辑 -->
-        <template v-else-if="block.type === 'spec_table'">
-          <div class="overflow-x-auto">
-            <table class="spec-table w-full border-collapse text-sm">
-              <thead>
-                <tr>
-                  <th
-                    v-for="(col, j) in specState(i).cols"
-                    :key="j"
-                    class="relative border border-[var(--n-border-color)] bg-gray-100 p-1 align-middle"
-                  >
-                    <NInput
-                      v-model:value="specState(i).cols[j]"
-                      :bordered="false"
-                      size="small"
-                      placeholder="列名"
-                      @blur="specCommit(i)"
-                    />
-                    <NSpace size="small" :wrap="false" class="spec-col-ops">
-                      <NButton
-                        size="tiny"
-                        quaternary
-                        type="primary"
-                        title="在该列右侧插入列"
-                        @click="
-                          specInsertCol(i, j);
-                          specCommit(i);
-                        "
-                      >
-                        ＋
-                      </NButton>
-                      <NButton
-                        size="tiny"
-                        quaternary
-                        type="error"
-                        title="删除该列"
-                        :disabled="specState(i).cols.length <= 2"
-                        @click="
-                          specRemoveCol(i, j);
-                          specCommit(i);
-                        "
-                      >
-                        −
-                      </NButton>
-                    </NSpace>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <template v-for="(row, r) in specState(i).rows" :key="row.id">
-                  <tr class="spec-data-row">
-                    <td
-                      v-for="(cell, c) in row.cells"
-                      :key="c"
-                      class="relative border border-[var(--n-border-color)] p-1 align-middle"
+          <!-- 规格表：所见即所得表格编辑 -->
+          <template v-else-if="block.type === 'spec_table'">
+            <div class="overflow-x-auto">
+              <table class="spec-table w-full border-collapse text-sm">
+                <thead>
+                  <tr>
+                    <th
+                      v-for="(col, j) in specState(i).cols"
+                      :key="j"
+                      class="relative border border-[var(--n-border-color)] bg-gray-100 p-1 align-middle"
                     >
                       <NInput
-                        v-model:value="row.cells[c]"
+                        v-model:value="specState(i).cols[j]"
                         :bordered="false"
                         size="small"
-                        placeholder="值"
+                        placeholder="列名"
                         @blur="specCommit(i)"
                       />
-                      <NSpace
-                        v-if="c === row.cells.length - 1"
-                        size="small"
-                        :wrap="false"
-                        justify="center"
-                        class="spec-row-ops"
-                      >
+                      <NSpace size="small" :wrap="false" class="spec-col-ops">
                         <NButton
                           size="tiny"
                           quaternary
                           type="primary"
-                          title="在该行下方插入行"
-                          @click="specInsertRow(i, r)"
+                          title="在该列右侧插入列"
+                          @click="
+                            specInsertCol(i, j);
+                            specCommit(i);
+                          "
                         >
                           ＋
                         </NButton>
@@ -549,135 +471,184 @@ function faqCommit(i: number): void {
                           size="tiny"
                           quaternary
                           type="error"
-                          title="删除该行"
+                          title="删除该列"
+                          :disabled="specState(i).cols.length <= 2"
                           @click="
-                            specRemoveRow(i, r);
+                            specRemoveCol(i, j);
                             specCommit(i);
                           "
                         >
                           −
                         </NButton>
                       </NSpace>
-                    </td>
+                    </th>
                   </tr>
-                </template>
-              </tbody>
-            </table>
-          </div>
-          <NSpace size="small" class="mt-2">
-            <NButton
-              size="tiny"
-              dashed
-              @click="
-                specAddCol(i);
-                specCommit(i);
-              "
-            >
-              + 添加列
-            </NButton>
-            <NButton size="tiny" dashed @click="specAddRow(i)">+ 添加行</NButton>
-            <span class="text-xs opacity-60">
-              表头可直接改列名；悬停表头行末显示 ＋/− 增删列，悬停数据行右侧悬浮 ＋/− 增删行
-            </span>
-          </NSpace>
-        </template>
-
-        <!-- 卖点：一行一条 -->
-        <template v-else-if="block.type === 'features'">
-          <div class="flex flex-col gap-1 mb-2">
-            <div v-for="(item, j) in featItems(i)" :key="j" class="flex items-center gap-2">
-              <span class="w-4 text-center text-xs opacity-40">{{ j + 1 }}</span>
-              <NInput
-                v-model:value="featItems(i)[j]"
-                placeholder="一条卖点，如：无谷物配方，易消化"
-                @blur="featCommit(i)"
-              />
+                </thead>
+                <tbody>
+                  <template v-for="(row, r) in specState(i).rows" :key="row.id">
+                    <tr class="spec-data-row">
+                      <td
+                        v-for="(cell, c) in row.cells"
+                        :key="c"
+                        class="relative border border-[var(--n-border-color)] p-1 align-middle"
+                      >
+                        <NInput
+                          v-model:value="row.cells[c]"
+                          :bordered="false"
+                          size="small"
+                          placeholder="值"
+                          @blur="specCommit(i)"
+                        />
+                        <NSpace
+                          v-if="c === row.cells.length - 1"
+                          size="small"
+                          :wrap="false"
+                          justify="center"
+                          class="spec-row-ops"
+                        >
+                          <NButton
+                            size="tiny"
+                            quaternary
+                            type="primary"
+                            title="在该行下方插入行"
+                            @click="specInsertRow(i, r)"
+                          >
+                            ＋
+                          </NButton>
+                          <NButton
+                            size="tiny"
+                            quaternary
+                            type="error"
+                            title="删除该行"
+                            @click="
+                              specRemoveRow(i, r);
+                              specCommit(i);
+                            "
+                          >
+                            −
+                          </NButton>
+                        </NSpace>
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+            <NSpace size="small" class="mt-2">
               <NButton
                 size="tiny"
-                quaternary
-                type="error"
+                dashed
                 @click="
-                  featRemove(i, j);
-                  featCommit(i);
+                  specAddCol(i);
+                  specCommit(i);
                 "
               >
-                删除
+                + 添加列
               </NButton>
-            </div>
-          </div>
-          <NSpace size="small">
-            <NButton size="tiny" dashed @click="featAdd(i)">+ 添加卖点</NButton>
-            <span class="text-xs opacity-60">一行一条，C 端渲染为要点列表</span>
-          </NSpace>
-        </template>
-
-        <!-- FAQ：一张卡片一对问答 -->
-        <template v-else-if="block.type === 'faq'">
-          <NFormItem :label="hintMap.faq" :show-feedback="false" class="faq-editor">
-            <NSpace size="small" class="mb-2">
-              <NButton size="tiny" dashed @click="faqAdd(i)">+ 添加问答</NButton>
-              <span class="text-xs opacity-60">拖动 ⠿ 调整顺序，C 端按此顺序展示</span>
+              <NButton size="tiny" dashed @click="specAddRow(i)">+ 添加行</NButton>
+              <span class="text-xs opacity-60">
+                表头可直接改列名；悬停表头行末显示 ＋/− 增删列，悬停数据行右侧悬浮 ＋/− 增删行
+              </span>
             </NSpace>
-            <VueDraggable
-              v-if="faqState(i).length >= 0"
-              v-model="faqDrafts[i]"
-              item-key="id"
-              handle=".faq-drag-handle"
-              class="faq-list flex flex-row flex-wrap gap-2 mb-2"
-              ghost-class="faq-ghost"
-              :animation="150"
-              @start="faqDragStart"
-              @end="faqDragEnd(i)"
-            >
-              <div v-for="(item, j) in faqState(i)" :key="item.id" class="faq-card">
-                <div class="flex items-center justify-between mb-1">
-                  <span class="faq-drag-handle" title="拖动调整顺序">⠿</span>
-                  <span class="text-xs opacity-40">Q{{ j + 1 }}</span>
-                  <NButton
-                    size="tiny"
-                    quaternary
-                    type="error"
-                    title="删除该问答"
-                    @click="
-                      faqRemove(i, j);
-                      faqCommit(i);
-                    "
-                  >
-                    −
-                  </NButton>
-                </div>
-                <NInput
-                  v-model:value="faqState(i)[j].question"
-                  placeholder="问题，如：这款猫粮适合幼猫吗？"
-                  @blur="faqCommit(i)"
-                />
-                <NInput
-                  v-model:value="faqState(i)[j].answer"
-                  type="textarea"
-                  :rows="2"
-                  placeholder="答案"
-                  class="mt-1"
-                  @blur="faqCommit(i)"
-                />
-              </div>
-            </VueDraggable>
-          </NFormItem>
-        </template>
+          </template>
 
-        <!-- 视频 -->
-        <template v-else-if="block.type === 'video'">
-          <NFormItem label="视频" :show-feedback="false">
-            <ResourceInput
-              v-model="block.url"
-              type="video"
-              placeholder="粘贴视频 URL，如 https://.../demo.mp4"
-              @register="collectResource"
-            />
-          </NFormItem>
-          <NFormItem label="封面图" :show-feedback="false">
-            <ResourceInput v-model="block.poster" type="image" @register="collectResource" />
-          </NFormItem>
-        </template>
+          <!-- 卖点：一行一条 -->
+          <template v-else-if="block.type === 'features'">
+            <div class="flex flex-col gap-1 mb-2">
+              <div v-for="(item, j) in featItems(i)" :key="j" class="flex items-center gap-2">
+                <span class="w-4 text-center text-xs opacity-40">{{ j + 1 }}</span>
+                <NInput
+                  v-model:value="featItems(i)[j]"
+                  placeholder="一条卖点，如：无谷物配方，易消化"
+                  @blur="featCommit(i)"
+                />
+                <NButton
+                  size="tiny"
+                  quaternary
+                  type="error"
+                  @click="
+                    featRemove(i, j);
+                    featCommit(i);
+                  "
+                >
+                  删除
+                </NButton>
+              </div>
+            </div>
+            <NSpace size="small">
+              <NButton size="tiny" dashed @click="featAdd(i)">+ 添加卖点</NButton>
+              <span class="text-xs opacity-60">一行一条，C 端渲染为要点列表</span>
+            </NSpace>
+          </template>
+
+          <!-- FAQ：一张卡片一对问答 -->
+          <template v-else-if="block.type === 'faq'">
+            <NFormItem :label="hintMap.faq" :show-feedback="false" class="faq-editor">
+              <NSpace size="small" class="mb-2">
+                <NButton size="tiny" dashed @click="faqAdd(i)">+ 添加问答</NButton>
+                <span class="text-xs opacity-60">拖动 ⠿ 调整顺序，C 端按此顺序展示</span>
+              </NSpace>
+              <VueDraggable
+                v-if="faqState(i).length >= 0"
+                v-model="faqDrafts[i]"
+                item-key="id"
+                handle=".faq-drag-handle"
+                class="faq-list flex flex-row flex-wrap gap-2 mb-2"
+                ghost-class="faq-ghost"
+                :animation="150"
+                @start="faqDragStart"
+                @end="faqDragEnd(i)"
+              >
+                <div v-for="(item, j) in faqState(i)" :key="item.id" class="faq-card">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="faq-drag-handle" title="拖动调整顺序">⠿</span>
+                    <span class="text-xs opacity-40">Q{{ j + 1 }}</span>
+                    <NButton
+                      size="tiny"
+                      quaternary
+                      type="error"
+                      title="删除该问答"
+                      @click="
+                        faqRemove(i, j);
+                        faqCommit(i);
+                      "
+                    >
+                      −
+                    </NButton>
+                  </div>
+                  <NInput
+                    v-model:value="faqState(i)[j].question"
+                    placeholder="问题，如：这款猫粮适合幼猫吗？"
+                    @blur="faqCommit(i)"
+                  />
+                  <NInput
+                    v-model:value="faqState(i)[j].answer"
+                    type="textarea"
+                    :rows="2"
+                    placeholder="答案"
+                    class="mt-1"
+                    @blur="faqCommit(i)"
+                  />
+                </div>
+              </VueDraggable>
+            </NFormItem>
+          </template>
+
+          <!-- 视频 -->
+          <template v-else-if="block.type === 'video'">
+            <NFormItem label="视频" :show-feedback="false">
+              <ResourceInput
+                v-model="block.url"
+                type="video"
+                placeholder="粘贴视频 URL，如 https://.../demo.mp4"
+                @register="collectResource"
+              />
+            </NFormItem>
+            <NFormItem label="封面图" :show-feedback="false">
+              <ResourceInput v-model="block.poster" type="image" @register="collectResource" />
+            </NFormItem>
+          </template>
+        </div>
       </div>
     </div>
     <NEmpty v-else description="暂无详情块，仅使用上方简介" size="small" class="py-3" />
@@ -690,16 +661,74 @@ function faqCommit(i: number): void {
 </template>
 
 <style scoped>
-/* FAQ 编辑区：内容纵向堆叠，按钮行固定在块标题下、卡片顶部 */
+/* ===== 画布容器：模拟 C 端详情页宽度与留白 ===== */
+.canvas-shell {
+  border: 1px dashed rgba(128, 128, 128, 0.35);
+  border-radius: 8px;
+  padding: 16px;
+  background: #fafafa;
+}
+
+/* ===== 块外壳：选中态高亮，hover 显示操作栏 ===== */
+.canvas-block {
+  position: relative;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  background: #fff;
+  border: 1px solid rgba(128, 128, 128, 0.18);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  cursor: pointer;
+}
+.canvas-block:last-child {
+  margin-bottom: 0;
+}
+.canvas-block:hover {
+  border-color: rgba(0, 0, 0, 0.35);
+}
+.canvas-block-active {
+  border-color: var(--n-color-primary);
+  box-shadow: 0 0 0 1px var(--n-color-primary);
+}
+
+/* ===== 悬浮操作栏：不占块内空间，hover/选中时淡入 ===== */
+.canvas-ops {
+  position: absolute;
+  top: -15px;
+  right: 8px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border: 1px solid rgba(128, 128, 128, 0.25);
+  border-radius: 6px;
+  padding: 2px 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+.canvas-block:hover .canvas-ops,
+.canvas-block-active .canvas-ops {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ===== 编辑面板：渲染态与编辑态分隔线 ===== */
+.canvas-edit-panel {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(128, 128, 128, 0.3);
+}
+
+/* ===== FAQ 编辑区 ===== */
 .faq-editor :deep(.n-form-item-blank) {
   flex-direction: column;
   align-items: stretch;
 }
-/* FAQ 列表：flex 横排 + 自动换行，卡片数量随容器宽度动态调整 */
 .faq-list {
   align-items: stretch;
 }
-/* FAQ 卡片：宽度随内容与容器伸缩；窄屏自动变单列 */
 .faq-card {
   flex: 1 1 280px;
   min-width: 240px;
@@ -709,7 +738,6 @@ function faqCommit(i: number): void {
   padding: 8px 10px;
   background: rgba(128, 128, 128, 0.04);
 }
-/* 拖拽手柄：可抓取指示 + 拖动中的占位卡片 */
 .faq-drag-handle {
   cursor: grab;
   color: rgba(128, 128, 128, 0.5);
@@ -725,7 +753,7 @@ function faqCommit(i: number): void {
   border-style: dashed;
 }
 
-/* 规格表：单元格内容默认居中；行末 +/- 悬浮显示 */
+/* ===== 规格表编辑：悬浮层行列增删 ===== */
 .spec-table th,
 .spec-table td {
   text-align: center;
@@ -734,7 +762,6 @@ function faqCommit(i: number): void {
 .spec-table td .n-input__input-el {
   text-align: center;
 }
-/* 行末操作层：不占列，绝对定位悬浮在行末单元格之上，悬停行时显示；按钮去边框 */
 .spec-row-ops {
   position: absolute;
   right: 0;
@@ -752,7 +779,6 @@ function faqCommit(i: number): void {
 .spec-row-ops .n-button {
   border: none;
 }
-/* 列头增删列按钮（悬浮层）：不占列宽，绝对定位悬浮在列头之上，默认隐藏无灰块，悬停表头行时淡入 */
 .spec-col-ops {
   position: absolute;
   right: 0;
@@ -769,15 +795,5 @@ function faqCommit(i: number): void {
 }
 .spec-col-ops .n-button {
   border: none;
-}
-/* 富文本渲染内容媒体约束：图片/视频铺满内容区（小图放大、大图限宽 1080）保持比例居中 */
-.rich-content :deep(img),
-.rich-content :deep(video) {
-  width: 100% !important;
-  max-width: min(100%, 1080px);
-  height: auto !important;
-  display: block;
-  margin: 0.75rem auto;
-  border-radius: 0.5rem;
 }
 </style>

@@ -37,6 +37,16 @@ export const resourceApi = {
   detail: (id: string) => get(`/api/admin/v1/resources/${id}`),
   /** 重命名 */
   rename: (id: string, name: string) => patch(`/api/admin/v1/resources/${id}`, { name }),
+  /** 更新外链 URL（仅 object_key 为空的外链资源；同步刷新引用处商品图地址） */
+  updateUrl: (id: string, url: string) => patch(`/api/admin/v1/resources/${id}`, { url }),
+  /** 图片编辑替换：裁剪产物上传为新资源，商品引用切到新资源，旧资源保留 */
+  replaceImage: (id: string, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return post(`/api/admin/v1/resources/${id}/replace-image`, form, {
+      'Content-Type': 'multipart/form-data'
+    });
+  },
   /** 目录树 */
   directories: () => get('/api/admin/v1/resources/meta/directories'),
   /** 标签列表 */

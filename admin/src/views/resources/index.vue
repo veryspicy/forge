@@ -3,6 +3,7 @@ import { h, ref, watch, onMounted, onBeforeUnmount, computed } from 'vue';
 import { useDialog, useMessage } from 'naive-ui';
 import { useRouter } from 'vue-router';
 import { resourceApi } from '@/service/api/resources';
+import ProductImageEditor from '@/components/ProductImageEditor.vue';
 import { marked } from 'marked';
 import { renderAsync } from 'docx-preview';
 import JSZip from 'jszip';
@@ -58,6 +59,8 @@ const selectedIds = ref<Set<string>>(new Set());
 const currentDetail = ref<ResourceItem | null>(null);
 const currentRefs = ref<RefInfo[]>([]);
 const renameValue = ref('');
+const urlValue = ref('');
+const urlSaving = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
 const folderInput = ref<HTMLInputElement | null>(null);
 const dragActive = ref(false);
@@ -79,6 +82,8 @@ const uploadTotal = ref(0);
 const uploadDone = ref(0);
 const previewVisible = ref(false);
 const previewUrl = ref('');
+const editorVisible = ref(false);
+const editorSaving = ref(false);
 type PreviewType = 'image' | 'video' | 'audio' | 'pdf' | 'docx' | 'md' | 'text' | 'zip' | 'other';
 const previewType = ref<PreviewType>('other');
 const previewText = ref('');
@@ -391,18 +396,14 @@ function renderTrashPurgeVNode(list: ResourceItem[]) {
         .slice(0, 5)
         .map(rf => rf.ref_label || rf.ref_type || rf.ref_id)
         .join('、');
-      return h(
-        'div',
-        { class: 'mb-1 rounded bg-orange-50 px-2 py-1 dark:bg-orange-900/20' },
-        [
-          h('span', { class: 'text-orange-600 dark:text-orange-300' }, item.name),
-          h(
-            'span',
-            { class: 'ml-1 text-gray-500 dark:text-gray-400' },
-            `（${refs.length} 处引用：${labels}${refs.length > 5 ? '…' : ''}）`
-          )
-        ]
-      );
+      return h('div', { class: 'mb-1 rounded bg-orange-50 px-2 py-1 dark:bg-orange-900/20' }, [
+        h('span', { class: 'text-orange-600 dark:text-orange-300' }, item.name),
+        h(
+          'span',
+          { class: 'ml-1 text-gray-500 dark:text-gray-400' },
+          `（${refs.length} 处引用：${labels}${refs.length > 5 ? '…' : ''}）`
+        )
+      ]);
     }),
     h(
       'div',
@@ -771,6 +772,7 @@ function toggleSelect(id: string) {
 async function selectDetail(r: ResourceItem) {
   currentDetail.value = r;
   renameValue.value = r.name;
+  urlValue.value = r.url || '';
   currentRefs.value = [];
   try {
     const res = await resourceApi.detail(r.id);
@@ -778,8 +780,29 @@ async function selectDetail(r: ResourceItem) {
     currentDetail.value = data;
     currentRefs.value = data?.refs ?? [];
     renameValue.value = data?.name ?? r.name;
+    urlValue.value = data?.url ?? r.url ?? '';
   } catch {
     currentRefs.value = [];
+  }
+}
+
+async function doUpdateUrl() {
+  if (!currentDetail.value) return;
+  const url = urlValue.value.trim();
+  if (!/^https?:\/\//.test(url)) {
+    message.warning('请输入 http/https 开头的 URL');
+    return;
+  }
+  urlSaving.value = true;
+  try {
+    await resourceApi.updateUrl(currentDetail.value.id, url);
+    message.success('URL 已更新，引用处已同步');
+    currentDetail.value.url = url;
+    await Promise.all([loadList(), loadMeta()]);
+  } catch (e: any) {
+    message.error(`更新失败: ${e?.message || e}`);
+  } finally {
+    urlSaving.value = false;
   }
 }
 
@@ -811,6 +834,45 @@ async function doRename() {
     await Promise.all([loadList(), loadMeta()]);
   } catch (e: any) {
     message.error(`重命名失败: ${e?.message || e}`);
+  }
+}
+
+/** 打开图片编辑器（仅图片资源；编辑入口已从商品详情收敛到资源管理页） */
+function openImageEditor() {
+  if (!currentDetail.value || !isPreviewableImage(currentDetail.value)) return;
+  editorVisible.value = true;
+}
+
+/** 图片编辑保存：裁剪产物上传为新资源，引用商品切换，旧资源保留 */
+async function onImageEditorSave(payload: { file: File; dataUrl: string }) {
+  if (!currentDetail.value) return;
+  const rid = currentDetail.value.id;
+  editorSaving.value = true;
+  try {
+    const res = (await resourceApi.replaceImage(rid, payload.file)) as any;
+    const data = res?.data?.data ?? res?.data ?? res;
+    const meta = res?.data?.meta ?? res?.meta ?? {};
+    message.success(meta?.message || '图片已替换');
+    if (data?.id) {
+      currentDetail.value = {
+        ...currentDetail.value,
+        id: data.id,
+        url: data.url || payload.dataUrl,
+        thumb_url: data.thumb_url || data.url || payload.dataUrl,
+        name: data.name || currentDetail.value.name,
+        file_size: data.file_size ?? currentDetail.value.file_size,
+        mime: data.mime || currentDetail.value.mime,
+        object_key: data.object_key || currentDetail.value.object_key
+      };
+      renameValue.value = data.name || renameValue.value;
+      urlValue.value = data.url || '';
+    }
+    editorVisible.value = false;
+    await Promise.all([loadList(), loadMeta()]);
+  } catch (e: any) {
+    message.error(`图片编辑保存失败: ${e?.message || e}`);
+  } finally {
+    editorSaving.value = false;
   }
 }
 
@@ -948,11 +1010,7 @@ function renderRefListVNode(resourceId: string, refs: RefInfo[], dialogApi: any,
     router.push(target);
   };
   return h('div', { class: 'text-left text-xs' }, [
-    h(
-      'div',
-      { class: 'mb-1 text-gray-500 dark:text-gray-400' },
-      `该资源被以下位置引用（共 ${refs.length} 处）：`
-    ),
+    h('div', { class: 'mb-1 text-gray-500 dark:text-gray-400' }, `该资源被以下位置引用（共 ${refs.length} 处）：`),
     ...refs.map(rf => {
       const label = rf.ref_label || rf.ref_type || rf.ref_id;
       if (!REF_ROUTE_MAP[rf.ref_type]) {
@@ -1502,6 +1560,16 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
+        <!-- 更新 URL（仅外链资源 object_key 为空） -->
+        <div v-if="!currentDetail.object_key" class="mb-3">
+          <div class="mb-1 text-xs text-gray-500">URL（外链，可更新）</div>
+          <div class="flex items-center gap-1">
+            <NInput v-model:value="urlValue" size="small" placeholder="https://..." />
+            <NButton size="small" :loading="urlSaving" @click="doUpdateUrl">更新</NButton>
+          </div>
+          <div class="mt-1 text-[10px] text-gray-400">更新后引用该资源的商品图片地址将同步刷新</div>
+        </div>
+
         <!-- 元信息 -->
         <div class="mb-3 space-y-2 text-xs">
           <div class="flex justify-between">
@@ -1573,6 +1641,17 @@ onBeforeUnmount(() => {
 
         <!-- 操作 -->
         <div class="flex flex-col gap-2">
+          <NButton
+            v-if="isPreviewableImage(currentDetail)"
+            size="small"
+            secondary
+            block
+            :loading="editorSaving"
+            @click="openImageEditor"
+          >
+            <template #icon><SvgIcon icon="mdi:image-edit-outline" class="text-14px" /></template>
+            编辑图片
+          </NButton>
           <div class="flex items-center gap-2">
             <NButton size="small" type="primary" block @click="copyUrl(currentDetail.url)">
               <template #icon><SvgIcon icon="mdi:content-copy" class="text-14px" /></template>
@@ -1664,6 +1743,12 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </NModal>
+
+    <ProductImageEditor
+      v-model:show="editorVisible"
+      :image-url="editorVisible && currentDetail ? currentDetail.url || '' : ''"
+      @save="onImageEditorSave"
+    />
 
     <NModal v-model:show="moveDialogVisible" preset="card" title="移动到目录" style="width: 420px">
       <NSelect
