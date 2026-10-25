@@ -2,6 +2,8 @@
 契约对齐 backend ProductService.DETAIL_BLOCK_FIELDS：
 rich_text(title/html/align) / image(title/images/caption) / image_text(title/image/html/layout)
 / spec_table(title/columns/rows) / features(title/items) / faq(title/items) / video(title/url/poster)
+同步约定：admin 端画布预览（admin/src/views/products-detail/DetailBlockCanvas.vue）与本组件渲染结构同构、
+视觉对齐，本组件样式/结构变更时须同步维护该文件。
 -->
 <template>
   <div class="space-y-10">

@@ -29,6 +29,7 @@ import { get, post, patch, del } from '@/service/api/helper';
 import { resourceApi } from '@/service/api/resources';
 import { VueDraggable } from 'vue-draggable-plus';
 import ProductDetailBlocks from './ProductDetailBlocks.vue';
+import DetailBlockCanvas from './DetailBlockCanvas.vue';
 import ProductImageEditor from './ProductImageEditor.vue';
 
 const route = useRoute();
@@ -100,36 +101,6 @@ function openAuditModal() {
     reason: ''
   };
   showAuditModal.value = true;
-}
-
-/** 只读预览：详情块内容概要文本（PRODUCT-AUDIT-FLOW 只读模式） */
-function blockSummary(b: Record<string, any>): string {
-  const type = String(b.type ?? '');
-  const text = (v: any): string => (v == null || v === '' ? '' : String(v));
-  const firstText = (arr: any[] | undefined, key: string): string =>
-    Array.isArray(arr) && arr.length ? text(arr[0][key]) : '';
-  switch (type) {
-    case 'rich_text':
-      return (
-        text(b.html)
-          ?.replace(/<[^>]+>/g, '')
-          ?.slice(0, 120) || ''
-      );
-    case 'image':
-      return Array.isArray(b.images) && b.images.length ? `${b.images.length} 张图片` : '';
-    case 'image_text':
-      return text(b.text)?.slice(0, 120) || '';
-    case 'spec_table':
-      return `${text(b.caption) || '规格表'}（${Array.isArray(b.rows) ? b.rows.length : 0} 行）`;
-    case 'features':
-      return Array.isArray(b.items) ? `${b.items.length} 个卖点` : '';
-    case 'faq':
-      return Array.isArray(b.items) ? `${b.items.length} 个 FAQ` : '';
-    case 'video':
-      return text(b.url)?.slice(0, 80) || '';
-    default:
-      return firstText(b.items, 'title') || text(b.caption) || '';
-  }
 }
 
 async function submitAudit() {
@@ -1344,13 +1315,9 @@ async function reloadVariants() {
           <div
             v-for="(b, i) in activeBlocks"
             :key="i"
-            class="mb-2 rounded border border-[var(--n-border-color)] px-3 py-2"
+            class="mb-4 rounded-lg border border-[var(--n-border-color)] p-4"
           >
-            <div class="flex items-center gap-2">
-              <NTag size="small">{{ String(b.type ?? 'block') }}</NTag>
-              <span class="text-sm font-medium">{{ String(b.title ?? '') }}</span>
-            </div>
-            <div class="mt-1 text-xs opacity-70">{{ blockSummary(b) || '（无内容）' }}</div>
+            <DetailBlockCanvas :block="b" />
           </div>
         </template>
         <template v-else>
