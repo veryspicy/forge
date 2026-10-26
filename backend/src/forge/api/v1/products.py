@@ -92,9 +92,18 @@ def _normalize_block_resource(value: Any) -> Any:
 
 def _public_detail_blocks(blocks: Any) -> Any:
     """C 端详情块兜底：image_text.image / image.images / video.url/poster 等资源字段
-    若为历史对象格式则取 url，保证老数据无需重存即可正常渲染。"""
+    若为历史对象格式则取 url，保证老数据无需重存即可正常渲染；受保护路径补签名。"""
     if not isinstance(blocks, list):
         return blocks
+    from forge.infrastructure.services.url_signer import sign_url
+
+    def _sign(value: Any) -> Any:
+        if isinstance(value, str):
+            return sign_url(value)
+        if isinstance(value, list):
+            return [_sign(v) for v in value]
+        return value
+
     normalized: list[dict[str, Any]] = []
     for block in blocks:
         if not isinstance(block, dict):
@@ -103,28 +112,30 @@ def _public_detail_blocks(blocks: Any) -> Any:
         entry = dict(block)
         for field in ("image", "url", "poster"):
             if field in entry:
-                entry[field] = _normalize_block_resource(entry[field])
+                entry[field] = _sign(_normalize_block_resource(entry[field]))
         if "images" in entry:
-            entry["images"] = _normalize_block_resource(entry["images"])
+            entry["images"] = _sign(_normalize_block_resource(entry["images"]))
         normalized.append(entry)
     return normalized
 
 
 def _public_item(item: dict[str, Any], *, detail: bool = False) -> dict[str, Any]:
+    from forge.infrastructure.services.url_signer import sign_url
+
     fields = _PUBLIC_DETAIL_FIELDS if detail else _PUBLIC_FIELDS
     data = {k: item.get(k) for k in fields}
     # C 端前端约定 images 为 URL 字符串数组（ProductCard 用 images[0] 直接作 src）
     images = item.get("images") or []
-    data["images"] = [img["url"] for img in images if isinstance(img, dict) and img.get("url")]
+    data["images"] = [sign_url(img["url"]) for img in images if isinstance(img, dict) and img.get("url")]
     if detail:
         # 详情页需要主图 / alt 做 LCP 与 JSON-LD，列表页不返回以省流量
         data["main_image"] = next(
-            (img["url"] for img in images if isinstance(img, dict) and img.get("is_main") and img.get("url")),
-            data["images"][0] if data["images"] else "",
+            (sign_url(img["url"]) for img in images if isinstance(img, dict) and img.get("is_main") and img.get("url")),
+            sign_url(data["images"][0]) if data["images"] else "",
         )
         data["image_details"] = [
             {
-                "url": img.get("url", ""),
+                "url": sign_url(img.get("url", "")),
                 "alt": img.get("alt", ""),
                 "alt_translations": img.get("alt_translations") or {},
                 "is_main": bool(img.get("is_main", False)),

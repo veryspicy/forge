@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Request, Response
 
 from forge.infrastructure.services.minio_service import MinioService
+from forge.infrastructure.services.url_signer import verify_url
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,15 @@ except ImportError:  # pragma: no cover
 
 
 @minio_router.get("/minio/{bucket}/{path:path}")
-async def minio_object_proxy(bucket: str, path: str) -> Response:
+async def minio_object_proxy(bucket: str, path: str, request: Request) -> Response:
+    # P3 signed-URL gate: mandatory when a signing secret is configured
+    if not verify_url(
+        request.url.path,
+        exp=request.query_params.get("exp"),
+        sig=request.query_params.get("sig"),
+    ):
+        raise HTTPException(status_code=403, detail="forbidden: missing or invalid signature")
+
     service: MinioService = MinioService.get()
     if not service.available or service._client is None:
         raise HTTPException(status_code=404, detail="not found")

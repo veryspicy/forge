@@ -132,13 +132,15 @@ def _wm_float(cfg: dict[str, object], key: str, default: float) -> float:
 
 
 def _serialize(res: ORMResource) -> dict[str, object]:
+    from forge.infrastructure.services.url_signer import sign_url
+
     return {
         "id": str(res.id),
         "site_id": str(res.site_id) if res.site_id else None,
         "bucket": res.bucket,
         "object_key": res.object_key,
-        "url": res.url,
-        "thumb_url": _derive_thumb_url(res),
+        "url": sign_url(str(res.url)),
+        "thumb_url": sign_url(_derive_thumb_url(res)),
         "file_type": res.file_type,
         "mime": res.mime,
         "file_size": res.file_size,
@@ -904,14 +906,16 @@ async def search_similar_resources(
     )
 
     matches: list[dict[str, object]] = []
+    from forge.infrastructure.services.url_signer import sign_url
+
     for res in rows:
         dist = phash_distance(target_phash, str(res.phash or ""))
         if dist <= threshold:
             matches.append(
                 {
                     "id": str(res.id),
-                    "url": res.url,
-                    "thumb_url": _derive_thumb_url(res),
+                    "url": sign_url(str(res.url)),
+                    "thumb_url": sign_url(_derive_thumb_url(res)),
                     "name": res.name,
                     "directory": res.directory or "",
                     "phash": res.phash,

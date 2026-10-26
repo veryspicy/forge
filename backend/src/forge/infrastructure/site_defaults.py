@@ -364,3 +364,44 @@ def merge_for_response(stored_config: dict[str, object] | None) -> dict[str, obj
     """
     merged = deep_merge(DEFAULT_CONFIG, stored_config or {})
     return _normalize_aliases(merged)
+
+
+# ---------------------------------------------------------------------------
+# Signed-URL hygiene for site config (P3)
+# ---------------------------------------------------------------------------
+# Upload responses carry exp/sig query so the editor can preview immediately,
+# but storing them would bake an expiring signature into the DB. We therefore
+# strip signatures on save and re-sign on read so stored values never expire.
+_PROTECTED_PREFIXES = ("/minio/", "/uploads/")
+
+
+def _strip_signature_url(value: str) -> str:
+    from urllib.parse import urlsplit
+
+    return urlsplit(value).path
+
+
+def strip_signature_urls(value: Any) -> Any:
+    """Recursively drop exp/sig query from protected media URLs (save side)."""
+    if isinstance(value, str):
+        return _strip_signature_url(value) if value.startswith(_PROTECTED_PREFIXES) else value
+    if isinstance(value, dict):
+        return {k: strip_signature_urls(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [strip_signature_urls(v) for v in value]
+    return value
+
+
+def sign_config_urls(value: Any) -> Any:
+    """Recursively append fresh exp/sig to protected media URLs (read side)."""
+    if isinstance(value, str):
+        if value.startswith(_PROTECTED_PREFIXES):
+            from forge.infrastructure.services.url_signer import sign_url
+
+            return sign_url(value)
+        return value
+    if isinstance(value, dict):
+        return {k: sign_config_urls(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [sign_config_urls(v) for v in value]
+    return value

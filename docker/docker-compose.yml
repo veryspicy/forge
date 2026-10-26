@@ -21,6 +21,7 @@ x-common-vars: &common-vars
   MINIO_ACCESS_KEY: minioadmin
   MINIO_SECRET_KEY: minioadmin
   MINIO_SECURE: "false"
+  MINIO_SIGNED_URL_SECRET: ${MINIO_SIGNED_URL_SECRET:-dev-sign-secret-change-in-production}
   ROCKETMQ_PROXY: http://rocketmq-proxy:8081
   OPENAI_API_KEY: ${OPENAI_API_KEY:-sk-placeholder}
   JWT_SECRET_KEY: dev-secret-key-change-in-production

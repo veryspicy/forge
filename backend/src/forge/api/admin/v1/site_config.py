@@ -20,7 +20,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from forge.infrastructure.persistence.models import ORMSiteProfile
 from forge.infrastructure.persistence.repositories.site_profile_repo import SQLAlchemySiteProfileRepository
 from forge.infrastructure.services.minio_service import MinioService, get_minio_service
-from forge.infrastructure.site_defaults import merge_for_response, merge_for_save
+from forge.infrastructure.site_defaults import (
+    merge_for_response,
+    merge_for_save,
+    sign_config_urls,
+    strip_signature_urls,
+)
 from forge.main.dependencies import get_db
 from forge.main.rbac import require_permission
 
@@ -79,7 +84,7 @@ async def get_site_config(
     """获取站点全量配置（若 DB 无 active profile 则返回默认结构）。"""
     profile = await _get_active_profile(db)
     merged = merge_for_response(profile.config if profile else None)  # type: ignore[arg-type]
-    return {"data": merged}
+    return {"data": sign_config_urls(merged)}
 
 
 @router.put("/config")
@@ -90,8 +95,9 @@ async def save_site_config(
 ) -> dict[str, object]:
     """保存站点全量配置 —— 写入 active profile 的 config 字段。"""
     try:
-        saved = await _upsert_active_config(db, payload.config or {})
-        return {"data": merge_for_response(saved)}
+        # 保存侧剥离签名 URL 的 exp/sig，避免过期签名固化入库（读取侧再动态加签）
+        saved = await _upsert_active_config(db, strip_signature_urls(payload.config or {}))
+        return {"data": sign_config_urls(merge_for_response(saved))}
     except Exception as exc:  # noqa: BLE001
         logger.exception("保存站点配置失败")
         raise HTTPException(status_code=500, detail=f"保存失败: {exc}") from None
@@ -112,4 +118,6 @@ async def upload_image(
     content = await file.read()
     filename = file.filename or "image.png"
     url = minio.upload_bytes(content, filename, prefix="site")
-    return {"url": url}
+    from forge.infrastructure.services.url_signer import sign_url
+
+    return {"url": sign_url(url)}
