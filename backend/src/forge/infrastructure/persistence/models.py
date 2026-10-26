@@ -876,6 +876,7 @@ class ORMResource(Base):
     mime = Column(String(128), nullable=False, default="")
     file_size = Column(Integer, nullable=False, default=0)
     sha256 = Column(String(64), nullable=True)
+    phash = Column(String(64), nullable=True, index=True)
     name = Column(String(255), nullable=False, default="")
     directory = Column(String(255), nullable=False, default="")
     created_by = Column(UUID(as_uuid=True), nullable=True)

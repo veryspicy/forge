@@ -38,6 +38,7 @@ from forge.infrastructure.persistence.models import (
 )
 from forge.infrastructure.persistence.repositories.site_profile_repo import SQLAlchemySiteProfileRepository
 from forge.infrastructure.services.minio_service import MinioService, get_minio_service
+from forge.infrastructure.services.phash_service import compute_phash, phash_distance
 from forge.infrastructure.services.watermark_service import apply_watermark
 from forge.infrastructure.site_defaults import merge_for_response
 from forge.main.dependencies import get_db
@@ -142,6 +143,7 @@ def _serialize(res: ORMResource) -> dict[str, object]:
         "mime": res.mime,
         "file_size": res.file_size,
         "sha256": res.sha256,
+        "phash": res.phash,
         "name": res.name,
         "directory": res.directory or "",
         "created_by": str(res.created_by) if res.created_by else None,
@@ -272,6 +274,9 @@ async def upload_resource(
                 minio=minio,
             )
 
+    # pHash 感知哈希基于实际落库内容计算（水印后），保证指纹与对外展示图一致
+    content_phash = compute_phash(upload_content) if file_type == "image" else None
+
     url = minio.upload_bytes(upload_content, f"{res_uuid}{ext}", prefix=prefix, content_type=mime)
 
     # 从返回 URL 反推 bucket / object_key（MinIO: /minio/{bucket}/{key}，本地: /uploads/site/{key}）
@@ -330,6 +335,7 @@ async def upload_resource(
         mime=mime,
         file_size=len(content),
         sha256=content_sha256,
+        phash=content_phash,
         name=filename,
         directory=(directory or "").strip(),
         created_by=created_by,
@@ -857,6 +863,66 @@ def _thumb_object_key(res: ORMResource) -> str:
 
 
 # ---------------------------------------------------------------------------
+# 相似图片检索（pHash 指纹，P4 取证入口）
+# ---------------------------------------------------------------------------
+@router.post("/search-similar")
+async def search_similar_resources(
+    phash: str = Form(default=""),
+    file: UploadFile | None = File(default=None),
+    threshold: int = Form(default=10),
+    limit: int = Form(default=50),
+    admin: dict[str, object] = Depends(require_permission("resources", "view")),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, object]:
+    """按感知哈希检索相似图片：供溯源取证（P4）确认某图是否为本站资源衍生。
+
+    入参二选一：phash（64bit hex 指纹）或 file（待查图片，自动计算指纹）。
+    返回库中 phash 距离 <= threshold 的图片资源，按距离升序。
+    """
+    if not admin:
+        raise HTTPException(status_code=401, detail="未登录")
+
+    target_phash = (phash or "").strip().lower()
+    if file is not None:
+        content = await file.read()
+        target_phash = compute_phash(content) or ""
+    if not target_phash or len(target_phash) != 16:
+        raise HTTPException(status_code=400, detail="必须提供有效 phash 或图片文件")
+
+    rows = (
+        (
+            await db.execute(
+                select(ORMResource).where(
+                    ORMResource.file_type == "image",
+                    ORMResource.phash.is_not(None),
+                    ORMResource.deleted_at.is_(None),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    matches: list[dict[str, object]] = []
+    for res in rows:
+        dist = phash_distance(target_phash, str(res.phash or ""))
+        if dist <= threshold:
+            matches.append(
+                {
+                    "id": str(res.id),
+                    "url": res.url,
+                    "thumb_url": _derive_thumb_url(res),
+                    "name": res.name,
+                    "directory": res.directory or "",
+                    "phash": res.phash,
+                    "distance": dist,
+                }
+            )
+    matches.sort(key=lambda m: int(str(m["distance"])))
+    return {"data": {"total": len(matches), "threshold": threshold, "items": matches[:limit]}}
+
+
+# ---------------------------------------------------------------------------
 # 详情（含引用位置）
 # ---------------------------------------------------------------------------
 @router.get("/{resource_id}")
@@ -1210,6 +1276,8 @@ async def replace_product_image(
     url = minio.upload_object(upload_content, image_key, content_type=mime)
 
     bucket = getattr(minio, "_bucket", "") or ""
+    # pHash 基于实际落库内容（水印后）计算，与对外展示图一致
+    content_phash = compute_phash(upload_content)
     new_resource = ORMResource(
         site_id=site_id,
         bucket=bucket,
@@ -1218,6 +1286,8 @@ async def replace_product_image(
         file_type="image",
         mime=mime,
         file_size=len(content),
+        sha256=hashlib.sha256(content).hexdigest(),
+        phash=content_phash,
         name=f"{res.name or 'image'} (编辑版)".strip(),
         directory=res.directory or f"products/{rid}",
     )
