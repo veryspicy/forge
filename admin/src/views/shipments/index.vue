@@ -304,9 +304,9 @@ onMounted(fetch);
           {{
             archivedView
               ? $t('page.archive.restoreConfirmBatch', {
-                  n: checkedKeys.length,
-                  target: $t('page.archive.targetShipment')
-                })
+                n: checkedKeys.length,
+                target: $t('page.archive.targetShipment')
+              })
               : $t('page.archive.confirmBatch', { n: checkedKeys.length, target: $t('page.archive.targetShipment') })
           }}
         </NPopconfirm>
