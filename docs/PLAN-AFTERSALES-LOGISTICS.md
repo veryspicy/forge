@@ -1,14 +1,3 @@
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_95781cfbae7811f1b128525400f8a581
-    ReservedCode1: uz0LLezIafuADR/lq2yaHOOTlxNqPqUNJY69+5+GYQslMA4gHZMePb1O8cQmUc81taBcuWorbungc4FS7S5EUIBaYMLfizT/tTk7DDY0w5VKXihuEu+S8JgWjKRR/+NvhcZp2B1uezkWe+KZAqwLksb5roBMTev9hh+LIOZ5eZKCOTy2qLd/u7tMzWI=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_95781cfbae7811f1b128525400f8a581
-    ReservedCode2: uz0LLezIafuADR/lq2yaHOOTlxNqPqUNJY69+5+GYQslMA4gHZMePb1O8cQmUc81taBcuWorbungc4FS7S5EUIBaYMLfizT/tTk7DDY0w5VKXihuEu+S8JgWjKRR/+NvhcZp2B1uezkWe+KZAqwLksb5roBMTev9hh+LIOZ5eZKCOTy2qLd/u7tMzWI=
----
-
 # 售后（退货/退款）与物流能力建设规划（一期）
 
 > 版本：v1（评审中，未定稿前不进入实施）
