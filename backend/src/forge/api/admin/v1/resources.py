@@ -38,6 +38,8 @@ from forge.infrastructure.persistence.models import (
 )
 from forge.infrastructure.persistence.repositories.site_profile_repo import SQLAlchemySiteProfileRepository
 from forge.infrastructure.services.minio_service import MinioService, get_minio_service
+from forge.infrastructure.services.watermark_service import apply_watermark
+from forge.infrastructure.site_defaults import merge_for_response
 from forge.main.dependencies import get_db
 from forge.main.rbac import require_permission
 
@@ -95,6 +97,37 @@ async def _resolve_site_id(db: AsyncSession, admin: dict[str, object], requested
     if profile is None:
         raise HTTPException(status_code=500, detail="未找到 active 站点配置")
     return str(profile.id)
+
+
+async def _get_watermark_config(db: AsyncSession) -> dict[str, object] | None:
+    """读取 active profile 的水印配置（merge_for_response 保证默认键存在）。未启用或无 Logo 返回 None。"""
+    profile = await SQLAlchemySiteProfileRepository.get_active(db)
+    if profile is None:
+        return None
+    merged = merge_for_response(profile.config or {})  # type: ignore[arg-type]
+    cfg = merged.get("watermark") or {}
+    if not isinstance(cfg, dict) or not cfg.get("enabled") or not cfg.get("logoUrl"):
+        return None
+    return cfg
+
+
+def _wm_str(cfg: dict[str, object], key: str, default: str) -> str:
+    val = cfg.get(key)
+    return str(val) if val is not None else default
+
+
+def _wm_float(cfg: dict[str, object], key: str, default: float) -> float:
+    val = cfg.get(key)
+    if val is None:
+        return default
+    if isinstance(val, (int, float)):
+        return float(val)
+    if isinstance(val, str):
+        try:
+            return float(val)
+        except ValueError:
+            return default
+    return default
 
 
 def _serialize(res: ORMResource) -> dict[str, object]:
@@ -222,7 +255,24 @@ async def upload_resource(
     # 命名：site/{site_id}/resources/{uuid}.{ext}
     res_uuid = uuid.uuid4()
     prefix = f"site/{site_id}/resources"
-    url = minio.upload_bytes(content, f"{res_uuid}{ext}", prefix=prefix, content_type=mime)
+    # sha256 基于上传原文件计算（溯源取证用，不被水印污染）
+    content_sha256 = hashlib.sha256(content).hexdigest()
+
+    # 图片且非 SVG：若站点水印启用且有 Logo，先叠加水印再上传主图
+    upload_content = content
+    if file_type == "image" and ext.lower() != ".svg":
+        wm_cfg = await _get_watermark_config(db)
+        if wm_cfg is not None:
+            upload_content = apply_watermark(
+                content,
+                logo_url=_wm_str(wm_cfg, "logoUrl", ""),
+                position=_wm_str(wm_cfg, "position", "bottom-right"),
+                opacity=_wm_float(wm_cfg, "opacity", 0.35),
+                max_area_ratio=_wm_float(wm_cfg, "maxAreaRatio", 0.05),
+                minio=minio,
+            )
+
+    url = minio.upload_bytes(upload_content, f"{res_uuid}{ext}", prefix=prefix, content_type=mime)
 
     # 从返回 URL 反推 bucket / object_key（MinIO: /minio/{bucket}/{key}，本地: /uploads/site/{key}）
     bucket = getattr(minio, "_bucket", "") or ""
@@ -236,9 +286,10 @@ async def upload_resource(
         object_key = url[len("/uploads/site/") :]
 
     # 图片生成 400px 缩略图（约定键名 resources/thumbs/{uuid}.jpg），失败不阻塞上传
+    # 缩略图基于水印后的主图生成，保证角标一致性
     if file_type == "image" and ext.lower() != ".svg" and PILImage is not None:
         try:
-            src_img = PILImage.open(BytesIO(content))
+            src_img = PILImage.open(BytesIO(upload_content))
             src_img.thumbnail((400, 400))
             # 统一输出 JPEG：RGBA/LA/P 先合成白底，避免缩略图键名与推导不一致
             if src_img.mode in ("RGBA", "LA", "P"):
@@ -278,7 +329,7 @@ async def upload_resource(
         file_type=file_type,
         mime=mime,
         file_size=len(content),
-        sha256=hashlib.sha256(content).hexdigest(),
+        sha256=content_sha256,
         name=filename,
         directory=(directory or "").strip(),
         created_by=created_by,
@@ -1143,7 +1194,20 @@ async def replace_product_image(
 
     site_id = res.site_id
     image_key = f"site/{site_id}/resources/{rid}/{uuid.uuid4().hex}{out_ext}"
-    url = minio.upload_object(content, image_key, content_type=mime)
+    # 站点水印启用且有 Logo 时叠加水印（替换产物同样受保护）
+    upload_content = content
+    if out_ext != ".svg":
+        wm_cfg = await _get_watermark_config(db)
+        if wm_cfg is not None:
+            upload_content = apply_watermark(
+                content,
+                logo_url=_wm_str(wm_cfg, "logoUrl", ""),
+                position=_wm_str(wm_cfg, "position", "bottom-right"),
+                opacity=_wm_float(wm_cfg, "opacity", 0.35),
+                max_area_ratio=_wm_float(wm_cfg, "maxAreaRatio", 0.05),
+                minio=minio,
+            )
+    url = minio.upload_object(upload_content, image_key, content_type=mime)
 
     bucket = getattr(minio, "_bucket", "") or ""
     new_resource = ORMResource(

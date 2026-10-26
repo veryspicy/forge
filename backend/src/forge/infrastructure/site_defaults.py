@@ -225,6 +225,14 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "products": {
         "default_sort": "default",
     },
+    "watermark": {
+        "enabled": True,
+        "logoUrl": "",
+        "logoResourceId": "",
+        "position": "bottom-right",
+        "opacity": 0.35,
+        "maxAreaRatio": 0.05,
+    },
     "currencies": ["USD"],
     "regions": [],
     "sections": [

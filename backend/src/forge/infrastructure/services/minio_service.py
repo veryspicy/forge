@@ -162,6 +162,31 @@ class MinioService:
                 logger.warning("MinIO upload failed (%s); falling back to local", exc)
         return self._save_local(object_key, data)
 
+    def get_object(self, object_key: str) -> bytes | None:
+        """按 object_key 读取对象内容（MinIO 或本地降级）。不存在 / 失败返回 None。"""
+        if not object_key:
+            return None
+        if self._available and self._client is not None:
+            try:
+                resp = self._client.get_object(self._bucket, object_key)
+                try:
+                    return resp.read()
+                finally:
+                    resp.close()
+                    resp.release_conn()
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("MinIO get_object failed (%s)", exc)
+                return None
+        # ---- 本地降级 ----
+        try:
+            path = _LOCAL_FALLBACK_DIR / object_key
+            if path.exists():
+                return path.read_bytes()
+            return None
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Local get_object failed (%s)", exc)
+            return None
+
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
