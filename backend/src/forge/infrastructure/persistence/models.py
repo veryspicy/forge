@@ -918,6 +918,21 @@ class ORMResourceRef(Base):
     created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
 
 
+class ORMResourceDownloadLog(Base):
+    """资源下载日志表 - 原图下载溯源（隐写 payload 与下载人/时间对账，P4）。"""
+
+    __tablename__ = "resource_download_log"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
+    resource_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    user_email = Column(String(255), nullable=False, default="")
+    ip = Column(String(64), nullable=False, default="")
+    user_agent = Column(String(512), nullable=False, default="")
+    payload = Column(String(255), nullable=False, default="")
+    created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+
+
 class ORMPricingRule(Base):
     """定价规则表（P1：区域倍率 + 固定运费，按优先级匹配）。"""
 

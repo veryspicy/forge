@@ -81,6 +81,12 @@ const uploadQueue = ref(0);
 const uploadTotal = ref(0);
 const uploadDone = ref(0);
 const previewVisible = ref(false);
+const forensicsVisible = ref(false);
+const forensicsLoading = ref(false);
+const forensicsFile = ref<File | null>(null);
+const forensicsFileInput = ref<HTMLInputElement | null>(null);
+const forensicsResult = ref<any>(null);
+const forensicsError = ref('');
 const previewUrl = ref('');
 const editorVisible = ref(false);
 const editorSaving = ref(false);
@@ -841,6 +847,45 @@ async function doRename() {
 function openImageEditor() {
   if (!currentDetail.value || !isPreviewableImage(currentDetail.value)) return;
   editorVisible.value = true;
+}
+
+/** 取证验证：打开弹窗并复位状态 */
+function openForensics() {
+  forensicsFile.value = null;
+  forensicsResult.value = null;
+  forensicsError.value = '';
+  forensicsVisible.value = true;
+}
+
+function onForensicsPick(e: Event) {
+  const el = e.target as HTMLInputElement;
+  const file = el.files?.[0] ?? null;
+  forensicsFile.value = file;
+  forensicsResult.value = null;
+  forensicsError.value = '';
+}
+
+function stegoKindLabel(stego: any) {
+  if (!stego?.found) return '';
+  if (stego.kind === 'user_download') return `用户下载标记（${stego.downloaded_at || ''}）`;
+  if (stego.kind === 'site_mark') return `站点标记（${stego.site_tag || ''}）`;
+  return '未知隐写';
+}
+
+async function runForensics() {
+  if (!forensicsFile.value) return;
+  forensicsLoading.value = true;
+  forensicsError.value = '';
+  try {
+    const res: any = await resourceApi.verifyForensics(forensicsFile.value, 10);
+    const data = res?.data?.data ?? res?.data ?? res;
+    forensicsResult.value = data;
+    if (!data) message.warning('未返回报告');
+  } catch (e: any) {
+    forensicsError.value = e?.message || '验证失败';
+  } finally {
+    forensicsLoading.value = false;
+  }
 }
 
 /** 图片编辑保存：裁剪产物上传为新资源，引用商品切换，旧资源保留 */
@@ -1658,6 +1703,10 @@ onBeforeUnmount(() => {
               复制 URL
             </NButton>
           </div>
+          <NButton size="small" secondary block :loading="forensicsLoading" @click="openForensics">
+            <template #icon><SvgIcon icon="mdi:image-search" class="text-14px" /></template>
+            取证验证
+          </NButton>
           <div class="grid grid-cols-2 gap-2">
             <NButton size="small" @click="download(currentDetail)">
               <template #icon><SvgIcon icon="mdi:download" class="text-14px" /></template>
@@ -1742,6 +1791,98 @@ onBeforeUnmount(() => {
           <span class="text-sm">该类型暂不支持预览，可通过下载查看</span>
         </div>
       </div>
+    </NModal>
+
+    <NModal v-model:show="forensicsVisible" preset="card" title="取证验证" style="width: 680px">
+      <div class="mb-3 flex items-center gap-2">
+        <input
+          ref="forensicsFileInput"
+          type="file"
+          accept="image/*"
+          class="hidden"
+          @change="onForensicsPick"
+        />
+        <NButton size="small" @click="forensicsFileInput?.click()">
+          <template #icon><SvgIcon icon="mdi:file-image-outline" class="text-14px" /></template>
+          选择疑似盗图
+        </NButton>
+        <span class="truncate text-xs text-gray-500">{{ forensicsFile?.name || '未选择文件' }}</span>
+        <div class="ml-auto">
+          <NButton
+            size="small"
+            type="primary"
+            :disabled="!forensicsFile"
+            :loading="forensicsLoading"
+            @click="runForensics"
+          >
+            <template #icon><SvgIcon icon="mdi:shield-search" class="text-14px" /></template>
+            开始验证
+          </NButton>
+        </div>
+      </div>
+
+      <template v-if="forensicsResult">
+        <NAlert v-if="forensicsError" type="error" :title="forensicsError" class="mb-3" />
+        <div class="flex flex-col gap-3">
+          <div class="rounded bg-gray-50 p-3 text-xs dark:bg-gray-800">
+            <div class="flex gap-2">
+              <span class="shrink-0 text-gray-500">SHA-256</span>
+              <span class="break-all font-mono">{{ forensicsResult.input.sha256 }}</span>
+            </div>
+            <div class="mt-1 flex gap-2">
+              <span class="shrink-0 text-gray-500">pHash</span>
+              <span class="break-all font-mono">{{ forensicsResult.input.phash || '-' }}</span>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 rounded bg-gray-50 p-3 dark:bg-gray-800">
+            <span class="shrink-0 text-xs text-gray-500">隐写提取</span>
+            <NTag v-if="forensicsResult.stego.found" type="success" size="small">
+              {{ stegoKindLabel(forensicsResult.stego) }}
+            </NTag>
+            <span v-else class="text-xs text-gray-400">未检测到本站隐写标记</span>
+            <span v-if="forensicsResult.stego.payload" class="truncate font-mono text-xs">
+              {{ forensicsResult.stego.payload }}
+            </span>
+          </div>
+
+          <div>
+            <div class="mb-1 text-sm font-medium">相似比对（{{ forensicsResult.matches.length }} 条）</div>
+            <div v-if="!forensicsResult.matches.length" class="text-xs text-gray-400">
+              库中无相似资源（threshold=10）
+            </div>
+            <div
+              v-for="m in forensicsResult.matches"
+              :key="m.id"
+              class="mb-1 flex items-center justify-between gap-2 rounded bg-gray-50 px-2 py-1 text-xs dark:bg-gray-800"
+            >
+              <div class="flex min-w-0 items-center gap-2">
+                <span class="truncate font-medium">{{ m.name }}</span>
+                <NTag size="small" :type="m.distance <= 4 ? 'error' : 'warning'">{{ m.match_level }}</NTag>
+              </div>
+              <span class="shrink-0 text-gray-400">dist={{ m.distance }}</span>
+            </div>
+          </div>
+
+          <div>
+            <div class="mb-1 text-sm font-medium">下载日志对账（{{ forensicsResult.download_logs.length }} 条）</div>
+            <div v-if="!forensicsResult.download_logs.length" class="text-xs text-gray-400">
+              无匹配下载记录
+            </div>
+            <div
+              v-for="log in forensicsResult.download_logs"
+              :key="log.id"
+              class="mb-1 flex items-center justify-between gap-2 rounded bg-gray-50 px-2 py-1 text-xs dark:bg-gray-800"
+            >
+              <div class="flex min-w-0 items-center gap-2">
+                <span class="truncate font-medium">{{ log.user_email }}</span>
+                <span class="text-gray-400">{{ log.ip }}</span>
+              </div>
+              <span class="shrink-0 text-gray-400">{{ log.created_at?.slice(0, 19)?.replace('T', ' ') }}</span>
+            </div>
+          </div>
+        </div>
+      </template>
     </NModal>
 
     <ProductImageEditor

@@ -32,6 +32,7 @@ from forge.infrastructure.persistence.models import (
     ORMAdminUser,
     ORMProduct,
     ORMResource,
+    ORMResourceDownloadLog,
     ORMResourceRef,
     ORMResourceTag,
     ORMResourceTagMap,
@@ -39,6 +40,7 @@ from forge.infrastructure.persistence.models import (
 from forge.infrastructure.persistence.repositories.site_profile_repo import SQLAlchemySiteProfileRepository
 from forge.infrastructure.services.minio_service import MinioService, get_minio_service
 from forge.infrastructure.services.phash_service import compute_phash, phash_distance
+from forge.infrastructure.services.steganography_service import extract_payload
 from forge.infrastructure.services.watermark_service import apply_watermark
 from forge.infrastructure.site_defaults import merge_for_response
 from forge.main.dependencies import get_db
@@ -924,6 +926,138 @@ async def search_similar_resources(
             )
     matches.sort(key=lambda m: int(str(m["distance"])))
     return {"data": {"total": len(matches), "threshold": threshold, "items": matches[:limit]}}
+
+
+# ---------------------------------------------------------------------------
+# 取证验证（P4）：上传疑似盗图 -> sha256/pHash 比对 + 隐写提取 + 下载日志对账
+# ---------------------------------------------------------------------------
+@router.post("/forensics/verify")
+async def verify_resource_forensics(
+    file: UploadFile = File(...),
+    threshold: int = Form(default=10),
+    admin: dict[str, object] = Depends(require_permission("resources", "view")),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, object]:
+    """取证验证入口：上传疑似盗图，生成完整溯源报告。
+
+    报告维度：
+    1. 原图级比对：sha256 与库中资源完全一致 => 原图泄露
+    2. 衍生图比对：pHash 汉明距离 <= threshold（<=4 高度相似）=> 本站图片衍生
+    3. 隐写提取：图片像素中可能携带站点标记（S|）或用户下载标记（U|user|time）
+    4. 下载日志对账：隐写指认的用户在库中对应资源的下载记录
+    """
+    if not admin:
+        raise HTTPException(status_code=401, detail="未登录")
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="空文件")
+    if len(content) > SIZE_LIMIT["image"]:
+        raise HTTPException(status_code=400, detail="图片大小不能超过 10MB")
+
+    target_phash = compute_phash(content)
+    target_sha256 = hashlib.sha256(content).hexdigest()
+
+    # 1. 隐写提取
+    stego_payload = extract_payload(content)
+    stego: dict[str, object] = {
+        "found": stego_payload is not None,
+        "payload": stego_payload,
+    }
+    if stego_payload:
+        parts = stego_payload.split("|", 2)
+        if len(parts) == 3 and parts[0] == "U":
+            stego["kind"] = "user_download"
+            stego["user_id"] = parts[1]
+            stego["downloaded_at"] = parts[2]
+        elif len(parts) == 2 and parts[0] == "S":
+            stego["kind"] = "site_mark"
+            stego["site_tag"] = parts[1]
+        else:
+            stego["kind"] = "unknown"
+
+    # 2. 全库相似比对（复用 pHash 索引语义）
+    rows = (
+        (
+            await db.execute(
+                select(ORMResource).where(
+                    ORMResource.file_type == "image",
+                    ORMResource.phash.is_not(None),
+                    ORMResource.deleted_at.is_(None),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    matches: list[dict[str, object]] = []
+    from forge.infrastructure.services.url_signer import sign_url
+
+    for res in rows:
+        dist = phash_distance(target_phash or "", str(res.phash or ""))
+        if dist > threshold:
+            continue
+        exact = bool(target_sha256 and res.sha256 and target_sha256 == res.sha256)
+        matches.append(
+            {
+                "id": str(res.id),
+                "url": sign_url(str(res.url)),
+                "thumb_url": sign_url(_derive_thumb_url(res)),
+                "name": res.name,
+                "directory": res.directory or "",
+                "phash": res.phash,
+                "sha256": res.sha256,
+                "distance": dist,
+                "match_level": (
+                    "原图级（sha256 一致）"
+                    if exact
+                    else ("高度相似（距离<=4）" if dist <= 4 else "相似（距离<=10）")
+                ),
+            }
+        )
+    matches.sort(key=lambda m: int(str(m["distance"])))
+
+    # 3. 下载日志对账：隐写指认用户 或 匹配资源的最新下载记录
+    download_logs: list[dict[str, object]] = []
+    if matches:
+        matched_ids = [uuid.UUID(str(m["id"])) for m in matches]
+        log_query = (
+            select(ORMResourceDownloadLog)
+            .where(ORMResourceDownloadLog.resource_id.in_(matched_ids))
+            .order_by(ORMResourceDownloadLog.created_at.desc())
+        )
+        if stego.get("kind") == "user_download":
+            with contextlib.suppress(ValueError):
+                log_query = log_query.where(
+                    ORMResourceDownloadLog.user_id == uuid.UUID(str(stego["user_id"]))
+                )
+        logs = (await db.execute(log_query.limit(20))).scalars().all()
+        download_logs = [
+            {
+                "id": str(log.id),
+                "resource_id": str(log.resource_id),
+                "user_id": str(log.user_id),
+                "user_email": log.user_email,
+                "ip": log.ip,
+                "user_agent": log.user_agent,
+                "payload": log.payload,
+                "created_at": log.created_at.isoformat() if log.created_at else None,
+            }
+            for log in logs
+        ]
+
+    return {
+        "data": {
+            "input": {
+                "filename": (file.filename or "").strip(),
+                "sha256": target_sha256,
+                "phash": target_phash,
+            },
+            "stego": stego,
+            "matches": matches,
+            "download_logs": download_logs,
+        }
+    }
 
 
 # ---------------------------------------------------------------------------

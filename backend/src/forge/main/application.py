@@ -178,6 +178,13 @@ except ImportError:
     pass
 
 try:
+    from forge.api.v1.resource_download import router as public_resource_download_router
+
+    app.include_router(public_resource_download_router, prefix="/api/v1")
+except ImportError:
+    pass
+
+try:
     from forge.api.admin.v1.routes import router as routes_router
 
     app.include_router(routes_router)
