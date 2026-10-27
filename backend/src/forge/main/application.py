@@ -1,3 +1,4 @@
+import mimetypes
 import typing
 from collections.abc import AsyncIterator, Awaitable
 from contextlib import asynccontextmanager
@@ -8,6 +9,14 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+
+# Windows 的 mimetypes 不识别部分媒体扩展名，StaticFiles 会回退为
+# application/octet-stream，导致浏览器/下载器（IDM 等）把图片当未知二进制
+# 频繁弹出下载。在此补齐常用缺失映射，必须在挂载 /uploads 之前生效。
+mimetypes.add_type("image/webp", ".webp")
+mimetypes.add_type("image/avif", ".avif")
+mimetypes.add_type("font/woff2", ".woff2")
+mimetypes.add_type("font/woff", ".woff")
 
 _UPLOADS_DIR = Path(__file__).resolve().parents[3] / "uploads"
 _UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
