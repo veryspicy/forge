@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from forge.infrastructure.persistence.models import ORMSiteProfile
 from forge.infrastructure.persistence.repositories.site_profile_repo import SQLAlchemySiteProfileRepository
+from forge.infrastructure.services.image_compression_service import compress_image
 from forge.infrastructure.services.minio_service import MinioService, get_minio_service
 from forge.infrastructure.site_defaults import merge_for_response, merge_for_save
 from forge.main.dependencies import get_db
@@ -111,5 +112,19 @@ async def upload_image(
     """上传站点图片（Logo / 轮播 / 分类图等）。返回可直接在 C 端渲染的 URL。"""
     content = await file.read()
     filename = file.filename or "image.png"
-    url = minio.upload_bytes(content, filename, prefix="site")
+    ext = ("." + filename.rsplit(".", 1)[-1]).lower() if "." in filename else ""
+    mime = file.content_type or "image/png"
+
+    # 视觉无损压缩（JPEG/PNG → WebP）降存储；不可压缩/无收益时保持原图
+    upload_data = content
+    upload_mime = mime
+    upload_filename = filename
+    if ext.lower() != ".svg" and ext.lower() != ".gif":
+        compressed = compress_image(content, mime, ext)
+        if compressed is not None:
+            upload_data = compressed.data
+            upload_mime = compressed.mime
+            upload_filename = filename.rsplit(".", 1)[0] + compressed.ext
+
+    url = minio.upload_bytes(upload_data, upload_filename, prefix="site", content_type=upload_mime)
     return {"url": url}

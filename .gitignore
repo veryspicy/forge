@@ -35,3 +35,5 @@ temp_*
 !docker/check-admin.ps1
 portal-web/.output/
 !scripts/*.ps1
+backend/uploads/
+backend/uploads/site/
