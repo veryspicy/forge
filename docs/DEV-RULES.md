@@ -60,7 +60,7 @@
 **执行步骤**：
 
 1. 功能分支开发完成、提交前质量门槛（§13）通过后，先 `git push origin <branch>` 推送功能分支，创建指向 dev 的 Pull Request（workflow 已配置 `pull_request` 触发，PR 即触发完整 CI）
-2. Marvis 主动关注 CI 状态：通过 GitHub Actions API 查询对应 run 与 job（无 gh CLI 时用 `git credential fill` 取 PAT，调 `/repos/{owner}/{repo}/actions/runs` 与 `/actions/jobs/{id}/logs`）
+2. Marvis 主动关注 CI 状态：通过 GitHub Actions API 查询对应 run 与 job。**优先使用 gh CLI**（本机已配置可用，见 §1.6）：`gh api repos/{owner}/{repo}/actions/runs` 与 `gh api repos/{owner}/{repo}/actions/jobs/{id}/logs`；仅当 gh 不可用（未安装/未登录/代理未生效）时，才降级用 `git credential fill` 取 PAT 调同一批接口
 3. CI 健康（对应 run 为 success）→ 才允许合并：本地 `git merge --no-ff <branch>` 到 dev 并 push origin dev
 4. CI 不健康 → 禁止合并：先读失败 job 日志定位根因，修复后重新提交并推送触发新一轮 CI，循环直至健康，禁止带病合入
 5. push origin dev 后仍必须关注最终 CI run：push 会对合并后完整代码再跑一遍，若失败按同流程在 dev 上切修复分支处理（§1.1），禁止放任 dev 处于 CI 红态
@@ -92,6 +92,30 @@
 4. 修改 `scripts/` 下脚本本身：先 PowerShell Parser 语法预检（`[System.Management.Automation.Language.Parser]::ParseFile`），提交信息按 Conventional Commits（`chore(scripts): ...`）
 5. 脚本报告统一写 `temp/`，禁止提交；脚本文本保持 ASCII，规避 PowerShell 5.1 无 BOM UTF-8 解析乱码
 6. **merge-dev.ps1 已知坑（2026-10-12 固化）**：PowerShell 5.1 下命令链输出截断可导致 checkout/merge 静默未生效而脚本报成功（踩坑：feature/product-variant-attr-translations 合入 dev，commit 662487d）。脚本已内置两项强制校验——合并后 `git branch --no-merged dev` 不含目标分支、push 后 fetch 比对 dev 与 origin/dev `rev-parse` 一致，任一失败即 exit 1 并提示手动分步处理；人工分步合并时同样必须执行这两项校验，禁止跳过校验仅凭 push 成功/无输出判定合并完成
+
+### 1.6 gh CLI 工具基线（强制可用，2026-10-27 固化）
+
+> **背景**：本机已安装 GitHub CLI 并完成登录，代理已永久配置。此后涉及 GitHub 仓库操作（查询 CI、创建/查看 PR、读仓库信息）**优先使用 gh CLI**，替代"git credential fill 取 PAT"与"走 browser-agent 开 PR"等旧路径。
+
+**工具基线**：
+
+- **安装路径**：`C:\Program Files\GitHub CLI\gh.exe`（若当前终端 PATH 未含，用完整路径调用）
+- **代理配置**：用户级环境变量 `HTTP_PROXY` / `HTTPS_PROXY = http://127.0.0.1:10808`（v2rayN 本地端口）已永久写入，**新开终端生效**；当前终端临时注入用 `$env:HTTPS_PROXY="http://127.0.0.1:10808"`；`NO_PROXY=localhost,127.0.0.1,::1`
+- **登录状态**：`gh auth login` 设备码流程已完成，账号 veryspicy（keyring），token scopes 含 `repo` / `workflow`，可用 `gh auth status` 验证
+- **关键前置坑**：gh 请求 api.github.com 必须走代理，否则报 `Post "https://api.github.com/graphql": unexpected EOF`；执行 gh 前先确认 `echo $env:HTTPS_PROXY` 非空（新终端或临时注入）
+
+**执行步骤**：
+
+1. 查询 CI 状态：`gh api repos/{owner}/{repo}/actions/runs` / `gh api repos/{owner}/{repo}/actions/jobs/{id}/logs`（§1.4 步骤 2 优先路径）
+2. 创建/查看 PR：`gh pr create --base dev --head <branch>` / `gh pr view <number>`（squash message 同样必须符合 §15.2 规范）
+3. 通用仓库操作：`gh repo view`、`gh api <path>`
+
+**禁止事项**：
+
+- **禁止**在 gh CLI 可用时仍走"git credential fill 取 PAT 调 REST API"或"派 browser-agent 开 PR"旧路径
+- **禁止**执行 gh 命令前不确认代理环境变量已生效（新开终端或临时注入，二选一）
+
+**反例（2026-10-27）**：`gh auth login` 在旧终端执行时报 `unexpected EOF`——用户级代理环境变量刚写入但旧终端未加载，gh 直连 api.github.com 被断；新终端加载代理后重试即成功。此前长期无 gh CLI，CI 查询依赖 git credential fill 取 PAT、PR 创建依赖 browser-agent，均属应被本条规则取代的旧路径。
 
 ---
 
