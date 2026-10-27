@@ -38,6 +38,7 @@ from forge.infrastructure.persistence.models import (
     ORMResourceTagMap,
 )
 from forge.infrastructure.persistence.repositories.site_profile_repo import SQLAlchemySiteProfileRepository
+from forge.infrastructure.services.image_compression_service import compress_image
 from forge.infrastructure.services.minio_service import MinioService, get_minio_service
 from forge.infrastructure.services.phash_service import compute_phash, phash_distance
 from forge.infrastructure.services.steganography_service import extract_payload
@@ -261,16 +262,25 @@ async def upload_resource(
     # 命名：site/{site_id}/resources/{uuid}.{ext}
     res_uuid = uuid.uuid4()
     prefix = f"site/{site_id}/resources"
-    # sha256 基于上传原文件计算（溯源取证用，不被水印污染）
+    # sha256 基于上传原文件计算（溯源取证用，不被水印/压缩污染）
     content_sha256 = hashlib.sha256(content).hexdigest()
 
-    # 图片且非 SVG：若站点水印启用且有 Logo，先叠加水印再上传主图
+    # 图片且非 SVG：先视觉无损压缩（JPEG/PNG → WebP）降存储，再叠加水印；
+    # 不可压缩/无收益时保持原图。水印基于压缩后内容叠加，保证与对外展示一致。
     upload_content = content
+    upload_mime = mime
+    upload_ext = ext
     if file_type == "image" and ext.lower() != ".svg":
+        compressed = compress_image(content, mime, ext)
+        if compressed is not None:
+            upload_content = compressed.data
+            upload_mime = compressed.mime
+            upload_ext = compressed.ext
+
         wm_cfg = await _get_watermark_config(db)
         if wm_cfg is not None:
             upload_content = apply_watermark(
-                content,
+                upload_content,
                 logo_url=_wm_str(wm_cfg, "logoUrl", ""),
                 position=_wm_str(wm_cfg, "position", "bottom-right"),
                 opacity=_wm_float(wm_cfg, "opacity", 0.35),
@@ -278,10 +288,10 @@ async def upload_resource(
                 minio=minio,
             )
 
-    # pHash 感知哈希基于实际落库内容计算（水印后），保证指纹与对外展示图一致
+    # pHash 感知哈希基于实际落库内容计算（压缩+水印后），保证指纹与对外展示图一致
     content_phash = compute_phash(upload_content) if file_type == "image" else None
 
-    url = minio.upload_bytes(upload_content, f"{res_uuid}{ext}", prefix=prefix, content_type=mime)
+    url = minio.upload_bytes(upload_content, f"{res_uuid}{upload_ext}", prefix=prefix, content_type=upload_mime)
 
     # 从返回 URL 反推 bucket / object_key（MinIO: /minio/{bucket}/{key}，本地: /uploads/site/{key}）
     bucket = getattr(minio, "_bucket", "") or ""
@@ -295,7 +305,7 @@ async def upload_resource(
         object_key = url[len("/uploads/site/") :]
 
     # 图片生成 400px 缩略图（约定键名 resources/thumbs/{uuid}.jpg），失败不阻塞上传
-    # 缩略图基于水印后的主图生成，保证角标一致性
+    # 缩略图基于实际落库内容（压缩+水印后）生成，保证与主图一致
     if file_type == "image" and ext.lower() != ".svg" and PILImage is not None:
         try:
             src_img = PILImage.open(BytesIO(upload_content))
@@ -336,8 +346,8 @@ async def upload_resource(
         object_key=object_key,
         url=url,
         file_type=file_type,
-        mime=mime,
-        file_size=len(content),
+        mime=upload_mime,
+        file_size=len(upload_content),
         sha256=content_sha256,
         phash=content_phash,
         name=filename,

@@ -36,6 +36,7 @@ from forge.infrastructure.persistence.repositories.product_repo import (
 from forge.infrastructure.persistence.repositories.site_profile_repo import (
     SQLAlchemySiteProfileRepository,
 )
+from forge.infrastructure.services.image_compression_service import compress_image
 from forge.infrastructure.services.minio_service import MinioService, get_minio_service
 from forge.main.dependencies import get_db
 from forge.main.rbac import require_permission
@@ -802,9 +803,21 @@ async def upload_product_image(
         "image/png": ".png",
         "image/webp": ".webp",
     }[mime]
+
+    # 视觉无损压缩（JPEG/PNG → WebP）降存储；WebP 已是压缩格式、无收益时保持原图
+    upload_data = content
+    upload_mime = mime
+    upload_ext = ext
+    if mime != "image/webp":
+        compressed = compress_image(content, mime, ext)
+        if compressed is not None:
+            upload_data = compressed.data
+            upload_mime = compressed.mime
+            upload_ext = compressed.ext
+
     site_id = await _active_site_id(db)
-    image_key = f"site/{site_id}/products/{product.id}/{uuid.uuid4().hex}{ext}"
-    url = minio.upload_object(content, image_key, content_type=mime)
+    image_key = f"site/{site_id}/products/{product.id}/{uuid.uuid4().hex}{upload_ext}"
+    url = minio.upload_object(upload_data, image_key, content_type=upload_mime)
 
     # 登记资源表，供资源管理页可见与统一管理
     bucket = getattr(minio, "_bucket", "") or ""
@@ -814,9 +827,9 @@ async def upload_product_image(
         object_key=image_key,
         url=url,
         file_type="image",
-        mime=mime,
-        file_size=len(content),
-        name=(file.filename or f"{uuid.uuid4().hex}{ext}").strip(),
+        mime=upload_mime,
+        file_size=len(upload_data),
+        name=(file.filename or f"{uuid.uuid4().hex}{upload_ext}").strip(),
         directory=f"products/{product.id}",
     )
     db.add(resource)
