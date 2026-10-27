@@ -37,6 +37,7 @@ from forge.infrastructure.persistence.models import (
     ORMResourceTagMap,
 )
 from forge.infrastructure.persistence.repositories.site_profile_repo import SQLAlchemySiteProfileRepository
+from forge.infrastructure.services.image_compression_service import compress_image
 from forge.infrastructure.services.minio_service import MinioService, get_minio_service
 from forge.main.dependencies import get_db
 from forge.main.rbac import require_permission
@@ -222,7 +223,19 @@ async def upload_resource(
     # 命名：site/{site_id}/resources/{uuid}.{ext}
     res_uuid = uuid.uuid4()
     prefix = f"site/{site_id}/resources"
-    url = minio.upload_bytes(content, f"{res_uuid}{ext}", prefix=prefix, content_type=mime)
+
+    # 图片且非 SVG：视觉无损压缩（JPEG/PNG → WebP）降存储；不可压缩/无收益时保持原图
+    upload_content = content
+    upload_mime = mime
+    upload_ext = ext
+    if file_type == "image" and ext.lower() != ".svg":
+        compressed = compress_image(content, mime, ext)
+        if compressed is not None:
+            upload_content = compressed.data
+            upload_mime = compressed.mime
+            upload_ext = compressed.ext
+
+    url = minio.upload_bytes(upload_content, f"{res_uuid}{upload_ext}", prefix=prefix, content_type=upload_mime)
 
     # 从返回 URL 反推 bucket / object_key（MinIO: /minio/{bucket}/{key}，本地: /uploads/site/{key}）
     bucket = getattr(minio, "_bucket", "") or ""
@@ -236,9 +249,10 @@ async def upload_resource(
         object_key = url[len("/uploads/site/") :]
 
     # 图片生成 400px 缩略图（约定键名 resources/thumbs/{uuid}.jpg），失败不阻塞上传
+    # 缩略图基于实际落库内容（压缩后）生成，保证与主图一致
     if file_type == "image" and ext.lower() != ".svg" and PILImage is not None:
         try:
-            src_img = PILImage.open(BytesIO(content))
+            src_img = PILImage.open(BytesIO(upload_content))
             src_img.thumbnail((400, 400))
             # 统一输出 JPEG：RGBA/LA/P 先合成白底，避免缩略图键名与推导不一致
             if src_img.mode in ("RGBA", "LA", "P"):
@@ -276,9 +290,9 @@ async def upload_resource(
         object_key=object_key,
         url=url,
         file_type=file_type,
-        mime=mime,
-        file_size=len(content),
-        sha256=hashlib.sha256(content).hexdigest(),
+        mime=upload_mime,
+        file_size=len(upload_content),
+        sha256=hashlib.sha256(upload_content).hexdigest(),
         name=filename,
         directory=(directory or "").strip(),
         created_by=created_by,
