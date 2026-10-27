@@ -495,6 +495,12 @@ onMounted(async () => {
   if (route.params.slug) {
     await productStore.loadProduct(route.params.slug as string)
   }
+  // 数字 ID 老链接自动重定向到 slug URL（SEO / 链接统一）
+  const rawSlug = route.params.slug as string
+  if (rawSlug && /^\d+$/.test(rawSlug) && product.value?.slug && String(product.value.slug) !== rawSlug) {
+    await navigateTo(localePath(`/products/${product.value.slug}`), { replace: true })
+    return
+  }
   if (product.value) {
     reviewsLoading.value = true
     try {
