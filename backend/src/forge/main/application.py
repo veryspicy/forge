@@ -1,11 +1,12 @@
-from collections.abc import AsyncIterator
+import typing
+from collections.abc import AsyncIterator, Awaitable
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import cast
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 _UPLOADS_DIR = Path(__file__).resolve().parents[3] / "uploads"
@@ -45,10 +46,7 @@ register_error_handlers(app)
 async def _product_validation_handler(request: Request, exc: Exception) -> JSONResponse:
     """ProductValidationError -> 400 with field-level errors (never 500)."""
     pve = cast("ProductValidationError", exc)
-    errors = [
-        {"field": field, "code": "VALIDATION_ERROR", "message": message}
-        for field, message in pve.errors.items()
-    ]
+    errors = [{"field": field, "code": "VALIDATION_ERROR", "message": message} for field, message in pve.errors.items()]
     return JSONResponse(
         status_code=400,
         content={"code": "BAD_REQUEST", "message": "Bad request.", "status": 400, "errors": errors},
@@ -75,6 +73,28 @@ app.mount(
     StaticFiles(directory=str(_UPLOADS_DIR), check_dir=False),
     name="uploads",
 )
+
+
+@app.middleware("http")
+async def _uploads_signature_gate(
+    request: Request, call_next: typing.Callable[[Request], Awaitable[Response]]
+) -> Response:
+    """P3 signed-URL gate for /uploads/** (local-storage fallback path).
+
+    /minio/** is gated inside minio_proxy.py; this middleware covers the
+    StaticFiles mount so both protected media paths share the same policy.
+    """
+    if request.url.path.startswith("/uploads/"):
+        from forge.infrastructure.services.url_signer import verify_url
+
+        if not verify_url(
+            request.url.path,
+            exp=request.query_params.get("exp"),
+            sig=request.query_params.get("sig"),
+        ):
+            return Response(status_code=403, content="forbidden: missing or invalid signature")
+    return await call_next(request)
+
 
 try:
     from forge.api.minio_proxy import minio_router
@@ -152,6 +172,13 @@ try:
     from forge.api.v1.returns import router as public_returns_router
 
     app.include_router(public_returns_router, prefix="/api/v1")
+except ImportError:
+    pass
+
+try:
+    from forge.api.v1.resource_download import router as public_resource_download_router
+
+    app.include_router(public_resource_download_router, prefix="/api/v1")
 except ImportError:
     pass
 

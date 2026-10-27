@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
-import { NButton, NColorPicker, NInput, NInputNumber, NSelect, NSwitch, NTag } from 'naive-ui';
+import { NButton, NColorPicker, NInput, NInputNumber, NSelect, NSlider, NSwitch, NTag } from 'naive-ui';
 import { VueDraggable } from 'vue-draggable-plus';
 import { useDiyStore, SITE_CONFIG_ITEMS, THEME_PRESETS } from '@/store/modules/diy';
 import type { SelectedElementInfo } from '@/store/modules/diy';
@@ -550,11 +550,12 @@ function collectUsedResourceIds(): string[] {
   (c.homeHero?.carousel?.images || []).forEach((img: any) => {
     if (img?.url && img?.resourceId) add(img.resourceId);
   });
+  if (c.watermark?.logoUrl && c.watermark?.logoResourceId) add(c.watermark.logoResourceId);
   return Array.from(ids);
 }
 
 /** 资源选择弹窗状态 */
-type PickerTarget = 'brandLogo' | 'heroBg' | 'categoryImage' | 'carouselImage' | 'carouselImageNew';
+type PickerTarget = 'brandLogo' | 'heroBg' | 'categoryImage' | 'carouselImage' | 'carouselImageNew' | 'watermarkLogo';
 const picker = reactive<{ show: boolean; target: PickerTarget | null; multiple: boolean; index: number }>({
   show: false,
   target: null,
@@ -606,6 +607,10 @@ function onResourcePicked(items: ResourceItem[]) {
         });
       });
       break;
+    case 'watermarkLogo':
+      config.value.watermark.logoUrl = first.url;
+      config.value.watermark.logoResourceId = first.id;
+      break;
   }
 }
 
@@ -614,7 +619,8 @@ type UploadTarget =
   | { target: 'heroBg' }
   | { target: 'categoryImage'; index: number }
   | { target: 'carouselImage'; index: number }
-  | { target: 'carouselImageNew' };
+  | { target: 'carouselImageNew' }
+  | { target: 'watermarkLogo' };
 
 function applyThemePreset(presetKey: string) {
   const preset = THEME_PRESETS[presetKey];
@@ -2240,6 +2246,112 @@ function removeTranslation(k: string) {
           <template #icon><SvgIcon icon="mdi:plus" /></template>
           添加货币
         </NButton>
+      </div>
+
+      <!-- 12. 图片水印 -->
+      <div v-else-if="activeConfigKey === 'watermark'" class="flex flex-col gap-3">
+        <FieldLabel
+          label="启用图片水印"
+          name="watermark.enabled"
+          type="boolean"
+          range="true | false"
+          example="true"
+          desc="开启后，admin 上传的图片资源自动叠加品牌角标水印；SVG 类型不加水印。关闭不影响已生成图片。"
+        />
+        <ConfigCard content-padding="8px 12px">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-sm text-gray-700 dark:text-gray-200">上传图片自动叠加水印</span>
+            <NSwitch v-model:value="config.watermark.enabled" />
+          </div>
+        </ConfigCard>
+        <FieldLabel
+          label="水印 Logo"
+          name="watermark.logoUrl"
+          type="string (资源 URL)"
+          example="/minio/forge/site/xxx/resources/logo.png"
+          desc="从资源库选择一张透明 PNG 作为水印源；保存时自动登记资源引用。"
+        />
+        <ConfigCard content-padding="8px 12px">
+          <div class="flex flex-col gap-2">
+            <div class="flex items-center gap-2">
+              <img
+                v-if="config.watermark.logoUrl"
+                :src="config.watermark.logoUrl"
+                alt="水印预览"
+                class="h-10 w-10 shrink-0 rounded border border-gray-200 object-contain dark:border-gray-700"
+              />
+              <span v-else class="text-xs text-gray-400">未选择水印 Logo（启用状态下需配置）</span>
+              <NButton size="small" class="ml-auto shrink-0" @click="openResourcePicker({ target: 'watermarkLogo' })">
+                选择 Logo
+              </NButton>
+              <NButton
+                v-if="config.watermark.logoUrl"
+                size="tiny"
+                quaternary
+                type="error"
+                class="shrink-0"
+                @click="config.watermark.logoUrl = ''; config.watermark.logoResourceId = ''"
+              >
+                <template #icon><SvgIcon icon="mdi:close" /></template>
+              </NButton>
+            </div>
+            <span class="text-xs text-gray-400">建议使用透明背景 PNG，将按等比例缩放叠加。</span>
+          </div>
+        </ConfigCard>
+        <FieldLabel
+          label="水印位置"
+          name="watermark.position"
+          type="string"
+          range="top-left | top-right | bottom-left | bottom-right"
+          example="bottom-right"
+          desc="Logo 叠加在图片的哪个角落。"
+        />
+        <ConfigCard content-padding="8px 12px">
+          <NSelect
+            v-model:value="config.watermark.position"
+            size="small"
+            :options="[
+              { label: '左上', value: 'top-left' },
+              { label: '右上', value: 'top-right' },
+              { label: '左下', value: 'bottom-left' },
+              { label: '右下', value: 'bottom-right' }
+            ]"
+          />
+        </ConfigCard>
+        <FieldLabel
+          label="水印透明度"
+          name="watermark.opacity"
+          type="number"
+          range="0 ~ 1"
+          example="0.35"
+          desc="Logo 透明度；0 为完全透明（不可见），1 为完全不透明。"
+        />
+        <ConfigCard content-padding="8px 12px">
+          <NSlider
+            v-model:value="config.watermark.opacity"
+            :min="0"
+            :max="1"
+            :step="0.05"
+            :format-tooltip="(v: number) => v.toFixed(2)"
+          />
+        </ConfigCard>
+        <FieldLabel
+          label="最大面积占比"
+          name="watermark.maxAreaRatio"
+          type="number"
+          range="0 ~ 1"
+          example="0.05"
+          desc="Logo 相对原图的最大面积比例（默认 5%），防止水印过大影响图片观感。"
+        />
+        <ConfigCard content-padding="8px 12px">
+          <NSlider
+            v-model:value="config.watermark.maxAreaRatio"
+            :min="0.01"
+            :max="0.2"
+            :step="0.01"
+            :format-tooltip="(v: number) => `${Math.round(v * 100)}%`"
+          />
+        </ConfigCard>
       </div>
     </template>
 

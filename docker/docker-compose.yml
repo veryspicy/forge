@@ -21,6 +21,7 @@ x-common-vars: &common-vars
   MINIO_ACCESS_KEY: minioadmin
   MINIO_SECRET_KEY: minioadmin
   MINIO_SECURE: "false"
+  MINIO_SIGNED_URL_SECRET: ${MINIO_SIGNED_URL_SECRET:-dev-sign-secret-change-in-production}
   ROCKETMQ_PROXY: http://rocketmq-proxy:8081
   OPENAI_API_KEY: ${OPENAI_API_KEY:-sk-placeholder}
   JWT_SECRET_KEY: dev-secret-key-change-in-production
@@ -188,6 +189,8 @@ services:
   # ===== 门户前端 =====
   portal-web:
     image: forge-portal-web:latest
+    build:
+      context: ../portal-web
     container_name: forge-portal-web
     restart: unless-stopped
     networks:
@@ -204,6 +207,7 @@ services:
     volumes:
       - ../portal-web/app:/app/app      # 热重载
       - ../portal-web/i18n:/app/i18n    # i18n 单一来源热重载（locale JSON 改动免重建镜像）
+      - ../portal-web/nuxt.config.ts:/app/nuxt.config.ts  # 配置同步进容器（改动免重建镜像）
     depends_on:
       backend:
         condition: service_healthy

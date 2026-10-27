@@ -32,6 +32,7 @@ from forge.infrastructure.persistence.models import (
     ORMAdminUser,
     ORMProduct,
     ORMResource,
+    ORMResourceDownloadLog,
     ORMResourceRef,
     ORMResourceTag,
     ORMResourceTagMap,
@@ -39,6 +40,10 @@ from forge.infrastructure.persistence.models import (
 from forge.infrastructure.persistence.repositories.site_profile_repo import SQLAlchemySiteProfileRepository
 from forge.infrastructure.services.image_compression_service import compress_image
 from forge.infrastructure.services.minio_service import MinioService, get_minio_service
+from forge.infrastructure.services.phash_service import compute_phash, phash_distance
+from forge.infrastructure.services.steganography_service import extract_payload
+from forge.infrastructure.services.watermark_service import apply_watermark
+from forge.infrastructure.site_defaults import merge_for_response
 from forge.main.dependencies import get_db
 from forge.main.rbac import require_permission
 
@@ -98,18 +103,52 @@ async def _resolve_site_id(db: AsyncSession, admin: dict[str, object], requested
     return str(profile.id)
 
 
+async def _get_watermark_config(db: AsyncSession) -> dict[str, object] | None:
+    """读取 active profile 的水印配置（merge_for_response 保证默认键存在）。未启用或无 Logo 返回 None。"""
+    profile = await SQLAlchemySiteProfileRepository.get_active(db)
+    if profile is None:
+        return None
+    merged = merge_for_response(profile.config or {})  # type: ignore[arg-type]
+    cfg = merged.get("watermark") or {}
+    if not isinstance(cfg, dict) or not cfg.get("enabled") or not cfg.get("logoUrl"):
+        return None
+    return cfg
+
+
+def _wm_str(cfg: dict[str, object], key: str, default: str) -> str:
+    val = cfg.get(key)
+    return str(val) if val is not None else default
+
+
+def _wm_float(cfg: dict[str, object], key: str, default: float) -> float:
+    val = cfg.get(key)
+    if val is None:
+        return default
+    if isinstance(val, (int, float)):
+        return float(val)
+    if isinstance(val, str):
+        try:
+            return float(val)
+        except ValueError:
+            return default
+    return default
+
+
 def _serialize(res: ORMResource) -> dict[str, object]:
+    from forge.infrastructure.services.url_signer import sign_url
+
     return {
         "id": str(res.id),
         "site_id": str(res.site_id) if res.site_id else None,
         "bucket": res.bucket,
         "object_key": res.object_key,
-        "url": res.url,
-        "thumb_url": _derive_thumb_url(res),
+        "url": sign_url(str(res.url)),
+        "thumb_url": sign_url(_derive_thumb_url(res)),
         "file_type": res.file_type,
         "mime": res.mime,
         "file_size": res.file_size,
         "sha256": res.sha256,
+        "phash": res.phash,
         "name": res.name,
         "directory": res.directory or "",
         "created_by": str(res.created_by) if res.created_by else None,
@@ -223,8 +262,11 @@ async def upload_resource(
     # 命名：site/{site_id}/resources/{uuid}.{ext}
     res_uuid = uuid.uuid4()
     prefix = f"site/{site_id}/resources"
+    # sha256 基于上传原文件计算（溯源取证用，不被水印/压缩污染）
+    content_sha256 = hashlib.sha256(content).hexdigest()
 
-    # 图片且非 SVG：视觉无损压缩（JPEG/PNG → WebP）降存储；不可压缩/无收益时保持原图
+    # 图片且非 SVG：先视觉无损压缩（JPEG/PNG → WebP）降存储，再叠加水印；
+    # 不可压缩/无收益时保持原图。水印基于压缩后内容叠加，保证与对外展示一致。
     upload_content = content
     upload_mime = mime
     upload_ext = ext
@@ -234,6 +276,20 @@ async def upload_resource(
             upload_content = compressed.data
             upload_mime = compressed.mime
             upload_ext = compressed.ext
+
+        wm_cfg = await _get_watermark_config(db)
+        if wm_cfg is not None:
+            upload_content = apply_watermark(
+                upload_content,
+                logo_url=_wm_str(wm_cfg, "logoUrl", ""),
+                position=_wm_str(wm_cfg, "position", "bottom-right"),
+                opacity=_wm_float(wm_cfg, "opacity", 0.35),
+                max_area_ratio=_wm_float(wm_cfg, "maxAreaRatio", 0.05),
+                minio=minio,
+            )
+
+    # pHash 感知哈希基于实际落库内容计算（压缩+水印后），保证指纹与对外展示图一致
+    content_phash = compute_phash(upload_content) if file_type == "image" else None
 
     url = minio.upload_bytes(upload_content, f"{res_uuid}{upload_ext}", prefix=prefix, content_type=upload_mime)
 
@@ -249,7 +305,7 @@ async def upload_resource(
         object_key = url[len("/uploads/site/") :]
 
     # 图片生成 400px 缩略图（约定键名 resources/thumbs/{uuid}.jpg），失败不阻塞上传
-    # 缩略图基于实际落库内容（压缩后）生成，保证与主图一致
+    # 缩略图基于实际落库内容（压缩+水印后）生成，保证与主图一致
     if file_type == "image" and ext.lower() != ".svg" and PILImage is not None:
         try:
             src_img = PILImage.open(BytesIO(upload_content))
@@ -292,7 +348,8 @@ async def upload_resource(
         file_type=file_type,
         mime=upload_mime,
         file_size=len(upload_content),
-        sha256=hashlib.sha256(upload_content).hexdigest(),
+        sha256=content_sha256,
+        phash=content_phash,
         name=filename,
         directory=(directory or "").strip(),
         created_by=created_by,
@@ -820,6 +877,196 @@ def _thumb_object_key(res: ORMResource) -> str:
 
 
 # ---------------------------------------------------------------------------
+# 相似图片检索（pHash 指纹，P4 取证入口）
+# ---------------------------------------------------------------------------
+@router.post("/search-similar")
+async def search_similar_resources(
+    phash: str = Form(default=""),
+    file: UploadFile | None = File(default=None),
+    threshold: int = Form(default=10),
+    limit: int = Form(default=50),
+    admin: dict[str, object] = Depends(require_permission("resources", "view")),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, object]:
+    """按感知哈希检索相似图片：供溯源取证（P4）确认某图是否为本站资源衍生。
+
+    入参二选一：phash（64bit hex 指纹）或 file（待查图片，自动计算指纹）。
+    返回库中 phash 距离 <= threshold 的图片资源，按距离升序。
+    """
+    if not admin:
+        raise HTTPException(status_code=401, detail="未登录")
+
+    target_phash = (phash or "").strip().lower()
+    if file is not None:
+        content = await file.read()
+        target_phash = compute_phash(content) or ""
+    if not target_phash or len(target_phash) != 16:
+        raise HTTPException(status_code=400, detail="必须提供有效 phash 或图片文件")
+
+    rows = (
+        (
+            await db.execute(
+                select(ORMResource).where(
+                    ORMResource.file_type == "image",
+                    ORMResource.phash.is_not(None),
+                    ORMResource.deleted_at.is_(None),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    matches: list[dict[str, object]] = []
+    from forge.infrastructure.services.url_signer import sign_url
+
+    for res in rows:
+        dist = phash_distance(target_phash, str(res.phash or ""))
+        if dist <= threshold:
+            matches.append(
+                {
+                    "id": str(res.id),
+                    "url": sign_url(str(res.url)),
+                    "thumb_url": sign_url(_derive_thumb_url(res)),
+                    "name": res.name,
+                    "directory": res.directory or "",
+                    "phash": res.phash,
+                    "distance": dist,
+                }
+            )
+    matches.sort(key=lambda m: int(str(m["distance"])))
+    return {"data": {"total": len(matches), "threshold": threshold, "items": matches[:limit]}}
+
+
+# ---------------------------------------------------------------------------
+# 取证验证（P4）：上传疑似盗图 -> sha256/pHash 比对 + 隐写提取 + 下载日志对账
+# ---------------------------------------------------------------------------
+@router.post("/forensics/verify")
+async def verify_resource_forensics(
+    file: UploadFile = File(...),
+    threshold: int = Form(default=10),
+    admin: dict[str, object] = Depends(require_permission("resources", "view")),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, object]:
+    """取证验证入口：上传疑似盗图，生成完整溯源报告。
+
+    报告维度：
+    1. 原图级比对：sha256 与库中资源完全一致 => 原图泄露
+    2. 衍生图比对：pHash 汉明距离 <= threshold（<=4 高度相似）=> 本站图片衍生
+    3. 隐写提取：图片像素中可能携带站点标记（S|）或用户下载标记（U|user|time）
+    4. 下载日志对账：隐写指认的用户在库中对应资源的下载记录
+    """
+    if not admin:
+        raise HTTPException(status_code=401, detail="未登录")
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="空文件")
+    if len(content) > SIZE_LIMIT["image"]:
+        raise HTTPException(status_code=400, detail="图片大小不能超过 10MB")
+
+    target_phash = compute_phash(content)
+    target_sha256 = hashlib.sha256(content).hexdigest()
+
+    # 1. 隐写提取
+    stego_payload = extract_payload(content)
+    stego: dict[str, object] = {
+        "found": stego_payload is not None,
+        "payload": stego_payload,
+    }
+    if stego_payload:
+        parts = stego_payload.split("|", 2)
+        if len(parts) == 3 and parts[0] == "U":
+            stego["kind"] = "user_download"
+            stego["user_id"] = parts[1]
+            stego["downloaded_at"] = parts[2]
+        elif len(parts) == 2 and parts[0] == "S":
+            stego["kind"] = "site_mark"
+            stego["site_tag"] = parts[1]
+        else:
+            stego["kind"] = "unknown"
+
+    # 2. 全库相似比对（复用 pHash 索引语义）
+    rows = (
+        (
+            await db.execute(
+                select(ORMResource).where(
+                    ORMResource.file_type == "image",
+                    ORMResource.phash.is_not(None),
+                    ORMResource.deleted_at.is_(None),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    matches: list[dict[str, object]] = []
+    from forge.infrastructure.services.url_signer import sign_url
+
+    for res in rows:
+        dist = phash_distance(target_phash or "", str(res.phash or ""))
+        if dist > threshold:
+            continue
+        exact = bool(target_sha256 and res.sha256 and target_sha256 == res.sha256)
+        matches.append(
+            {
+                "id": str(res.id),
+                "url": sign_url(str(res.url)),
+                "thumb_url": sign_url(_derive_thumb_url(res)),
+                "name": res.name,
+                "directory": res.directory or "",
+                "phash": res.phash,
+                "sha256": res.sha256,
+                "distance": dist,
+                "match_level": (
+                    "原图级（sha256 一致）" if exact else ("高度相似（距离<=4）" if dist <= 4 else "相似（距离<=10）")
+                ),
+            }
+        )
+    matches.sort(key=lambda m: int(str(m["distance"])))
+
+    # 3. 下载日志对账：隐写指认用户 或 匹配资源的最新下载记录
+    download_logs: list[dict[str, object]] = []
+    if matches:
+        matched_ids = [uuid.UUID(str(m["id"])) for m in matches]
+        log_query = (
+            select(ORMResourceDownloadLog)
+            .where(ORMResourceDownloadLog.resource_id.in_(matched_ids))
+            .order_by(ORMResourceDownloadLog.created_at.desc())
+        )
+        if stego.get("kind") == "user_download":
+            with contextlib.suppress(ValueError):
+                log_query = log_query.where(ORMResourceDownloadLog.user_id == uuid.UUID(str(stego["user_id"])))
+        logs = (await db.execute(log_query.limit(20))).scalars().all()
+        download_logs = [
+            {
+                "id": str(log.id),
+                "resource_id": str(log.resource_id),
+                "user_id": str(log.user_id),
+                "user_email": log.user_email,
+                "ip": log.ip,
+                "user_agent": log.user_agent,
+                "payload": log.payload,
+                "created_at": log.created_at.isoformat() if log.created_at else None,
+            }
+            for log in logs
+        ]
+
+    return {
+        "data": {
+            "input": {
+                "filename": (file.filename or "").strip(),
+                "sha256": target_sha256,
+                "phash": target_phash,
+            },
+            "stego": stego,
+            "matches": matches,
+            "download_logs": download_logs,
+        }
+    }
+
+
+# ---------------------------------------------------------------------------
 # 详情（含引用位置）
 # ---------------------------------------------------------------------------
 @router.get("/{resource_id}")
@@ -1157,9 +1404,24 @@ async def replace_product_image(
 
     site_id = res.site_id
     image_key = f"site/{site_id}/resources/{rid}/{uuid.uuid4().hex}{out_ext}"
-    url = minio.upload_object(content, image_key, content_type=mime)
+    # 站点水印启用且有 Logo 时叠加水印（替换产物同样受保护）
+    upload_content = content
+    if out_ext != ".svg":
+        wm_cfg = await _get_watermark_config(db)
+        if wm_cfg is not None:
+            upload_content = apply_watermark(
+                content,
+                logo_url=_wm_str(wm_cfg, "logoUrl", ""),
+                position=_wm_str(wm_cfg, "position", "bottom-right"),
+                opacity=_wm_float(wm_cfg, "opacity", 0.35),
+                max_area_ratio=_wm_float(wm_cfg, "maxAreaRatio", 0.05),
+                minio=minio,
+            )
+    url = minio.upload_object(upload_content, image_key, content_type=mime)
 
     bucket = getattr(minio, "_bucket", "") or ""
+    # pHash 基于实际落库内容（水印后）计算，与对外展示图一致
+    content_phash = compute_phash(upload_content)
     new_resource = ORMResource(
         site_id=site_id,
         bucket=bucket,
@@ -1168,6 +1430,8 @@ async def replace_product_image(
         file_type="image",
         mime=mime,
         file_size=len(content),
+        sha256=hashlib.sha256(content).hexdigest(),
+        phash=content_phash,
         name=f"{res.name or 'image'} (编辑版)".strip(),
         directory=res.directory or f"products/{rid}",
     )

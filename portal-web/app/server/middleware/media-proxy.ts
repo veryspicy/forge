@@ -13,5 +13,7 @@ export default defineEventHandler(async (event) => {
     process.env.NUXT_BACKEND_URL ||
     process.env.API_PROXY_TARGET ||
     "http://127.0.0.1:8000";
-  return proxyRequest(event, `${target}${p}`);
+  // event.path 是纯 pathname，签名 URL 的 exp/sig 在 query 里必须原样透传
+  const rawUrl = event.node.req.url || p;
+  return proxyRequest(event, `${target}${rawUrl}`);
 });

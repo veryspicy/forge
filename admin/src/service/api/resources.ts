@@ -86,5 +86,14 @@ export const resourceApi = {
   /** 单个软删 */
   remove: (id: string) => del(`/api/admin/v1/resources/${id}`),
   /** 批量软删 */
-  batchRemove: (ids: string[]) => del('/api/admin/v1/resources', { ids })
+  batchRemove: (ids: string[]) => del('/api/admin/v1/resources', { ids }),
+  /** 取证验证（P4）：上传疑似盗图 -> sha256/pHash 比对 + 隐写提取 + 下载日志对账 */
+  verifyForensics: (file: File, threshold = 10) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('threshold', String(threshold));
+    return post('/api/admin/v1/resources/forensics/verify', form, {
+      'Content-Type': 'multipart/form-data'
+    });
+  }
 };

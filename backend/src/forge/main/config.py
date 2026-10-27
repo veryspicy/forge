@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     minio_bucket: str = "product-images"
     # 显式指定 MinIO 协议（true=HTTPS），不依赖主机名猜测；容器内服务名走 HTTP
     minio_secure: bool = False
+    # 签名 URL 密钥（P3）：配置后 /minio/**、/uploads/** 强制校验 exp+sig；为空则降级不校验
+    minio_signed_url_secret: str = ""
+    minio_signed_url_ttl: int = 7 * 24 * 3600
 
     # JWT
     access_token_expire_minutes: int = 30

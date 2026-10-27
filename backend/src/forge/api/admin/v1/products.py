@@ -231,9 +231,11 @@ def _clean_payload(data: dict[str, Any]) -> dict[str, Any]:
 
 
 def _serialize_image(image: dict[str, Any]) -> dict[str, Any]:
+    from forge.infrastructure.services.url_signer import sign_url
+
     data = {
         "key": image.get("key", ""),
-        "url": image.get("url", ""),
+        "url": sign_url(str(image.get("url", ""))),
         "sort": image.get("sort", 0),
         "is_main": bool(image.get("is_main", False)),
         "alt": image.get("alt", ""),

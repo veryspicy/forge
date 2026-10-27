@@ -1,14 +1,3 @@
----
-AIGC:
-    Label: "1"
-    ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 14f48488fead00d28e11c31f9845685c_6015233fad0711f1b128525400f8a581
-    ReservedCode1: aCwYGOKq/QEHR3E6Z/KG6emZ+j3t68QmHxWIfZAQjp79PPjAR1GDMZxWx/zZfI5bDeUdZuxTIbIeHNYcmRdgSnNO7cpfYMktC9cbPr5A0u8kMBiSD9dsCzhwbjEm4RjfquZSUsO3UoQh9GHhAIe27U1Rx6aKnVjIckAWZAmCDOnEFWGmQeOso/v4fSo=
-    ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 14f48488fead00d28e11c31f9845685c_6015233fad0711f1b128525400f8a581
-    ReservedCode2: aCwYGOKq/QEHR3E6Z/KG6emZ+j3t68QmHxWIfZAQjp79PPjAR1GDMZxWx/zZfI5bDeUdZuxTIbIeHNYcmRdgSnNO7cpfYMktC9cbPr5A0u8kMBiSD9dsCzhwbjEm4RjfquZSUsO3UoQh9GHhAIe27U1Rx6aKnVjIckAWZAmCDOnEFWGmQeOso/v4fSo=
----
-
 # PLAN：Shop 双模式履约（自采购 / 一件代发）改造方案
 
 > 状态：**已定稿待实施**（决策方向经用户确认「按建议来」）

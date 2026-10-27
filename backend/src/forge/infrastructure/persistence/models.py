@@ -876,6 +876,7 @@ class ORMResource(Base):
     mime = Column(String(128), nullable=False, default="")
     file_size = Column(Integer, nullable=False, default=0)
     sha256 = Column(String(64), nullable=True)
+    phash = Column(String(64), nullable=True, index=True)
     name = Column(String(255), nullable=False, default="")
     directory = Column(String(255), nullable=False, default="")
     created_by = Column(UUID(as_uuid=True), nullable=True)
@@ -914,6 +915,21 @@ class ORMResourceRef(Base):
     ref_type = Column(String(64), nullable=False, default="")
     ref_id = Column(String(128), nullable=False, default="")
     ref_label = Column(String(255), nullable=False, default="")
+    created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+
+
+class ORMResourceDownloadLog(Base):
+    """资源下载日志表 - 原图下载溯源（隐写 payload 与下载人/时间对账，P4）。"""
+
+    __tablename__ = "resource_download_log"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
+    resource_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    user_email = Column(String(255), nullable=False, default="")
+    ip = Column(String(64), nullable=False, default="")
+    user_agent = Column(String(512), nullable=False, default="")
+    payload = Column(String(255), nullable=False, default="")
     created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
 
 
