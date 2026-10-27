@@ -46,10 +46,7 @@ register_error_handlers(app)
 async def _product_validation_handler(request: Request, exc: Exception) -> JSONResponse:
     """ProductValidationError -> 400 with field-level errors (never 500)."""
     pve = cast("ProductValidationError", exc)
-    errors = [
-        {"field": field, "code": "VALIDATION_ERROR", "message": message}
-        for field, message in pve.errors.items()
-    ]
+    errors = [{"field": field, "code": "VALIDATION_ERROR", "message": message} for field, message in pve.errors.items()]
     return JSONResponse(
         status_code=400,
         content={"code": "BAD_REQUEST", "message": "Bad request.", "status": 400, "errors": errors},
@@ -97,6 +94,7 @@ async def _uploads_signature_gate(
         ):
             return Response(status_code=403, content="forbidden: missing or invalid signature")
     return await call_next(request)
+
 
 try:
     from forge.api.minio_proxy import minio_router

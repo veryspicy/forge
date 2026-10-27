@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import cast
 
 from sqlalchemy import select
 
@@ -42,20 +43,21 @@ async def main() -> None:
         )
         updated = skipped = 0
         for res in rows:
-            if res.object_key.lower().endswith(".svg"):
+            object_key = cast(str, res.object_key)
+            if object_key.lower().endswith(".svg"):
                 skipped += 1
                 continue
-            data = minio.get_object(res.object_key)
+            data = minio.get_object(object_key)
             if data is None:
-                logger.warning("skip %s: object not readable (%s)", res.id, res.object_key)
+                logger.warning("skip %s: object not readable (%s)", res.id, object_key)
                 skipped += 1
                 continue
             phash = compute_phash(data)
             if phash is None:
-                logger.warning("skip %s: not an image (%s)", res.id, res.object_key)
+                logger.warning("skip %s: not an image (%s)", res.id, object_key)
                 skipped += 1
                 continue
-            res.phash = phash
+            res.phash = phash  # type: ignore[assignment]  # ORM Column 旧式声明，mypy 推断为 Column[str]
             updated += 1
         await db.commit()
         total = len(rows)

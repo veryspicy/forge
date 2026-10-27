@@ -1019,9 +1019,7 @@ async def verify_resource_forensics(
                 "sha256": res.sha256,
                 "distance": dist,
                 "match_level": (
-                    "原图级（sha256 一致）"
-                    if exact
-                    else ("高度相似（距离<=4）" if dist <= 4 else "相似（距离<=10）")
+                    "原图级（sha256 一致）" if exact else ("高度相似（距离<=4）" if dist <= 4 else "相似（距离<=10）")
                 ),
             }
         )
@@ -1038,9 +1036,7 @@ async def verify_resource_forensics(
         )
         if stego.get("kind") == "user_download":
             with contextlib.suppress(ValueError):
-                log_query = log_query.where(
-                    ORMResourceDownloadLog.user_id == uuid.UUID(str(stego["user_id"]))
-                )
+                log_query = log_query.where(ORMResourceDownloadLog.user_id == uuid.UUID(str(stego["user_id"])))
         logs = (await db.execute(log_query.limit(20))).scalars().all()
         download_logs = [
             {

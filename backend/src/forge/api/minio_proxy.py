@@ -36,6 +36,7 @@ def _embed_site_stego(data: bytes, content_type: str) -> tuple[bytes, str]:
             logger.warning("stego embed on proxy failed: %s", exc)
         return data, content_type
 
+
 try:
     from minio.error import S3Error
 except ImportError:  # pragma: no cover

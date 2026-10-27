@@ -7,6 +7,7 @@ Strategy (aligned with Cloudflare Images signed URLs):
   - when no secret is configured the helper is inert (sign returns the URL untouched,
     verify always passes), keeping local/dev deployments compatible
 """
+
 from __future__ import annotations
 
 import hashlib
