@@ -492,8 +492,8 @@ watchEffect(() => {
 })
 
 onMounted(async () => {
-  if (route.params.id) {
-    await productStore.loadProduct(route.params.id as string)
+  if (route.params.slug) {
+    await productStore.loadProduct(route.params.slug as string)
   }
   if (product.value) {
     reviewsLoading.value = true
@@ -512,7 +512,7 @@ onMounted(async () => {
     await productStore.loadProducts({ page_size: 4 } as any)
   }
   relatedProducts.value = productStore.products.filter(
-    (p) => p.id !== route.params.id
+    (p) => String(p.id) !== String(product.value?.id)
   ).slice(0, 4)
 })
 </script>

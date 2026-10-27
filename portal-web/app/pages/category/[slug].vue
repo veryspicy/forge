@@ -21,7 +21,7 @@
         <NuxtLink
           v-for="p in products"
           :key="p.id"
-          :to="localePath(`/products/${p.id}`)"
+          :to="localePath(`/products/${p.slug || p.id}`)"
           class="bg-white rounded-xl shadow-sm border hover:shadow-md transition p-4"
         >
           <div class="w-full h-32 bg-gradient-to-br from-primary-50 to-primary-100 rounded-lg mb-3 flex items-center justify-center">

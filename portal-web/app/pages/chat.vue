@@ -62,7 +62,7 @@
                 v-for="rec in msg.recommendations"
                 :key="rec.product_id"
                 class="flex items-center gap-3 p-3 bg-white border rounded-lg cursor-pointer hover:border-primary-300 hover:shadow-sm transition"
-                @click="navigateTo(localePath(`/products/${rec.product_id}`))"
+                @click="navigateTo(localePath(`/products/${rec.slug || rec.product_id}`))"
               >
                 <div class="flex-1 min-w-0">
                   <p class="text-sm font-medium text-gray-800 truncate">{{ rec.product_name }}</p>

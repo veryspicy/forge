@@ -66,7 +66,7 @@
             v-for="rec in recommendations"
             :key="rec.product_id"
             class="rec-card"
-            @click="navigateTo(localePath(`/products/${rec.product_id}`))"
+            @click="navigateTo(localePath(`/products/${rec.slug || rec.product_id}`))"
           >
             <div class="rec-name">{{ rec.product_name }}</div>
             <div class="rec-reason">{{ rec.reason }}</div>

@@ -126,7 +126,7 @@
             v-for="product in tailoredProducts"
             :key="product.product_id"
             class="bg-white rounded-xl shadow-sm border hover:shadow-md transition cursor-pointer"
-            @click="navigateTo(localePath(`/products/${product.product_id}`))"
+            @click="navigateTo(localePath(`/products/${product.slug || product.product_id}`))"
           >
             <div class="p-4">
               <img
@@ -190,7 +190,7 @@
             :key="prod.id"
             class="bg-white rounded-xl shadow-sm border hover:shadow-md transition"
           >
-            <NuxtLink :to="localePath(`/products/${prod.id}`)" class="block p-4">
+            <NuxtLink :to="localePath(`/products/${prod.slug || prod.id}`)" class="block p-4">
               <img
                 v-if="prod.images?.[0]"
                 :src="prod.images[0]"
