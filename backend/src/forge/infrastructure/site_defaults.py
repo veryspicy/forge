@@ -65,7 +65,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "categories": [
         {
             "slug": "cat-food",
-            "nameKey": "footer.petFood",
+            "nameKey": "cat.food",
             "name": "宠物食品",
             "icon": "🍖",
             "image": "",
@@ -74,7 +74,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         },
         {
             "slug": "toys",
-            "nameKey": "footer.toys",
+            "nameKey": "cat.toys",
             "name": "玩具",
             "icon": "🎾",
             "image": "",
@@ -83,7 +83,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         },
         {
             "slug": "health-wellness",
-            "nameKey": "footer.healthWellness",
+            "nameKey": "cat.healthWellness",
             "name": "健康护理",
             "icon": "💊",
             "image": "",
@@ -92,7 +92,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         },
         {
             "slug": "accessories",
-            "nameKey": "footer.accessories",
+            "nameKey": "cat.accessories",
             "name": "配件",
             "icon": "🎀",
             "image": "",
@@ -324,6 +324,28 @@ def _normalize_aliases(payload: dict[str, object]) -> dict[str, object]:
         footer.setdefault("newsletter", True)
         footer.setdefault("columns", list(DEFAULT_CONFIG["footer"]["columns"]))
 
+    # categories nameKey: canonicalise to cat.* (admin editor + C-side i18n
+    # rely on cat.*; legacy rows may carry footer.* or a bare slug).
+    # NOTE: footer.petFood maps to cat.food (NOT cat.petFood) - the canonical
+    # translation key for the pet-food category is cat.food.
+    cat_key_map = {"petFood": "food"}
+    cats = payload.get("categories")
+    if isinstance(cats, list):
+        for ci, c in enumerate(cats):
+            if isinstance(c, dict):
+                c.setdefault("order", ci)
+                c.setdefault("visible", True)
+                nk = c.get("nameKey")
+                if isinstance(nk, str):
+                    nk = nk.strip().lstrip(".")
+                    if nk.startswith("cat."):
+                        c["nameKey"] = nk
+                    elif nk.startswith("footer."):
+                        suffix = nk[len("footer.") :]
+                        c["nameKey"] = f"cat.{cat_key_map.get(suffix, suffix)}"
+                    elif nk:
+                        c["nameKey"] = f"cat.{nk}"
+
     # homeHero.hero legacy i18n keys: home.* -> hero.* (canonical)
     home_hero = payload.get("homeHero") or {}
     hero_cfg = home_hero.get("hero")  # type: ignore[attr-defined]
@@ -346,14 +368,58 @@ def _normalize_aliases(payload: dict[str, object]) -> dict[str, object]:
     return payload
 
 
+def _fix_mojibake(value: str) -> str:
+    """Iteratively undo UTF-8 bytes that were misread as Latin-1.
+
+    Mojibake like "å® ç‰©" arises when UTF-8 bytes are decoded as
+    Latin-1 (each byte becomes one char) and then re-encoded as UTF-8.
+    We reverse it: encode to Latin-1 bytes then decode as UTF-8, repeated
+    until a fixed point. Normal UTF-8 text (CJK / Arabic / accented Latin)
+    cannot be encoded to Latin-1, so it is never touched.
+    """
+    import unicodedata
+
+    candidate = value
+    for _ in range(8):
+        try:
+            fixed = candidate.encode("latin-1").decode("utf-8")
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            break
+        if fixed == candidate:
+            break
+        # Reject when the "repaired" text contains control chars (C0/C1):
+        # a strong signal the round-trip was accidental, not real mojibake.
+        if any(unicodedata.category(ch) == "Cc" for ch in fixed):
+            break
+        candidate = fixed
+    return candidate
+
+
+def sanitize_config_mojibake(value: Any) -> Any:
+    """Recursively repair UTF-8-as-Latin-1 mojibake inside config strings.
+
+    Applied on every save so corrupted text never enters the DB again,
+    regardless of which client wrote it.
+    """
+    if isinstance(value, str):
+        return _fix_mojibake(value)
+    if isinstance(value, dict):
+        return {k: sanitize_config_mojibake(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [sanitize_config_mojibake(v) for v in value]
+    return value
+
+
 def merge_for_save(user_payload_config: dict[str, object]) -> dict[str, object]:
     """Given Admin PUT payload.config, produce final dict to persist in DB.
 
     1. Normalise legacy aliases (snake_case -> camelCase)
-    2. Deep-merge into canonical DEFAULT_CONFIG
-    3. Return final camelCase dict to store as profile.config JSONB
+    2. Repair any UTF-8-as-Latin-1 mojibake so garbage never persists
+    3. Deep-merge into canonical DEFAULT_CONFIG
+    4. Return final camelCase dict to store as profile.config JSONB
     """
     normalized = _normalize_aliases(dict(user_payload_config or {}))
+    normalized = sanitize_config_mojibake(normalized)
     return deep_merge(DEFAULT_CONFIG, normalized)
 
 

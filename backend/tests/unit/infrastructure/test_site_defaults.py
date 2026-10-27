@@ -8,6 +8,7 @@ from forge.infrastructure.site_defaults import (
     deep_merge,
     merge_for_response,
     merge_for_save,
+    sanitize_config_mojibake,
 )
 
 
@@ -104,6 +105,61 @@ class TestNormalizeAliases:
 
     def test_non_dict_payload_returned_as_is(self):
         assert _normalize_aliases("x") == "x"
+
+    def test_categories_footer_keys_canonicalised(self):
+        payload = {
+            "categories": [
+                {"slug": "cat-food", "nameKey": "footer.petFood"},
+                {"slug": "toys", "nameKey": "cat.toys"},
+                {"slug": "acc", "nameKey": "accessories"},
+                "not-a-dict",
+            ]
+        }
+        _normalize_aliases(payload)
+        cats = payload["categories"]
+        assert cats[0]["nameKey"] == "cat.food"
+        assert cats[1]["nameKey"] == "cat.toys"
+        assert cats[2]["nameKey"] == "cat.accessories"
+        assert cats[0]["order"] == 0
+        assert cats[0]["visible"] is True
+        assert cats[3] == "not-a-dict"
+
+
+class TestMojibakeSanitizer:
+    @staticmethod
+    def _corrupt(s: str) -> str:
+        """UTF-8 bytes misread as Latin-1, then stored as UTF-8 text."""
+        return s.encode("utf-8").decode("latin-1")
+
+    def test_single_round_trip_utf8_as_latin1(self):
+        corrupted = self._corrupt("宠物食品")
+        repaired = sanitize_config_mojibake(corrupted)
+        assert repaired == "宠物食品"
+
+    def test_normal_text_untouched(self):
+        samples = [
+            "宠物食品",
+            "طعام الحيوانات الأليفة",
+            "Zubehör",
+            "Aliments pour animaux",
+            "Pet Food",
+            "",
+        ]
+        for s in samples:
+            assert sanitize_config_mojibake(s) == s
+
+    def test_recursive_dict_and_list(self):
+        payload = {"nav": [{"label": self._corrupt("宠物食品")}], "i18n": {"zh": {"k": "宠物食品"}}}
+        out = sanitize_config_mojibake(payload)
+        assert out["nav"][0]["label"] == "宠物食品"
+        assert out["i18n"]["zh"]["k"] == "宠物食品"
+
+    def test_ascii_passthrough(self):
+        assert sanitize_config_mojibake("Forge - Pet Shop") == "Forge - Pet Shop"
+
+    def test_merge_for_save_sanitizes_payload(self):
+        result = merge_for_save({"brand": {"name": self._corrupt("宠物食品")}})
+        assert result["brand"]["name"] == "宠物食品"
 
 
 class TestMergeForSave:
