@@ -144,10 +144,26 @@ export const request = createFlatRequest(
         return 'UNKNOWN_ERROR';
       };
 
-      // 401：先重置登录态，再提示（登录失败等场景 token 本就为空，reset 无副作用）
+      // 401：重置登录态 + 错误提示。并发 401 必须纳入 errMsgStack 去重，否则 token 失效时
+      // 多个请求同时失败会弹出多个"请先登录"；resetStore 仅在首次弹窗时执行一次。
+      // （登录失败等场景 token 本就为空，reset 无副作用）
       if (httpStatus === 401) {
-        useAuthStore().resetStore();
-        window.$message?.error(toLocalized(resolveCode()));
+        const message = toLocalized(resolveCode());
+
+        if (!request.state.errMsgStack?.length) {
+          request.state.errMsgStack = [];
+        }
+
+        const isExist = request.state.errMsgStack.includes(message);
+        if (!isExist) {
+          request.state.errMsgStack.push(message);
+          useAuthStore().resetStore();
+          window.$message?.error(message, {
+            onLeave: () => {
+              request.state.errMsgStack = request.state.errMsgStack.filter((msg: string) => msg !== message);
+            }
+          });
+        }
         return;
       }
 
