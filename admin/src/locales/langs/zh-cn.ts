@@ -796,17 +796,10 @@ const local: App.I18n.Schema = {
     },
     settings: {
       adminEmail: '管理员邮箱',
-      autoReview: '自动审核',
       defaultCurrency: '默认货币',
       emailNotifications: '邮件通知',
-      expiryHours: '过期时间（小时）',
-      maxItemsPerOrder: '每单最多商品',
       orderAlerts: '订单提醒',
-      orderPrefix: '订单前缀',
-      orderSettings: '订单设置',
-      saveAllSettings: '保存所有设置',
-      storeName: '店铺名称',
-      storeSettings: '店铺设置'
+      saveAllSettings: '保存所有设置'
     },
     modelManagement: {
       title: '模型管理',
