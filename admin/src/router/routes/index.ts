@@ -256,6 +256,7 @@ const customRoutes = [
         meta: {
           title: 'Site Config',
           i18nKey: 'route.site-config',
+          icon: 'mdi:cog-outline',
           roles: ['super_admin', 'admin', 'operator']
         }
       }
