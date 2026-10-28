@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="max-w-6xl mx-auto px-4 py-8">
     <h1 class="text-3xl font-bold text-gray-900 mb-8">{{ $t('orders.title') }}</h1>
 
@@ -10,7 +10,7 @@
         class="px-4 py-2 rounded-full text-sm font-medium transition whitespace-nowrap"
         :class="
           activeTab === tab.key
-            ? 'bg-primary-600 text-white'
+            ? 'bg-accent-600 text-white'
             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
         "
         @click="activeTab = tab.key"
@@ -72,7 +72,7 @@
               {{ busyId === (order.order_number || order.id) ? $t('orders.deleting') : $t('orders.deleteOrder') }}
             </button>
             <button
-              class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:border-primary-300 hover:text-primary-700 transition font-medium"
+              class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:border-accent-300 hover:text-accent-700 transition font-medium"
               @click="viewOrder(order.order_number || order.id)"
             >
               {{ $t('orders.viewDetails') }}
@@ -87,14 +87,14 @@
             </button>
             <button
               v-if="canEdit(order.status)"
-              class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:border-primary-300 hover:text-primary-700 transition font-medium"
+              class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:border-accent-300 hover:text-accent-700 transition font-medium"
               @click="openEditModal(order)"
             >
               {{ $t('orders.editOrder') }}
             </button>
             <button
               v-if="canPay(order)"
-              class="px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium"
+              class="px-4 py-2 text-sm bg-accent-600 text-white rounded-lg hover:bg-accent-500 transition font-medium"
               @click="goPay(order.order_number || order.id)"
             >
               {{ $t('orders.pay') }}
@@ -111,7 +111,7 @@
       <p class="text-gray-500 mb-6">{{ $t('orders.noOrdersHint') }}</p>
       <NuxtLink
         :to="localePath('/products')"
-        class="inline-block px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium"
+        class="inline-block px-6 py-3 bg-accent-600 text-white rounded-lg hover:bg-accent-500 transition font-medium"
       >
         {{ $t('orders.startShopping') }}
       </NuxtLink>
@@ -133,7 +133,7 @@
                 <input
                   v-model.trim="editForm.firstName"
                   type="text"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-accent-500 focus:border-accent-500"
                 >
               </div>
               <div>
@@ -141,7 +141,7 @@
                 <input
                   v-model.trim="editForm.lastName"
                   type="text"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-accent-500 focus:border-accent-500"
                 >
               </div>
             </div>
@@ -150,7 +150,7 @@
               <input
                 v-model.trim="editForm.address"
                 type="text"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-accent-500 focus:border-accent-500"
               >
             </div>
             <div class="grid grid-cols-2 gap-4">
@@ -159,7 +159,7 @@
                 <input
                   v-model.trim="editForm.city"
                   type="text"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-accent-500 focus:border-accent-500"
                 >
               </div>
               <div>
@@ -167,7 +167,7 @@
                 <input
                   v-model.trim="editForm.zipCode"
                   type="text"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-accent-500 focus:border-accent-500"
                 >
               </div>
             </div>
@@ -175,7 +175,7 @@
               <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('checkout.country') }}</label>
               <select
                 v-model="editForm.country"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-accent-500 focus:border-accent-500"
               >
                 <option value="US">United States</option>
                 <option value="UK">United Kingdom</option>
@@ -192,7 +192,7 @@
               {{ $t('common.cancel') }}
             </button>
             <button
-              class="px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              class="px-4 py-2 text-sm bg-accent-600 text-white rounded-lg hover:bg-accent-500 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               :disabled="savingEdit || !canSubmitEdit"
               @click="saveEditAddress"
             >

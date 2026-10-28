@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="max-w-6xl mx-auto px-4 py-8">
     <h1 class="text-3xl font-bold text-gray-900 mb-8">{{ $t('checkout.title') }}</h1>
 
@@ -14,7 +14,7 @@
               <input
                 v-model="form.firstName"
                 type="text"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-accent-500 focus:border-accent-500"
               />
             </div>
             <div>
@@ -22,7 +22,7 @@
               <input
                 v-model="form.lastName"
                 type="text"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-accent-500 focus:border-accent-500"
               />
             </div>
             <div class="col-span-2">
@@ -30,7 +30,7 @@
               <input
                 v-model="form.address"
                 type="text"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-accent-500 focus:border-accent-500"
               />
             </div>
             <div>
@@ -38,7 +38,7 @@
               <input
                 v-model="form.city"
                 type="text"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-accent-500 focus:border-accent-500"
               />
             </div>
             <div>
@@ -46,14 +46,14 @@
               <input
                 v-model="form.zipCode"
                 type="text"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-accent-500 focus:border-accent-500"
               />
             </div>
             <div class="col-span-2">
               <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('checkout.country') }}</label>
               <select
                 v-model="form.country"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-accent-500 focus:border-accent-500"
               >
                 <option value="US">United States</option>
                 <option value="UK">United Kingdom</option>
@@ -68,12 +68,12 @@
         <div class="bg-white rounded-xl shadow-sm border p-6">
           <h2 class="text-lg font-semibold text-gray-900 mb-4">{{ $t('checkout.payment') }}</h2>
           <div class="space-y-3">
-            <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer" :class="form.payment === 'card' ? 'border-primary-500 bg-primary-50' : 'border-gray-200'">
-              <input v-model="form.payment" type="radio" value="card" class="text-primary-600 focus:ring-primary-500" />
+            <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer" :class="form.payment === 'card' ? 'border-accent-500 bg-accent-50' : 'border-gray-200'">
+              <input v-model="form.payment" type="radio" value="card" class="text-accent-600 focus:ring-accent-500" />
               <span class="text-sm font-medium text-gray-900">{{ $t('checkout.creditCard') }}</span>
             </label>
-            <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer" :class="form.payment === 'paypal' ? 'border-primary-500 bg-primary-50' : 'border-gray-200'">
-              <input v-model="form.payment" type="radio" value="paypal" class="text-primary-600 focus:ring-primary-500" />
+            <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer" :class="form.payment === 'paypal' ? 'border-accent-500 bg-accent-50' : 'border-gray-200'">
+              <input v-model="form.payment" type="radio" value="paypal" class="text-accent-600 focus:ring-accent-500" />
               <span class="text-sm font-medium text-gray-900">{{ $t('checkout.paypal') }}</span>
             </label>
           </div>
@@ -109,7 +109,7 @@
           </div>
         </div>
         <button
-          class="w-full mt-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium disabled:opacity-50"
+          class="w-full mt-6 py-3 bg-accent-600 text-white rounded-lg hover:bg-accent-500 transition font-medium disabled:opacity-50"
           :disabled="submitting"
           @click="placeOrder"
         >

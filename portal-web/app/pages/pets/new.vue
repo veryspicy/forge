@@ -1,4 +1,4 @@
-<!-- Forge -- Add Pet Page -->
+﻿<!-- Forge -- Add Pet Page -->
 <template>
   <div class="max-w-lg mx-auto">
     <h1 class="text-3xl font-bold text-gray-900 mb-8">{{ $t('pets.addPet') }}</h1>
@@ -46,7 +46,7 @@
         <label class="block text-sm font-medium text-gray-700">{{ $t('pets.weight') }}</label>
         <input v-model="form.weight" type="number" step="0.1" class="mt-1 block w-full px-3 py-2 border rounded-lg text-sm" />
       </div>
-      <button type="submit" class="w-full px-4 py-2 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700">{{ $t('pets.savePet') }}</button>
+      <button type="submit" class="w-full px-4 py-2 bg-accent-600 text-white rounded-lg font-medium hover:bg-accent-500">{{ $t('pets.savePet') }}</button>
     </form>
   </div>
 </template>

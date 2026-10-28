@@ -1,4 +1,4 @@
-<!-- Forge — Product Detail Blocks Renderer
+﻿<!-- Forge — Product Detail Blocks Renderer
 契约对齐 backend ProductService.DETAIL_BLOCK_FIELDS：
 rich_text(title/html/align) / image(title/images/caption) / image_text(title/image/html/layout)
 / spec_table(title/columns/rows) / features(title/items) / faq(title/items) / video(title/url/poster)
@@ -86,7 +86,7 @@ rich_text(title/html/align) / image(title/images/caption) / image_text(title/ima
             :key="i"
             class="flex items-start gap-2.5 text-gray-700 leading-relaxed"
           >
-            <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary-500 flex-shrink-0" />
+            <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-accent-500 flex-shrink-0" />
             <span>{{ item }}</span>
           </li>
         </ul>

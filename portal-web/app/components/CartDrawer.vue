@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <Transition name="drawer">
     <div
       v-if="visible"
@@ -71,14 +71,14 @@
           </div>
           <NuxtLink
             :to="localePath('/cart')"
-            class="block w-full py-2.5 bg-primary-600 text-white text-center rounded-lg hover:bg-primary-700 transition font-medium"
+            class="block w-full py-2.5 bg-accent-600 text-white text-center rounded-lg hover:bg-accent-500 transition font-medium"
             @click="close"
           >
             {{ $t('cart.viewCart') }}
           </NuxtLink>
           <NuxtLink
             :to="localePath('/checkout')"
-            class="block w-full py-2.5 border border-primary-600 text-primary-600 text-center rounded-lg hover:bg-primary-50 transition font-medium"
+            class="block w-full py-2.5 border border-accent-600 text-accent-600 text-center rounded-lg hover:bg-accent-50 transition font-medium"
             @click="close"
           >
             {{ $t('cart.checkout') }}

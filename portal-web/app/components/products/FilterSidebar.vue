@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="space-y-6">
     <!-- Category Filter -->
     <div>
@@ -13,7 +13,7 @@
             type="checkbox"
             :value="cat.value"
             :checked="selectedCategories.includes(cat.value)"
-            class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+            class="rounded border-gray-300 text-accent-600 focus:ring-accent-500"
             @change="toggleCategory(cat.value)"
           />
           {{ cat.label }}
@@ -29,7 +29,7 @@
           v-model.number="priceMin"
           type="number"
           min="0"
-          class="w-20 px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+          class="w-20 px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-accent-500 focus:border-accent-500"
           placeholder="$0"
         />
         <span class="text-gray-400">-</span>
@@ -37,7 +37,7 @@
           v-model.number="priceMax"
           type="number"
           min="0"
-          class="w-20 px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+          class="w-20 px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-accent-500 focus:border-accent-500"
           placeholder="$999"
         />
       </div>
@@ -57,7 +57,7 @@
             name="rating"
             :value="r"
             :checked="selectedRating === r"
-            class="text-primary-600 focus:ring-primary-500"
+            class="text-accent-600 focus:ring-accent-500"
             @change="selectedRating = r; emitUpdate()"
           />
           {{ '★'.repeat(r) }} &amp; up
@@ -67,7 +67,7 @@
 
     <!-- Clear -->
     <button
-      class="text-sm text-primary-600 hover:text-primary-800 transition font-medium"
+      class="text-sm text-accent-600 hover:text-accent-700 transition font-medium"
       @click="clearFilters"
     >
       {{ $t('products.clearFilters') }}

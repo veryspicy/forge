@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section v-if="tabs.length" class="mx-auto max-w-6xl px-4 py-6">
     <!-- Tab 切换 -->
     <div class="mb-4 flex gap-2 overflow-x-auto">
@@ -6,7 +6,7 @@
         v-for="(tab, i) in tabs"
         :key="i"
         class="whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition"
-        :class="i === activeTab ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+        :class="i === activeTab ? 'bg-accent-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
         @click="activeTab = i"
       >
         {{ tab.name || `Tab ${i + 1}` }}

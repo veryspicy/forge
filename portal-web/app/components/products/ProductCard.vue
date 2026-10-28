@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <!-- Skeleton loading state -->
   <div
     v-if="!product"
@@ -59,7 +59,7 @@
 
       <!-- Price row -->
       <div class="flex items-center gap-2 mt-2">
-        <span class="text-lg font-bold text-primary-600">
+        <span class="text-lg font-bold text-accent-600">
           {{ formatPrice(product.price) }}
         </span>
         <span
@@ -99,7 +99,7 @@
 
     <!-- Add to cart hover button -->
     <button
-      class="absolute bottom-0 left-0 right-0 bg-primary-600 text-white text-sm font-medium py-2.5 text-center opacity-0 group-hover:opacity-100 hover:bg-primary-700 transition-all translate-y-full group-hover:translate-y-0"
+      class="absolute bottom-0 left-0 right-0 bg-accent-600 text-white text-sm font-medium py-2.5 text-center opacity-0 group-hover:opacity-100 hover:bg-accent-500 transition-all translate-y-full group-hover:translate-y-0"
       @click.prevent="addToCart"
     >
       {{ $t('products.addToCart') }}

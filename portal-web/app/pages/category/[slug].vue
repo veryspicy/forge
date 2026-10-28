@@ -1,10 +1,10 @@
-<template>
+﻿<template>
   <div>
     <!-- 降级：硬编码分类页 -->
     <div class="max-w-6xl mx-auto px-4 py-8">
       <div class="mb-8">
         <nav class="text-sm text-gray-500 mb-4">
-          <NuxtLink :to="localePath('/')" class="hover:text-primary-600">{{ $t('common.home') }}</NuxtLink>
+          <NuxtLink :to="localePath('/')" class="hover:text-accent-600">{{ $t('common.home') }}</NuxtLink>
           <span class="mx-2">/</span>
           <span class="text-gray-900">{{ categoryName }}</span>
         </nav>
@@ -12,7 +12,7 @@
       </div>
 
       <div v-if="pending" class="text-center py-16">
-        <div class="animate-spin w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full mx-auto" />
+        <div class="animate-spin w-8 h-8 border-4 border-accent-200 border-t-accent-600 rounded-full mx-auto" />
       </div>
       <div
         v-else-if="products.length > 0"
@@ -24,11 +24,11 @@
           :to="localePath(`/products/${p.id}`)"
           class="bg-white rounded-xl shadow-sm border hover:shadow-md transition p-4"
         >
-          <div class="w-full h-32 bg-gradient-to-br from-primary-50 to-primary-100 rounded-lg mb-3 flex items-center justify-center">
+          <div class="w-full h-32 bg-gradient-to-br from-accent-50 to-accent-100 rounded-lg mb-3 flex items-center justify-center">
             <span class="text-4xl">{{ productIcon(p.name) }}</span>
           </div>
           <h3 class="text-sm font-semibold text-gray-800 truncate">{{ p.name }}</h3>
-          <p class="text-sm font-bold text-primary-700 mt-2">${{ p.price }}</p>
+          <p class="text-sm font-bold text-accent-700 mt-2">${{ p.price }}</p>
         </NuxtLink>
       </div>
       <div v-else class="text-center py-16 text-gray-400">

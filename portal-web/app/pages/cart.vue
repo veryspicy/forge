@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="max-w-6xl mx-auto px-4 py-8">
     <h1 class="text-3xl font-bold text-gray-900 mb-8">{{ $t('cart.title') }}</h1>
 
@@ -69,13 +69,13 @@
         </div>
         <NuxtLink
           :to="localePath('/checkout')"
-          class="block w-full mt-6 py-3 bg-primary-600 text-white text-center rounded-lg hover:bg-primary-700 transition font-medium"
+          class="block w-full mt-6 py-3 bg-accent-600 text-white text-center rounded-lg hover:bg-accent-500 transition font-medium"
         >
           {{ $t('cart.checkout') }}
         </NuxtLink>
         <NuxtLink
           :to="localePath('/products')"
-          class="block w-full mt-3 py-2 text-primary-600 text-center text-sm hover:underline"
+          class="block w-full mt-3 py-2 text-accent-600 text-center text-sm hover:underline"
         >
           {{ $t('cart.continueShopping') }}
         </NuxtLink>
@@ -89,7 +89,7 @@
       <p class="text-gray-500 mb-6">{{ $t('cart.emptyHint') }}</p>
       <NuxtLink
         :to="localePath('/products')"
-        class="inline-block px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium"
+        class="inline-block px-6 py-3 bg-accent-600 text-white rounded-lg hover:bg-accent-500 transition font-medium"
       >
         {{ $t('cart.startShopping') }}
       </NuxtLink>

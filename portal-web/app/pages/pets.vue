@@ -1,9 +1,9 @@
-<template>
+﻿<template>
   <div class="max-w-6xl mx-auto px-4 py-8">
     <div class="flex justify-between items-center mb-8">
       <h1 class="text-3xl font-bold text-gray-900">{{ $t('pets.title') }}</h1>
       <button
-        class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium"
+        class="px-4 py-2 bg-accent-600 text-white rounded-lg hover:bg-accent-500 transition font-medium"
         @click="showWizard = true"
       >
         {{ $t('pets.addPet') }}
@@ -21,7 +21,7 @@
         >
           <div
             class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium"
-            :class="wizardStep >= idx ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-500'"
+            :class="wizardStep >= idx ? 'bg-accent-600 text-white' : 'bg-gray-200 text-gray-500'"
           >
             {{ idx + 1 }}
           </div>
@@ -38,7 +38,7 @@
             v-for="type in petTypes"
             :key="type"
             class="p-4 rounded-lg border-2 transition text-center"
-            :class="form.type === type ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:border-gray-300'"
+            :class="form.type === type ? 'border-accent-500 bg-accent-50' : 'border-gray-200 hover:border-gray-300'"
             @click="form.type = type"
           >
             <span class="text-2xl block mb-1">{{ typeIcon(type) }}</span>
@@ -50,7 +50,7 @@
           <input
             v-model="form.name"
             type="text"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-accent-500 focus:border-accent-500"
             :placeholder="$t('pets.petNamePlaceholder')"
           />
         </div>
@@ -63,7 +63,7 @@
           <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('pets.breed') }}</label>
           <select
             v-model="form.breed"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-accent-500 focus:border-accent-500"
           >
             <option value="">{{ $t('pets.selectBreed') || 'Select breed' }}</option>
             <option value="GOLDEN_RETRIEVER">Golden Retriever</option>
@@ -89,7 +89,7 @@
             v-if="form.breed === 'OTHER'"
             v-model="form.breed_custom"
             type="text"
-            class="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+            class="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-accent-500 focus:border-accent-500"
             placeholder="Enter custom breed name"
           />
         </div>
@@ -103,7 +103,7 @@
             <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('pets.gender') }}</label>
             <select
               v-model="form.gender"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-accent-500 focus:border-accent-500"
             >
               <option value="">{{ $t('pets.selectGender') }}</option>
               <option value="male">{{ $t('pets.male') }}</option>
@@ -117,7 +117,7 @@
               type="number"
               step="0.1"
               min="0"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-accent-500 focus:border-accent-500"
               placeholder="0.0"
             />
           </div>
@@ -132,7 +132,7 @@
             <input
               v-model="form.birthday"
               type="date"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-accent-500 focus:border-accent-500"
             />
           </div>
         </div>
@@ -149,7 +149,7 @@
           <div class="flex gap-2"><span class="font-medium text-gray-700">{{ $t('pets.weight') }}:</span><span>{{ form.weight ? form.weight + ' kg' : '-' }}</span></div>
         </div>
         <button
-          class="w-full py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          class="w-full py-2 bg-accent-600 text-white rounded-lg hover:bg-accent-500 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           :disabled="saving"
           @click="savePet"
         >
@@ -175,7 +175,7 @@
           </button>
           <button
             v-if="wizardStep < 3"
-            class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition text-sm font-medium"
+            class="px-4 py-2 bg-accent-600 text-white rounded-lg hover:bg-accent-500 transition text-sm font-medium"
             :disabled="!canProceed"
             @click="wizardStep++"
           >
@@ -231,14 +231,14 @@
             <div
               v-for="rec in petRecs[pet.id].slice(0, 3)"
               :key="rec.product_id"
-              class="flex items-center gap-3 p-2 bg-white rounded-lg border cursor-pointer hover:border-primary-300 transition"
+              class="flex items-center gap-3 p-2 bg-white rounded-lg border cursor-pointer hover:border-accent-300 transition"
               @click="navigateTo(localePath(`/products/${rec.product_id}`))"
             >
               <div class="flex-1 min-w-0">
                 <p class="text-sm font-medium text-gray-800 truncate">{{ rec.product_name }}</p>
                 <p class="text-xs text-gray-500 truncate">{{ rec.reason }}</p>
               </div>
-              <span class="text-xs px-2 py-0.5 bg-primary-100 text-primary-700 rounded-full font-medium">
+              <span class="text-xs px-2 py-0.5 bg-accent-100 text-accent-700 rounded-full font-medium">
                 {{ Math.round(rec.confidence * 100) }}%
               </span>
             </div>
@@ -247,7 +247,7 @@
           <!-- No recommendations yet -->
           <div v-else>
             <button
-              class="w-full px-3 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium"
+              class="w-full px-3 py-2 text-sm bg-accent-600 text-white rounded-lg hover:bg-accent-500 transition font-medium"
               @click="loadRecsForPet(pet.id)"
             >
               View recommendations

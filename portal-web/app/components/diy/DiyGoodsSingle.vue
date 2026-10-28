@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section v-if="product" class="mx-auto max-w-6xl px-4 py-4">
     <!-- 纵向：复用商品卡片 -->
     <div v-if="config.layout !== 'horizontal'" class="mx-auto max-w-xs">
@@ -20,7 +20,7 @@
         <h3 class="text-base font-semibold text-gray-900 md:text-lg">{{ product.name }}</h3>
         <p class="mt-1 line-clamp-2 text-sm text-gray-500">{{ product.description }}</p>
         <div class="mt-2 flex items-center gap-2">
-          <span class="text-lg font-bold text-primary-700">{{ formatPrice(product.price) }}</span>
+          <span class="text-lg font-bold text-accent-700">{{ formatPrice(product.price) }}</span>
           <span class="text-xs text-yellow-500">{{ '★'.repeat(Math.round(product.rating || 0)) }}</span>
         </div>
       </div>

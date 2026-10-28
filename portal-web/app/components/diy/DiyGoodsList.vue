@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section v-if="products.length" class="mx-auto max-w-6xl px-4 py-6">
     <h2 v-if="config.title" class="mb-4 text-xl font-bold text-gray-900 md:text-2xl">
       {{ config.title }}
@@ -29,7 +29,7 @@
         <div class="flex min-w-0 flex-1 flex-col justify-center">
           <h3 class="truncate text-sm font-semibold text-gray-800">{{ p.name }}</h3>
           <p class="mt-0.5 line-clamp-1 text-xs text-gray-500">{{ p.description }}</p>
-          <span v-if="config.showPrice !== false" class="mt-1 text-sm font-bold text-primary-700">
+          <span v-if="config.showPrice !== false" class="mt-1 text-sm font-bold text-accent-700">
             {{ formatPrice(p.price) }}
           </span>
         </div>

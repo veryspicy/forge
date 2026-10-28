@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section v-if="items.length" class="mx-auto max-w-6xl px-4 py-6">
     <h2 v-if="config.title" class="mb-4 text-xl font-bold text-gray-900">{{ config.title }}</h2>
     <div
@@ -12,7 +12,7 @@
         class="group flex flex-col items-center gap-2"
       >
         <div
-          class="flex h-12 w-12 items-center justify-center rounded-full bg-primary-50 text-lg font-bold text-primary-600 transition group-hover:bg-primary-100 md:h-14 md:w-14"
+          class="flex h-12 w-12 items-center justify-center rounded-full bg-accent-50 text-lg font-bold text-accent-600 transition group-hover:bg-accent-100 md:h-14 md:w-14"
         >
           {{ (item.text || '?').charAt(0) }}
         </div>

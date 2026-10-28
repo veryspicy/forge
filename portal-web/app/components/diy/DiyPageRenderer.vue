@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="diy-page">
     <!-- Loading 骨架屏 -->
     <div v-if="pending" class="mx-auto max-w-6xl space-y-4 px-4 py-8">
@@ -9,7 +9,7 @@
     <div v-else-if="error" class="py-16 text-center">
       <p class="mb-4 text-gray-500">{{ $t('common.loadFailed') || 'Failed to load page' }}</p>
       <button
-        class="rounded-lg bg-primary-600 px-6 py-2 font-semibold text-white transition hover:bg-primary-700"
+        class="rounded-lg bg-accent-600 px-6 py-2 font-semibold text-white transition hover:bg-accent-500"
         @click="$emit('retry')"
       >
         {{ $t('common.retry') || 'Retry' }}

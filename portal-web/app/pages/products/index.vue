@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="max-w-7xl mx-auto px-4 py-8">
     <div class="flex items-center justify-between mb-8">
       <h1 class="text-3xl font-bold text-gray-900">{{ $t('products.title') }}</h1>
@@ -28,7 +28,7 @@
           </p>
           <select
             v-model="sortBy"
-            class="text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+            class="text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-accent-500 focus:border-accent-500"
             @change="applyFilters"
           >
             <option value="popular">{{ $t('products.sortPopular') }}</option>
