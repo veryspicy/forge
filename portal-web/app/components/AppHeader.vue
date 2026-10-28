@@ -14,7 +14,7 @@
           :class="
             route.path === link.to
               ? 'text-accent-600'
-              : 'text-neutral-600 hover:text-neutral-900'
+              : 'text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100'
           "
         >
           {{ link.label }}
@@ -27,10 +27,48 @@
 
       <!-- Right Section -->
       <div class="flex items-center gap-3">
+        <!-- Theme Toggle -->
+        <button
+          type="button"
+          class="p-2 rounded-full text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 hover:text-accent-600 hover:bg-accent-500/10 transition-colors"
+          :aria-label="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+          @click="toggleTheme"
+        >
+          <!-- Sun (light) -->
+          <svg
+            v-if="theme === 'dark'"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+          </svg>
+          <!-- Moon (dark) -->
+          <svg
+            v-else
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+        </button>
+
         <!-- Language Select：选项由站点 i18n 配置驱动，支持任意启用语言 -->
         <select
           v-model="currentLocale"
-          class="hidden sm:block text-xs bg-transparent border border-neutral-200 rounded-md px-2 py-1.5 text-neutral-600 focus:outline-none focus:border-accent-400 cursor-pointer"
+          class="hidden sm:block text-xs bg-transparent border border-neutral-200 dark:border-neutral-700/60 rounded-md px-2 py-1.5 text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 focus:outline-none focus:border-accent-400 cursor-pointer"
           @change="onLocaleChange"
         >
           <option v-for="opt in enabledLocaleOptions" :key="opt.code" :value="opt.code">{{ opt.label }}</option>
@@ -39,7 +77,7 @@
         <!-- Currency Select -->
         <select
           v-model="currentCurrency"
-          class="hidden sm:block text-xs bg-transparent border border-neutral-200 rounded-md px-2 py-1.5 text-neutral-600 focus:outline-none focus:border-accent-400 cursor-pointer"
+          class="hidden sm:block text-xs bg-transparent border border-neutral-200 dark:border-neutral-700/60 rounded-md px-2 py-1.5 text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 focus:outline-none focus:border-accent-400 cursor-pointer"
           @change="onCurrencyChange"
         >
           <option v-for="cur in availableCurrencies" :key="cur" :value="cur">{{ cur }}</option>
@@ -48,7 +86,7 @@
         <!-- Cart -->
         <NuxtLink
           :to="localePath('/cart')"
-          class="relative p-2 text-neutral-600 hover:text-neutral-900 transition-colors"
+          class="relative p-2 text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
         >
           <svg
             width="22"
@@ -76,7 +114,7 @@
         <div class="hidden sm:flex relative" ref="userMenuRef">
           <button
             v-if="!isAuthenticated"
-            class="p-2 text-neutral-600 hover:text-neutral-900 transition-colors"
+            class="p-2 text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
             @click="navigateTo(localePath('/login'))"
             :title="t('nav.login')"
           >
@@ -96,7 +134,7 @@
           </button>
           <button
             v-else
-            class="flex items-center gap-1.5 px-2 py-1.5 text-sm text-neutral-700 hover:text-neutral-900 rounded-md hover:bg-neutral-100 transition-colors"
+            class="flex items-center gap-1.5 px-2 py-1.5 text-sm text-neutral-700 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-neutral-100 rounded-md hover:bg-neutral-100 dark:bg-stone-800 transition-colors"
             @click="userDropdownOpen = !userDropdownOpen"
           >
             <svg
@@ -118,15 +156,15 @@
           <Transition name="user-dropdown">
             <div
               v-if="isAuthenticated && userDropdownOpen"
-              class="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border border-neutral-200 py-1 z-50"
+              class="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-stone-900 rounded-lg shadow-lg border border-neutral-200 dark:border-neutral-700/60 py-1 z-50"
             >
               <div class="px-4 py-2 border-b border-neutral-100">
-                <p class="text-sm font-medium text-neutral-900 truncate">{{ user?.name }}</p>
-                <p class="text-xs text-neutral-500 truncate">{{ user?.email }}</p>
+                <p class="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">{{ user?.name }}</p>
+                <p class="text-xs text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 truncate">{{ user?.email }}</p>
               </div>
               <NuxtLink
                 :to="localePath('/orders')"
-                class="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"
+                class="block px-4 py-2 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:bg-stone-950 transition-colors"
                 @click="userDropdownOpen = false"
               >
                 {{ t('nav.orders') }}
@@ -143,7 +181,7 @@
 
         <!-- Mobile Hamburger -->
         <button
-          class="md:hidden p-2 text-neutral-600 hover:text-neutral-900"
+          class="md:hidden p-2 text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100"
           @click="mobileMenuOpen = !mobileMenuOpen"
           aria-label="Toggle menu"
         >
@@ -171,7 +209,7 @@
             :class="
               route.path === link.to
                 ? 'bg-accent-50 text-accent-600'
-                : 'text-neutral-700 hover:bg-neutral-100'
+                : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:bg-stone-800'
             "
             @click="mobileMenuOpen = false"
           >
@@ -182,14 +220,14 @@
           <template v-if="!isAuthenticated">
             <NuxtLink
               :to="localePath('/login')"
-              class="text-lg font-medium px-4 py-3 rounded-lg transition-colors text-neutral-700 hover:bg-neutral-100"
+              class="text-lg font-medium px-4 py-3 rounded-lg transition-colors text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:bg-stone-800"
               @click="mobileMenuOpen = false"
             >
               {{ t('nav.login') }}
             </NuxtLink>
             <NuxtLink
               :to="localePath('/register')"
-              class="text-lg font-medium px-4 py-3 rounded-lg transition-colors text-neutral-700 hover:bg-neutral-100"
+              class="text-lg font-medium px-4 py-3 rounded-lg transition-colors text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:bg-stone-800"
               @click="mobileMenuOpen = false"
             >
               {{ t('nav.register') }}
@@ -203,22 +241,57 @@
             {{ t('nav.logout') }}
           </button>
         </nav>
-        <div class="border-t border-neutral-200 pt-4 flex flex-col gap-3">
+        <div class="border-t border-neutral-200 dark:border-neutral-700/60 pt-4 flex flex-col gap-3">
+          <button
+            type="button"
+            class="flex items-center justify-between w-full text-sm text-neutral-600 dark:text-neutral-400 hover:text-accent-600 transition-colors"
+            :aria-label="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+            @click="toggleTheme"
+          >
+            <span>{{ theme === 'dark' ? 'Light mode' : 'Dark mode' }}</span>
+            <svg
+              v-if="theme === 'dark'"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+            </svg>
+            <svg
+              v-else
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+          </button>
           <div class="flex items-center justify-between">
-            <label class="text-sm text-neutral-500">{{ t('nav.language') }}</label>
+            <label class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ t('nav.language') }}</label>
             <select
               v-model="currentLocale"
-              class="text-sm bg-transparent border border-neutral-200 rounded-md px-3 py-2 text-neutral-600 focus:outline-none focus:border-accent-400"
+              class="text-sm bg-transparent border border-neutral-200 dark:border-neutral-700/60 rounded-md px-3 py-2 text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 focus:outline-none focus:border-accent-400"
               @change="onLocaleChange"
             >
               <option v-for="opt in enabledLocaleOptions" :key="opt.code" :value="opt.code">{{ opt.label }}</option>
             </select>
           </div>
           <div class="flex items-center justify-between">
-            <label class="text-sm text-neutral-500">{{ t('nav.currency') }}</label>
+            <label class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ t('nav.currency') }}</label>
             <select
               v-model="currentCurrency"
-              class="text-sm bg-transparent border border-neutral-200 rounded-md px-3 py-2 text-neutral-600 focus:outline-none focus:border-accent-400"
+              class="text-sm bg-transparent border border-neutral-200 dark:border-neutral-700/60 rounded-md px-3 py-2 text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 focus:outline-none focus:border-accent-400"
               @change="onCurrencyChange"
             >
               <option v-for="cur in availableCurrencies" :key="cur" :value="cur">{{ cur }}</option>
@@ -247,6 +320,7 @@ const { isAuthenticated, user } = storeToRefs(authStore)
 const { logout, fetchUser } = authStore
 const { currency: currentCurrency, setCurrency } = useCurrency()
 const { profile, visibleNav, resolveText } = useSiteProfile()
+const { theme, toggleTheme } = useTheme()
 
 const mobileMenuOpen = ref(false)
 const userDropdownOpen = ref(false)

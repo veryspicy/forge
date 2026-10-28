@@ -1,5 +1,25 @@
 @import "tailwindcss";
 
+/* Self-hosted fonts (variable, latin) — theme-css may override --font-heading/--font-body
+   to 'Cormorant' / 'Montserrat' from site profile; these @font-face supply the actual files. */
+@font-face {
+  font-family: 'Cormorant';
+  src: url('../fonts/cormorant-latin-wght.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Montserrat';
+  src: url('../fonts/montserrat-latin-wght.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Dark mode: class strategy — toggled via html.dark (see AppHeader theme button) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   /* Typography: Luxury pairing — Cormorant (display) + Montserrat (body) */
   --font-heading: 'Cormorant', 'Times New Roman', serif;
@@ -94,6 +114,16 @@
     background: var(--color-neutral-50);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.3s ease-out-expo, color 0.3s ease-out-expo;
+  }
+  /* Dark theme base: warm ink background + warm paper text */
+  html.dark {
+    color: oklch(0.93 0.008 70);
+    background: oklch(0.145 0.004 70);
+  }
+  html.dark ::selection {
+    background: var(--color-accent-600);
+    color: #fff;
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-heading);
@@ -137,6 +167,16 @@
     box-shadow: var(--shadow-lg), inset 0 1px 0 oklch(1 0 0 / 0.12);
   }
 
+  /* Dark-mode surface overrides (keep glass identity, shift to ink) */
+  html.dark .glass-surface {
+    background: oklch(0.20 0.006 70 / 0.62);
+    border-color: oklch(1 0 0 / 0.10);
+    box-shadow: var(--shadow-lg), inset 0 1px 0 oklch(1 0 0 / 0.08);
+  }
+  html.dark .surface-elevated { background: oklch(0.18 0.005 70); box-shadow: var(--shadow-lg); }
+  html.dark .surface-subtle { background: oklch(0.24 0.005 70); }
+  html.dark .gradient-hero { background: linear-gradient(160deg, oklch(0.17 0.005 70), oklch(0.21 0.006 70) 45%, oklch(0.26 0.01 60)); }
+
   /* Gradients */
   .gradient-brand { background: linear-gradient(135deg, var(--color-primary-900), var(--color-primary-700)); }
   .gradient-gold { background: linear-gradient(135deg, var(--color-accent-500), var(--color-accent-300)); }
@@ -169,3 +209,16 @@
 /* Skeleton loading */
 .skeleton { background: linear-gradient(90deg, var(--color-neutral-200) 25%, var(--color-neutral-100) 50%, var(--color-neutral-200) 75%); background-size: 200% 100%; animation: skeleton-shimmer 1.5s infinite; }
 @keyframes skeleton-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* Typography application: luxury pairing by default (overridable per-element) */
+body {
+  font-family: var(--font-body), system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading), Georgia, 'Times New Roman', serif;
+  letter-spacing: -0.01em;
+}
+.font-heading { font-family: var(--font-heading), Georgia, 'Times New Roman', serif; }
+.font-body { font-family: var(--font-body), system-ui, -apple-system, 'Segoe UI', sans-serif; }

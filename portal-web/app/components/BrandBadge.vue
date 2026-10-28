@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <NuxtLink
     to="/"
     data-brand-name
@@ -23,18 +23,18 @@
       />
       <span
         v-else
-        class="px-1 text-center text-sm font-semibold text-gray-700 dark:text-gray-200"
+        class="px-1 text-center text-sm font-semibold text-neutral-700 dark:text-neutral-300 dark:text-neutral-200"
       >
         {{ brandName }}
       </span>
     </span>
     <!-- 品牌名称 + 品牌标语（三元素缺一不可） -->
     <span class="min-w-0 flex-1 flex flex-col justify-center leading-tight">
-      <span class="truncate text-sm font-semibold text-gray-800 dark:text-gray-100">
+      <span class="truncate text-sm font-semibold text-neutral-800 dark:text-neutral-200 dark:text-neutral-100">
         {{ brandName }}
       </span>
-      <span v-if="brandTagline" class="truncate text-xs text-gray-500">{{ brandTagline }}</span>
-      <span v-else class="text-xs text-gray-400">品牌标语（未设置）</span>
+      <span v-if="brandTagline" class="truncate text-xs text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ brandTagline }}</span>
+      <span v-else class="text-xs text-neutral-400 dark:text-neutral-400">品牌标语（未设置）</span>
     </span>
   </NuxtLink>
 </template>

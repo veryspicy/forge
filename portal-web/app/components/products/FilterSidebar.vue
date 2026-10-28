@@ -2,18 +2,18 @@
   <div class="space-y-6">
     <!-- Category Filter -->
     <div>
-      <h3 class="text-sm font-semibold text-gray-900 mb-3">{{ $t('products.category') }}</h3>
+      <h3 class="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-3">{{ $t('products.category') }}</h3>
       <div class="space-y-2">
         <label
           v-for="cat in categories"
           :key="cat.value"
-          class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer hover:text-gray-900"
+          class="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 cursor-pointer hover:text-neutral-900 dark:hover:text-neutral-100"
         >
           <input
             type="checkbox"
             :value="cat.value"
             :checked="selectedCategories.includes(cat.value)"
-            class="rounded border-gray-300 text-accent-600 focus:ring-accent-500"
+            class="rounded border-neutral-300 dark:border-neutral-700 text-accent-600 focus:ring-accent-500"
             @change="toggleCategory(cat.value)"
           />
           {{ cat.label }}
@@ -23,21 +23,21 @@
 
     <!-- Price Range -->
     <div>
-      <h3 class="text-sm font-semibold text-gray-900 mb-3">{{ $t('products.priceRange') }}</h3>
+      <h3 class="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-3">{{ $t('products.priceRange') }}</h3>
       <div class="flex items-center gap-2">
         <input
           v-model.number="priceMin"
           type="number"
           min="0"
-          class="w-20 px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-accent-500 focus:border-accent-500"
+          class="w-20 px-2 py-1.5 text-sm border border-neutral-300 dark:border-neutral-700 rounded-md focus:outline-none focus:ring-accent-500 focus:border-accent-500"
           placeholder="$0"
         />
-        <span class="text-gray-400">-</span>
+        <span class="text-neutral-400 dark:text-neutral-400">-</span>
         <input
           v-model.number="priceMax"
           type="number"
           min="0"
-          class="w-20 px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-accent-500 focus:border-accent-500"
+          class="w-20 px-2 py-1.5 text-sm border border-neutral-300 dark:border-neutral-700 rounded-md focus:outline-none focus:ring-accent-500 focus:border-accent-500"
           placeholder="$999"
         />
       </div>
@@ -45,12 +45,12 @@
 
     <!-- Rating Filter -->
     <div>
-      <h3 class="text-sm font-semibold text-gray-900 mb-3">{{ $t('products.rating') }}</h3>
+      <h3 class="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-3">{{ $t('products.rating') }}</h3>
       <div class="space-y-2">
         <label
           v-for="r in ratings"
           :key="r"
-          class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer hover:text-gray-900"
+          class="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 cursor-pointer hover:text-neutral-900 dark:hover:text-neutral-100"
         >
           <input
             type="radio"

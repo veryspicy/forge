@@ -7,7 +7,7 @@
 
     <!-- 错误状态 -->
     <div v-else-if="error" class="py-16 text-center">
-      <p class="mb-4 text-gray-500">{{ $t('common.loadFailed') || 'Failed to load page' }}</p>
+      <p class="mb-4 text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ $t('common.loadFailed') || 'Failed to load page' }}</p>
       <button
         class="rounded-lg bg-accent-600 px-6 py-2 font-semibold text-white transition hover:bg-accent-500"
         @click="$emit('retry')"
@@ -28,7 +28,7 @@
     </template>
 
     <!-- 空状态 -->
-    <div v-else class="py-16 text-center text-gray-400">
+    <div v-else class="py-16 text-center text-neutral-400 dark:text-neutral-400">
       {{ $t('common.empty') || 'No content' }}
     </div>
   </div>

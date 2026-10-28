@@ -10,7 +10,7 @@
             <li v-for="link in group.links" :key="link.labelKey + link.to">
               <NuxtLink
                 :to="localePath(normalizeTo(link.to))"
-                class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors"
+                class="text-sm text-neutral-400 dark:text-neutral-400 hover:text-neutral-100 transition-colors"
               >
                 {{ safeT(link.labelKey, link.label) }}
               </NuxtLink>
@@ -28,7 +28,7 @@
           <h4 class="text-base font-heading font-semibold text-neutral-100">
             {{ t('footer.stayInLoop') }}
           </h4>
-          <p class="text-sm text-neutral-400 mt-0.5">
+          <p class="text-sm text-neutral-400 dark:text-neutral-400 mt-0.5">
             {{ t('footer.newsletterHint') }}
           </p>
         </div>
@@ -66,7 +66,7 @@
             rel="noopener noreferrer"
             :aria-label="item.platform"
             :title="item.platform"
-            class="flex h-[42px] w-[42px] items-center justify-center rounded-full border border-neutral-200 text-neutral-100 transition-colors hover:border-accent-400 hover:bg-accent-600/20 hover:text-accent-300"
+            class="flex h-[42px] w-[42px] items-center justify-center rounded-full border border-neutral-200 dark:border-neutral-700/60 text-neutral-100 transition-colors hover:border-accent-400 hover:bg-accent-600/20 hover:text-accent-300"
           >
             <svg
               width="24"
@@ -84,10 +84,10 @@
       <div class="border-t border-neutral-800 my-8" />
 
       <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
-        <p data-copyright class="text-sm text-neutral-500">
+        <p data-copyright class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">
           {{ profile.footer.copyright || t('footer.copyright') || '© 2026 Forge' }}
         </p>
-        <p class="text-sm text-neutral-500">
+        <p class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">
           {{ t('footer.paymentMethods') }}
         </p>
       </div>

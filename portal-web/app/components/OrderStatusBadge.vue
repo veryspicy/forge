@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <span class="inline-flex items-center gap-2">
     <span
       class="inline-block px-3 py-1 rounded-full text-xs font-medium"
@@ -41,7 +41,7 @@ const statusClass = computed(() => {
     refunded: 'bg-red-100 text-red-800',
     partially_refunded: 'bg-orange-100 text-orange-800',
   }
-  return map[props.status] || 'bg-gray-100 text-gray-800'
+  return map[props.status] || 'bg-neutral-100 dark:bg-stone-800 text-neutral-800 dark:text-neutral-200'
 })
 
 const statusLabel = computed(() => {
@@ -74,6 +74,6 @@ const paymentClass = computed(() => {
     refunded: 'bg-red-100 text-red-800',
     partially_refunded: 'bg-orange-100 text-orange-800',
   }
-  return map[String(props.paymentStatus)] || 'bg-gray-100 text-gray-800'
+  return map[String(props.paymentStatus)] || 'bg-neutral-100 dark:bg-stone-800 text-neutral-800 dark:text-neutral-200'
 })
 </script>

@@ -1,6 +1,6 @@
 ﻿<template>
   <section v-if="items.length" class="mx-auto max-w-6xl px-4 py-6">
-    <h2 v-if="config.title" class="mb-4 text-xl font-bold text-gray-900">{{ config.title }}</h2>
+    <h2 v-if="config.title" class="mb-4 text-xl font-bold text-neutral-900 dark:text-neutral-100">{{ config.title }}</h2>
     <div
       class="diy-nav-grid grid gap-4"
       :style="{ '--cols': String(config.columns || 4), '--mcols': String(Math.min(config.columns || 4, 4)) }"
@@ -16,7 +16,7 @@
         >
           {{ (item.text || '?').charAt(0) }}
         </div>
-        <span class="text-center text-xs text-gray-700 md:text-sm">{{ item.text }}</span>
+        <span class="text-center text-xs text-neutral-700 dark:text-neutral-300 md:text-sm">{{ item.text }}</span>
       </NuxtLink>
     </div>
   </section>

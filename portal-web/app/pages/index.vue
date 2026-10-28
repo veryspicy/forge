@@ -47,7 +47,7 @@
         <button
           v-if="maxIndex > 0"
           @click="prevSlide"
-          class="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition"
+          class="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white dark:hover:bg-stone-900 text-neutral-800 dark:text-neutral-200 w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition"
           aria-label="Previous slide"
         >
           ‹
@@ -55,7 +55,7 @@
         <button
           v-if="maxIndex > 0"
           @click="nextSlide"
-          class="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition"
+          class="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white dark:hover:bg-stone-900 text-neutral-800 dark:text-neutral-200 w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition"
           aria-label="Next slide"
         >
           ›
@@ -67,7 +67,7 @@
             :key="idx"
             @click="goToSlide(idx)"
             class="w-2.5 h-2.5 rounded-full transition"
-            :class="activeIndex === idx ? 'bg-white' : 'bg-white/50 hover:bg-white/70'"
+            :class="activeIndex === idx ? 'bg-white dark:bg-stone-900' : 'bg-white/50 hover:bg-white/70'"
             :aria-label="`Go to slide ${idx + 1}`"
           />
         </div>
@@ -89,7 +89,7 @@
         <div class="flex justify-center gap-4">
           <NuxtLink
             :to="localePath(cta1To)"
-            class="px-6 py-3 bg-white text-primary-700 rounded-lg hover:bg-gray-100 transition font-semibold"
+            class="px-6 py-3 bg-white dark:bg-stone-900 text-primary-700 rounded-lg hover:bg-neutral-100 dark:bg-stone-800 transition font-semibold"
           >
             {{ cta1 }}
           </NuxtLink>
@@ -105,11 +105,11 @@
 
     <section
       v-if="hasFeature('show_tailored_pets') && isLoggedIn && petStore.pets.length > 0"
-      class="bg-gray-50 py-12"
+      class="bg-neutral-50 dark:bg-stone-950 py-12"
     >
       <div class="max-w-6xl mx-auto px-4">
         <div class="flex items-center justify-between mb-6">
-          <h2 class="text-2xl font-bold text-gray-900">
+          <h2 class="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
             Tailored for Your Pet
           </h2>
           <NuxtLink :to="localePath('/chat')" class="text-sm text-accent-600 hover:text-accent-700 font-medium">
@@ -118,7 +118,7 @@
         </div>
 
         <div v-if="recLoading" class="text-center py-8">
-          <div class="animate-pulse text-gray-400">Loading personalized recommendations...</div>
+          <div class="animate-pulse text-neutral-400 dark:text-neutral-400">Loading personalized recommendations...</div>
         </div>
 
         <div v-else-if="tailoredProducts.length > 0" class="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -135,10 +135,11 @@
                 class="w-full h-24 object-cover rounded-lg mb-3"
               />
               <div v-else class="w-full h-24 bg-gradient-to-br from-primary-100 to-primary-200 rounded-lg mb-3 flex items-center justify-center">
-                <span class="text-3xl">{{ productIcon(product.product_name) }}</span>
+<!-- eslint-disable-next-line vue/no-v-html -->
+                <span class="text-3xl" v-html="productIcon(product.product_name)" />
               </div>
-              <h3 class="text-sm font-semibold text-gray-800 truncate">{{ product.product_name }}</h3>
-              <p class="text-xs text-gray-500 mt-1 truncate">{{ product.reason }}</p>
+              <h3 class="text-sm font-semibold text-neutral-800 dark:text-neutral-200 truncate">{{ product.product_name }}</h3>
+              <p class="text-xs text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mt-1 truncate">{{ product.reason }}</p>
               <div class="flex items-center justify-between mt-3">
                 <span class="text-xs px-2 py-0.5 bg-accent-100 text-accent-700 rounded-full font-medium">
                   {{ Math.round(product.confidence * 100) }}% match
@@ -149,7 +150,7 @@
           </div>
         </div>
 
-        <div v-else class="text-center py-8 text-gray-500">
+        <div v-else class="text-center py-8 text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">
           No recommendations yet. Visit the
           <NuxtLink :to="localePath('/pets')" class="text-accent-600 font-medium">pets page</NuxtLink>
           to get started.
@@ -159,7 +160,7 @@
 
     <section v-if="hasFeature('show_categories_section') && visibleCategories.length > 0" class="py-12">
       <div class="max-w-6xl mx-auto px-4">
-        <h2 class="text-3xl font-semibold text-gray-900 mb-6">{{ t('home.categories') || 'Shop by Category' }}</h2>
+        <h2 class="text-3xl font-semibold text-neutral-900 dark:text-neutral-100 mb-6">{{ t('home.categories') || 'Shop by Category' }}</h2>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <NuxtLink
             v-for="cat in visibleCategories"
@@ -172,8 +173,8 @@
               :src="cat.image"
               class="w-16 h-16 mx-auto rounded-lg object-cover mb-3"
             />
-            <div v-else class="text-4xl mb-3">{{ cat.icon }}</div>
-            <h3 class="text-sm font-semibold text-gray-800 group-hover:text-accent-600 transition">
+            <div v-else class="text-4xl mb-3 text-neutral-700 dark:text-neutral-300" v-html="productIcon(cat.name || cat.slug)" />
+            <h3 class="text-sm font-semibold text-neutral-800 dark:text-neutral-200 group-hover:text-accent-600 transition">
               {{ safeT(cat.nameKey, cat.name, cat.slug) }}
             </h3>
           </NuxtLink>
@@ -181,9 +182,9 @@
       </div>
     </section>
 
-    <section v-if="hasFeature('show_featured_products')" class="py-12 bg-gray-50">
+    <section v-if="hasFeature('show_featured_products')" class="py-12 bg-neutral-50 dark:bg-stone-950">
       <div class="max-w-6xl mx-auto px-4">
-        <h2 class="text-3xl font-semibold text-gray-900 mb-6">{{ t('home.featured') || 'Featured Products' }}</h2>
+        <h2 class="text-3xl font-semibold text-neutral-900 dark:text-neutral-100 mb-6">{{ t('home.featured') || 'Featured Products' }}</h2>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div
             v-for="prod in featuredProducts"
@@ -197,10 +198,11 @@
                 class="w-full h-32 object-cover rounded-lg mb-3"
               />
               <div v-else class="w-full h-32 bg-gradient-to-br from-primary-50 to-primary-100 rounded-lg mb-3 flex items-center justify-center">
-                <span class="text-4xl">{{ productIcon(prod.name) }}</span>
+<!-- eslint-disable-next-line vue/no-v-html -->
+                <span class="text-4xl" v-html="productIcon(prod.name)" />
               </div>
-              <h3 class="text-sm font-semibold text-gray-800 truncate">{{ prod.name }}</h3>
-              <p class="text-xs text-gray-500 mt-1 line-clamp-1">{{ prod.description }}</p>
+              <h3 class="text-sm font-semibold text-neutral-800 dark:text-neutral-200 truncate">{{ prod.name }}</h3>
+              <p class="text-xs text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mt-1 line-clamp-1">{{ prod.description }}</p>
               <div class="flex items-center justify-between mt-3">
                 <span class="text-sm font-bold text-accent-700">${{ prod.price }}</span>
                 <span class="text-xs text-yellow-500">{{ '★'.repeat(Math.round(prod.rating || 0)) }}</span>
@@ -217,8 +219,8 @@
     >
       <div class="max-w-6xl mx-auto px-4">
         <div class="bg-gradient-to-r from-primary-50 to-primary-100 rounded-2xl p-8 text-center">
-          <h2 class="text-2xl font-bold text-gray-900 mb-3">{{ t('home.aiTeaser') || 'AI-Powered Recommendations' }}</h2>
-          <p class="text-gray-600 mb-6 max-w-xl mx-auto">
+          <h2 class="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mb-3">{{ t('home.aiTeaser') || 'AI-Powered Recommendations' }}</h2>
+          <p class="text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 mb-6 max-w-xl mx-auto">
             {{ t('home.aiTeaserDesc') || 'Tell us about your pet and our AI will recommend the perfect products for their breed, age, and health needs.' }}
           </p>
           <NuxtLink
@@ -235,6 +237,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { productIcon } from '~/utils/iconSvgs'
 import { usePetStore } from '~/stores/pet'
 import { useAuthStore } from '~/stores/auth'
 import { useApi } from '~/composables/useApi'
@@ -354,18 +357,6 @@ const cta2To = computed(() => {
 const featuredProducts = ref<any[]>([])
 const tailoredProducts = ref<any[]>([])
 const recLoading = ref(false)
-
-function productIcon(name: string): string {
-  const nameLower = name?.toLowerCase() || ''
-  if (nameLower.includes('food') || nameLower.includes('kibble') || nameLower.includes('treat')) return '🍖'
-  if (nameLower.includes('toy') || nameLower.includes('ball') || nameLower.includes('chew')) return '🎾'
-  if (nameLower.includes('bed') || nameLower.includes('crate')) return '🛏️'
-  if (nameLower.includes('collar') || nameLower.includes('leash') || nameLower.includes('harness')) return '🦮'
-  if (nameLower.includes('shampoo') || nameLower.includes('brush') || nameLower.includes('groom')) return '✂️'
-  if (nameLower.includes('health') || nameLower.includes('vitamin') || nameLower.includes('supplement')) return '💊'
-  if (nameLower.includes('litter') || nameLower.includes('pad') || nameLower.includes('potty')) return '🧹'
-  return '📦'
-}
 
 async function loadTailoredRecs() {
   if (!isLoggedIn.value || petStore.pets.length === 0) return
