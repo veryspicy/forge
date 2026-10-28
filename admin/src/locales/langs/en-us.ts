@@ -803,17 +803,10 @@ const local: App.I18n.Schema = {
     },
     settings: {
       adminEmail: 'Admin Email',
-      autoReview: 'Auto Review',
       defaultCurrency: 'Default Currency',
       emailNotifications: 'Email Notifications',
-      expiryHours: 'Expiry (hours)',
-      maxItemsPerOrder: 'Max Items Per Order',
       orderAlerts: 'Order Alerts',
-      orderPrefix: 'Order Prefix',
-      orderSettings: 'Order Settings',
-      saveAllSettings: 'Save All Settings',
-      storeName: 'Store Name',
-      storeSettings: 'Store Settings'
+      saveAllSettings: 'Save All Settings'
     },
     modelManagement: {
       title: 'Model Management',
