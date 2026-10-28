@@ -1,5 +1,5 @@
 ﻿<template>
-  <header data-region="header" class="sticky top-0 z-50 bg-neutral-50/95 backdrop-blur shadow-sm">
+  <header data-region="header" class="sticky top-0 z-50 glass-surface border-b border-neutral-200/60 shadow-sm">
     <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
       <!-- Brand -->
       <BrandBadge />
@@ -13,14 +13,14 @@
           class="relative px-3 py-2 text-sm font-medium rounded-md transition-colors"
           :class="
             route.path === link.to
-              ? 'text-primary-600'
+              ? 'text-accent-600'
               : 'text-neutral-600 hover:text-neutral-900'
           "
         >
           {{ link.label }}
           <span
             v-if="route.path === link.to"
-            class="absolute bottom-0 left-1/2 -translate-x-1/2 w-5 h-0.5 bg-primary-500 rounded-full"
+            class="absolute bottom-0 left-1/2 -translate-x-1/2 w-5 h-0.5 bg-accent-500 rounded-full"
           />
         </NuxtLink>
       </nav>
@@ -30,7 +30,7 @@
         <!-- Language Select：选项由站点 i18n 配置驱动，支持任意启用语言 -->
         <select
           v-model="currentLocale"
-          class="hidden sm:block text-xs bg-transparent border border-neutral-200 rounded-md px-2 py-1.5 text-neutral-600 focus:outline-none focus:border-primary-400 cursor-pointer"
+          class="hidden sm:block text-xs bg-transparent border border-neutral-200 rounded-md px-2 py-1.5 text-neutral-600 focus:outline-none focus:border-accent-400 cursor-pointer"
           @change="onLocaleChange"
         >
           <option v-for="opt in enabledLocaleOptions" :key="opt.code" :value="opt.code">{{ opt.label }}</option>
@@ -39,7 +39,7 @@
         <!-- Currency Select -->
         <select
           v-model="currentCurrency"
-          class="hidden sm:block text-xs bg-transparent border border-neutral-200 rounded-md px-2 py-1.5 text-neutral-600 focus:outline-none focus:border-primary-400 cursor-pointer"
+          class="hidden sm:block text-xs bg-transparent border border-neutral-200 rounded-md px-2 py-1.5 text-neutral-600 focus:outline-none focus:border-accent-400 cursor-pointer"
           @change="onCurrencyChange"
         >
           <option v-for="cur in availableCurrencies" :key="cur" :value="cur">{{ cur }}</option>
@@ -160,7 +160,7 @@
     <Transition name="mobile-menu">
       <div
         v-if="mobileMenuOpen"
-        class="md:hidden fixed inset-0 top-16 bg-neutral-50 z-40 px-4 py-6 flex flex-col gap-6"
+        class="md:hidden fixed inset-0 top-16 glass-surface z-40 px-4 py-6 flex flex-col gap-6"
       >
         <nav data-nav-mobile class="flex flex-col gap-2">
           <NuxtLink
@@ -170,7 +170,7 @@
             class="text-lg font-medium px-4 py-3 rounded-lg transition-colors"
             :class="
               route.path === link.to
-                ? 'bg-primary-50 text-primary-600'
+                ? 'bg-accent-50 text-accent-600'
                 : 'text-neutral-700 hover:bg-neutral-100'
             "
             @click="mobileMenuOpen = false"
@@ -208,7 +208,7 @@
             <label class="text-sm text-neutral-500">{{ t('nav.language') }}</label>
             <select
               v-model="currentLocale"
-              class="text-sm bg-transparent border border-neutral-200 rounded-md px-3 py-2 text-neutral-600 focus:outline-none focus:border-primary-400"
+              class="text-sm bg-transparent border border-neutral-200 rounded-md px-3 py-2 text-neutral-600 focus:outline-none focus:border-accent-400"
               @change="onLocaleChange"
             >
               <option v-for="opt in enabledLocaleOptions" :key="opt.code" :value="opt.code">{{ opt.label }}</option>
@@ -218,7 +218,7 @@
             <label class="text-sm text-neutral-500">{{ t('nav.currency') }}</label>
             <select
               v-model="currentCurrency"
-              class="text-sm bg-transparent border border-neutral-200 rounded-md px-3 py-2 text-neutral-600 focus:outline-none focus:border-primary-400"
+              class="text-sm bg-transparent border border-neutral-200 rounded-md px-3 py-2 text-neutral-600 focus:outline-none focus:border-accent-400"
               @change="onCurrencyChange"
             >
               <option v-for="cur in availableCurrencies" :key="cur" :value="cur">{{ cur }}</option>

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div>
     <section v-if="profile.homeHero.useCarousel" class="carousel-section">
       <div class="relative w-full overflow-hidden">
@@ -80,7 +80,7 @@
       :style="heroBackgroundStyle"
     >
       <div class="max-w-6xl mx-auto px-4 text-center">
-        <h1 class="text-4xl md:text-5xl font-bold mb-4">
+        <h1 class="text-5xl md:text-7xl font-semibold tracking-tight mb-4">
           {{ title }}
         </h1>
         <p class="text-lg text-primary-100 mb-8 max-w-2xl mx-auto">
@@ -95,7 +95,7 @@
           </NuxtLink>
           <NuxtLink
             :to="localePath(cta2To)"
-            class="px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-400 transition font-semibold border border-primary-300"
+            class="px-6 py-3 bg-accent-600 text-white rounded-lg hover:bg-accent-500 transition font-semibold border border-accent-400/40 shadow-lg shadow-accent-600/20"
           >
             {{ cta2 }}
           </NuxtLink>
@@ -112,7 +112,7 @@
           <h2 class="text-2xl font-bold text-gray-900">
             Tailored for Your Pet
           </h2>
-          <NuxtLink :to="localePath('/chat')" class="text-sm text-primary-600 hover:text-primary-700 font-medium">
+          <NuxtLink :to="localePath('/chat')" class="text-sm text-accent-600 hover:text-accent-700 font-medium">
             Ask AI for more →
           </NuxtLink>
         </div>
@@ -125,7 +125,7 @@
           <div
             v-for="product in tailoredProducts"
             :key="product.product_id"
-            class="bg-white rounded-xl shadow-sm border hover:shadow-md transition cursor-pointer"
+            class="glass-surface rounded-xl shadow-sm hover:shadow-md transition cursor-pointer"
             @click="navigateTo(localePath(`/products/${product.product_id}`))"
           >
             <div class="p-4">
@@ -140,10 +140,10 @@
               <h3 class="text-sm font-semibold text-gray-800 truncate">{{ product.product_name }}</h3>
               <p class="text-xs text-gray-500 mt-1 truncate">{{ product.reason }}</p>
               <div class="flex items-center justify-between mt-3">
-                <span class="text-xs px-2 py-0.5 bg-primary-100 text-primary-700 rounded-full font-medium">
+                <span class="text-xs px-2 py-0.5 bg-accent-100 text-accent-700 rounded-full font-medium">
                   {{ Math.round(product.confidence * 100) }}% match
                 </span>
-                <span class="text-xs text-primary-600 font-medium">View →</span>
+                <span class="text-xs text-accent-600 font-medium">View →</span>
               </div>
             </div>
           </div>
@@ -151,7 +151,7 @@
 
         <div v-else class="text-center py-8 text-gray-500">
           No recommendations yet. Visit the
-          <NuxtLink :to="localePath('/pets')" class="text-primary-600 font-medium">pets page</NuxtLink>
+          <NuxtLink :to="localePath('/pets')" class="text-accent-600 font-medium">pets page</NuxtLink>
           to get started.
         </div>
       </div>
@@ -159,13 +159,13 @@
 
     <section v-if="hasFeature('show_categories_section') && visibleCategories.length > 0" class="py-12">
       <div class="max-w-6xl mx-auto px-4">
-        <h2 class="text-2xl font-bold text-gray-900 mb-6">{{ t('home.categories') || 'Shop by Category' }}</h2>
+        <h2 class="text-3xl font-semibold text-gray-900 mb-6">{{ t('home.categories') || 'Shop by Category' }}</h2>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <NuxtLink
             v-for="cat in visibleCategories"
             :key="cat.slug"
             :to="localePath({ path: '/products', query: { category: cat.slug } })"
-            class="bg-white rounded-xl shadow-sm border p-6 text-center hover:shadow-md transition group"
+            class="glass-surface rounded-xl shadow-sm p-6 text-center hover:shadow-md transition group"
           >
             <img
               v-if="cat.image"
@@ -173,7 +173,7 @@
               class="w-16 h-16 mx-auto rounded-lg object-cover mb-3"
             />
             <div v-else class="text-4xl mb-3">{{ cat.icon }}</div>
-            <h3 class="text-sm font-semibold text-gray-800 group-hover:text-primary-600 transition">
+            <h3 class="text-sm font-semibold text-gray-800 group-hover:text-accent-600 transition">
               {{ safeT(cat.nameKey, cat.name, cat.slug) }}
             </h3>
           </NuxtLink>
@@ -183,12 +183,12 @@
 
     <section v-if="hasFeature('show_featured_products')" class="py-12 bg-gray-50">
       <div class="max-w-6xl mx-auto px-4">
-        <h2 class="text-2xl font-bold text-gray-900 mb-6">{{ t('home.featured') || 'Featured Products' }}</h2>
+        <h2 class="text-3xl font-semibold text-gray-900 mb-6">{{ t('home.featured') || 'Featured Products' }}</h2>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div
             v-for="prod in featuredProducts"
             :key="prod.id"
-            class="bg-white rounded-xl shadow-sm border hover:shadow-md transition"
+            class="glass-surface rounded-xl shadow-sm hover:shadow-md transition"
           >
             <NuxtLink :to="localePath(`/products/${prod.id}`)" class="block p-4">
               <img
@@ -202,7 +202,7 @@
               <h3 class="text-sm font-semibold text-gray-800 truncate">{{ prod.name }}</h3>
               <p class="text-xs text-gray-500 mt-1 line-clamp-1">{{ prod.description }}</p>
               <div class="flex items-center justify-between mt-3">
-                <span class="text-sm font-bold text-primary-700">${{ prod.price }}</span>
+                <span class="text-sm font-bold text-accent-700">${{ prod.price }}</span>
                 <span class="text-xs text-yellow-500">{{ '★'.repeat(Math.round(prod.rating || 0)) }}</span>
               </div>
             </NuxtLink>
@@ -223,7 +223,7 @@
           </p>
           <NuxtLink
             :to="localePath('/chat')"
-            class="inline-block px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-semibold"
+            class="inline-block px-6 py-3 bg-accent-600 text-white rounded-lg hover:bg-accent-500 transition font-semibold shadow-lg shadow-accent-600/20"
           >
             {{ t('home.startChat') || 'Start AI Chat' }}
           </NuxtLink>
