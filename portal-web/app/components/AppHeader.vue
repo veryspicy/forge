@@ -1,5 +1,9 @@
 ﻿<template>
-  <header data-region="header" class="sticky top-0 z-50 glass-surface border-b border-neutral-200/60 shadow-sm">
+  <header
+    data-region="header"
+    class="sticky top-0 z-50 glass-surface border-b border-neutral-200/60 shadow-sm"
+    :class="{ 'scrolled-glass': scrolled }"
+  >
     <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
       <!-- Brand -->
       <BrandBadge />

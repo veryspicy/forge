@@ -1,6 +1,8 @@
 // Forge — Scroll Reveal Directive (v-reveal)
 // Lightweight IntersectionObserver-based reveal with stagger support.
 // Respects prefers-reduced-motion: renders final state immediately.
+// Registers on both SSR and client so SSR render resolves the directive
+// (getSSRProps returns empty props; lifecycle hooks are client-only).
 // Usage: v-reveal  or  v-reveal="{ delay: 80 }"
 export default defineNuxtPlugin((nuxtApp) => {
   const prefersReduced =
@@ -17,6 +19,10 @@ export default defineNuxtPlugin((nuxtApp) => {
   }
 
   nuxtApp.vueApp.directive('reveal', {
+    getSSRProps() {
+      // SSR: render element in final visible state, no extra attrs needed.
+      return {}
+    },
     mounted(el: HTMLElement, binding) {
       if (prefersReduced) {
         el.classList.add('reveal-in')
