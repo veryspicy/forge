@@ -108,10 +108,11 @@ function close() {
 <style scoped>
 .drawer-enter-active,
 .drawer-leave-active {
-  transition: opacity 0.25s ease;
+  transition: opacity 0.25s var(--ease-out-expo), transform 0.3s var(--ease-out-expo);
 }
 .drawer-enter-from,
 .drawer-leave-to {
   opacity: 0;
+  transform: translateX(40px);
 }
 </style>

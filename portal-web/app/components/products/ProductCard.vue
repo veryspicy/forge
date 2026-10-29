@@ -17,7 +17,7 @@
   <NuxtLink
     v-else
     :to="localePath(`/products/${product.slug || product.id}`)"
-    class="surface-elevated rounded-xl overflow-hidden block relative group transition-all duration-300 ease-out-expo hover:shadow-lg hover:-translate-y-1"
+    class="surface-elevated rounded-xl overflow-hidden block relative group pressable transition-all duration-300 ease-out-expo hover:shadow-lg hover:-translate-y-1"
   >
     <!-- Image area -->
     <div class="h-48 bg-neutral-200 dark:bg-stone-800 flex items-center justify-center text-neutral-400 dark:text-neutral-400 text-sm overflow-hidden">

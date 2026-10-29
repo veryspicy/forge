@@ -19,8 +19,9 @@
         class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
       >
         <NuxtLink
-          v-for="p in products"
+          v-for="(p, idx) in products"
           :key="p.id"
+          v-reveal="{ delay: Math.min(idx, 11) * 50 }"
           :to="localePath(`/products/${p.id}`)"
           class="bg-white dark:bg-stone-900 rounded-xl shadow-sm border hover:shadow-md transition p-4"
         >
