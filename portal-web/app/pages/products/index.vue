@@ -49,11 +49,13 @@
           v-else-if="productStore.products.length > 0"
           class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
         >
-          <ProductCard
-            v-for="product in productStore.products"
+          <div
+            v-for="(product, idx) in productStore.products"
             :key="product.id"
-            :product="product"
-          />
+            v-reveal="{ delay: Math.min(idx, 11) * 50 }"
+          >
+            <ProductCard :product="product" />
+          </div>
         </div>
 
         <!-- Empty -->

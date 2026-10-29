@@ -10,14 +10,21 @@
       class="diy-goods-grid grid grid-cols-2 gap-3 md:gap-4"
       :style="{ '--cols': String(config.columns || 2) }"
     >
-      <ProductCard v-for="p in products" :key="p.id" :product="p" />
+      <div
+        v-for="(p, idx) in products"
+        :key="p.id"
+        v-reveal="{ delay: Math.min(idx, 11) * 50 }"
+      >
+        <ProductCard :product="p" />
+      </div>
     </div>
 
     <!-- list 布局 -->
     <div v-else-if="layout === 'list'" class="flex flex-col gap-3">
       <NuxtLink
-        v-for="p in products"
+        v-for="(p, idx) in products"
         :key="p.id"
+        v-reveal="{ delay: Math.min(idx, 11) * 50 }"
         :to="localePath(`/products/${p.slug || p.id}`)"
         class="flex gap-4 rounded-xl border bg-white dark:bg-stone-900 p-3 transition hover:shadow-md"
       >

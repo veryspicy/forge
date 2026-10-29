@@ -17,7 +17,13 @@
       class="diy-goods-grid grid grid-cols-2 gap-3 md:gap-4"
       :style="{ '--cols': String(config.columns || 2) }"
     >
-      <ProductCard v-for="p in activeProducts" :key="p.id" :product="p" />
+      <div
+        v-for="(p, idx) in activeProducts"
+        :key="p.id"
+        v-reveal="{ delay: Math.min(idx, 11) * 50 }"
+      >
+        <ProductCard :product="p" />
+      </div>
     </div>
     <div v-if="!activeProducts.length" class="py-8 text-center text-sm text-neutral-400 dark:text-neutral-400">
       No products in this group

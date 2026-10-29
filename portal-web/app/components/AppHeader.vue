@@ -328,6 +328,29 @@ const userMenuRef = ref<HTMLElement | null>(null)
 const currentLocale = ref(locale.value)
 watch(locale, (val) => { currentLocale.value = val })
 
+// Scroll-aware glass: deepen blur + lift shadow once the page scrolls
+// Click outside to close dropdown
+function onClickOutside(e: MouseEvent) {
+  if (userMenuRef.value && !userMenuRef.value.contains(e.target as Node)) {
+    userDropdownOpen.value = false
+  }
+}
+const scrolled = ref(false)
+function onScroll() {
+  scrolled.value = window.scrollY > 8
+}
+onMounted(() => {
+  document.addEventListener('click', onClickOutside)
+  window.addEventListener('scroll', onScroll, { passive: true })
+  onScroll()
+  fetchUser()
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', onClickOutside)
+  window.removeEventListener('scroll', onScroll)
+})
+
 // ---- 语言选项：由站点 i18n 配置驱动（profile.i18n.locales） ----
 const LOCALE_LABELS: Record<string, string> = {
   en: 'EN', 'zh': 'ZH', 'zh-CN': '简体中文', 'zh-TW': '繁體中文',
@@ -383,25 +406,15 @@ function handleLogout() {
   userDropdownOpen.value = false
   mobileMenuOpen.value = false
 }
-
-// Click outside to close dropdown
-function onClickOutside(e: MouseEvent) {
-  if (userMenuRef.value && !userMenuRef.value.contains(e.target as Node)) {
-    userDropdownOpen.value = false
-  }
-}
-
-onMounted(() => {
-  document.addEventListener('click', onClickOutside)
-  fetchUser()
-})
-
-onUnmounted(() => {
-  document.removeEventListener('click', onClickOutside)
-})
 </script>
 
 <style scoped>
+header.scrolled-glass {
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  box-shadow: var(--shadow-lg);
+  border-color: oklch(0.16 0.004 70 / 0.14);
+}
 .mobile-menu-enter-active {
   transition: opacity 0.25s ease-out;
 }

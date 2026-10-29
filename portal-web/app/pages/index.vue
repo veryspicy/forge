@@ -123,8 +123,9 @@
 
         <div v-else-if="tailoredProducts.length > 0" class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div
-            v-for="product in tailoredProducts"
+            v-for="(product, idx) in tailoredProducts"
             :key="product.product_id"
+            v-reveal="{ delay: Math.min(idx, 7) * 60 }"
             class="glass-surface rounded-xl shadow-sm hover:shadow-md transition cursor-pointer"
             @click="navigateTo(localePath(`/products/${product.product_id}`))"
           >
@@ -160,11 +161,13 @@
 
     <section v-if="hasFeature('show_categories_section') && visibleCategories.length > 0" class="py-12">
       <div class="max-w-6xl mx-auto px-4">
-        <h2 class="text-3xl font-semibold text-neutral-900 dark:text-neutral-100 mb-6">{{ t('home.categories') || 'Shop by Category' }}</h2>
+        <h2 v-reveal class="text-3xl font-semibold text-neutral-900 dark:text-neutral-100 mb-6">{{ t('home.categories') || 'Shop by Category' }}</h2>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <NuxtLink
-            v-for="cat in visibleCategories"
+            v-for="(cat, idx) in visibleCategories"
             :key="cat.slug"
+            v-reveal="{ delay: Math.min(idx, 7) * 60 }"
+
             :to="localePath({ path: '/products', query: { category: cat.slug } })"
             class="glass-surface rounded-xl shadow-sm p-6 text-center hover:shadow-md transition group"
           >
@@ -184,11 +187,12 @@
 
     <section v-if="hasFeature('show_featured_products')" class="py-12 bg-neutral-50 dark:bg-stone-950">
       <div class="max-w-6xl mx-auto px-4">
-        <h2 class="text-3xl font-semibold text-neutral-900 dark:text-neutral-100 mb-6">{{ t('home.featured') || 'Featured Products' }}</h2>
+        <h2 v-reveal class="text-3xl font-semibold text-neutral-900 dark:text-neutral-100 mb-6">{{ t('home.featured') || 'Featured Products' }}</h2>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div
-            v-for="prod in featuredProducts"
+            v-for="(prod, idx) in featuredProducts"
             :key="prod.id"
+            v-reveal="{ delay: Math.min(idx, 7) * 60 }"
             class="glass-surface rounded-xl shadow-sm hover:shadow-md transition"
           >
             <NuxtLink :to="localePath(`/products/${prod.id}`)" class="block p-4">
