@@ -265,3 +265,10 @@ h1, h2, h3, h4, h5, h6 {
     transform: none;
   }
 }
+
+/* Formal mono for order numbers & other serious identifiers */
+.order-no {
+  font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+}

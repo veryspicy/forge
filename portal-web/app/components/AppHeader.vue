@@ -87,10 +87,12 @@
           <option v-for="cur in availableCurrencies" :key="cur" :value="cur">{{ cur }}</option>
         </select>
 
-        <!-- Cart -->
-        <NuxtLink
-          :to="localePath('/cart')"
+        <!-- Cart (opens drawer) -->
+        <button
+          type="button"
           class="relative p-2 text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
+          :title="t('cart.title')"
+          @click="cartDrawerOpen = true"
         >
           <svg
             width="22"
@@ -112,7 +114,7 @@
           >
             {{ cartStore.itemCount }}
           </span>
-        </NuxtLink>
+        </button>
 
         <!-- User / Auth -->
         <div class="hidden sm:flex relative" ref="userMenuRef">
@@ -305,6 +307,7 @@
       </div>
     </Transition>
   </header>
+  <CartDrawer :visible="cartDrawerOpen" @close="cartDrawerOpen = false" />
 </template>
 
 <script setup lang="ts">
@@ -327,6 +330,7 @@ const { profile, visibleNav, resolveText } = useSiteProfile()
 const { theme, toggleTheme } = useTheme()
 
 const mobileMenuOpen = ref(false)
+const cartDrawerOpen = ref(false)
 const userDropdownOpen = ref(false)
 const userMenuRef = ref<HTMLElement | null>(null)
 const currentLocale = ref(locale.value)
