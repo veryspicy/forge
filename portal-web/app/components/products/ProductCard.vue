@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <!-- Skeleton loading state -->
   <div
     v-if="!product"
@@ -17,10 +17,10 @@
   <NuxtLink
     v-else
     :to="localePath(`/products/${product.slug || product.id}`)"
-    class="surface-elevated rounded-xl overflow-hidden block relative group transition-all duration-300 ease-out-expo hover:shadow-lg hover:-translate-y-1"
+    class="surface-elevated rounded-xl overflow-hidden block relative group pressable transition-all duration-300 ease-out-expo hover:shadow-lg hover:-translate-y-1"
   >
     <!-- Image area -->
-    <div class="h-48 bg-neutral-200 flex items-center justify-center text-neutral-400 text-sm overflow-hidden">
+    <div class="h-48 bg-neutral-200 dark:bg-stone-800 flex items-center justify-center text-neutral-400 dark:text-neutral-400 text-sm overflow-hidden">
       <img
         :src="product.images?.[0] || '/images/placeholder.svg'"
         :alt="product.name"
@@ -48,23 +48,23 @@
     <!-- Info area -->
     <div class="p-4">
       <!-- Category label -->
-      <p class="text-xs text-neutral-500 uppercase tracking-wide">
+      <p class="text-xs text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 uppercase tracking-wide">
         {{ product.category || $t('products.uncategorized') }}
       </p>
 
       <!-- Product name -->
-      <h3 class="font-heading font-semibold text-neutral-800 truncate mt-1">
+      <h3 class="font-heading font-semibold text-neutral-800 dark:text-neutral-200 truncate mt-1">
         {{ product.name }}
       </h3>
 
       <!-- Price row -->
       <div class="flex items-center gap-2 mt-2">
-        <span class="text-lg font-bold text-primary-600">
+        <span class="text-lg font-bold text-accent-600">
           {{ formatPrice(product.price) }}
         </span>
         <span
           v-if="product.discount"
-          class="text-sm text-neutral-400 line-through"
+          class="text-sm text-neutral-400 dark:text-neutral-400 line-through"
         >
           {{ formatPrice(product.original_price) }}
         </span>
@@ -84,7 +84,7 @@
         <span class="text-neutral-300">
           {{ '☆'.repeat(5 - Math.floor(product.rating || 0)) }}
         </span>
-        <span class="text-neutral-500 ml-1">({{ product.review_count || 0 }})</span>
+        <span class="text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 ml-1">({{ product.review_count || 0 }})</span>
       </div>
 
       <!-- Inventory status -->
@@ -99,7 +99,7 @@
 
     <!-- Add to cart hover button -->
     <button
-      class="absolute bottom-0 left-0 right-0 bg-primary-600 text-white text-sm font-medium py-2.5 text-center opacity-0 group-hover:opacity-100 hover:bg-primary-700 transition-all translate-y-full group-hover:translate-y-0"
+      class="absolute bottom-0 left-0 right-0 bg-accent-600 text-white text-sm font-medium py-2.5 text-center opacity-0 group-hover:opacity-100 hover:bg-accent-500 transition-all translate-y-full group-hover:translate-y-0"
       @click.prevent="addToCart"
     >
       {{ $t('products.addToCart') }}

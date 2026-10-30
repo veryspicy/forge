@@ -1,4 +1,4 @@
-<!-- Forge — Product Detail Blocks Renderer
+﻿<!-- Forge — Product Detail Blocks Renderer
 契约对齐 backend ProductService.DETAIL_BLOCK_FIELDS：
 rich_text(title/html/align) / image(title/images/caption) / image_text(title/image/html/layout)
 / spec_table(title/columns/rows) / features(title/items) / faq(title/items) / video(title/url/poster)
@@ -10,23 +10,23 @@ rich_text(title/html/align) / image(title/images/caption) / image_text(title/ima
     <template v-for="(block, idx) in blocks" :key="idx">
       <!-- 富文本 -->
       <section v-if="block.type === 'rich_text'" class="prose max-w-none rich-content" :class="alignClass(block.align)">
-        <h2 v-if="block.title" class="text-xl font-bold text-gray-900 mb-3">{{ block.title }}</h2>
-        <div v-if="block.html" class="text-gray-700 leading-relaxed" v-html="block.html" />
+        <h2 v-if="block.title" class="text-xl font-bold text-neutral-900 dark:text-neutral-100 mb-3">{{ block.title }}</h2>
+        <div v-if="block.html" class="text-neutral-700 dark:text-neutral-300 leading-relaxed" v-html="block.html" />
       </section>
 
       <!-- 图片 -->
       <section v-else-if="block.type === 'image'">
-        <h2 v-if="block.title" class="text-xl font-bold text-gray-900 mb-3">{{ block.title }}</h2>
+        <h2 v-if="block.title" class="text-xl font-bold text-neutral-900 dark:text-neutral-100 mb-3">{{ block.title }}</h2>
         <div v-if="normalizedImages(block.images).length" class="grid gap-4" :class="normalizedImages(block.images).length > 1 ? 'sm:grid-cols-2' : ''">
           <figure
             v-for="(img, i) in normalizedImages(block.images)"
             :key="i"
-            class="rounded-xl overflow-hidden bg-gray-100"
+            class="rounded-xl overflow-hidden bg-neutral-100 dark:bg-stone-800"
           >
             <img :src="img" :alt="block.caption || block.title || ''" class="w-full h-auto object-cover" loading="lazy" />
           </figure>
         </div>
-        <p v-if="block.caption" class="mt-2 text-sm text-gray-500 text-center">{{ block.caption }}</p>
+        <p v-if="block.caption" class="mt-2 text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 text-center">{{ block.caption }}</p>
       </section>
 
       <!-- 图文 -->
@@ -36,38 +36,38 @@ rich_text(title/html/align) / image(title/images/caption) / image_text(title/ima
             v-if="normalizedImage(block.image)"
             :src="normalizedImage(block.image)"
             :alt="block.title || ''"
-            class="w-full h-auto rounded-xl object-cover bg-gray-100"
+            class="w-full h-auto rounded-xl object-cover bg-neutral-100 dark:bg-stone-800"
             loading="lazy"
           />
         </div>
         <div class="md:[direction:ltr]">
-          <h2 v-if="block.title" class="text-xl font-bold text-gray-900 mb-3">{{ block.title }}</h2>
-          <div v-if="block.html" class="text-gray-700 leading-relaxed" v-html="block.html" />
+          <h2 v-if="block.title" class="text-xl font-bold text-neutral-900 dark:text-neutral-100 mb-3">{{ block.title }}</h2>
+          <div v-if="block.html" class="text-neutral-700 dark:text-neutral-300 leading-relaxed" v-html="block.html" />
         </div>
       </section>
 
       <!-- 规格表 -->
       <section v-else-if="block.type === 'spec_table'">
-        <h2 v-if="block.title" class="text-xl font-bold text-gray-900 mb-3">{{ block.title }}</h2>
-        <div class="overflow-x-auto rounded-lg border border-gray-200">
+        <h2 v-if="block.title" class="text-xl font-bold text-neutral-900 dark:text-neutral-100 mb-3">{{ block.title }}</h2>
+        <div class="overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-700/60">
           <table class="w-full text-sm">
-            <thead v-if="block.columns && block.columns.length" class="bg-gray-50">
+            <thead v-if="block.columns && block.columns.length" class="bg-neutral-50 dark:bg-stone-950">
               <tr>
                 <th
                   v-for="(col, i) in block.columns"
                   :key="i"
-                  class="px-4 py-2 text-left font-medium text-gray-700"
+                  class="px-4 py-2 text-left font-medium text-neutral-700 dark:text-neutral-300"
                 >
                   {{ col }}
                 </th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(row, i) in normalizedRows(block.rows)" :key="i" class="border-t border-gray-100">
+              <tr v-for="(row, i) in normalizedRows(block.rows)" :key="i" class="border-t border-neutral-100">
                 <td
                   v-for="(cell, j) in rowCells(row)"
                   :key="j"
-                  class="px-4 py-2 text-gray-900 align-top"
+                  class="px-4 py-2 text-neutral-900 dark:text-neutral-100 align-top"
                 >
                   {{ cell }}
                 </td>
@@ -79,14 +79,14 @@ rich_text(title/html/align) / image(title/images/caption) / image_text(title/ima
 
       <!-- 卖点列表（要点文案，Chewy 答案式短句） -->
       <section v-else-if="block.type === 'features'">
-        <h2 v-if="block.title" class="text-xl font-bold text-gray-900 mb-3">{{ block.title }}</h2>
+        <h2 v-if="block.title" class="text-xl font-bold text-neutral-900 dark:text-neutral-100 mb-3">{{ block.title }}</h2>
         <ul v-if="block.items && block.items.length" class="space-y-2.5">
           <li
             v-for="(item, i) in normalizedItems(block.items)"
             :key="i"
-            class="flex items-start gap-2.5 text-gray-700 leading-relaxed"
+            class="flex items-start gap-2.5 text-neutral-700 dark:text-neutral-300 leading-relaxed"
           >
-            <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary-500 flex-shrink-0" />
+            <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-accent-500 flex-shrink-0" />
             <span>{{ item }}</span>
           </li>
         </ul>
@@ -94,25 +94,25 @@ rich_text(title/html/align) / image(title/images/caption) / image_text(title/ima
 
       <!-- FAQ 折叠 -->
       <section v-else-if="block.type === 'faq'">
-        <h2 v-if="block.title" class="text-xl font-bold text-gray-900 mb-3">{{ block.title }}</h2>
+        <h2 v-if="block.title" class="text-xl font-bold text-neutral-900 dark:text-neutral-100 mb-3">{{ block.title }}</h2>
         <div v-if="block.items && block.items.length" class="space-y-2">
           <details
             v-for="(item, i) in faqItems(block.items)"
             :key="i"
-            class="group border border-gray-200 rounded-lg bg-white"
+            class="group border border-neutral-200 dark:border-neutral-700/60 rounded-lg bg-white dark:bg-stone-900"
           >
-            <summary class="cursor-pointer list-none flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-gray-900">
+            <summary class="cursor-pointer list-none flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-neutral-900 dark:text-neutral-100">
               <span>{{ item.q }}</span>
-              <span class="text-gray-400 transition-transform group-open:rotate-45 text-lg leading-none">+</span>
+              <span class="text-neutral-400 dark:text-neutral-400 transition-transform group-open:rotate-45 text-lg leading-none">+</span>
             </summary>
-            <p class="px-4 pb-3 text-sm text-gray-600 leading-relaxed">{{ item.a }}</p>
+            <p class="px-4 pb-3 text-sm text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 leading-relaxed">{{ item.a }}</p>
           </details>
         </div>
       </section>
 
       <!-- 视频 -->
       <section v-else-if="block.type === 'video'">
-        <h2 v-if="block.title" class="text-xl font-bold text-gray-900 mb-3">{{ block.title }}</h2>
+        <h2 v-if="block.title" class="text-xl font-bold text-neutral-900 dark:text-neutral-100 mb-3">{{ block.title }}</h2>
         <video
           v-if="block.url"
           controls

@@ -1,6 +1,6 @@
-<template>
+﻿<template>
   <section v-if="products.length" class="mx-auto max-w-6xl px-4 py-6">
-    <h2 v-if="config.title" class="mb-4 text-xl font-bold text-gray-900 md:text-2xl">
+    <h2 v-if="config.title" class="mb-4 text-xl font-bold text-neutral-900 dark:text-neutral-100 md:text-2xl">
       {{ config.title }}
     </h2>
 
@@ -10,16 +10,23 @@
       class="diy-goods-grid grid grid-cols-2 gap-3 md:gap-4"
       :style="{ '--cols': String(config.columns || 2) }"
     >
-      <ProductCard v-for="p in products" :key="p.id" :product="p" />
+      <div
+        v-for="(p, idx) in products"
+        :key="p.id"
+        v-reveal="{ delay: Math.min(idx, 11) * 50 }"
+      >
+        <ProductCard :product="p" />
+      </div>
     </div>
 
     <!-- list 布局 -->
     <div v-else-if="layout === 'list'" class="flex flex-col gap-3">
       <NuxtLink
-        v-for="p in products"
+        v-for="(p, idx) in products"
         :key="p.id"
+        v-reveal="{ delay: Math.min(idx, 11) * 50 }"
         :to="localePath(`/products/${p.slug || p.id}`)"
-        class="flex gap-4 rounded-xl border bg-white p-3 transition hover:shadow-md"
+        class="flex gap-4 rounded-xl border bg-white dark:bg-stone-900 p-3 transition hover:shadow-md"
       >
         <img
           :src="p.images?.[0] || '/images/placeholder.svg'"
@@ -27,9 +34,9 @@
           class="h-20 w-20 rounded-lg object-cover"
         />
         <div class="flex min-w-0 flex-1 flex-col justify-center">
-          <h3 class="truncate text-sm font-semibold text-gray-800">{{ p.name }}</h3>
-          <p class="mt-0.5 line-clamp-1 text-xs text-gray-500">{{ p.description }}</p>
-          <span v-if="config.showPrice !== false" class="mt-1 text-sm font-bold text-primary-700">
+          <h3 class="truncate text-sm font-semibold text-neutral-800 dark:text-neutral-200">{{ p.name }}</h3>
+          <p class="mt-0.5 line-clamp-1 text-xs text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ p.description }}</p>
+          <span v-if="config.showPrice !== false" class="mt-1 text-sm font-bold text-accent-700">
             {{ formatPrice(p.price) }}
           </span>
         </div>

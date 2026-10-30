@@ -1,5 +1,5 @@
-<template>
-  <div class="min-h-screen bg-gray-50 py-8">
+﻿<template>
+  <div class="min-h-screen bg-neutral-50 dark:bg-stone-950 py-8">
     <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
       <!-- Loading -->
       <div v-if="loading" class="flex justify-center items-center py-12">
@@ -13,22 +13,22 @@
 
       <template v-else-if="order">
         <!-- Breadcrumb -->
-        <nav class="flex mb-6 text-sm text-gray-500">
-          <button class="hover:text-gray-700" @click="navigateTo('/orders')">{{ $t('orders.orders') }}</button>
+        <nav class="flex mb-6 text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">
+          <button class="hover:text-neutral-700 dark:hover:text-neutral-300" @click="navigateTo('/orders')">{{ $t('orders.orders') }}</button>
           <svg class="w-4 h-4 mx-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
           </svg>
-          <span class="text-gray-900 font-medium">#{{ order.order_number || order.id }}</span>
+          <span class="text-neutral-900 dark:text-neutral-100 font-medium order-no">#{{ order.order_number || order.id }}</span>
         </nav>
 
         <!-- Order Header -->
-        <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <div class="bg-white dark:bg-stone-900 rounded-lg shadow p-6 mb-6">
           <div class="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h1 class="text-2xl font-bold text-gray-900">
-                {{ $t('orders.order') }} #{{ order.order_number || order.id }}
+              <h1 class="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
+                {{ $t('orders.order') }} <span class="order-no">#{{ order.order_number || order.id }}</span>
               </h1>
-              <p class="text-sm text-gray-500 mt-1">
+              <p class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mt-1">
                 {{ $t('orders.placedOn') }} {{ formatDate(order.created_at || order.date) }}
               </p>
             </div>
@@ -40,7 +40,7 @@
               />
               <button
                 v-if="canCancel"
-                class="px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50"
+                class="px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white dark:bg-stone-900 hover:bg-red-50"
                 @click="showCancelModal = true"
               >
                 {{ $t('orders.cancelOrder') }}
@@ -54,14 +54,14 @@
               </button>
               <button
                 v-if="canReturn"
-                class="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                class="px-4 py-2 border border-neutral-300 dark:border-neutral-700 text-sm font-medium rounded-md text-neutral-700 dark:text-neutral-300 bg-white dark:bg-stone-900 hover:bg-neutral-50 dark:bg-stone-950"
                 @click="openReturnModal"
               >
                 {{ $t('returns.requestReturn') }}
               </button>
               <button
                 v-if="canDeleteOrder"
-                class="px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50"
+                class="px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white dark:bg-stone-900 hover:bg-red-50"
                 @click="askDeleteOrder"
               >
                 {{ $t('orders.deleteOrder') }}
@@ -78,8 +78,8 @@
         </div>
 
         <!-- Order Progress -->
-        <div class="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 class="text-lg font-semibold text-gray-900 mb-4">{{ $t('orders.tracking') }}</h2>
+        <div class="bg-white dark:bg-stone-900 rounded-lg shadow p-6 mb-6">
+          <h2 class="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4">{{ $t('orders.tracking') }}</h2>
           <ol class="flex w-full items-start">
             <li
               v-for="(step, idx) in orderSteps"
@@ -90,7 +90,7 @@
                 <div
                   :class="[
                     'h-1 flex-1 rounded-full transition-colors',
-                    idx === 0 ? 'bg-transparent' : (orderSteps[idx - 1].completed ? 'bg-indigo-600' : 'bg-gray-200')
+                    idx === 0 ? 'bg-transparent' : (orderSteps[idx - 1].completed ? 'bg-indigo-600' : 'bg-neutral-200 dark:bg-stone-800')
                   ]"
                 />
                 <div
@@ -99,8 +99,8 @@
                     step.completed
                       ? 'bg-indigo-600 border-indigo-600'
                       : step.active
-                      ? 'border-indigo-600 bg-white'
-                      : 'border-gray-300 bg-white'
+                      ? 'border-indigo-600 bg-white dark:bg-stone-900'
+                      : 'border-neutral-300 dark:border-neutral-700 bg-white dark:bg-stone-900'
                   ]"
                 >
                   <svg
@@ -116,101 +116,101 @@
                     v-else-if="step.active"
                     class="w-3 h-3 rounded-full bg-indigo-600"
                   />
-                  <span v-else class="text-gray-400 text-sm">{{ idx + 1 }}</span>
+                  <span v-else class="text-neutral-400 dark:text-neutral-400 text-sm">{{ idx + 1 }}</span>
                 </div>
                 <div
                   :class="[
                     'h-1 flex-1 rounded-full transition-colors',
-                    idx === orderSteps.length - 1 ? 'bg-transparent' : (step.completed ? 'bg-indigo-600' : 'bg-gray-200')
+                    idx === orderSteps.length - 1 ? 'bg-transparent' : (step.completed ? 'bg-indigo-600' : 'bg-neutral-200 dark:bg-stone-800')
                   ]"
                 />
               </div>
               <p
                 :class="[
                   'mt-2 px-1 text-center text-sm font-medium leading-tight',
-                  step.completed || step.active ? 'text-gray-900' : 'text-gray-400'
+                  step.completed || step.active ? 'text-neutral-900 dark:text-neutral-100' : 'text-neutral-400 dark:text-neutral-400'
                 ]"
               >
                 {{ $t(`orders.step.${step.key}`) }}
               </p>
-              <p v-if="step.date" class="mt-0.5 text-xs text-gray-500">{{ step.date }}</p>
+              <p v-if="step.date" class="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ step.date }}</p>
             </li>
           </ol>
         </div>
 
         <!-- Shipment Tracking -->
-        <div v-if="shipments.length > 0" class="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 class="text-lg font-semibold text-gray-900 mb-4">{{ $t('orders.shipmentTracking') }}</h2>
-          <div v-for="s in shipments" :key="s.id" class="mb-6 last:mb-0 border border-gray-200 rounded-lg p-4">
+        <div v-if="shipments.length > 0" class="bg-white dark:bg-stone-900 rounded-lg shadow p-6 mb-6">
+          <h2 class="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4">{{ $t('orders.shipmentTracking') }}</h2>
+          <div v-for="s in shipments" :key="s.id" class="mb-6 last:mb-0 border border-neutral-200 dark:border-neutral-700/60 rounded-lg p-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-4">
               <div>
-                <span class="text-gray-500">{{ $t('orders.carrier') }}:</span>
+                <span class="text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ $t('orders.carrier') }}:</span>
                 <span class="ml-2 font-medium">{{ s.carrier }}</span>
               </div>
               <div>
-                <span class="text-gray-500">{{ $t('orders.trackingNumber') }}:</span>
+                <span class="text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ $t('orders.trackingNumber') }}:</span>
                 <a v-if="s.tracking_url" :href="s.tracking_url" target="_blank" class="ml-2 font-medium text-indigo-600 hover:underline">
                   {{ s.tracking_number }}
                 </a>
                 <span v-else class="ml-2 font-medium text-indigo-600">{{ s.tracking_number }}</span>
               </div>
               <div>
-                <span class="text-gray-500">{{ $t('orders.trackingStatus') }}:</span>
+                <span class="text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ $t('orders.trackingStatus') }}:</span>
                 <span class="ml-2 font-medium">{{ s.status }}</span>
               </div>
               <div v-if="s.estimated_delivery">
-                <span class="text-gray-500">{{ $t('orders.estimatedDelivery') }}:</span>
+                <span class="text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ $t('orders.estimatedDelivery') }}:</span>
                 <span class="ml-2 font-medium">{{ formatDate(s.estimated_delivery) }}</span>
               </div>
             </div>
             <!-- Events Timeline -->
-            <div v-if="(s.events || []).length > 0" class="relative pl-6 border-l-2 border-gray-200 space-y-4">
+            <div v-if="(s.events || []).length > 0" class="relative pl-6 border-l-2 border-neutral-200 dark:border-neutral-700/60 space-y-4">
               <div v-for="(evt, ei) in s.events" :key="ei" class="relative">
-                <div class="absolute -left-[25px] w-3 h-3 rounded-full border-2 border-indigo-500 bg-white"/>
-                <p class="text-sm font-medium text-gray-900">{{ evt.status || evt.description || evt.label || $t('orders.trackingUpdate') }}</p>
-                <p class="text-xs text-gray-500">{{ evt.location || '' }}</p>
-                <p class="text-xs text-gray-400">{{ formatDateTime(evt.timestamp || evt.date || evt.time) }}</p>
+                <div class="absolute -left-[25px] w-3 h-3 rounded-full border-2 border-indigo-500 bg-white dark:bg-stone-900"/>
+                <p class="text-sm font-medium text-neutral-900 dark:text-neutral-100">{{ evt.status || evt.description || evt.label || $t('orders.trackingUpdate') }}</p>
+                <p class="text-xs text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ evt.location || '' }}</p>
+                <p class="text-xs text-neutral-400 dark:text-neutral-400">{{ formatDateTime(evt.timestamp || evt.date || evt.time) }}</p>
               </div>
             </div>
-            <p v-else class="text-sm text-gray-500 italic">{{ $t('orders.noTrackingEvents') }}</p>
+            <p v-else class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 italic">{{ $t('orders.noTrackingEvents') }}</p>
           </div>
         </div>
-        <div v-else-if="!loading && ['shipped', 'delivered'].includes((order.status || '').toLowerCase())" class="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 class="text-lg font-semibold text-gray-900 mb-2">{{ $t('orders.shipmentTracking') }}</h2>
-          <p class="text-sm text-gray-500">{{ $t('orders.noShipment') }}</p>
+        <div v-else-if="!loading && ['shipped', 'delivered'].includes((order.status || '').toLowerCase())" class="bg-white dark:bg-stone-900 rounded-lg shadow p-6 mb-6">
+          <h2 class="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-2">{{ $t('orders.shipmentTracking') }}</h2>
+          <p class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ $t('orders.noShipment') }}</p>
         </div>
 
         <!-- Order Items -->
-        <div class="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 class="text-lg font-semibold text-gray-900 mb-4">{{ $t('orders.items') }}</h2>
-          <ul class="divide-y divide-gray-200">
+        <div class="bg-white dark:bg-stone-900 rounded-lg shadow p-6 mb-6">
+          <h2 class="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4">{{ $t('orders.items') }}</h2>
+          <ul class="divide-y divide-neutral-200 dark:divide-neutral-700/50">
             <li
               v-for="(item, idx) in (order.items || order.products || [])"
               :key="idx"
               class="py-4 flex items-center"
             >
-              <div class="h-16 w-16 rounded-md bg-gray-100 overflow-hidden flex-shrink-0">
+              <div class="h-16 w-16 rounded-md bg-neutral-100 dark:bg-stone-800 overflow-hidden flex-shrink-0">
                 <img
                   v-if="item.image || item.product_image"
                   :src="item.image || item.product_image"
                   :alt="item.name || item.product_name"
                   class="h-full w-full object-cover"
                 >
-                <div v-else class="h-full w-full flex items-center justify-center text-gray-400">
+                <div v-else class="h-full w-full flex items-center justify-center text-neutral-400 dark:text-neutral-400">
                   <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>
               </div>
               <div class="ml-4 flex-1">
-                <p class="text-sm font-medium text-gray-900">{{ item.name || item.product_name }}</p>
-                <p class="text-sm text-gray-500 mt-0.5">{{ $t('orders.qty') }}: {{ item.quantity }}</p>
+                <p class="text-sm font-medium text-neutral-900 dark:text-neutral-100">{{ item.name || item.product_name }}</p>
+                <p class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mt-0.5">{{ $t('orders.qty') }}: {{ item.quantity }}</p>
               </div>
               <div class="text-right">
-                <p class="text-sm font-medium text-gray-900">{{ formatPrice(item.price || item.unit_price) }}</p>
-                <p class="text-sm text-gray-500 mt-0.5">{{ formatPrice((item.price || item.unit_price) * item.quantity) }}</p>
+                <p class="text-sm font-medium text-neutral-900 dark:text-neutral-100">{{ formatPrice(item.price || item.unit_price) }}</p>
+                <p class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mt-0.5">{{ formatPrice((item.price || item.unit_price) * item.quantity) }}</p>
                 <div v-if="canReview" class="mt-2">
-                  <span v-if="isReviewed(item.id)" class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-500">
+                  <span v-if="isReviewed(item.id)" class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-neutral-100 dark:bg-stone-800 text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">
                     <svg class="w-3.5 h-3.5 mr-1" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
                     {{ $t('reviews.reviewed') }}
                   </span>
@@ -228,37 +228,37 @@
         </div>
 
         <!-- Order Summary -->
-        <div class="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 class="text-lg font-semibold text-gray-900 mb-4">{{ $t('orders.orderSummary') }}</h2>
+        <div class="bg-white dark:bg-stone-900 rounded-lg shadow p-6 mb-6">
+          <h2 class="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4">{{ $t('orders.orderSummary') }}</h2>
           <dl class="space-y-2 text-sm">
             <div class="flex justify-between">
-              <dt class="text-gray-500">{{ $t('orders.subtotal') }}</dt>
-              <dd class="text-gray-900">{{ formatPrice(order.subtotal || order.sub_total) }}</dd>
+              <dt class="text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ $t('orders.subtotal') }}</dt>
+              <dd class="text-neutral-900 dark:text-neutral-100">{{ formatPrice(order.subtotal || order.sub_total) }}</dd>
             </div>
             <div class="flex justify-between">
-              <dt class="text-gray-500">{{ $t('orders.tax') }}</dt>
-              <dd class="text-gray-900">{{ formatPrice(order.tax || 0) }}</dd>
+              <dt class="text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ $t('orders.tax') }}</dt>
+              <dd class="text-neutral-900 dark:text-neutral-100">{{ formatPrice(order.tax || 0) }}</dd>
             </div>
             <div class="flex justify-between">
-              <dt class="text-gray-500">{{ $t('orders.shipping') }}</dt>
-              <dd class="text-gray-900">{{ formatPrice(order.shipping_cost || order.shipping || 0) }}</dd>
+              <dt class="text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ $t('orders.shipping') }}</dt>
+              <dd class="text-neutral-900 dark:text-neutral-100">{{ formatPrice(order.shipping_cost || order.shipping || 0) }}</dd>
             </div>
             <div v-if="order.discount || order.coupon_discount" class="flex justify-between text-green-600">
               <dt>{{ $t('orders.discount') }}</dt>
               <dd>-{{ formatPrice(order.discount || order.coupon_discount || 0) }}</dd>
             </div>
-            <div class="flex justify-between border-t border-gray-200 pt-2 mt-2">
-              <dt class="text-base font-semibold text-gray-900">{{ $t('orders.total') }}</dt>
-              <dd class="text-base font-semibold text-gray-900">{{ formatPrice(order.total || order.total_amount) }}</dd>
+            <div class="flex justify-between border-t border-neutral-200 dark:border-neutral-700/60 pt-2 mt-2">
+              <dt class="text-base font-semibold text-neutral-900 dark:text-neutral-100">{{ $t('orders.total') }}</dt>
+              <dd class="text-base font-semibold text-neutral-900 dark:text-neutral-100">{{ formatPrice(order.total || order.total_amount) }}</dd>
             </div>
           </dl>
         </div>
 
         <!-- Shipping Address -->
-        <div v-if="order.shipping_address" class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-lg font-semibold text-gray-900 mb-4">{{ $t('orders.shippingAddress') }}</h2>
-          <address class="text-sm text-gray-600 not-italic">
-            <p class="font-medium text-gray-900">{{ order.shipping_address.name || order.shipping_address.recipient_name }}</p>
+        <div v-if="order.shipping_address" class="bg-white dark:bg-stone-900 rounded-lg shadow p-6">
+          <h2 class="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4">{{ $t('orders.shippingAddress') }}</h2>
+          <address class="text-sm text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 not-italic">
+            <p class="font-medium text-neutral-900 dark:text-neutral-100">{{ order.shipping_address.name || order.shipping_address.recipient_name }}</p>
             <p>{{ order.shipping_address.line1 || order.shipping_address.address_line1 }}</p>
             <p v-if="order.shipping_address.line2 || order.shipping_address.address_line2">
               {{ order.shipping_address.line2 || order.shipping_address.address_line2 }}
@@ -273,9 +273,9 @@
         </div>
 
         <!-- Returns & Refunds -->
-        <div v-if="myReturns.length > 0" class="bg-white rounded-lg shadow p-6 mt-6">
-          <h2 class="text-lg font-semibold text-gray-900 mb-4">{{ $t('returns.myReturns') }}</h2>
-          <ul class="divide-y divide-gray-200">
+        <div v-if="myReturns.length > 0" class="bg-white dark:bg-stone-900 rounded-lg shadow p-6 mt-6">
+          <h2 class="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4">{{ $t('returns.myReturns') }}</h2>
+          <ul class="divide-y divide-neutral-200 dark:divide-neutral-700/50">
             <li
               v-for="r in myReturns"
               :key="r.return_number"
@@ -283,35 +283,35 @@
             >
               <div class="min-w-0 flex-1">
                 <div class="flex items-center flex-wrap gap-2">
-                  <span class="text-sm font-medium text-gray-900">#{{ r.return_number }}</span>
+                  <span class="text-sm font-medium text-neutral-900 dark:text-neutral-100">#{{ r.return_number }}</span>
                   <span :class="['inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium', returnStatusClass(r.status)]">
                     {{ returnStatusText(r.status) }}
                   </span>
                 </div>
-                <p class="text-sm text-gray-500 mt-1">{{ $t('returns.reasonLabel') }}: {{ returnReasonLabel(r.reason, t) }}</p>
-                <p class="text-xs text-gray-400 mt-1">
+                <p class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mt-1">{{ $t('returns.reasonLabel') }}: {{ returnReasonLabel(r.reason, t) }}</p>
+                <p class="text-xs text-neutral-400 dark:text-neutral-400 mt-1">
                   {{ $t('returns.requestedAt') }} {{ formatDateTime(r.requested_at || r.created_at) }}
                   · {{ (r.items || []).length }} {{ $t('returns.itemsCount') }}
                 </p>
-                <p v-if="r.review_note" class="text-xs text-gray-500 mt-1">{{ r.review_note }}</p>
+                <p v-if="r.review_note" class="text-xs text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mt-1">{{ r.review_note }}</p>
 
                 <!-- 寄回物流：客户回填后在此追踪 -->
-                <div v-if="r.tracking_number" class="mt-2 rounded-md bg-gray-50 border border-gray-200 px-3 py-2">
-                  <p class="text-xs text-gray-500">{{ $t('returns.shipBackTracking') }}</p>
-                  <p class="text-xs text-gray-900 mt-0.5">
+                <div v-if="r.tracking_number" class="mt-2 rounded-md bg-neutral-50 dark:bg-stone-950 border border-neutral-200 dark:border-neutral-700/60 px-3 py-2">
+                  <p class="text-xs text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ $t('returns.shipBackTracking') }}</p>
+                  <p class="text-xs text-neutral-900 dark:text-neutral-100 mt-0.5">
                     {{ r.carrier }} · <span class="font-mono">{{ r.tracking_number }}</span>
                   </p>
-                  <p v-if="r.shipped_at" class="text-xs text-gray-500 mt-0.5">
+                  <p v-if="r.shipped_at" class="text-xs text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mt-0.5">
                     {{ $t('returns.shippedAt') }} {{ formatDateTime(r.shipped_at) }}
                   </p>
-                  <p v-if="returnRefundNote(r)" class="text-xs text-gray-400 mt-0.5">{{ formatPrice(r.refund_amount || 0) }} · {{ returnRefundNote(r) }}</p>
+                  <p v-if="returnRefundNote(r)" class="text-xs text-neutral-400 dark:text-neutral-400 mt-0.5">{{ formatPrice(r.refund_amount || 0) }} · {{ returnRefundNote(r) }}</p>
                 </div>
                 <p v-else-if="canSubmitShipment(r)" class="text-xs text-amber-600 mt-2">
                   {{ $t('returns.trackingRequired') }}
                 </p>
               </div>
               <div class="text-right">
-                <p class="text-sm font-medium text-gray-900">{{ formatPrice(r.refund_amount || 0) }}</p>
+                <p class="text-sm font-medium text-neutral-900 dark:text-neutral-100">{{ formatPrice(r.refund_amount || 0) }}</p>
                 <button
                   v-if="canSubmitShipment(r)"
                   class="mt-2 px-3 py-1 rounded-md text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700"
@@ -336,41 +336,41 @@
     <!-- Return Shipment Modal（寄回快递单号） -->
     <div v-if="showShipmentModal" class="fixed inset-0 z-50 overflow-y-auto">
       <div class="flex items-center justify-center min-h-screen px-4 py-8">
-        <div class="fixed inset-0 bg-gray-500/40 backdrop-blur-md transition-opacity" @click="showShipmentModal = false"/>
+        <div class="fixed inset-0 bg-neutral-50 dark:bg-stone-9500/40 backdrop-blur-md transition-opacity" @click="showShipmentModal = false"/>
         <div class="relative bg-white/85 backdrop-blur-2xl rounded-lg max-w-md w-full p-6 shadow-2xl ring-1 ring-white/60">
-          <h3 class="text-lg font-medium text-gray-900 mb-1">{{ $t('returns.shipmentModalTitle') }}</h3>
-          <p class="text-sm text-gray-500 mb-4">{{ $t('returns.shipmentModalHint') }}</p>
+          <h3 class="text-lg font-medium text-neutral-900 dark:text-neutral-100 mb-1">{{ $t('returns.shipmentModalTitle') }}</h3>
+          <p class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mb-4">{{ $t('returns.shipmentModalHint') }}</p>
 
           <div v-if="shipmentError" class="mb-4 bg-red-50 border border-red-200 rounded-md p-3 text-sm text-red-800">
             {{ shipmentError }}
           </div>
 
           <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('returns.carrier') }}</label>
+            <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">{{ $t('returns.carrier') }}</label>
             <input
               v-model="shipmentForm.carrier"
               type="text"
               maxlength="100"
               :placeholder="$t('returns.carrierPlaceholder')"
-              class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+              class="w-full rounded-md border-neutral-300 dark:border-neutral-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
             >
           </div>
 
           <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('returns.trackingNumber') }}</label>
+            <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">{{ $t('returns.trackingNumber') }}</label>
             <input
               v-model="shipmentForm.tracking_number"
               type="text"
               maxlength="64"
               :placeholder="$t('returns.trackingNumberPlaceholder')"
-              class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm font-mono"
+              class="w-full rounded-md border-neutral-300 dark:border-neutral-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm font-mono"
             >
-            <p class="text-xs text-gray-500 mt-1">{{ $t('returns.trackingHint') }}</p>
+            <p class="text-xs text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mt-1">{{ $t('returns.trackingHint') }}</p>
           </div>
 
           <div class="flex justify-end gap-3">
             <button
-              class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              class="px-4 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md text-sm font-medium text-neutral-700 dark:text-neutral-300 bg-white dark:bg-stone-900 hover:bg-neutral-50 dark:bg-stone-950"
               @click="showShipmentModal = false"
             >
               {{ $t('common.cancel') }}
@@ -390,29 +390,29 @@
     <!-- Return Request Modal -->
     <div v-if="showReturnModal" class="fixed inset-0 z-50 overflow-y-auto">
       <div class="flex items-center justify-center min-h-screen px-4 py-8">
-        <div class="fixed inset-0 bg-gray-500/40 backdrop-blur-md transition-opacity" @click="showReturnModal = false"/>
+        <div class="fixed inset-0 bg-neutral-50 dark:bg-stone-9500/40 backdrop-blur-md transition-opacity" @click="showReturnModal = false"/>
         <div class="relative bg-white/85 backdrop-blur-2xl rounded-lg max-w-2xl w-full p-6 shadow-2xl ring-1 ring-white/60">
-          <h3 class="text-lg font-medium text-gray-900 mb-1">{{ $t('returns.modalTitle') }}</h3>
-          <p class="text-sm text-gray-500 mb-4">{{ $t('returns.modalHint') }}</p>
+          <h3 class="text-lg font-medium text-neutral-900 dark:text-neutral-100 mb-1">{{ $t('returns.modalTitle') }}</h3>
+          <p class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mb-4">{{ $t('returns.modalHint') }}</p>
 
           <div v-if="returnError" class="mb-4 bg-red-50 border border-red-200 rounded-md p-3 text-sm text-red-800">
             {{ returnError }}
           </div>
 
           <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">{{ $t('returns.selectItems') }}</label>
-            <p v-if="returnableItems.length === 0" class="text-sm text-gray-500">{{ $t('returns.noReturnableItems') }}</p>
-            <ul v-else class="divide-y divide-gray-200 border border-gray-200 rounded-md">
+            <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">{{ $t('returns.selectItems') }}</label>
+            <p v-if="returnableItems.length === 0" class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ $t('returns.noReturnableItems') }}</p>
+            <ul v-else class="divide-y divide-neutral-200 dark:divide-neutral-700/50 border border-neutral-200 dark:border-neutral-700/60 rounded-md">
               <li v-for="i in returnableItems" :key="i.order_item_id" class="p-3 flex items-start gap-3">
                 <input
                   type="checkbox"
-                  class="mt-1 h-4 w-4 rounded border-gray-300 text-indigo-600"
+                  class="mt-1 h-4 w-4 rounded border-neutral-300 dark:border-neutral-700 text-indigo-600"
                   :checked="returnForm.selected[String(i.order_item_id)]"
                   @change="toggleReturnItem(i, ($event.target as HTMLInputElement).checked)"
                 >
                 <div class="flex-1 min-w-0">
-                  <p class="text-sm font-medium text-gray-900">{{ i.name }}</p>
-                  <p class="text-xs text-gray-500 mt-0.5">
+                  <p class="text-sm font-medium text-neutral-900 dark:text-neutral-100">{{ i.name }}</p>
+                  <p class="text-xs text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mt-0.5">
                     {{ $t('returns.returnableQty') }}: {{ i.returnable_quantity }} · {{ formatPrice(i.unit_price) }}
                   </p>
                 </div>
@@ -421,7 +421,7 @@
                   type="number"
                   min="1"
                   :max="i.returnable_quantity"
-                  class="w-20 border border-gray-300 rounded-md px-2 py-1 text-sm"
+                  class="w-20 border border-neutral-300 dark:border-neutral-700 rounded-md px-2 py-1 text-sm"
                   :value="returnForm.quantities[String(i.order_item_id)]"
                   @input="setReturnQty(i, Number(($event.target as HTMLInputElement).value))"
                 >
@@ -430,10 +430,10 @@
           </div>
 
           <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">{{ $t('returns.reason') }}</label>
+            <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">{{ $t('returns.reason') }}</label>
             <select
               v-model="returnForm.reason"
-              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+              class="w-full border border-neutral-300 dark:border-neutral-700 rounded-md px-3 py-2 text-sm"
             >
               <option value="">{{ $t('returns.reasonPlaceholder') }}</option>
               <option v-for="r in RETURN_REASONS" :key="r" :value="r">
@@ -443,23 +443,23 @@
           </div>
 
           <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">{{ $t('returns.note') }}</label>
+            <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">{{ $t('returns.note') }}</label>
             <textarea
               v-model="returnForm.note"
               rows="3"
               :placeholder="$t('returns.notePlaceholder')"
-              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+              class="w-full border border-neutral-300 dark:border-neutral-700 rounded-md px-3 py-2 text-sm"
             />
           </div>
 
-          <div class="flex items-center justify-between border-t border-gray-200 pt-4">
-            <p class="text-sm text-gray-500">
+          <div class="flex items-center justify-between border-t border-neutral-200 dark:border-neutral-700/60 pt-4">
+            <p class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">
               {{ $t('returns.refundEstimate') }}:
-              <span class="font-medium text-gray-900">{{ formatPrice(returnRefundEstimate) }}</span>
+              <span class="font-medium text-neutral-900 dark:text-neutral-100">{{ formatPrice(returnRefundEstimate) }}</span>
             </p>
             <div class="flex space-x-3">
               <button
-                class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                class="px-4 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:bg-stone-950"
                 @click="showReturnModal = false"
               >
                 {{ $t('common.cancel') }}
@@ -480,15 +480,15 @@
     <!-- Cancel Return Modal -->
     <div v-if="returnCancelTarget" class="fixed inset-0 z-50 overflow-y-auto">
       <div class="flex items-center justify-center min-h-screen px-4">
-        <div class="fixed inset-0 bg-gray-500/40 backdrop-blur-md transition-opacity" @click="returnCancelTarget = null"/>
+        <div class="fixed inset-0 bg-neutral-50 dark:bg-stone-9500/40 backdrop-blur-md transition-opacity" @click="returnCancelTarget = null"/>
         <div class="relative bg-white/85 backdrop-blur-2xl rounded-lg max-w-md w-full p-6 shadow-2xl ring-1 ring-white/60">
-          <h3 class="text-lg font-medium text-gray-900 mb-4">{{ $t('returns.cancelModalTitle') }}</h3>
-          <p class="text-sm text-gray-500 mb-6">
+          <h3 class="text-lg font-medium text-neutral-900 dark:text-neutral-100 mb-4">{{ $t('returns.cancelModalTitle') }}</h3>
+          <p class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mb-6">
             {{ $t('returns.cancelConfirmText') }}
           </p>
           <div class="flex justify-end space-x-3">
             <button
-              class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+              class="px-4 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:bg-stone-950"
               @click="returnCancelTarget = null"
             >
               {{ $t('returns.keepRequest') }}
@@ -508,15 +508,15 @@
     <!-- Cancel Order Modal -->
     <div v-if="showCancelModal" class="fixed inset-0 z-50 overflow-y-auto">
       <div class="flex items-center justify-center min-h-screen px-4">
-        <div class="fixed inset-0 bg-gray-500/40 backdrop-blur-md transition-opacity" @click="showCancelModal = false"/>
+        <div class="fixed inset-0 bg-neutral-50 dark:bg-stone-9500/40 backdrop-blur-md transition-opacity" @click="showCancelModal = false"/>
         <div class="relative bg-white/85 backdrop-blur-2xl rounded-lg max-w-md w-full p-6 shadow-2xl ring-1 ring-white/60">
-          <h3 class="text-lg font-medium text-gray-900 mb-4">{{ $t('orders.cancelOrderTitle') }}</h3>
-          <p class="text-sm text-gray-500 mb-6">
+          <h3 class="text-lg font-medium text-neutral-900 dark:text-neutral-100 mb-4">{{ $t('orders.cancelOrderTitle') }}</h3>
+          <p class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mb-6">
             {{ $t('orders.cancelConfirmText') }}
           </p>
           <div class="flex justify-end space-x-3">
             <button
-              class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+              class="px-4 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:bg-stone-950"
               @click="showCancelModal = false"
             >
               {{ $t('orders.keepOrder') }}
@@ -536,18 +536,18 @@
     <!-- Pay Order Modal -->
     <div v-if="showPayModal" class="fixed inset-0 z-50 overflow-y-auto">
       <div class="flex items-center justify-center min-h-screen px-4">
-        <div class="fixed inset-0 bg-gray-500/40 backdrop-blur-md transition-opacity" @click="showPayModal = false"/>
+        <div class="fixed inset-0 bg-neutral-50 dark:bg-stone-9500/40 backdrop-blur-md transition-opacity" @click="showPayModal = false"/>
         <div class="relative bg-white/85 backdrop-blur-2xl rounded-lg max-w-md w-full p-6 shadow-2xl ring-1 ring-white/60">
-          <h3 class="text-lg font-medium text-gray-900 mb-1">{{ $t('orders.payTitle') }}</h3>
-          <p class="text-sm text-gray-500 mb-4">{{ $t('orders.payMockNote') }}</p>
+          <h3 class="text-lg font-medium text-neutral-900 dark:text-neutral-100 mb-1">{{ $t('orders.payTitle') }}</h3>
+          <p class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mb-4">{{ $t('orders.payMockNote') }}</p>
 
           <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">{{ $t('checkout.paymentMethod') }}</label>
+            <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">{{ $t('checkout.paymentMethod') }}</label>
             <div class="grid grid-cols-2 gap-3">
               <button
                 type="button"
                 class="border rounded-lg px-4 py-3 text-sm font-medium flex items-center justify-center gap-2 transition"
-                :class="payForm.method === 'card' ? 'border-indigo-600 ring-1 ring-indigo-600 text-indigo-700' : 'border-gray-300 text-gray-600 hover:border-gray-400'"
+                :class="payForm.method === 'card' ? 'border-indigo-600 ring-1 ring-indigo-600 text-indigo-700' : 'border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 hover:border-neutral-400'"
                 @click="payForm.method = 'card'"
               >
                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M20 4H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V6a2 2 0 00-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
@@ -556,7 +556,7 @@
               <button
                 type="button"
                 class="border rounded-lg px-4 py-3 text-sm font-medium flex items-center justify-center gap-2 transition"
-                :class="payForm.method === 'paypal' ? 'border-indigo-600 ring-1 ring-indigo-600 text-indigo-700' : 'border-gray-300 text-gray-600 hover:border-gray-400'"
+                :class="payForm.method === 'paypal' ? 'border-indigo-600 ring-1 ring-indigo-600 text-indigo-700' : 'border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 hover:border-neutral-400'"
                 @click="payForm.method = 'paypal'"
               >
                 <span class="font-bold italic">Pay<span class="text-blue-600">Pal</span></span>
@@ -568,46 +568,46 @@
           <div v-if="payForm.method === 'card'" class="space-y-3 mb-4">
             <p class="text-xs text-amber-600">{{ $t('checkout.testCardHint') }}</p>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('checkout.cardName') }}</label>
+              <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">{{ $t('checkout.cardName') }}</label>
               <input
                 v-model.trim="payForm.card.name"
                 type="text"
                 :placeholder="$t('checkout.fullName')"
-                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                class="w-full rounded-md border border-neutral-300 dark:border-neutral-700 px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
               >
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('checkout.cardNumber') }}</label>
+              <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">{{ $t('checkout.cardNumber') }}</label>
               <input
                 v-model="cardNumberText"
                 type="text"
                 inputmode="numeric"
                 maxlength="23"
                 placeholder="4242 4242 4242 4242"
-                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                class="w-full rounded-md border border-neutral-300 dark:border-neutral-700 px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
               >
             </div>
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('checkout.expiryDate') }}</label>
+                <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">{{ $t('checkout.expiryDate') }}</label>
                 <input
                   v-model.trim="payForm.card.expiry"
                   type="text"
                   inputmode="numeric"
                   maxlength="5"
                   placeholder="MM/YY"
-                  class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  class="w-full rounded-md border border-neutral-300 dark:border-neutral-700 px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 >
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('checkout.cardCvv') }}</label>
+                <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">{{ $t('checkout.cardCvv') }}</label>
                 <input
                   v-model.trim="payForm.card.cvv"
                   type="password"
                   inputmode="numeric"
                   maxlength="4"
                   placeholder="123"
-                  class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  class="w-full rounded-md border border-neutral-300 dark:border-neutral-700 px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 >
               </div>
             </div>
@@ -616,7 +616,7 @@
 
           <div class="flex justify-end space-x-3">
             <button
-              class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+              class="px-4 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:bg-stone-950"
               @click="showPayModal = false"
             >
               {{ $t('orders.keepOrder') }}
@@ -637,21 +637,21 @@
     <!-- Review Modal -->
     <div v-if="reviewTarget" class="fixed inset-0 z-50 overflow-y-auto">
       <div class="flex items-center justify-center min-h-screen px-4">
-        <div class="fixed inset-0 bg-gray-500/40 backdrop-blur-md transition-opacity" @click="reviewTarget = null"/>
+        <div class="fixed inset-0 bg-neutral-50 dark:bg-stone-9500/40 backdrop-blur-md transition-opacity" @click="reviewTarget = null"/>
         <div class="relative bg-white/85 backdrop-blur-2xl rounded-lg max-w-md w-full p-6 shadow-2xl ring-1 ring-white/60">
-          <h3 class="text-lg font-medium text-gray-900 mb-4">
+          <h3 class="text-lg font-medium text-neutral-900 dark:text-neutral-100 mb-4">
             {{ $t('reviews.write') }} - {{ reviewTarget.name || reviewTarget.product_name }}
           </h3>
 
           <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">{{ $t('reviews.rating') }}</label>
+            <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">{{ $t('reviews.rating') }}</label>
             <div class="flex gap-1">
               <button
                 v-for="star in 5"
                 :key="star"
                 type="button"
                 class="text-2xl focus:outline-none transition"
-                :class="star <= reviewForm.rating ? 'text-yellow-400' : 'text-gray-300 hover:text-yellow-200'"
+                :class="star <= reviewForm.rating ? 'text-yellow-400' : 'text-neutral-300 hover:text-yellow-200'"
                 @click="reviewForm.rating = star"
               >
                 ★
@@ -666,20 +666,20 @@
               type="text"
               maxlength="200"
               :placeholder="$t('reviews.titlePlaceholder')"
-              class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              class="w-full rounded-md border border-neutral-300 dark:border-neutral-700 px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             >
             <textarea
               v-model.trim="reviewForm.content"
               rows="4"
               maxlength="5000"
               :placeholder="$t('reviews.contentPlaceholder')"
-              class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 resize-none"
+              class="w-full rounded-md border border-neutral-300 dark:border-neutral-700 px-3 py-2 text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 resize-none"
             />
           </div>
 
           <div class="flex justify-end space-x-3">
             <button
-              class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+              class="px-4 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:bg-stone-950"
               @click="reviewTarget = null"
             >
               {{ $t('orders.keepOrder') }}
@@ -699,17 +699,17 @@
     <!-- Delete Order Confirm Modal -->
     <div v-if="showDeleteModal" class="fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
       <div class="flex min-h-full items-center justify-center p-4 text-center">
-        <div class="fixed inset-0 bg-gray-500/40 backdrop-blur-md transition-opacity" @click="closeDeleteModal" />
+        <div class="fixed inset-0 bg-neutral-50 dark:bg-stone-9500/40 backdrop-blur-md transition-opacity" @click="closeDeleteModal" />
         <div
           class="relative bg-white/85 backdrop-blur-2xl rounded-2xl shadow-2xl ring-1 ring-white/60 max-w-md w-full text-left"
         >
           <div class="px-6 pt-5 pb-4 border-b">
-            <h3 class="text-lg font-semibold text-gray-900">{{ $t('orders.deleteOrder') }}</h3>
-            <p class="text-sm text-gray-500 mt-1">{{ $t('orders.deleteConfirmText') }}</p>
+            <h3 class="text-lg font-semibold text-neutral-900 dark:text-neutral-100">{{ $t('orders.deleteOrder') }}</h3>
+            <p class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mt-1">{{ $t('orders.deleteConfirmText') }}</p>
           </div>
           <div class="px-6 py-4 border-t flex justify-end gap-3">
             <button
-              class="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition font-medium"
+              class="px-4 py-2 text-sm border border-neutral-200 dark:border-neutral-700/60 text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 rounded-lg hover:bg-neutral-50 dark:bg-stone-950 transition font-medium"
               @click="closeDeleteModal"
             >
               {{ $t('common.cancel') }}
@@ -1075,7 +1075,7 @@ const returnStatusClass = (status?: string) => {
     case 'received': return 'bg-indigo-50 text-indigo-700'
     case 'refunded': return 'bg-green-50 text-green-700'
     case 'rejected': return 'bg-red-50 text-red-700'
-    default: return 'bg-gray-100 text-gray-600'
+    default: return 'bg-neutral-100 dark:bg-stone-800 text-neutral-600 dark:text-neutral-400 dark:text-neutral-400'
   }
 }
 

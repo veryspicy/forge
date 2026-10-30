@@ -1,9 +1,9 @@
-<template>
+﻿<template>
   <div class="max-w-6xl mx-auto px-4 py-8">
     <div class="flex justify-between items-center mb-8">
-      <h1 class="text-3xl font-bold text-gray-900">{{ $t('pets.title') }}</h1>
+      <h1 class="text-3xl font-bold text-neutral-900 dark:text-neutral-100">{{ $t('pets.title') }}</h1>
       <button
-        class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium"
+        class="px-4 py-2 bg-accent-600 text-white rounded-lg hover:bg-accent-500 transition font-medium"
         @click="showWizard = true"
       >
         {{ $t('pets.addPet') }}
@@ -11,7 +11,7 @@
     </div>
 
     <!-- Pet Wizard -->
-    <div v-if="showWizard" class="bg-white rounded-xl shadow-sm border p-6 mb-8">
+    <div v-if="showWizard" class="bg-white dark:bg-stone-900 rounded-xl shadow-sm border p-6 mb-8">
       <!-- Wizard Steps -->
       <div class="flex items-center gap-2 mb-6">
         <div
@@ -21,36 +21,37 @@
         >
           <div
             class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium"
-            :class="wizardStep >= idx ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-500'"
+            :class="wizardStep >= idx ? 'bg-accent-600 text-white' : 'bg-neutral-200 dark:bg-stone-800 text-neutral-500 dark:text-neutral-400 dark:text-neutral-400'"
           >
             {{ idx + 1 }}
           </div>
-          <span class="text-sm" :class="wizardStep >= idx ? 'text-gray-900 font-medium' : 'text-gray-400'">{{ step }}</span>
-          <div v-if="idx < wizardSteps.length - 1" class="w-8 h-px bg-gray-300" />
+          <span class="text-sm" :class="wizardStep >= idx ? 'text-neutral-900 dark:text-neutral-100 font-medium' : 'text-neutral-400 dark:text-neutral-400'">{{ step }}</span>
+          <div v-if="idx < wizardSteps.length - 1" class="w-8 h-px bg-neutral-300" />
         </div>
       </div>
 
       <!-- Step 1: Pet Type & Name -->
       <div v-if="wizardStep === 0" class="space-y-4">
-        <h3 class="text-lg font-semibold text-gray-900">{{ $t('pets.step1Title') }}</h3>
+        <h3 class="text-lg font-semibold text-neutral-900 dark:text-neutral-100">{{ $t('pets.step1Title') }}</h3>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
           <button
             v-for="type in petTypes"
             :key="type"
             class="p-4 rounded-lg border-2 transition text-center"
-            :class="form.type === type ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:border-gray-300'"
+            :class="form.type === type ? 'border-accent-500 bg-accent-50' : 'border-neutral-200 dark:border-neutral-700/60 hover:border-neutral-300 dark:border-neutral-700'"
             @click="form.type = type"
           >
-            <span class="text-2xl block mb-1">{{ typeIcon(type) }}</span>
-            <span class="text-sm font-medium text-gray-700">{{ type }}</span>
+<!-- eslint-disable-next-line vue/no-v-html -->
+            <span class="text-2xl block mb-1 text-accent-500/80" v-html="typeIcon(type)" />
+            <span class="text-sm font-medium text-neutral-700 dark:text-neutral-300">{{ type }}</span>
           </button>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('pets.petName') }}</label>
+          <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">{{ $t('pets.petName') }}</label>
           <input
             v-model="form.name"
             type="text"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+            class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md focus:outline-none focus:ring-accent-500 focus:border-accent-500"
             :placeholder="$t('pets.petNamePlaceholder')"
           />
         </div>
@@ -58,12 +59,12 @@
 
       <!-- Step 2: Breed -->
       <div v-if="wizardStep === 1" class="space-y-4">
-        <h3 class="text-lg font-semibold text-gray-900">{{ $t('pets.step2Title') }}</h3>
+        <h3 class="text-lg font-semibold text-neutral-900 dark:text-neutral-100">{{ $t('pets.step2Title') }}</h3>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('pets.breed') }}</label>
+          <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">{{ $t('pets.breed') }}</label>
           <select
             v-model="form.breed"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+            class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md focus:outline-none focus:ring-accent-500 focus:border-accent-500"
           >
             <option value="">{{ $t('pets.selectBreed') || 'Select breed' }}</option>
             <option value="GOLDEN_RETRIEVER">Golden Retriever</option>
@@ -89,7 +90,7 @@
             v-if="form.breed === 'OTHER'"
             v-model="form.breed_custom"
             type="text"
-            class="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+            class="mt-2 w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md focus:outline-none focus:ring-accent-500 focus:border-accent-500"
             placeholder="Enter custom breed name"
           />
         </div>
@@ -97,13 +98,13 @@
 
       <!-- Step 3: Details -->
       <div v-if="wizardStep === 2" class="space-y-4">
-        <h3 class="text-lg font-semibold text-gray-900">{{ $t('pets.step3Title') }}</h3>
+        <h3 class="text-lg font-semibold text-neutral-900 dark:text-neutral-100">{{ $t('pets.step3Title') }}</h3>
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('pets.gender') }}</label>
+            <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">{{ $t('pets.gender') }}</label>
             <select
               v-model="form.gender"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md focus:outline-none focus:ring-accent-500 focus:border-accent-500"
             >
               <option value="">{{ $t('pets.selectGender') }}</option>
               <option value="male">{{ $t('pets.male') }}</option>
@@ -111,28 +112,28 @@
             </select>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('pets.weight') }} (kg)</label>
+            <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">{{ $t('pets.weight') }} (kg)</label>
             <input
               v-model.number="form.weight"
               type="number"
               step="0.1"
               min="0"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md focus:outline-none focus:ring-accent-500 focus:border-accent-500"
               placeholder="0.0"
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('pets.age') }}</label>
-            <div class="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-700">
+            <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">{{ $t('pets.age') }}</label>
+            <div class="w-full px-3 py-2 border border-neutral-200 dark:border-neutral-700/60 rounded-md bg-neutral-50 dark:bg-stone-950 text-neutral-700 dark:text-neutral-300">
               {{ computedAge !== null ? computedAge + ' ' + $t('pets.years') : '-' }}
             </div>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('pets.birthday') }}</label>
+            <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">{{ $t('pets.birthday') }}</label>
             <input
               v-model="form.birthday"
               type="date"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md focus:outline-none focus:ring-accent-500 focus:border-accent-500"
             />
           </div>
         </div>
@@ -140,16 +141,16 @@
 
       <!-- Step 4: Confirm -->
       <div v-if="wizardStep === 3" class="space-y-4">
-        <h3 class="text-lg font-semibold text-gray-900">{{ $t('pets.step4Title') }}</h3>
-        <div class="bg-gray-50 rounded-lg p-4 space-y-2">
-          <div class="flex gap-2"><span class="font-medium text-gray-700">{{ $t('pets.petName') }}:</span><span>{{ form.name }}</span></div>
-          <div class="flex gap-2"><span class="font-medium text-gray-700">{{ $t('pets.type') }}:</span><span>{{ form.type }}</span></div>
-          <div class="flex gap-2"><span class="font-medium text-gray-700">{{ $t('pets.breed') }}:</span><span>{{ form.breed === 'OTHER' ? form.breed_custom : (form.breed || mapBreedForApi('', form.type)) }}</span></div>
-          <div class="flex gap-2"><span class="font-medium text-gray-700">{{ $t('pets.gender') }}:</span><span>{{ form.gender || '-' }}</span></div>
-          <div class="flex gap-2"><span class="font-medium text-gray-700">{{ $t('pets.weight') }}:</span><span>{{ form.weight ? form.weight + ' kg' : '-' }}</span></div>
+        <h3 class="text-lg font-semibold text-neutral-900 dark:text-neutral-100">{{ $t('pets.step4Title') }}</h3>
+        <div class="bg-neutral-50 dark:bg-stone-950 rounded-lg p-4 space-y-2">
+          <div class="flex gap-2"><span class="font-medium text-neutral-700 dark:text-neutral-300">{{ $t('pets.petName') }}:</span><span>{{ form.name }}</span></div>
+          <div class="flex gap-2"><span class="font-medium text-neutral-700 dark:text-neutral-300">{{ $t('pets.type') }}:</span><span>{{ form.type }}</span></div>
+          <div class="flex gap-2"><span class="font-medium text-neutral-700 dark:text-neutral-300">{{ $t('pets.breed') }}:</span><span>{{ form.breed === 'OTHER' ? form.breed_custom : (form.breed || mapBreedForApi('', form.type)) }}</span></div>
+          <div class="flex gap-2"><span class="font-medium text-neutral-700 dark:text-neutral-300">{{ $t('pets.gender') }}:</span><span>{{ form.gender || '-' }}</span></div>
+          <div class="flex gap-2"><span class="font-medium text-neutral-700 dark:text-neutral-300">{{ $t('pets.weight') }}:</span><span>{{ form.weight ? form.weight + ' kg' : '-' }}</span></div>
         </div>
         <button
-          class="w-full py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          class="w-full py-2 bg-accent-600 text-white rounded-lg hover:bg-accent-500 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           :disabled="saving"
           @click="savePet"
         >
@@ -160,7 +161,7 @@
       <!-- Wizard Nav -->
       <div class="flex justify-between mt-6 pt-4 border-t">
         <button
-          class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition"
+          class="px-4 py-2 text-sm text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition"
           :disabled="wizardStep === 0"
           @click="wizardStep--"
         >
@@ -168,14 +169,14 @@
         </button>
         <div class="flex gap-2">
           <button
-            class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition"
+            class="px-4 py-2 text-sm text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition"
             @click="showWizard = false"
           >
             {{ $t('pets.cancel') }}
           </button>
           <button
             v-if="wizardStep < 3"
-            class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition text-sm font-medium"
+            class="px-4 py-2 bg-accent-600 text-white rounded-lg hover:bg-accent-500 transition text-sm font-medium"
             :disabled="!canProceed"
             @click="wizardStep++"
           >
@@ -190,22 +191,23 @@
       <div
         v-for="pet in petStore.pets"
         :key="pet.id"
-        class="bg-white rounded-xl shadow-sm border hover:shadow-md transition"
+        class="bg-white dark:bg-stone-900 rounded-xl shadow-sm border hover:shadow-md transition"
       >
         <!-- Pet Card -->
         <div class="p-6">
           <div class="flex items-start justify-between mb-4">
             <div>
-              <h3 class="text-lg font-semibold text-gray-900">{{ pet.name }}</h3>
-              <p class="text-sm text-gray-500">{{ petAge(pet.birthday) }}</p>
+              <h3 class="text-lg font-semibold text-neutral-900 dark:text-neutral-100">{{ pet.name }}</h3>
+              <p class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ petAge(pet.birthday) }}</p>
             </div>
-            <span class="text-3xl">{{ breedIcon(pet.breed) }}</span>
+<!-- eslint-disable-next-line vue/no-v-html -->
+            <span class="text-3xl text-accent-500/80" v-html="breedIcon(pet.breed)" />
           </div>
-          <div class="space-y-2 text-sm text-gray-600">
-            <div class="flex gap-2"><span class="font-medium text-gray-700">{{ $t('pets.breed') }}:</span><span>{{ pet.breed || '-' }}</span></div>
-            <div class="flex gap-2"><span class="font-medium text-gray-700">{{ $t('pets.gender') }}:</span><span>{{ pet.gender || '-' }}</span></div>
-            <div class="flex gap-2"><span class="font-medium text-gray-700">{{ $t('pets.weight') }}:</span><span>{{ pet.weight ? pet.weight + ' kg' : '-' }}</span></div>
-            <div class="flex gap-2"><span class="font-medium text-gray-700">{{ $t('pets.lifecycle') }}:</span><span>{{ pet.lifecycle || '-' }}</span></div>
+          <div class="space-y-2 text-sm text-neutral-600 dark:text-neutral-400 dark:text-neutral-400">
+            <div class="flex gap-2"><span class="font-medium text-neutral-700 dark:text-neutral-300">{{ $t('pets.breed') }}:</span><span>{{ pet.breed || '-' }}</span></div>
+            <div class="flex gap-2"><span class="font-medium text-neutral-700 dark:text-neutral-300">{{ $t('pets.gender') }}:</span><span>{{ pet.gender || '-' }}</span></div>
+            <div class="flex gap-2"><span class="font-medium text-neutral-700 dark:text-neutral-300">{{ $t('pets.weight') }}:</span><span>{{ pet.weight ? pet.weight + ' kg' : '-' }}</span></div>
+            <div class="flex gap-2"><span class="font-medium text-neutral-700 dark:text-neutral-300">{{ $t('pets.lifecycle') }}:</span><span>{{ pet.lifecycle || '-' }}</span></div>
           </div>
           <div class="flex gap-2 mt-4 pt-4 border-t">
             <button
@@ -218,12 +220,12 @@
         </div>
 
         <!-- Recommendations Section -->
-        <div class="border-t bg-gray-50 rounded-b-xl px-6 py-4">
-          <h4 class="text-sm font-semibold text-gray-700 mb-3">Tailored for {{ pet.name }}</h4>
+        <div class="border-t bg-neutral-50 dark:bg-stone-950 rounded-b-xl px-6 py-4">
+          <h4 class="text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-3">Tailored for {{ pet.name }}</h4>
 
           <!-- Loading -->
           <div v-if="recLoading[pet.id]" class="text-center py-3">
-            <div class="animate-pulse text-sm text-gray-400">Loading recommendations...</div>
+            <div class="animate-pulse text-sm text-neutral-400 dark:text-neutral-400">Loading recommendations...</div>
           </div>
 
           <!-- Recommendations loaded -->
@@ -231,14 +233,14 @@
             <div
               v-for="rec in petRecs[pet.id].slice(0, 3)"
               :key="rec.product_id"
-              class="flex items-center gap-3 p-2 bg-white rounded-lg border cursor-pointer hover:border-primary-300 transition"
+              class="flex items-center gap-3 p-2 bg-white dark:bg-stone-900 rounded-lg border cursor-pointer hover:border-accent-300 transition"
               @click="navigateTo(localePath(`/products/${rec.product_id}`))"
             >
               <div class="flex-1 min-w-0">
-                <p class="text-sm font-medium text-gray-800 truncate">{{ rec.product_name }}</p>
-                <p class="text-xs text-gray-500 truncate">{{ rec.reason }}</p>
+                <p class="text-sm font-medium text-neutral-800 dark:text-neutral-200 truncate">{{ rec.product_name }}</p>
+                <p class="text-xs text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 truncate">{{ rec.reason }}</p>
               </div>
-              <span class="text-xs px-2 py-0.5 bg-primary-100 text-primary-700 rounded-full font-medium">
+              <span class="text-xs px-2 py-0.5 bg-accent-100 text-accent-700 rounded-full font-medium">
                 {{ Math.round(rec.confidence * 100) }}%
               </span>
             </div>
@@ -247,7 +249,7 @@
           <!-- No recommendations yet -->
           <div v-else>
             <button
-              class="w-full px-3 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium"
+              class="w-full px-3 py-2 text-sm bg-accent-600 text-white rounded-lg hover:bg-accent-500 transition font-medium"
               @click="loadRecsForPet(pet.id)"
             >
               View recommendations
@@ -259,15 +261,17 @@
 
     <!-- Empty State -->
     <div v-if="!showWizard && petStore.pets.length === 0" class="text-center py-16">
-      <div class="text-6xl mb-4">🐾</div>
-      <h3 class="text-xl font-semibold text-gray-900 mb-2">{{ $t('pets.noPetsYet') }}</h3>
-      <p class="text-gray-500">{{ $t('pets.noPetsHint') }}</p>
+<!-- eslint-disable-next-line vue/no-v-html -->
+      <div class="text-6xl mb-4 text-accent-500/70" v-html="emptyStateIcon('paw')" />
+      <h3 class="text-xl font-semibold text-neutral-900 dark:text-neutral-100 mb-2">{{ $t('pets.noPetsYet') }}</h3>
+      <p class="text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ $t('pets.noPetsHint') }}</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, reactive } from 'vue'
+import { petTypeByBreed as breedIcon, petIcon as typeIcon, emptyStateIcon } from '~/utils/iconSvgs'
 import { usePetStore } from '~/stores/pet'
 import { useApi } from '~/composables/useApi'
 
@@ -317,21 +321,7 @@ const canProceed = computed(() => {
   return true
 })
 
-function typeIcon(type: string): string {
-  const icons: Record<string, string> = { dog: '🐕', cat: '🐈', bird: '🐦', fish: '🐟', rabbit: '🐰', hamster: '🐹' }
-  return icons[type] || '🐾'
-}
 
-function breedIcon(breed: string): string {
-  const b = (breed || '').toLowerCase()
-  if (b.includes('retriever') || b.includes('labrador') || b.includes('bulldog') || b.includes('shepherd') || b.includes('poodle') || b.includes('husky') || b.includes('corgi') || b.includes('shiba') || b.includes('dog')) return '🐕'
-  if (b.includes('siamese') || b.includes('persian') || b.includes('maine') || b.includes('ragdoll') || b.includes('cat')) return '🐈'
-  if (b.includes('parrot') || b.includes('budgie') || b.includes('bird')) return '🐦'
-  if (b.includes('fish')) return '🐟'
-  if (b.includes('rabbit')) return '🐰'
-  if (b.includes('hamster') || b.includes('guinea')) return '🐹'
-  return '🐾'
-}
 
 function petAge(birthday: string | null): string {
   if (!birthday) return ''

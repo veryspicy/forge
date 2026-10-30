@@ -1,4 +1,4 @@
-// Nuxt 3 配置
+﻿// Nuxt 3 配置
 // https://nuxt.com/docs/api/configuration/nuxt-config
 
 import tailwindcss from "@tailwindcss/vite";
@@ -98,6 +98,15 @@ export default defineNuxtConfig({
       meta: [
         { name: "viewport", content: "width=device-width, initial-scale=1" },
         { name: "description", content: "AI-Powered Pet Supplies Store" },
+      ],
+      link: [],
+      script: [
+        {
+          // Dark theme bootstrap — prevents FOUC before Nuxt hydrates
+          innerHTML:
+            "(function(){try{var t=localStorage.getItem('forge-theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}})();",
+          tagPosition: "head",
+        },
       ],
     },
   },

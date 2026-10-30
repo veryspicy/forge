@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section v-if="slides.length" class="diy-banner relative w-full overflow-hidden">
     <div
       class="relative h-44 w-full sm:h-56 md:h-72"
@@ -22,7 +22,7 @@
           v-for="(_, i) in slides"
           :key="i"
           class="h-2 rounded-full transition-all"
-          :class="i === current ? 'w-5 bg-white' : 'w-2 bg-white/50'"
+          :class="i === current ? 'w-5 bg-white dark:bg-stone-900' : 'w-2 bg-white/50'"
           @click="current = i"
         />
       </div>

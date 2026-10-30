@@ -1,8 +1,8 @@
-<template>
-  <div class="min-h-screen flex items-center justify-center bg-neutral-50">
+﻿<template>
+  <div class="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-stone-950">
     <div class="text-center px-4">
       <h1 class="text-8xl font-bold text-neutral-200 mb-4">{{ error.statusCode }}</h1>
-      <p class="text-xl text-neutral-500 mb-8">
+      <p class="text-xl text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mb-8">
         {{ statusText }}
       </p>
       <NuxtLink

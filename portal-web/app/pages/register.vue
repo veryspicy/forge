@@ -1,8 +1,8 @@
-<template>
-  <div class="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+﻿<template>
+  <div class="min-h-screen bg-neutral-50 dark:bg-stone-950 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-md w-full space-y-8">
       <div>
-        <h2 class="mt-6 text-center text-3xl font-bold text-gray-900">
+        <h2 class="mt-6 text-center text-3xl font-bold text-neutral-900 dark:text-neutral-100">
           {{ $t('auth.createAccount') }}
         </h2>
       </div>
@@ -10,46 +10,46 @@
       <form class="mt-8 space-y-6" @submit.prevent="handleRegister">
         <div class="rounded-md shadow-sm space-y-4">
           <div>
-            <label for="name" class="block text-sm font-medium text-gray-700">{{ $t('auth.name') }}</label>
+            <label for="name" class="block text-sm font-medium text-neutral-700 dark:text-neutral-300">{{ $t('auth.name') }}</label>
             <input
               id="name"
               v-model="name"
               type="text"
               required
-              class="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              class="mt-1 appearance-none block w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md shadow-sm placeholder-neutral-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               placeholder="Your name"
             />
           </div>
           <div>
-            <label for="email" class="block text-sm font-medium text-gray-700">{{ $t('auth.email') }}</label>
+            <label for="email" class="block text-sm font-medium text-neutral-700 dark:text-neutral-300">{{ $t('auth.email') }}</label>
             <input
               id="email"
               v-model="email"
               type="email"
               required
-              class="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              class="mt-1 appearance-none block w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md shadow-sm placeholder-neutral-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               placeholder="you@example.com"
             />
           </div>
           <div>
-            <label for="password" class="block text-sm font-medium text-gray-700">{{ $t('auth.password') }}</label>
+            <label for="password" class="block text-sm font-medium text-neutral-700 dark:text-neutral-300">{{ $t('auth.password') }}</label>
             <input
               id="password"
               v-model="password"
               type="password"
               required
-              class="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              class="mt-1 appearance-none block w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md shadow-sm placeholder-neutral-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               placeholder="Enter your password"
             />
           </div>
           <div>
-            <label for="confirmPassword" class="block text-sm font-medium text-gray-700">{{ $t('auth.confirmPassword') }}</label>
+            <label for="confirmPassword" class="block text-sm font-medium text-neutral-700 dark:text-neutral-300">{{ $t('auth.confirmPassword') }}</label>
             <input
               id="confirmPassword"
               v-model="confirmPassword"
               type="password"
               required
-              class="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              class="mt-1 appearance-none block w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md shadow-sm placeholder-neutral-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               placeholder="Confirm your password"
             />
           </div>

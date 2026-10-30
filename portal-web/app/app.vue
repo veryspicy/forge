@@ -1,7 +1,7 @@
 ﻿﻿<!-- Forge — App Root -->
 <template>
   <NuxtLayout>
-    <NuxtPage />
+    <NuxtPage :transition="{ name: 'page', mode: 'out-in' }" />
   </NuxtLayout>
   <!-- Toast container -->
   <div class="fixed bottom-4 right-4 z-[9999] flex flex-col gap-2">

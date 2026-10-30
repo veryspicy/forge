@@ -128,7 +128,7 @@ class TestMergeForResponse:
     def test_none_stored_returns_defaults(self):
         result = merge_for_response(None)
         assert result["brand"]["name"] == "Forge"
-        assert result["theme"]["primaryColor"] == "#18a058"
+        assert result["theme"]["primaryColor"] == "#1C1917"
 
     def test_stored_override_preserved_and_missing_filled(self):
         result = merge_for_response({"brand": {"name": "Shop2"}})
