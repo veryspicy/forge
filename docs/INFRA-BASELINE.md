@@ -92,9 +92,20 @@ podman start forge-postgres forge-redis forge-minio forge-namesrv forge-broker f
 # 5. 等待 backend healthy（约 1-2 分钟）
 podman ps --filter "name=forge-backend"
 
-# 6. 验证链路（注意用 127.0.0.1）
-Invoke-WebRequest http://127.0.0.1:8080/            # 期望 200
-podman exec forge-gateway curl http://backend:8000/health   # 期望 200
+# 6. 全组件健康检查（恢复/修复完成声明前强制，禁止单链路验证即声称修复）
+# 6.1 容器状态逐个核对（10 容器全部 Up 且 healthy；forge-init-admin 已移除，不参与）
+podman ps -a --format "table {{.Names}}\t{{.Status}}"
+# 期望：forge-postgres/redis/minio/namesrv/broker/backend/ai/portal-web/admin/gateway 全部 Up，
+# backend/ai/admin/gateway 等应 healthy；任一容器 Exited/Restarting → 先恢复该容器，禁止跳过
+
+# 6.2 多链路抽样验证（全部通过才算恢复完成；注意用 127.0.0.1）
+Invoke-WebRequest http://127.0.0.1:8080/            # 网关根：期望 302（portal 重定向）
+Invoke-WebRequest http://127.0.0.1:8080/admin/       # admin：期望 200
+podman exec forge-gateway curl http://backend:8000/health   # backend health：期望 200
+# 真实对象存储链路抽样（minio 相关故障必须验，防止只验网关/health 漏掉 minio）：
+# 取一张 C 端真实商品图 URL（如 /minio/product-images/...），Invoke-WebRequest 期望 200
+
+# 6.3 全部通过后方可声称"环境已恢复/修复完成"；有任何异常必须如实报告并继续排查
 
 # 7. 若 gateway 502：检查网络归属
 podman inspect forge-gateway --format '{{json .NetworkSettings.Networks}}'
@@ -114,7 +125,7 @@ podman network connect docker_forge forge-gateway
      5. 验证：`Test-NetConnection 127.0.0.1 -Port 8080/3000` 均 TcpTestSucceeded=True，`Invoke-WebRequest http://127.0.0.1:8080/` 与 `http://127.0.0.1:3000/` 返回 200。
    - **禁止**：不要再切回 `UserModeNetworking=true`（升级 podman / 深挖 gvproxy / 反复 stop-start 探测均不作为备选方案）；machine 重建时同样保持 false（见 PODMAN-RECONSTRUCTION-SOP §2 补充坑位）。
 2. **容器网络错位**：`docker_forge` 与 `forge` 是两个不同网络（前者 compose 创建、后者可能是手动创建残留）。gateway 连错网络会 502。所有容器统一挂 `docker_forge`。
-3. **machine 重启后容器不自动恢复**：必须手动 `podman start` 全部容器（restart=unless-stopped 在 machine 层面不生效）。
+3. **machine 重启后容器不自动恢复**：必须手动 `podman start` 全部容器（restart=unless-stopped 在 machine 层面不生效）。**Exited(0) 不代表容器健康**——2026-10-17 forge-minio 曾 Exited(0) 四天未被自动拉起（machine 停止导致的正常退出不触发 restart），期间 C 端商品图全 404。
 4. **init-admin 阻塞 compose（已解决）**：根因是 `backend/seed_admin.py` 第 35 行 import 已删除的 `casbin_enforcer` 模块，导致 `forge-init-admin` 容器必然 Exited(1)，compose up 每次尝试重建该一次性容器而卡住。2026-08-24 方案A落地：已从 docker-compose.yml 移除 init-admin 服务定义（compose 不再包含该服务），并修复 seed_admin.py（移除 casbin 引用，RBAC 数据由 migration + API 落地，admin 可正常登录）。seed_admin.py 保留为手动初始化脚本（容器内 `python /app/seed_admin.py`），不再参与 compose 生命周期。
 5. **podman-compose 曾被 SAC 误拦截（已解决）**：Smart App Control 曾误拦 podman-compose.exe 及 uv/venv Python 可执行文件（python.exe、alembic.exe、uvicorn.exe、.pyd 等，均无微软信誉签名）；2026-08-24 用户手动关闭 SAC 后恢复可用。SAC 关闭不可逆（重新开启需重置 Windows）。若再遇 App Control 拦截，先查 SAC 状态（Windows 安全中心 → 应用和浏览器控制）与 CodeIntegrity 事件日志（3076/3077）。
 6. **admin 静态资源缓存**：admin 重建后浏览器需 Ctrl+Shift+R 硬刷新（nginx 强缓存），见 DEV-RULES §3.2。
@@ -122,6 +133,7 @@ podman network connect docker_forge forge-gateway
 8. **WSL VM 空闲自动关闭（假掉线）**：WSL 默认 `vmIdleTimeout=60000ms`，VM 空闲约 60s 被自动关闭，表现为"掉线"；已通过 `.wslconfig` 设置 `[wsl2] vmIdleTimeout=-1` 与 `[general] instanceIdleTimeout=-1` 根治。若再出现类似掉线，先查 `.wslconfig` 是否仍含该配置（WSL 更新可能重置）。
 9. **minio 官方镜像下架（已固化）**：Docker Hub 自 2025-10 起停止分发 `minio/minio` 仓库，任何 Docker Hub 代理（Harbor/公共加速器）均无法回源，拉取表现为空列表/静默卡死/exit 125。**必须使用 `ghcr.io/imagegenius/minio:latest`**，且显式绕过其 s6 入口（`entrypoint: ["minio"]` + `command: ["server", "/data", ...]`，实测 /init 硬编码 `server /config` 且不读 MINIO_OPTS，见 §8.1）。compose 已固化该镜像，重建直接 `podman-compose up -d` 即可，见 §8。
 10. **容器内 DNS 解析失败（已固化）**：backend 解析不到 `minio` 主机名时 P4 下载接口 503。根因：手动 `podman run` 缺 `--network-alias`，或曾用注入 `/etc/hosts` 写死 IP（**podman restart 会重置 /etc/hosts，IP 方案必然失效**）。正确通路：容器挂 `docker_forge` 网络 + compose 服务名（或 `--network-alias minio`）做 DNS 别名，backend 用 `MINIO_ENDPOINT=minio:9000`，见 §8。
+11. **恢复后漏查全组件导致误报"已修复"（2026-10-17）**：forge-minio Exited(0) 导致 C 端商品图 404，手动拉起 minio + restart backend 后仅抽样图片 200 即声称修复，未核对其余 9 容器。根因：恢复验证只覆盖故障单链路。强制：任何环境恢复/修复后必须执行 §5 步骤 6 的全组件健康检查，全绿才可声明完成。
 
 ---
 

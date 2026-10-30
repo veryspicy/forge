@@ -865,6 +865,7 @@ podman exec forge-postgres psql -U postgres -d forge -c "SELECT count(*) FROM di
 4. **容器拉起**：podman-compose.exe 可能被本机 Application Control 策略拦截，此时用 `podman start <容器列表>` 逐一起动，无需逐容器 `podman run`（容器配置已持久化）
 5. **环境故障恢复顺序**：先查 INFRA-BASELINE.md 的恢复 SOP；禁止重复执行已知无效的 `wsl --shutdown` / 重启 wslservice 等操作
 6. **环境问题出现时**：优先检查访问地址是否误用 localhost（最常见误判），再按 SOP 定位转发链路
+7. **恢复完成声明（强制）**：任何环境恢复/修复操作后，必须按 INFRA-BASELINE §5 步骤 6 执行全组件健康检查（10 容器逐个 Up/healthy + 网关 302 + admin 200 + backend health 200 + 真实对象存储链路 200），全绿后才可声称修复完成；**禁止只验证故障单条链路（如图片 200）就宣布修复**。反例：2026-10-17 forge-minio Exited(0) 致 C 端商品图 404，仅手动拉起 minio + 抽样图片 200 即声称已修复，遗漏全组件核对。
 
 ---
 
