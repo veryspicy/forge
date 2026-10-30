@@ -89,7 +89,7 @@ services:
       - "9003:9001"
     environment:
       MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     # entrypoint 策略（2026-10-30 实测修正）：该镜像 s6 入口 /init 硬编码
     # `minio server /config`（数据目录为 /config，且不读 MINIO_OPTS），若按默认
     # 入口启动，数据不会落到卷 /data。必须显式绕过 s6，与已验证的手动 run 稳定态
