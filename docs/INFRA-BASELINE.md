@@ -2,7 +2,7 @@
 
 > 适用范围：Windows 11 + WSL2 + podman machine 容器化开发环境。
 > 本文档是环境事实基线 + 故障恢复 SOP。**环境问题必须先查本文档，禁止从头排查**。
-> 最后更新：2026-09-09（固化原因：8080 端口转发问题重复发生且每次从头排查；2026-09-09 补充 wsl --update 后 machine 卡 Starting / 52293 转发异常 SOP，并统一发行版内 podman 至 6.1.1）
+> 最后更新：2026-10-30（固化原因：8080 端口转发问题重复发生且每次从头排查；2026-09-09 补充 wsl --update 后 machine 卡 Starting / 52293 转发异常 SOP，并统一发行版内 podman 至 6.1.1；2026-10-27 固化 MinIO 镜像源与 DNS 通路，防止重建时重复踩 minio 官方镜像下架与 DNS 解析坑；2026-10-30 修正 entrypoint 策略：实测该镜像 s6 入口 /init 硬编码 server /config 且不读 MINIO_OPTS，必须显式绕过 s6）
 
 ---
 
@@ -112,6 +112,8 @@ podman network connect docker_forge forge-gateway
 6. **admin 静态资源缓存**：admin 重建后浏览器需 Ctrl+Shift+R 硬刷新（nginx 强缓存），见 DEV-RULES §3.2。
 7. **wsl --update 后 machine 卡 Starting / 52293 转发异常**：`wsl --update`（或 WSL 内核/组件升级）后，machine json 可能残留 `Starting=true`，Windows 侧到发行版 sshd 52293 连接被拒，客户端报 Cannot connect。镜像网络模式下内核更新后 wslservice 未完整复位所致。完整修复见 §7。
 8. **WSL VM 空闲自动关闭（假掉线）**：WSL 默认 `vmIdleTimeout=60000ms`，VM 空闲约 60s 被自动关闭，表现为"掉线"；已通过 `.wslconfig` 设置 `[wsl2] vmIdleTimeout=-1` 与 `[general] instanceIdleTimeout=-1` 根治。若再出现类似掉线，先查 `.wslconfig` 是否仍含该配置（WSL 更新可能重置）。
+9. **minio 官方镜像下架（已固化）**：Docker Hub 自 2025-10 起停止分发 `minio/minio` 仓库，任何 Docker Hub 代理（Harbor/公共加速器）均无法回源，拉取表现为空列表/静默卡死/exit 125。**必须使用 `ghcr.io/imagegenius/minio:latest`**，且显式绕过其 s6 入口（`entrypoint: ["minio"]` + `command: ["server", "/data", ...]`，实测 /init 硬编码 `server /config` 且不读 MINIO_OPTS，见 §8.1）。compose 已固化该镜像，重建直接 `podman-compose up -d` 即可，见 §8。
+10. **容器内 DNS 解析失败（已固化）**：backend 解析不到 `minio` 主机名时 P4 下载接口 503。根因：手动 `podman run` 缺 `--network-alias`，或曾用注入 `/etc/hosts` 写死 IP（**podman restart 会重置 /etc/hosts，IP 方案必然失效**）。正确通路：容器挂 `docker_forge` 网络 + compose 服务名（或 `--network-alias minio`）做 DNS 别名，backend 用 `MINIO_ENDPOINT=minio:9000`，见 §8。
 
 ---
 
@@ -227,3 +229,79 @@ Invoke-WebRequest -Uri 'http://127.0.0.1:8080/' -UseBasicParsing -TimeoutSec 15 
 - 日常统一使用 `podman machine start/stop` 管理生命周期；`wsl --terminate` 仅用于 stop 失败的强制停止兜底，且恢复仍须走 `podman machine start` 并等待 list 显示 Running，勿直接 `wsl -d` 进入操作。
 - WSL 侧 `.wslconfig` 已配置 `[wsl2] vmIdleTimeout=-1` 与 `[general] instanceIdleTimeout=-1`，避免 VM 空闲约 60 秒被自动关闭造成新一轮"掉线"误判。
 - 本机发行版内 podman 已与 Windows 侧统一为 6.1.1（rhcontainerbot COPR），后续升级保持两侧版本一致。
+
+---
+
+## 8. MinIO 镜像与 DNS 通路固化（2026-10-27 生效）
+
+> 背景：P4 下载链路曾反复 503。两次踩坑根因：(a) compose 引用已下架的 `minio/minio:latest`，重建必失败；(b) backend 解析不到 minio 主机名（手动 run 缺别名 / /etc/hosts 写死 IP 被 restart 重置）。以下配置为已验证通路，**禁止绕开自行另起炉灶**。
+
+### 8.1 镜像源（铁律）
+
+| 项 | 值 |
+|---|---|
+| 镜像 | `ghcr.io/imagegenius/minio:latest`（本地已验证可拉取，571MB） |
+| 禁用 | `minio/minio:latest` / `docker.io/minio/*`——Docker Hub 自 2025-10 停止分发，任何代理无法回源 |
+| 入口 | LinuxServer.io 风格：`Entrypoint=/init`，启动参数经环境变量 `MINIO_OPTS` 传入 |
+| 数据目录 | `/data`（compose 挂载 `minio-data:/data`，与已验证 run 一致） |
+
+### 8.2 DNS 通路（铁律）
+
+- backend 通过 `MINIO_ENDPOINT=minio:9000` 访问 MinIO；`minio` 是 **DNS 别名**，不是 IP。
+- compose 部署：服务名 `minio` 自动注册为 `docker_forge` 网络别名，backend 挂同一网络即可解析（现网已生效）。
+- 手动 run 场景：必须带 `--network docker_forge --network-alias minio`。
+- **禁止**在容器 `/etc/hosts` 注入固定 IP——`podman restart` 会重置 `/etc/hosts`，IP 方案必然失效。
+
+### 8.3 compose 已固化配置（docker/docker-compose.yml）
+
+```yaml
+  minio:
+    image: ghcr.io/imagegenius/minio:latest
+    container_name: forge-minio
+    restart: unless-stopped
+    networks:
+      - forge
+    ports:
+      - "9002:9000"
+      - "9003:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    # 必须显式绕过 s6：镜像默认入口 /init 硬编码 minio server /config（数据落 /config
+    # 而非卷 /data），且不读 MINIO_OPTS；与手动 run 稳定态一致直接以 minio 为 PID1
+    entrypoint: ["minio"]
+    command: ["server", "/data", "--console-address", ":9001"]
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+```
+
+注意：compose 网络逻辑名 `forge` ≠ 实际网络名 `docker_forge`（见 §6 坑位 2），backend 亦挂同一 compose 网络。
+
+### 8.4 重建与验证流程
+
+```powershell
+# 1. 重建/拉起 MinIO（compose 会按新镜像重建，无需手动 run）
+cd D:\codeRepo\forge\docker
+podman-compose --project-name docker -f docker-compose.yml up -d forge-minio
+
+# 2. 确认容器 Running 且 healthy
+podman ps --filter "name=forge-minio"
+
+# 3. DNS 通路验证（backend 内解析 minio）
+podman exec forge-backend sh -lc 'getent hosts minio && curl -fsS http://minio:9000/minio/health/live && echo DNS_OK'
+
+# 4. 端到端链路（P4 下载走通）
+Invoke-WebRequest -Uri 'http://127.0.0.1:8002/api/v1/health' -UseBasicParsing -TimeoutSec 15
+# 下载接口 200 即通路；503 时按 §5 先查全部依赖容器状态（podman ps -a）
+```
+
+### 8.5 machine 重启后的恢复（衔接 §5）
+
+- podman machine 重启后基础容器**不会**自动恢复（restart=unless-stopped 在 machine 层面不生效），先 `podman start forge-postgres forge-redis forge-minio ...` 再测端到端。
+- backend 500 且日志无 traceback 时，先 `podman ps -a` 确认依赖容器状态，按需 `podman-compose up -d` 拉起依赖，禁止直接改代码排查 DNS。
+

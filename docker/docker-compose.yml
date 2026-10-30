@@ -73,8 +73,13 @@ services:
       retries: 5
 
   # ===== 对象存储 =====
+  # 镜像源说明：Docker Hub 自 2025-10 起停止分发 minio/minio，任何 Docker Hub
+  # 代理均无法回源。必须使用 ghcr.io/imagegenius/minio:latest（本地已验证可拉取）。
+  # DNS 通路：compose 服务名 minio 自动注册为 forge 网络别名，backend 内
+  # MINIO_ENDPOINT=minio:9000 即可解析；禁止在容器 /etc/hosts 写死 IP
+  # （podman restart 会重置 /etc/hosts）。详见 docs/INFRA-BASELINE.md §MinIO。
   minio:
-    image: minio/minio:latest
+    image: ghcr.io/imagegenius/minio:latest
     container_name: forge-minio
     restart: unless-stopped
     networks:
@@ -84,12 +89,17 @@ services:
       - "9003:9001"
     environment:
       MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    # entrypoint 策略（2026-10-30 实测修正）：该镜像 s6 入口 /init 硬编码
+    # `minio server /config`（数据目录为 /config，且不读 MINIO_OPTS），若按默认
+    # 入口启动，数据不会落到卷 /data。必须显式绕过 s6，与已验证的手动 run 稳定态
+    # （Entrypoint=minio, Cmd=server /data）保持一致。
+    entrypoint: ["minio"]
+    command: ["server", "/data", "--console-address", ":9001"]
     volumes:
       - minio-data:/data
-    command: server /data --console-address ":9001"
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9000/minio/health/live || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
