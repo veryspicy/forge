@@ -108,6 +108,7 @@ $diffText = git diff "$Base...HEAD" 2>$null
 if ($diffText) {
     $secretHits = @($diffText | Select-String -Pattern '(?i)(password|passwd|secret|api[_-]?key|token|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY)\s*[:=]\s*[^\s"''*]{8,}' |
         Where-Object {
+            $_.Line -notmatch '^\s*\-' -and
             $_.Line -notmatch 'example|placeholder|your_|xxx|test' -and
             $_.Line -notmatch '=\s*[$@]' -and
             $_.Line -notmatch '=\s*[A-Za-z]+-[A-Za-z]+\s*$' -and
