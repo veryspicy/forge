@@ -2,7 +2,7 @@
 
 > 适用范围：Windows 11 + WSL2 + podman machine 容器化开发环境。
 > 本文档是环境事实基线 + 故障恢复 SOP。**环境问题必须先查本文档，禁止从头排查**。
-> 最后更新：2026-10-30（固化原因：8080 端口转发问题重复发生且每次从头排查；2026-09-09 补充 wsl --update 后 machine 卡 Starting / 52293 转发异常 SOP，并统一发行版内 podman 至 6.1.1；2026-10-27 固化 MinIO 镜像源与 DNS 通路，防止重建时重复踩 minio 官方镜像下架与 DNS 解析坑；2026-10-30 修正 entrypoint 策略：实测该镜像 s6 入口 /init 硬编码 server /config 且不读 MINIO_OPTS，必须显式绕过 s6）
+> 最后更新：2026-10-30（固化原因：8080 端口转发问题重复发生且每次从头排查；2026-09-09 补充 wsl --update 后 machine 卡 Starting / 52293 转发异常 SOP，并统一发行版内 podman 至 6.1.1；2026-10-25 固化 gvproxy usermode 转发失效修复：`UserModeNetworking=false`（NAT），禁止切回 true，见 §6.1；2026-10-27 固化 MinIO 镜像源与 DNS 通路，防止重建时重复踩 minio 官方镜像下架与 DNS 解析坑；2026-10-30 修正 entrypoint 策略：实测该镜像 s6 入口 /init 硬编码 server /config 且不读 MINIO_OPTS，必须显式绕过 s6）
 
 ---
 
@@ -104,7 +104,15 @@ podman network connect docker_forge forge-gateway
 
 ## 6. 已知坑位（避免重踩）
 
-1. **user-mode networking 端口注册丢失**：`UserModeNetworking=true` 时，Windows 侧 8080 转发依赖 `podman-net-usermode\entries` 文件注册；WSL 重启 / wslservice 重启后该注册可能丢失（entries 文件为空），Windows 侧 gvproxy 无 8080 监听。**已切换为 `UserModeNetworking=false` 规避；若再切回 true，必须验证 `127.0.0.1:8080` 可用**。
+1. **gvproxy usermode 端口转发失效（固定方案，唯一标准，勿换方案）**：
+   - 现象：`podman machine stop/start`（或 WSL/wslservice 重启）后，Windows 主机 `127.0.0.1:8080 / 3000` 超时（容器内部链路正常，rootlessport 在 machine 内正常监听 8080/3000，但 gvproxy 不绑定宿主端口）；`UserModeNetworking=true` 时 Windows 侧 8080 转发依赖 `podman-net-usermode\entries` 注册，WSL 重启 / wslservice 重启后注册丢失（entries 文件为空），Windows 侧 gvproxy 无 8080 监听。
+   - **固定方案（方案A，2026-10-25 用户确认固化，禁止每次换不同方案）**：切回 WSL 默认 NAT 模式，不再使用 usermode networking：
+     1. `podman machine stop`（必须先在停止状态才能 set）
+     2. `podman machine set --user-mode-networking=false`（若报 `RTNETLINK answers: File exists`，确认 machine 已停止后重试一次即可成功）
+     3. `podman machine start` → `podman machine inspect` 确认 `UserModeNetworking: false`
+     4. 拉起容器：`podman-compose --project-name docker -f D:\codeRepo\forge\docker\docker-compose.yml up -d`
+     5. 验证：`Test-NetConnection 127.0.0.1 -Port 8080/3000` 均 TcpTestSucceeded=True，`Invoke-WebRequest http://127.0.0.1:8080/` 与 `http://127.0.0.1:3000/` 返回 200。
+   - **禁止**：不要再切回 `UserModeNetworking=true`（升级 podman / 深挖 gvproxy / 反复 stop-start 探测均不作为备选方案）；machine 重建时同样保持 false（见 PODMAN-RECONSTRUCTION-SOP §2 补充坑位）。
 2. **容器网络错位**：`docker_forge` 与 `forge` 是两个不同网络（前者 compose 创建、后者可能是手动创建残留）。gateway 连错网络会 502。所有容器统一挂 `docker_forge`。
 3. **machine 重启后容器不自动恢复**：必须手动 `podman start` 全部容器（restart=unless-stopped 在 machine 层面不生效）。
 4. **init-admin 阻塞 compose（已解决）**：根因是 `backend/seed_admin.py` 第 35 行 import 已删除的 `casbin_enforcer` 模块，导致 `forge-init-admin` 容器必然 Exited(1)，compose up 每次尝试重建该一次性容器而卡住。2026-08-24 方案A落地：已从 docker-compose.yml 移除 init-admin 服务定义（compose 不再包含该服务），并修复 seed_admin.py（移除 casbin 引用，RBAC 数据由 migration + API 落地，admin 可正常登录）。seed_admin.py 保留为手动初始化脚本（容器内 `python /app/seed_admin.py`），不再参与 compose 生命周期。
