@@ -18,7 +18,7 @@
           <svg class="w-4 h-4 mx-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
           </svg>
-          <span class="text-neutral-900 dark:text-neutral-100 font-medium">#{{ order.order_number || order.id }}</span>
+          <span class="text-neutral-900 dark:text-neutral-100 font-medium order-no">#{{ order.order_number || order.id }}</span>
         </nav>
 
         <!-- Order Header -->
@@ -26,7 +26,7 @@
           <div class="flex items-center justify-between flex-wrap gap-4">
             <div>
               <h1 class="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
-                {{ $t('orders.order') }} #{{ order.order_number || order.id }}
+                {{ $t('orders.order') }} <span class="order-no">#{{ order.order_number || order.id }}</span>
               </h1>
               <p class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mt-1">
                 {{ $t('orders.placedOn') }} {{ formatDate(order.created_at || order.date) }}

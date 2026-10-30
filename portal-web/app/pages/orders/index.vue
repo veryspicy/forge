@@ -29,7 +29,7 @@
         <!-- Header: order info + status on top -->
         <div class="flex items-center justify-between gap-4 px-6 pt-5 pb-3">
           <div class="min-w-0">
-            <p class="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">#{{ order.order_number || order.id }}</p>
+            <p class="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate order-no">#{{ order.order_number || order.id }}</p>
             <p class="text-xs text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mt-0.5">{{ $t('orders.date') }}: {{ formatDate(order.created_at) }}</p>
           </div>
           <OrderStatusBadge :status="order.status" :payment-status="order.payment_status" />
