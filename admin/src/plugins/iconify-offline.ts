@@ -367,6 +367,9 @@ export const OFFLINE_SETS: MiniIconSet[] = [
       },
       plus: {
         body: '<path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/>'
+      },
+      watermark: {
+        body: '<path fill="currentColor" d="M21 3H3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2m0 16h-9v-6h9z"/>'
       }
     }
   }
