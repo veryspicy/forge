@@ -266,7 +266,7 @@ Invoke-WebRequest -Uri 'http://127.0.0.1:8080/' -UseBasicParsing -TimeoutSec 15 
       - "9003:9001"
     environment:
       MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     # 必须显式绕过 s6：镜像默认入口 /init 硬编码 minio server /config（数据落 /config
     # 而非卷 /data），且不读 MINIO_OPTS；与手动 run 稳定态一致直接以 minio 为 PID1
     entrypoint: ["minio"]
