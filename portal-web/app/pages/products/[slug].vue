@@ -701,8 +701,14 @@ watchEffect(() => {
 })
 
 onMounted(async () => {
-  if (route.params.id) {
-    await productStore.loadProduct(route.params.id as string)
+  if (route.params.slug) {
+    await productStore.loadProduct(route.params.slug as string)
+  }
+  // 数字 ID 老链接自动重定向到 slug URL（SEO / 链接统一）
+  const rawSlug = route.params.slug as string
+  if (rawSlug && /^\d+$/.test(rawSlug) && product.value?.slug && String(product.value.slug) !== rawSlug) {
+    await navigateTo(localePath(`/products/${product.value.slug}`), { replace: true })
+    return
   }
   if (product.value) {
     reviewsLoading.value = true
@@ -721,7 +727,7 @@ onMounted(async () => {
     await productStore.loadProducts({ page_size: 4 } as any)
   }
   relatedProducts.value = productStore.products.filter(
-    (p) => p.id !== route.params.id
+    (p) => String(p.id) !== String(product.value?.id)
   ).slice(0, 4)
 })
 
