@@ -555,12 +555,15 @@ export const useDiyStore = defineStore('diy-store', () => {
       siteConfig.categories.forEach((c: any, i: number) => {
         c.order = i;
         // 分类 i18n key 统一 cat. 前缀（兼容历史 footer. 开头 / 漏前缀数据）
+        // 注意 footer.petFood 应映射为 cat.food（规范翻译键），而非 cat.petFood
+        const CAT_KEY_MAP: Record<string, string> = { petFood: 'food' };
         if (c.nameKey) {
           const k = String(c.nameKey).trim().replace(/^\.+/, '');
           if (k.startsWith('cat.')) {
             c.nameKey = k;
           } else if (k.startsWith('footer.')) {
-            c.nameKey = `cat.${k.replace(/^footer\./, '')}`;
+            const suffix = k.replace(/^footer\./, '');
+            c.nameKey = `cat.${CAT_KEY_MAP[suffix] || suffix}`;
           } else {
             c.nameKey = `cat.${k}`;
           }
