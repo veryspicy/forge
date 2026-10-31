@@ -25,6 +25,8 @@ overrides:
   brace-expansion@^2: 2.1.7
   brace-expansion@^5: 5.0.12
   devalue@^5: 5.9.4
+  node-forge: 1.4.1
+  seroval: 1.6.8
 
 importers:
 
@@ -4220,8 +4222,8 @@ packages:
       encoding:
         optional: true
 
-  node-forge@1.4.0:
-    resolution: {integrity: sha512-LarFH0+6VfriEhqMMcLX2F7SwSXeWwnEAJEsYm5QKWchiVYVvJyV9v7UDvUv+w5HO23ZpQTXDv/GxdDdMyOuoQ==}
+  node-forge@1.4.1:
+    resolution: {integrity: sha512-w5/MfWaeMrpR/5ba6fZyAUTLSuE6aYz7H/3cYrqwZEmf5eQS3IaaLgJt4MBv7HglGFWmV22K8h4U18RJQmw/ow==}
     engines: {node: '>= 6.13.0'}
 
   node-gyp-build@4.8.4:
@@ -4847,8 +4849,8 @@ packages:
     resolution: {integrity: sha512-FqlEuoTq/zRmA4Lg6aOqyH3lCHbUtCB0bmHCeFniX2GBdDqMJM3FwdvEhlE5Pim1dlt2FfBdVPmUNNiGhhKqpw==}
     engines: {node: '>=20.0.0'}
 
-  seroval@1.6.4:
-    resolution: {integrity: sha512-LErWMNS2RRFdu2RMA5u/PA59/IWs0XsikyEXGQ2/36iEWFrdG0ABmg17E17cikrv76891kOAMq3TkTFXpwAHXw==}
+  seroval@1.6.8:
+    resolution: {integrity: sha512-HlSgSAkTk4EqHcje1ptJjfZi1YDv5KbhVJ/d3P7T/nAXua2VmDu+AKDX5VTdFfZf48nDkWB2TKYt0DrCSa+3wg==}
     engines: {node: '>=10'}
 
   serve-placeholder@2.0.2:
@@ -7311,7 +7313,7 @@ snapshots:
       perfect-debounce: 2.1.0
       pkg-types: 2.3.1
       postcss: 8.5.23
-      seroval: 1.6.4
+      seroval: 1.6.8
       std-env: 4.2.0
       ufo: 1.6.4
       unenv: 2.0.0-rc.24
@@ -10067,7 +10069,7 @@ snapshots:
       http-shutdown: 1.2.2
       jiti: 2.7.0
       mlly: 1.8.2
-      node-forge: 1.4.0
+      node-forge: 1.4.1
       pathe: 2.0.3
       std-env: 4.2.0
       tinyclip: 0.1.14
@@ -10333,7 +10335,7 @@ snapshots:
     dependencies:
       whatwg-url: 5.0.0
 
-  node-forge@1.4.0: {}
+  node-forge@1.4.1: {}
 
   node-gyp-build@4.8.4: {}
 
@@ -11137,7 +11139,7 @@ snapshots:
 
   serialize-javascript@7.1.4: {}
 
-  seroval@1.6.4: {}
+  seroval@1.6.8: {}
 
   serve-placeholder@2.0.2:
     dependencies:
