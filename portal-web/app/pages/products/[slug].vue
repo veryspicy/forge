@@ -1,25 +1,25 @@
-<!-- Forge -- Product Detail Page -->
+﻿<!-- Forge -- Product Detail Page -->
 <template>
   <div>
     <!-- Breadcrumb -->
-    <nav class="max-w-6xl mx-auto text-sm text-gray-500 pt-6 mb-6">
-      <NuxtLink :to="localePath('/')" class="hover:text-primary-600">{{ $t('common.home') }}</NuxtLink>
+    <nav class="max-w-6xl mx-auto text-sm text-neutral-500 dark:text-neutral-400 mb-6">
+      <NuxtLink :to="localePath('/')" class="hover:text-accent-600">{{ $t('common.home') }}</NuxtLink>
       <span class="mx-2">/</span>
-      <NuxtLink :to="localePath('/products')" class="hover:text-primary-600">{{ $t('common.products') }}</NuxtLink>
+      <NuxtLink :to="localePath('/products')" class="hover:text-accent-600">{{ $t('common.products') }}</NuxtLink>
       <span class="mx-2">/</span>
-      <span class="text-gray-900 truncate">{{ displayName }}</span>
+      <span class="text-neutral-900 dark:text-neutral-100 truncate">{{ displayName }}</span>
     </nav>
 
     <!-- Loading -->
     <div v-if="productStore.loading" class="text-center py-20">
-      <div class="animate-spin w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full mx-auto" />
-      <p class="mt-4 text-gray-500">{{ $t('products.loadingProduct') }}</p>
+      <div class="animate-spin w-8 h-8 border-4 border-accent-200 border-t-accent-600 rounded-full mx-auto" />
+      <p class="mt-4 text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ $t('products.loadingProduct') }}</p>
     </div>
 
     <!-- Error -->
     <div v-else-if="!product" class="text-center py-20">
-      <p class="text-gray-500 text-lg">{{ $t('products.notFound') }}</p>
-      <NuxtLink :to="localePath('/products')" class="mt-4 text-primary-600 hover:underline inline-block">{{ $t('products.backToProducts') }}</NuxtLink>
+      <p class="text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 text-lg">{{ $t('products.notFound') }}</p>
+      <NuxtLink :to="localePath('/products')" class="mt-4 text-accent-600 hover:underline inline-block">{{ $t('products.backToProducts') }}</NuxtLink>
     </div>
 
     <!-- Product Detail -->
@@ -29,7 +29,7 @@
         <div>
           <!-- Main Image -->
           <div
-            class="bg-white rounded-xl overflow-hidden aspect-square cursor-zoom-in"
+            class="bg-neutral-100 dark:bg-stone-800 rounded-xl overflow-hidden aspect-square cursor-zoom-in"
             @click="openLightbox(0)"
           >
             <img
@@ -38,7 +38,7 @@
               :alt="activeImageAlt"
               class="w-full h-full object-contain"
             >
-            <span v-else class="text-gray-400">{{ $t('products.noImage') }}</span>
+            <span v-else class="text-neutral-400 dark:text-neutral-400">{{ $t('products.noImage') }}</span>
           </div>
 
           <!-- Thumbnails -->
@@ -47,7 +47,7 @@
               v-for="(img, idx) in product.images"
               :key="idx"
               class="w-16 h-16 rounded-lg border-2 overflow-hidden transition flex-shrink-0"
-              :class="activeImage === img ? 'border-primary-500' : 'border-gray-200 hover:border-gray-400'"
+              :class="activeImage === img ? 'border-accent-500' : 'border-neutral-200 dark:border-neutral-700/60 hover:border-neutral-400'"
               @click="activeImage = img"
             >
               <img :src="img" :alt="imageAlt(img, idx)" class="w-full h-full object-contain bg-white" >
@@ -65,28 +65,28 @@
             {{ $t('products.aiRecommended') }}
           </span>
 
-          <h1 class="text-3xl font-bold text-gray-900">{{ displayName }}</h1>
+          <h1 class="text-3xl font-bold text-neutral-900 dark:text-neutral-100">{{ displayName }}</h1>
 
           <!-- SKU -->
-          <p v-if="product.sku" class="text-sm text-gray-400 mt-1">SKU: {{ product.sku }}</p>
+          <p v-if="product.sku" class="text-sm text-neutral-400 dark:text-neutral-400 mt-1">SKU: {{ product.sku }}</p>
 
           <!-- Rating -->
           <div class="flex items-center gap-2 mt-3">
             <span class="text-secondary-400 text-lg">
               {{ '★'.repeat(Math.floor(product.rating || 0)) }}
             </span>
-            <span class="text-gray-300 text-lg">
+            <span class="text-neutral-300 text-lg">
               {{ '☆'.repeat(5 - Math.floor(product.rating || 0)) }}
             </span>
-            <span class="text-sm text-gray-500">({{ product.review_count || 0 }} {{ $t('products.reviews') }})</span>
+            <span class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">({{ product.review_count || 0 }} {{ $t('products.reviews') }})</span>
           </div>
 
           <!-- Price -->
           <div class="mt-4 flex items-baseline gap-3">
-            <span class="text-3xl font-bold text-primary-600">
+            <span class="text-3xl font-bold text-accent-600">
               {{ formatPrice(product.price) }}
             </span>
-            <span v-if="product.original_price && product.original_price > product.price" class="text-lg text-gray-400 line-through">
+            <span v-if="product.original_price && product.original_price > product.price" class="text-lg text-neutral-400 dark:text-neutral-400 line-through">
               {{ formatPrice(product.original_price) }}
             </span>
           </div>
@@ -100,17 +100,18 @@
             <span class="text-sm font-medium">{{ inventoryLabel }}</span>
           </div>
 
+
           <!-- Variants -->
           <div v-if="product.variants && product.variants.length > 0" class="mt-5">
-            <p class="text-sm font-medium text-gray-700 mb-2">{{ $t('products.options') }}:</p>
+            <p class="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">{{ $t('products.options') }}:</p>
             <div class="flex flex-wrap gap-2">
               <button
                 v-for="v in product.variants"
                 :key="v.id"
                 class="px-4 py-2 border rounded-lg text-sm transition"
                 :class="selectedVariant === v.id
-                  ? 'bg-primary-600 text-white border-primary-600'
-                  : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400'"
+                  ? 'bg-accent-600 text-white border-accent-600'
+                  : 'bg-white dark:bg-stone-900 text-neutral-700 dark:text-neutral-300 border-neutral-200 dark:border-neutral-700/60 hover:border-neutral-400'"
                 @click="selectedVariant = v.id"
               >
                 {{ variantDisplayName(v) }}
@@ -122,15 +123,15 @@
           <div class="mt-6 flex items-center gap-4">
             <div class="flex items-center border rounded-lg">
               <button
-                class="px-3 py-2 text-gray-500 hover:text-gray-700 disabled:opacity-30"
+                class="px-3 py-2 text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300 disabled:opacity-30"
                 :disabled="quantity <= 1"
                 @click="quantity--"
               >
                 -
               </button>
-              <span class="px-4 py-2 font-medium text-gray-900 select-none">{{ quantity }}</span>
+              <span class="px-4 py-2 font-medium text-neutral-900 dark:text-neutral-100 select-none">{{ quantity }}</span>
               <button
-                class="px-3 py-2 text-gray-500 hover:text-gray-700"
+                class="px-3 py-2 text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300"
                 :disabled="!isInStock"
                 @click="quantity++"
               >
@@ -138,7 +139,7 @@
               </button>
             </div>
             <button
-              class="flex-1 px-6 py-2.5 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              class="flex-1 px-6 py-2.5 bg-accent-600 text-white rounded-lg font-medium hover:bg-accent-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
               :disabled="!isInStock || adding"
               @click="addToCart"
             >
@@ -148,23 +149,23 @@
 
           <!-- Trust Badges（按店铺设置 store.trust_badges 开关控制） -->
           <div v-if="showTrustBadges" class="mt-6 grid grid-cols-3 gap-2 text-center">
-            <div v-if="trustBadgeFreeShipping" class="flex flex-col items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-2.5">
-              <svg class="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+            <div v-if="trustBadgeFreeShipping" class="flex flex-col items-center gap-1 rounded-lg border border-neutral-200 dark:border-neutral-700/60 bg-white dark:bg-stone-900 px-2 py-2.5">
+              <svg class="w-5 h-5 text-accent-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h8m-8 0a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm8 0a2 2 0 1 0 4 0 2 2 0 0 0-4 0zm-8 3v6m8-6v6m-10 0h12a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2z" />
               </svg>
-              <span class="text-xs font-medium text-gray-700">{{ freeShippingText }}</span>
+              <span class="text-xs font-medium text-neutral-700 dark:text-neutral-300">{{ freeShippingText }}</span>
             </div>
-            <div v-if="trustBadgeReturns" class="flex flex-col items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-2.5">
-              <svg class="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+            <div v-if="trustBadgeReturns" class="flex flex-col items-center gap-1 rounded-lg border border-neutral-200 dark:border-neutral-700/60 bg-white dark:bg-stone-900 px-2 py-2.5">
+              <svg class="w-5 h-5 text-accent-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v6h6M20 20v-6h-6M4 16a8 8 0 0 0 14.1 2.5M20 8A8 8 0 0 0 5.9 5.5" />
               </svg>
-              <span class="text-xs font-medium text-gray-700">{{ returnsText }}</span>
+              <span class="text-xs font-medium text-neutral-700 dark:text-neutral-300">{{ returnsText }}</span>
             </div>
-            <div v-if="trustBadgeSecure" class="flex flex-col items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-2.5">
-              <svg class="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+            <div v-if="trustBadgeSecure" class="flex flex-col items-center gap-1 rounded-lg border border-neutral-200 dark:border-neutral-700/60 bg-white dark:bg-stone-900 px-2 py-2.5">
+              <svg class="w-5 h-5 text-accent-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm7-3a7 7 0 1 1-14 0 7 7 0 0 1 14 0z" />
               </svg>
-              <span class="text-xs font-medium text-gray-700">{{ $t('products.trustSecure') }}</span>
+              <span class="text-xs font-medium text-neutral-700 dark:text-neutral-300">{{ $t('products.trustSecure') }}</span>
             </div>
           </div>
 
@@ -219,12 +220,12 @@
 
           <!-- Pet Suitability Tags -->
           <div v-if="product.breed_groups && product.breed_groups.length > 0" class="mt-5">
-            <p class="text-sm font-medium text-gray-700 mb-2">{{ $t('products.suitableFor') }}:</p>
+            <p class="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">{{ $t('products.suitableFor') }}:</p>
             <div class="flex flex-wrap gap-2">
               <span
                 v-for="bg in product.breed_groups"
                 :key="bg"
-                class="px-3 py-1 bg-primary-50 text-primary-700 text-xs rounded-full border border-primary-200"
+                class="px-3 py-1 bg-accent-50 text-accent-700 text-xs rounded-full border border-accent-200"
               >
                 {{ bg }}
               </span>
@@ -233,15 +234,15 @@
 
           <!-- Specifications (Collapsible) -->
           <details v-if="productSpecs.length > 0" class="mt-6 group">
-            <summary class="text-sm font-medium text-gray-700 cursor-pointer list-none flex items-center gap-1">
+            <summary class="text-sm font-medium text-neutral-700 dark:text-neutral-300 cursor-pointer list-none flex items-center gap-1">
               {{ $t('products.specifications') }}
               <span class="transition-transform group-open:rotate-90">&#9654;</span>
             </summary>
             <table class="mt-3 w-full text-sm border-collapse">
               <tbody>
-                <tr v-for="spec in productSpecs" :key="spec.label" class="border-b border-gray-100">
-                  <td class="py-2 pr-4 text-gray-500 font-medium">{{ $t(`products.spec.${spec.label.toLowerCase()}`) }}</td>
-                  <td class="py-2 text-gray-900">{{ spec.value }}</td>
+                <tr v-for="spec in productSpecs" :key="spec.label" class="border-b border-neutral-100">
+                  <td class="py-2 pr-4 text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 font-medium">{{ $t(`products.spec.${spec.label.toLowerCase()}`) }}</td>
+                  <td class="py-2 text-neutral-900 dark:text-neutral-100">{{ spec.value }}</td>
                 </tr>
               </tbody>
             </table>
@@ -251,23 +252,23 @@
 
       <!-- Structured Detail Blocks（商品介绍等文案由详情块承载，避免与 description 重复渲染） -->
       <section v-if="detailBlocks.length" class="mt-16">
-        <h2 class="text-2xl font-bold text-gray-900 mb-6">{{ $t('products.detailsTitle') }}</h2>
+        <h2 class="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mb-6">{{ $t('products.detailsTitle') }}</h2>
         <DetailBlocks :blocks="detailBlocks" />
       </section>
 
       <!-- Customer Reviews -->
       <section class="mt-16">
-        <h2 class="text-2xl font-bold text-gray-900 mb-6">{{ $t('reviews.productTitle') }}</h2>
-        <div v-if="reviewsLoading" class="text-sm text-gray-500 py-4">{{ $t('common.loading') }}</div>
+        <h2 class="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mb-6">{{ $t('reviews.productTitle') }}</h2>
+        <div v-if="reviewsLoading" class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 py-4">{{ $t('common.loading') }}</div>
         <template v-else-if="productReviews.length > 0">
-          <div v-if="reviewSummary" class="flex items-center gap-4 bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+          <div v-if="reviewSummary" class="flex items-center gap-4 bg-neutral-50 dark:bg-stone-950 border border-neutral-200 dark:border-neutral-700/60 rounded-lg p-4 mb-6">
             <div class="text-center">
-              <div class="text-3xl font-bold text-gray-900">{{ reviewSummary.average_rating }}</div>
+              <div class="text-3xl font-bold text-neutral-900 dark:text-neutral-100">{{ reviewSummary.average_rating }}</div>
               <div class="text-yellow-400 text-sm mt-1">
                 <span v-for="s in 5" :key="s" :class="s <= Math.round(reviewSummary.average_rating) ? '' : 'opacity-30'">★</span>
               </div>
             </div>
-            <div class="text-sm text-gray-600">
+            <div class="text-sm text-neutral-600 dark:text-neutral-400 dark:text-neutral-400">
               <p>{{ $t('reviews.avgLabel') }} · {{ $t('reviews.totalLabel', { count: reviewSummary.review_count }) }}</p>
               <div class="mt-2 space-y-1">
                 <div
@@ -275,14 +276,14 @@
                   :key="star"
                   class="flex items-center gap-2"
                 >
-                  <span class="w-8 text-gray-500">{{ star }}★</span>
-                  <div class="flex-1 h-2 bg-gray-200 rounded overflow-hidden">
+                  <span class="w-8 text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ star }}★</span>
+                  <div class="flex-1 h-2 bg-neutral-200 dark:bg-stone-800 rounded overflow-hidden">
                     <div
                       class="h-full bg-yellow-400"
                       :style="{ width: (reviewSummary.review_count ? (reviewSummary.distribution?.[star] || 0) / reviewSummary.review_count * 100 : 0) + '%' }"
                     />
                   </div>
-                  <span class="w-6 text-xs text-gray-400 text-right">{{ reviewSummary.distribution?.[star] || 0 }}</span>
+                  <span class="w-6 text-xs text-neutral-400 dark:text-neutral-400 text-right">{{ reviewSummary.distribution?.[star] || 0 }}</span>
                 </div>
               </div>
             </div>
@@ -291,27 +292,27 @@
             <li
               v-for="rv in productReviews"
               :key="rv.id"
-              class="border border-gray-200 rounded-lg p-4"
+              class="border border-neutral-200 dark:border-neutral-700/60 rounded-lg p-4"
             >
               <div class="flex items-center justify-between mb-2">
                 <div class="text-yellow-400 text-sm">
                   <span v-for="s in 5" :key="s" :class="s <= rv.rating ? '' : 'opacity-30'">★</span>
                 </div>
-                <span class="text-xs text-gray-400">{{ formatReviewDate(rv.created_at) }}</span>
+                <span class="text-xs text-neutral-400 dark:text-neutral-400">{{ formatReviewDate(rv.created_at) }}</span>
               </div>
-              <p v-if="rv.title" class="font-medium text-gray-900">{{ rv.title }}</p>
-              <p v-if="rv.content" class="text-sm text-gray-600 mt-1">{{ rv.content }}</p>
+              <p v-if="rv.title" class="font-medium text-neutral-900 dark:text-neutral-100">{{ rv.title }}</p>
+              <p v-if="rv.content" class="text-sm text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 mt-1">{{ rv.content }}</p>
             </li>
           </ul>
         </template>
-        <div v-else class="border border-dashed border-gray-300 rounded-lg p-8 text-center text-sm text-gray-500">
+        <div v-else class="border border-dashed border-neutral-300 dark:border-neutral-700 rounded-lg p-8 text-center text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">
           {{ $t('reviews.empty') }}
         </div>
       </section>
 
       <!-- Related Products -->
       <section v-if="relatedProducts.length > 0" class="mt-16">
-        <h2 class="text-2xl font-bold text-gray-900 mb-6">{{ $t('products.relatedTitle') }}</h2>
+        <h2 class="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mb-6">{{ $t('products.relatedTitle') }}</h2>
         <div class="flex gap-6 overflow-x-auto pb-4 scrollbar-hide">
           <div
             v-for="rp in relatedProducts"
@@ -638,7 +639,7 @@ const isInStock = computed(() => {
 
 const inventoryClass = computed(() => {
   const inv = product.value?.inventory
-  if (inv == null) return 'bg-gray-300'
+  if (inv == null) return 'bg-neutral-300'
   if (inv <= 0) return 'bg-red-500'
   if (inv <= 5) return 'bg-yellow-500'
   return 'bg-green-500'

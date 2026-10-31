@@ -1,37 +1,39 @@
-<template>
+﻿<template>
   <div>
     <!-- 降级：硬编码分类页 -->
     <div class="max-w-6xl mx-auto px-4 py-8">
       <div class="mb-8">
-        <nav class="text-sm text-gray-500 mb-4">
-          <NuxtLink :to="localePath('/')" class="hover:text-primary-600">{{ $t('common.home') }}</NuxtLink>
+        <nav class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mb-4">
+          <NuxtLink :to="localePath('/')" class="hover:text-accent-600">{{ $t('common.home') }}</NuxtLink>
           <span class="mx-2">/</span>
-          <span class="text-gray-900">{{ categoryName }}</span>
+          <span class="text-neutral-900 dark:text-neutral-100">{{ categoryName }}</span>
         </nav>
-        <h1 class="text-2xl font-bold text-gray-900">{{ categoryName }}</h1>
+        <h1 class="text-2xl font-bold text-neutral-900 dark:text-neutral-100">{{ categoryName }}</h1>
       </div>
 
       <div v-if="pending" class="text-center py-16">
-        <div class="animate-spin w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full mx-auto" />
+        <div class="animate-spin w-8 h-8 border-4 border-accent-200 border-t-accent-600 rounded-full mx-auto" />
       </div>
       <div
         v-else-if="products.length > 0"
         class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
       >
         <NuxtLink
-          v-for="p in products"
+          v-for="(p, idx) in products"
           :key="p.id"
+          v-reveal="{ delay: Math.min(idx, 11) * 50 }"
           :to="localePath(`/products/${p.slug || p.id}`)"
-          class="bg-white rounded-xl shadow-sm border hover:shadow-md transition p-4"
+          class="bg-white dark:bg-stone-900 rounded-xl shadow-sm border hover:shadow-md transition p-4"
         >
-          <div class="w-full h-32 bg-gradient-to-br from-primary-50 to-primary-100 rounded-lg mb-3 flex items-center justify-center">
-            <span class="text-4xl">{{ productIcon(p.name) }}</span>
+          <div class="w-full h-32 bg-gradient-to-br from-accent-50 to-accent-100 rounded-lg mb-3 flex items-center justify-center">
+<!-- eslint-disable-next-line vue/no-v-html -->
+            <span class="text-4xl" v-html="productIcon(p.name)" />
           </div>
-          <h3 class="text-sm font-semibold text-gray-800 truncate">{{ p.name }}</h3>
-          <p class="text-sm font-bold text-primary-700 mt-2">${{ p.price }}</p>
+          <h3 class="text-sm font-semibold text-neutral-800 dark:text-neutral-200 truncate">{{ p.name }}</h3>
+          <p class="text-sm font-bold text-accent-700 mt-2">${{ p.price }}</p>
         </NuxtLink>
       </div>
-      <div v-else class="text-center py-16 text-gray-400">
+      <div v-else class="text-center py-16 text-neutral-400 dark:text-neutral-400">
         {{ $t('common.noResults') || 'No products found' }}
       </div>
     </div>
@@ -40,6 +42,7 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
+import { productIcon } from '~/utils/iconSvgs'
 
 const localePath = useLocalePath()
 
@@ -85,13 +88,5 @@ onMounted(async () => {
   }
 })
 
-function productIcon(name: string): string {
-  const n = name?.toLowerCase() || ''
-  if (n.includes('food') || n.includes('kibble')) return '🍖'
-  if (n.includes('toy') || n.includes('ball') || n.includes('chew')) return '🎾'
-  if (n.includes('bed') || n.includes('crate')) return '🛏️'
-  if (n.includes('collar') || n.includes('leash') || n.includes('harness')) return '🦮'
-  if (n.includes('health') || n.includes('vitamin')) return '💊'
-  return '📦'
-}
+
 </script>

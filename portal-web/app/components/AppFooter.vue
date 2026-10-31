@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <footer data-region="footer" class="bg-neutral-900 text-neutral-300">
     <div class="max-w-7xl mx-auto px-4 py-12">
       <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
@@ -10,7 +10,7 @@
             <li v-for="link in group.links" :key="link.labelKey + link.to">
               <NuxtLink
                 :to="localePath(normalizeTo(link.to))"
-                class="text-sm text-neutral-400 hover:text-neutral-100 transition-colors"
+                class="text-sm text-neutral-400 dark:text-neutral-400 hover:text-neutral-100 transition-colors"
               >
                 {{ safeT(link.labelKey, link.label) }}
               </NuxtLink>
@@ -22,13 +22,13 @@
       <div
         v-if="hasFeature('show_newsletter') || profile.footer.newsletter"
         data-newsletter
-        class="mt-12 flex flex-col sm:flex-row items-start sm:items-center gap-4 p-6 rounded-2xl bg-neutral-800/50"
+        class="mt-12 flex flex-col sm:flex-row items-start sm:items-center gap-4 p-6 rounded-2xl glass-surface-dark"
       >
         <div class="flex-shrink-0">
           <h4 class="text-base font-heading font-semibold text-neutral-100">
             {{ t('footer.stayInLoop') }}
           </h4>
-          <p class="text-sm text-neutral-400 mt-0.5">
+          <p class="text-sm text-neutral-400 dark:text-neutral-400 mt-0.5">
             {{ t('footer.newsletterHint') }}
           </p>
         </div>
@@ -38,11 +38,11 @@
             type="email"
             required
             :placeholder="t('footer.enterEmail')"
-            class="flex-1 text-sm bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-2.5 text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-primary-500 transition-colors"
+            class="flex-1 text-sm bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-2.5 text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-accent-400 transition-colors"
           />
           <button
             type="submit"
-            class="flex-shrink-0 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors"
+            class="flex-shrink-0 bg-accent-600 hover:bg-accent-500 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors"
           >
             {{ t('footer.subscribe') }}
           </button>
@@ -66,7 +66,7 @@
             rel="noopener noreferrer"
             :aria-label="item.platform"
             :title="item.platform"
-            class="flex h-[42px] w-[42px] items-center justify-center rounded-full border border-neutral-200 text-neutral-100 transition-colors hover:bg-white hover:text-black"
+            class="flex h-[42px] w-[42px] items-center justify-center rounded-full border border-neutral-200 dark:border-neutral-700/60 text-neutral-100 transition-colors hover:border-accent-400 hover:bg-accent-600/20 hover:text-accent-300"
           >
             <svg
               width="24"
@@ -84,10 +84,10 @@
       <div class="border-t border-neutral-800 my-8" />
 
       <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
-        <p data-copyright class="text-sm text-neutral-500">
+        <p data-copyright class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">
           {{ profile.footer.copyright || t('footer.copyright') || '© 2026 Forge' }}
         </p>
-        <p class="text-sm text-neutral-500">
+        <p class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">
           {{ t('footer.paymentMethods') }}
         </p>
       </div>

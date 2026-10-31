@@ -1,85 +1,108 @@
 @import "tailwindcss";
 
+/* Self-hosted fonts (variable, latin) — theme-css may override --font-heading/--font-body
+   to 'Cormorant' / 'Montserrat' from site profile; these @font-face supply the actual files. */
+@font-face {
+  font-family: 'Cormorant';
+  src: url('../fonts/cormorant-latin-wght.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Montserrat';
+  src: url('../fonts/montserrat-latin-wght.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Dark mode: class strategy — toggled via html.dark (see AppHeader theme button) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
-  --font-heading: 'DM Sans', system-ui, sans-serif;
-  --font-body: system-ui, -apple-system, sans-serif;
-  
-  /* Primary: Sage Green */
-  --color-primary-50: oklch(0.985 0.01 145);
-  --color-primary-100: oklch(0.95 0.03 145);
-  --color-primary-200: oklch(0.88 0.06 145);
-  --color-primary-300: oklch(0.78 0.09 145);
-  --color-primary-400: oklch(0.68 0.12 145);
-  --color-primary-500: oklch(0.58 0.14 145);
-  --color-primary-600: oklch(0.48 0.13 145);
-  --color-primary-700: oklch(0.40 0.11 145);
-  --color-primary-800: oklch(0.32 0.08 145);
-  --color-primary-900: oklch(0.26 0.05 145);
-  --color-primary-950: oklch(0.20 0.03 145);
-  
-  /* Secondary: Warm Amber */
-  --color-secondary-50: oklch(0.98 0.02 85);
-  --color-secondary-100: oklch(0.95 0.04 85);
-  --color-secondary-200: oklch(0.89 0.08 85);
-  --color-secondary-300: oklch(0.82 0.12 85);
-  --color-secondary-400: oklch(0.74 0.14 80);
-  --color-secondary-500: oklch(0.66 0.16 75);
-  --color-secondary-600: oklch(0.56 0.14 70);
-  --color-secondary-700: oklch(0.45 0.11 65);
-  --color-secondary-800: oklch(0.36 0.08 60);
-  --color-secondary-900: oklch(0.28 0.05 55);
-  
-  /* Accent: Terracotta */
-  --color-accent-50: oklch(0.97 0.02 25);
-  --color-accent-100: oklch(0.93 0.04 25);
-  --color-accent-200: oklch(0.86 0.08 25);
-  --color-accent-300: oklch(0.76 0.12 25);
-  --color-accent-400: oklch(0.68 0.15 25);
-  --color-accent-500: oklch(0.60 0.17 25);
-  --color-accent-600: oklch(0.52 0.15 25);
-  --color-accent-700: oklch(0.43 0.12 25);
-  
-  /* Neutral: Warm Gray (tinted with sage) */
-  --color-neutral-50: oklch(0.98 0.005 145);
-  --color-neutral-100: oklch(0.95 0.006 145);
-  --color-neutral-200: oklch(0.90 0.007 145);
-  --color-neutral-300: oklch(0.82 0.007 145);
-  --color-neutral-400: oklch(0.70 0.008 145);
-  --color-neutral-500: oklch(0.58 0.008 145);
-  --color-neutral-600: oklch(0.48 0.007 145);
-  --color-neutral-700: oklch(0.38 0.006 145);
-  --color-neutral-800: oklch(0.28 0.005 145);
-  --color-neutral-900: oklch(0.20 0.004 145);
-  --color-neutral-950: oklch(0.14 0.003 145);
-  
+  /* Typography: Luxury pairing — Cormorant (display) + Montserrat (body) */
+  --font-heading: 'Cormorant', 'Times New Roman', serif;
+  --font-body: 'Montserrat', system-ui, -apple-system, sans-serif;
+
+  /* Primary: Ink Black (warm stone) */
+  --color-primary-50: oklch(0.985 0.001 70);
+  --color-primary-100: oklch(0.965 0.002 70);
+  --color-primary-200: oklch(0.91 0.004 70);
+  --color-primary-300: oklch(0.84 0.005 70);
+  --color-primary-400: oklch(0.72 0.006 70);
+  --color-primary-500: oklch(0.59 0.007 70);
+  --color-primary-600: oklch(0.48 0.008 70);
+  --color-primary-700: oklch(0.39 0.007 70);
+  --color-primary-800: oklch(0.28 0.006 70);
+  --color-primary-900: oklch(0.21 0.005 70);
+  --color-primary-950: oklch(0.13 0.004 70);
+
+  /* Secondary: Warm Taupe */
+  --color-secondary-50: oklch(0.98 0.004 60);
+  --color-secondary-100: oklch(0.96 0.005 60);
+  --color-secondary-200: oklch(0.90 0.006 60);
+  --color-secondary-300: oklch(0.82 0.007 60);
+  --color-secondary-400: oklch(0.70 0.008 60);
+  --color-secondary-500: oklch(0.57 0.009 60);
+  --color-secondary-600: oklch(0.46 0.008 60);
+  --color-secondary-700: oklch(0.38 0.007 60);
+  --color-secondary-800: oklch(0.29 0.006 60);
+  --color-secondary-900: oklch(0.22 0.005 60);
+
+  /* Accent: Antique Gold */
+  --color-accent-50: oklch(0.975 0.02 85);
+  --color-accent-100: oklch(0.95 0.04 82);
+  --color-accent-200: oklch(0.89 0.07 78);
+  --color-accent-300: oklch(0.82 0.09 72);
+  --color-accent-400: oklch(0.74 0.11 68);
+  --color-accent-500: oklch(0.66 0.12 62);
+  --color-accent-600: oklch(0.56 0.11 55);
+  --color-accent-700: oklch(0.46 0.09 48);
+  --color-accent-800: oklch(0.37 0.07 42);
+  --color-accent-900: oklch(0.30 0.05 38);
+
+  /* Neutral: Warm Stone */
+  --color-neutral-50: oklch(0.985 0.001 70);
+  --color-neutral-100: oklch(0.965 0.002 70);
+  --color-neutral-200: oklch(0.91 0.004 70);
+  --color-neutral-300: oklch(0.84 0.005 70);
+  --color-neutral-400: oklch(0.72 0.006 70);
+  --color-neutral-500: oklch(0.59 0.007 70);
+  --color-neutral-600: oklch(0.48 0.008 70);
+  --color-neutral-700: oklch(0.39 0.007 70);
+  --color-neutral-800: oklch(0.28 0.006 70);
+  --color-neutral-900: oklch(0.21 0.005 70);
+  --color-neutral-950: oklch(0.13 0.004 70);
+
   /* Semantic: Status colors */
   --color-success: oklch(0.55 0.15 160);
   --color-warning: oklch(0.65 0.16 85);
   --color-error: oklch(0.52 0.18 25);
   --color-info: oklch(0.50 0.12 250);
-  
-  /* Radius */
-  --radius-sm: 0.375rem;
-  --radius-md: 0.75rem;
-  --radius-lg: 1rem;
-  --radius-xl: 1.25rem;
-  --radius-2xl: 1.75rem;
-  
-  /* Shadows (tinted, not pure black) */
-  --shadow-sm: 0 1px 3px oklch(0.20 0.004 145 / 0.06);
-  --shadow-md: 0 4px 12px oklch(0.20 0.004 145 / 0.08);
-  --shadow-lg: 0 8px 30px oklch(0.20 0.004 145 / 0.10);
-  --shadow-xl: 0 20px 50px oklch(0.20 0.004 145 / 0.12);
+
+  /* Radius: refined */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.875rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+
+  /* Shadows (warm, soft) */
+  --shadow-sm: 0 1px 3px oklch(0.20 0.005 70 / 0.08);
+  --shadow-md: 0 4px 14px oklch(0.20 0.005 70 / 0.10);
+  --shadow-lg: 0 10px 34px oklch(0.20 0.005 70 / 0.14);
+  --shadow-xl: 0 24px 60px oklch(0.20 0.005 70 / 0.18);
 }
 
 /* DIY 装修预览桥接：无色阶别名变量，对齐设计文档中的站点配置注入逻辑
  * preview-bridge 通过 root.style.setProperty('--color-primary', ...) 注入主题色，
  * 这些别名指向带色阶的实际变量，保证注入后不影响 Tailwind 的色阶工具类。 */
 :root {
-  --color-primary: var(--color-primary-500);
-  --color-primary-light: var(--color-primary-400);
-  --color-primary-dark: var(--color-primary-700);
-  --color-secondary: var(--color-secondary-500);
+  --color-primary: var(--color-primary-900);
+  --color-primary-light: var(--color-primary-700);
+  --color-primary-dark: var(--color-primary-950);
+  --color-secondary: var(--color-secondary-700);
   --color-accent: var(--color-accent-500);
 }
 
@@ -87,18 +110,30 @@
 @layer base {
   html {
     font-family: var(--font-body);
-    color: var(--color-neutral-800);
+    color: var(--color-primary-900);
+    background: var(--color-neutral-50);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.3s ease-out-expo, color 0.3s ease-out-expo;
+  }
+  /* Dark theme base: warm ink background + warm paper text */
+  html.dark {
+    color: oklch(0.93 0.008 70);
+    background: oklch(0.145 0.004 70);
+  }
+  html.dark ::selection {
+    background: var(--color-accent-600);
+    color: #fff;
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-heading);
     font-weight: 600;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.01em;
+    line-height: 1.15;
     text-wrap: balance;
   }
   :focus-visible {
-    outline: 2px solid var(--color-primary-400);
+    outline: 2px solid var(--color-accent-500);
     outline-offset: 2px;
     border-radius: 4px;
   }
@@ -115,8 +150,43 @@
   .text-balanced { text-wrap: balance; }
   .surface-elevated { background: var(--color-neutral-50); box-shadow: var(--shadow-md); border-radius: var(--radius-lg); }
   .surface-subtle { background: var(--color-neutral-100); border-radius: var(--radius-md); }
-  .gradient-brand { background: linear-gradient(135deg, var(--color-primary-500), var(--color-secondary-400)); }
-  .gradient-hero { background: linear-gradient(160deg, var(--color-primary-50), var(--color-neutral-50) 40%, var(--color-secondary-50)); }
+
+  /* Liquid Glass surfaces */
+  .glass-surface {
+    background: oklch(1 0 0 / 0.55);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    border: 1px solid oklch(1 0 0 / 0.6);
+    box-shadow: var(--shadow-md), inset 0 1px 0 oklch(1 0 0 / 0.7);
+  }
+  .glass-surface-dark {
+    background: oklch(0.21 0.005 70 / 0.55);
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    border: 1px solid oklch(1 0 0 / 0.14);
+    box-shadow: var(--shadow-lg), inset 0 1px 0 oklch(1 0 0 / 0.12);
+  }
+
+  /* Dark-mode surface overrides (keep glass identity, shift to ink) */
+  html.dark .glass-surface {
+    background: oklch(0.20 0.006 70 / 0.62);
+    border-color: oklch(1 0 0 / 0.10);
+    box-shadow: var(--shadow-lg), inset 0 1px 0 oklch(1 0 0 / 0.08);
+  }
+  html.dark .surface-elevated { background: oklch(0.18 0.005 70); box-shadow: var(--shadow-lg); }
+  html.dark .surface-subtle { background: oklch(0.24 0.005 70); }
+  html.dark .gradient-hero { background: linear-gradient(160deg, oklch(0.17 0.005 70), oklch(0.21 0.006 70) 45%, oklch(0.26 0.01 60)); }
+
+  /* Gradients */
+  .gradient-brand { background: linear-gradient(135deg, var(--color-primary-900), var(--color-primary-700)); }
+  .gradient-gold { background: linear-gradient(135deg, var(--color-accent-500), var(--color-accent-300)); }
+  .gradient-hero { background: linear-gradient(160deg, var(--color-primary-50), var(--color-neutral-100) 45%, oklch(0.975 0.02 85)); }
+  .gradient-gold-text {
+    background: linear-gradient(120deg, var(--color-accent-600), var(--color-accent-400));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
 }
 
 /* Animations */
@@ -139,3 +209,66 @@
 /* Skeleton loading */
 .skeleton { background: linear-gradient(90deg, var(--color-neutral-200) 25%, var(--color-neutral-100) 50%, var(--color-neutral-200) 75%); background-size: 200% 100%; animation: skeleton-shimmer 1.5s infinite; }
 @keyframes skeleton-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* Typography application: luxury pairing by default (overridable per-element) */
+body {
+  font-family: var(--font-body), system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading), Georgia, 'Times New Roman', serif;
+  letter-spacing: -0.01em;
+}
+.font-heading { font-family: var(--font-heading), Georgia, 'Times New Roman', serif; }
+.font-body { font-family: var(--font-body), system-ui, -apple-system, 'Segoe UI', sans-serif; }
+
+/* Scroll reveal — driven by plugins/reveal.client.ts (v-reveal directive) */
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.45s var(--ease-out-expo), transform 0.45s var(--ease-out-expo);
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+.reveal-in {
+  opacity: 1;
+  transform: none;
+}
+
+/* Nuxt page transition (name="page", wired in app.vue) */
+.page-enter-active,
+.page-leave-active {
+  transition: opacity 0.25s var(--ease-out-expo), transform 0.25s var(--ease-out-expo);
+}
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+/* Press feedback for primary interactive elements */
+.pressable {
+  transition: transform 0.15s var(--ease-out-expo), box-shadow 0.15s var(--ease-out-expo);
+}
+.pressable:active {
+  transform: scale(0.97);
+}
+
+/* Reduced-motion: reveal elements must render visible without JS/transition */
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Formal mono for order numbers & other serious identifiers */
+.order-no {
+  font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+}

@@ -1,9 +1,9 @@
-<template>
+﻿<template>
   <div class="max-w-7xl mx-auto px-4 py-8">
     <div class="flex items-center justify-between mb-8">
-      <h1 class="text-3xl font-bold text-gray-900">{{ $t('products.title') }}</h1>
+      <h1 class="text-3xl font-bold text-neutral-900 dark:text-neutral-100">{{ $t('products.title') }}</h1>
       <button
-        class="lg:hidden px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm font-medium"
+        class="lg:hidden px-4 py-2 bg-neutral-100 dark:bg-stone-800 text-neutral-700 dark:text-neutral-300 rounded-lg hover:bg-neutral-200 dark:bg-stone-800 transition text-sm font-medium"
         @click="showFilters = !showFilters"
       >
         {{ $t('products.filters') }}
@@ -14,7 +14,7 @@
       <!-- Filter Sidebar -->
       <aside
         class="w-64 flex-shrink-0 hidden lg:block"
-        :class="{ 'fixed inset-0 z-50 bg-white p-6 overflow-y-auto lg:relative': showFilters }"
+        :class="{ 'fixed inset-0 z-50 bg-white dark:bg-stone-900 p-6 overflow-y-auto lg:relative': showFilters }"
       >
         <FilterSidebar v-model="filters" @update:model-value="applyFilters" />
       </aside>
@@ -23,12 +23,12 @@
       <div class="flex-1 min-w-0">
         <!-- Sort Bar -->
         <div class="flex items-center justify-between mb-6">
-          <p class="text-sm text-gray-500">
+          <p class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">
             {{ $t('products.showingCount', { count: productStore.products.length }) }}
           </p>
           <select
             v-model="sortBy"
-            class="text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+            class="text-sm border border-neutral-300 dark:border-neutral-700 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-accent-500 focus:border-accent-500"
             @change="applyFilters"
           >
             <option value="popular">{{ $t('products.sortPopular') }}</option>
@@ -40,7 +40,7 @@
         </div>
 
         <!-- Loading -->
-        <div v-if="productStore.loading" class="text-center py-12 text-gray-500">
+        <div v-if="productStore.loading" class="text-center py-12 text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">
           {{ $t('common.loading') }}
         </div>
 
@@ -49,16 +49,18 @@
           v-else-if="productStore.products.length > 0"
           class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
         >
-          <ProductCard
-            v-for="product in productStore.products"
+          <div
+            v-for="(product, idx) in productStore.products"
             :key="product.id"
-            :product="product"
-          />
+            v-reveal="{ delay: Math.min(idx, 11) * 50 }"
+          >
+            <ProductCard :product="product" />
+          </div>
         </div>
 
         <!-- Empty -->
         <div v-else class="text-center py-16">
-          <p class="text-gray-500">{{ $t('products.noProducts') }}</p>
+          <p class="text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ $t('products.noProducts') }}</p>
         </div>
       </div>
     </div>

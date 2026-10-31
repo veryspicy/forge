@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="px-4 py-2" :class="config.style === 'banner' ? '' : 'mx-auto max-w-6xl'">
     <div
       class="flex items-center gap-4 bg-gradient-to-r from-red-500 to-orange-400 p-4 text-white"
@@ -12,7 +12,7 @@
         <div class="truncate text-xs opacity-80">{{ coupon?.description || 'Grab it before it expires' }}</div>
       </div>
       <button
-        class="shrink-0 rounded-full bg-white px-4 py-1.5 text-sm font-bold text-red-500 transition hover:bg-red-50"
+        class="shrink-0 rounded-full bg-white dark:bg-stone-900 px-4 py-1.5 text-sm font-bold text-red-500 transition hover:bg-red-50"
         @click="claimed = true"
       >
         {{ claimed ? 'Claimed' : 'Claim' }}

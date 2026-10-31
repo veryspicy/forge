@@ -1,6 +1,6 @@
-<template>
+﻿<template>
   <div class="max-w-6xl mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold text-gray-900 mb-8">{{ $t('orders.title') }}</h1>
+    <h1 class="text-3xl font-bold text-neutral-900 dark:text-neutral-100 mb-8">{{ $t('orders.title') }}</h1>
 
     <!-- Tabs -->
     <div class="flex gap-2 mb-6 overflow-x-auto pb-2">
@@ -10,8 +10,8 @@
         class="px-4 py-2 rounded-full text-sm font-medium transition whitespace-nowrap"
         :class="
           activeTab === tab.key
-            ? 'bg-primary-600 text-white'
-            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            ? 'bg-accent-600 text-white'
+            : 'bg-neutral-100 dark:bg-stone-800 text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 hover:bg-neutral-200 dark:bg-stone-800'
         "
         @click="activeTab = tab.key"
       >
@@ -24,13 +24,13 @@
       <div
         v-for="order in filteredOrders"
         :key="order.id"
-        class="bg-white rounded-xl shadow-sm border overflow-hidden"
+        class="bg-white dark:bg-stone-900 rounded-xl shadow-sm border overflow-hidden"
       >
         <!-- Header: order info + status on top -->
         <div class="flex items-center justify-between gap-4 px-6 pt-5 pb-3">
           <div class="min-w-0">
-            <p class="text-sm font-medium text-gray-900 truncate">#{{ order.order_number || order.id }}</p>
-            <p class="text-xs text-gray-500 mt-0.5">{{ $t('orders.date') }}: {{ formatDate(order.created_at) }}</p>
+            <p class="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate order-no">#{{ order.order_number || order.id }}</p>
+            <p class="text-xs text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mt-0.5">{{ $t('orders.date') }}: {{ formatDate(order.created_at) }}</p>
           </div>
           <OrderStatusBadge :status="order.status" :payment-status="order.payment_status" />
         </div>
@@ -42,7 +42,7 @@
             :key="item.id"
             class="flex items-center gap-4"
           >
-            <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-xs flex-shrink-0">
+            <div class="w-12 h-12 bg-neutral-100 dark:bg-stone-800 rounded-lg flex items-center justify-center text-neutral-400 dark:text-neutral-400 text-xs flex-shrink-0">
               <img
                 v-if="item.image"
                 :src="item.image"
@@ -52,27 +52,27 @@
               <span v-else>{{ $t('orders.noImage') }}</span>
             </div>
             <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium text-gray-900 truncate">{{ item.name }}</p>
-              <p class="text-xs text-gray-500">{{ $t('orders.qty') }}: {{ item.quantity }}</p>
+              <p class="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">{{ item.name }}</p>
+              <p class="text-xs text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ $t('orders.qty') }}: {{ item.quantity }}</p>
             </div>
-            <p class="text-sm font-medium text-gray-900">{{ formatPrice(item.price) }}</p>
+            <p class="text-sm font-medium text-neutral-900 dark:text-neutral-100">{{ formatPrice(item.price) }}</p>
           </div>
         </div>
 
         <!-- Footer: total left + actions bottom-right -->
-        <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t bg-gray-50/60">
-          <p class="font-semibold text-gray-900">{{ $t('orders.total') }}: {{ formatPrice(order.total) }}</p>
+        <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t bg-neutral-50 dark:bg-stone-950/60">
+          <p class="font-semibold text-neutral-900 dark:text-neutral-100">{{ $t('orders.total') }}: {{ formatPrice(order.total) }}</p>
           <div class="flex items-center gap-2 flex-wrap">
             <button
               v-if="canDelete(order.status)"
-              class="px-4 py-2 text-sm border border-gray-200 text-gray-500 rounded-lg hover:text-red-600 hover:border-red-200 transition font-medium disabled:opacity-50"
+              class="px-4 py-2 text-sm border border-neutral-200 dark:border-neutral-700/60 text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 rounded-lg hover:text-red-600 hover:border-red-200 transition font-medium disabled:opacity-50"
               :disabled="busyId === (order.order_number || order.id)"
               @click="askDeleteOrder(order.order_number || order.id)"
             >
               {{ busyId === (order.order_number || order.id) ? $t('orders.deleting') : $t('orders.deleteOrder') }}
             </button>
             <button
-              class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:border-primary-300 hover:text-primary-700 transition font-medium"
+              class="px-4 py-2 text-sm text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 border border-neutral-200 dark:border-neutral-700/60 rounded-lg hover:border-accent-300 hover:text-accent-700 transition font-medium"
               @click="viewOrder(order.order_number || order.id)"
             >
               {{ $t('orders.viewDetails') }}
@@ -87,14 +87,14 @@
             </button>
             <button
               v-if="canEdit(order.status)"
-              class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:border-primary-300 hover:text-primary-700 transition font-medium"
+              class="px-4 py-2 text-sm text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 border border-neutral-200 dark:border-neutral-700/60 rounded-lg hover:border-accent-300 hover:text-accent-700 transition font-medium"
               @click="openEditModal(order)"
             >
               {{ $t('orders.editOrder') }}
             </button>
             <button
               v-if="canPay(order)"
-              class="px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium"
+              class="px-4 py-2 text-sm bg-accent-600 text-white rounded-lg hover:bg-accent-500 transition font-medium"
               @click="goPay(order.order_number || order.id)"
             >
               {{ $t('orders.pay') }}
@@ -106,12 +106,13 @@
 
     <!-- Empty State -->
     <div v-else class="text-center py-16">
-      <div class="text-5xl mb-4">📦</div>
-      <h3 class="text-xl font-semibold text-gray-900 mb-2">{{ $t('orders.noOrders') }}</h3>
-      <p class="text-gray-500 mb-6">{{ $t('orders.noOrdersHint') }}</p>
+<!-- eslint-disable-next-line vue/no-v-html -->
+      <div class="text-5xl mb-4 text-accent-500/70" v-html="emptyStateIcon('package')" />
+      <h3 class="text-xl font-semibold text-neutral-900 dark:text-neutral-100 mb-2">{{ $t('orders.noOrders') }}</h3>
+      <p class="text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mb-6">{{ $t('orders.noOrdersHint') }}</p>
       <NuxtLink
         :to="localePath('/products')"
-        class="inline-block px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium"
+        class="inline-block px-6 py-3 bg-accent-600 text-white rounded-lg hover:bg-accent-500 transition font-medium"
       >
         {{ $t('orders.startShopping') }}
       </NuxtLink>
@@ -120,62 +121,62 @@
     <!-- Edit Shipping Address Modal -->
     <div v-if="showEditModal" class="fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
       <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center">
-        <div class="fixed inset-0 bg-gray-500/40 backdrop-blur-md transition-opacity" @click="closeEditModal"/>
+        <div class="fixed inset-0 bg-neutral-50 dark:bg-stone-9500/40 backdrop-blur-md transition-opacity" @click="closeEditModal"/>
         <div class="relative bg-white/85 backdrop-blur-2xl rounded-2xl shadow-2xl ring-1 ring-white/60 max-w-lg w-full text-left">
           <div class="px-6 pt-5 pb-4 border-b">
-            <h3 class="text-lg font-semibold text-gray-900">{{ $t('orders.editShippingAddress') }}</h3>
-            <p class="text-sm text-gray-500 mt-1">{{ $t('orders.editShippingAddressHint') }}</p>
+            <h3 class="text-lg font-semibold text-neutral-900 dark:text-neutral-100">{{ $t('orders.editShippingAddress') }}</h3>
+            <p class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mt-1">{{ $t('orders.editShippingAddressHint') }}</p>
           </div>
           <div class="px-6 py-4 space-y-4">
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('checkout.firstName') }}</label>
+                <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">{{ $t('checkout.firstName') }}</label>
                 <input
                   v-model.trim="editForm.firstName"
                   type="text"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                  class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md focus:outline-none focus:ring-1 focus:ring-accent-500 focus:border-accent-500"
                 >
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('checkout.lastName') }}</label>
+                <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">{{ $t('checkout.lastName') }}</label>
                 <input
                   v-model.trim="editForm.lastName"
                   type="text"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                  class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md focus:outline-none focus:ring-1 focus:ring-accent-500 focus:border-accent-500"
                 >
               </div>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('checkout.address') }}</label>
+              <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">{{ $t('checkout.address') }}</label>
               <input
                 v-model.trim="editForm.address"
                 type="text"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md focus:outline-none focus:ring-1 focus:ring-accent-500 focus:border-accent-500"
               >
             </div>
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('checkout.city') }}</label>
+                <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">{{ $t('checkout.city') }}</label>
                 <input
                   v-model.trim="editForm.city"
                   type="text"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                  class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md focus:outline-none focus:ring-1 focus:ring-accent-500 focus:border-accent-500"
                 >
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('checkout.zipCode') }}</label>
+                <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">{{ $t('checkout.zipCode') }}</label>
                 <input
                   v-model.trim="editForm.zipCode"
                   type="text"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                  class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md focus:outline-none focus:ring-1 focus:ring-accent-500 focus:border-accent-500"
                 >
               </div>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('checkout.country') }}</label>
+              <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">{{ $t('checkout.country') }}</label>
               <select
                 v-model="editForm.country"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md focus:outline-none focus:ring-1 focus:ring-accent-500 focus:border-accent-500"
               >
                 <option value="US">United States</option>
                 <option value="UK">United Kingdom</option>
@@ -186,13 +187,13 @@
           </div>
           <div class="px-6 py-4 border-t flex justify-end gap-3">
             <button
-              class="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition font-medium"
+              class="px-4 py-2 text-sm border border-neutral-200 dark:border-neutral-700/60 text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 rounded-lg hover:bg-neutral-50 dark:bg-stone-950 transition font-medium"
               @click="closeEditModal"
             >
               {{ $t('common.cancel') }}
             </button>
             <button
-              class="px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              class="px-4 py-2 text-sm bg-accent-600 text-white rounded-lg hover:bg-accent-500 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               :disabled="savingEdit || !canSubmitEdit"
               @click="saveEditAddress"
             >
@@ -206,17 +207,17 @@
     <!-- Delete Order Confirm Modal -->
     <div v-if="showDeleteModal" class="fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
       <div class="flex min-h-full items-center justify-center p-4 text-center">
-        <div class="fixed inset-0 bg-gray-500/40 backdrop-blur-md transition-opacity" @click="closeDeleteModal" />
+        <div class="fixed inset-0 bg-neutral-50 dark:bg-stone-9500/40 backdrop-blur-md transition-opacity" @click="closeDeleteModal" />
         <div
           class="relative bg-white/85 backdrop-blur-2xl rounded-2xl shadow-2xl ring-1 ring-white/60 max-w-md w-full text-left"
         >
           <div class="px-6 pt-5 pb-4 border-b">
-            <h3 class="text-lg font-semibold text-gray-900">{{ $t('orders.deleteOrder') }}</h3>
-            <p class="text-sm text-gray-500 mt-1">{{ $t('orders.deleteConfirmText') }}</p>
+            <h3 class="text-lg font-semibold text-neutral-900 dark:text-neutral-100">{{ $t('orders.deleteOrder') }}</h3>
+            <p class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mt-1">{{ $t('orders.deleteConfirmText') }}</p>
           </div>
           <div class="px-6 py-4 border-t flex justify-end gap-3">
             <button
-              class="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition font-medium"
+              class="px-4 py-2 text-sm border border-neutral-200 dark:border-neutral-700/60 text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 rounded-lg hover:bg-neutral-50 dark:bg-stone-950 transition font-medium"
               @click="closeDeleteModal"
             >
               {{ $t('common.cancel') }}
@@ -237,6 +238,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { emptyStateIcon } from '~/utils/iconSvgs'
 import { useOrderStore } from '~/stores/order'
 import { useCurrency } from '~/composables/useCurrency'
 const localePath = useLocalePath()

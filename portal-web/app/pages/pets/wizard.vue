@@ -1,18 +1,18 @@
-<template>
-  <div class="min-h-screen bg-gray-50 py-8">
+﻿<template>
+  <div class="min-h-screen bg-neutral-50 dark:bg-stone-950 py-8">
     <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
       <!-- Page Header -->
       <div class="mb-8">
         <button
           @click="navigateTo('/pets')"
-          class="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4"
+          class="inline-flex items-center text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300 mb-4"
         >
           <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
           </svg>
           {{ $t('common.back') }}
         </button>
-        <h1 class="text-3xl font-bold text-gray-900">{{ $t('pets.wizardTitle') }}</h1>
+        <h1 class="text-3xl font-bold text-neutral-900 dark:text-neutral-100">{{ $t('pets.wizardTitle') }}</h1>
       </div>
 
       <!-- Step Indicator -->
@@ -31,7 +31,7 @@
                     ? 'bg-indigo-600 border-indigo-600 text-white'
                     : currentStep === idx
                     ? 'border-indigo-600 text-indigo-600'
-                    : 'border-gray-300 text-gray-500'
+                    : 'border-neutral-300 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 dark:text-neutral-400'
                 ]"
               >
                 <svg v-if="currentStep > idx" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -42,7 +42,7 @@
               <span
                 :class="[
                   'ml-3 text-sm font-medium',
-                  currentStep >= idx ? 'text-gray-900' : 'text-gray-400'
+                  currentStep >= idx ? 'text-neutral-900 dark:text-neutral-100' : 'text-neutral-400 dark:text-neutral-400'
                 ]"
               >
                 {{ $t(`pets.wizardStep${idx + 1}`) }}
@@ -52,7 +52,7 @@
               v-if="idx < steps.length - 1"
               :class="[
                 'flex-1 mx-4 h-0.5',
-                currentStep > idx ? 'bg-indigo-600' : 'bg-gray-300'
+                currentStep > idx ? 'bg-indigo-600' : 'bg-neutral-300'
               ]"
             ></div>
           </div>
@@ -60,26 +60,26 @@
       </div>
 
       <!-- Form Card -->
-      <div class="bg-white rounded-lg shadow p-6 mb-6">
+      <div class="bg-white dark:bg-stone-900 rounded-lg shadow p-6 mb-6">
         <!-- Step 1: Basic Info -->
         <div v-show="currentStep === 0">
-          <h2 class="text-xl font-semibold text-gray-900 mb-6">{{ $t('pets.step1Title') }}</h2>
+          <h2 class="text-xl font-semibold text-neutral-900 dark:text-neutral-100 mb-6">{{ $t('pets.step1Title') }}</h2>
           <div class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('pets.petName') }} *</label>
+              <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">{{ $t('pets.petName') }} *</label>
               <input
                 v-model="form.name"
                 type="text"
                 required
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                 :placeholder="$t('pets.enterName')"
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('pets.species') }} *</label>
+              <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">{{ $t('pets.species') }} *</label>
               <select
                 v-model="form.species"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
               >
                 <option value="">{{ $t('pets.selectSpecies') }}</option>
                 <option value="Dog">{{ $t('pets.speciesDog') }}</option>
@@ -91,16 +91,16 @@
               </select>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('pets.breed') }}</label>
+              <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">{{ $t('pets.breed') }}</label>
               <input
                 v-model="form.breed"
                 type="text"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                 :placeholder="$t('pets.enterBreed')"
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('pets.gender') }}</label>
+              <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">{{ $t('pets.gender') }}</label>
               <div class="flex space-x-4">
                 <label class="inline-flex items-center">
                   <input
@@ -109,7 +109,7 @@
                     value="Male"
                     class="form-radio h-4 w-4 text-indigo-600"
                   />
-                  <span class="ml-2 text-sm text-gray-700">{{ $t('pets.male') }}</span>
+                  <span class="ml-2 text-sm text-neutral-700 dark:text-neutral-300">{{ $t('pets.male') }}</span>
                 </label>
                 <label class="inline-flex items-center">
                   <input
@@ -118,29 +118,29 @@
                     value="Female"
                     class="form-radio h-4 w-4 text-indigo-600"
                   />
-                  <span class="ml-2 text-sm text-gray-700">{{ $t('pets.female') }}</span>
+                  <span class="ml-2 text-sm text-neutral-700 dark:text-neutral-300">{{ $t('pets.female') }}</span>
                 </label>
               </div>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('pets.birthdayOrAge') }}</label>
+              <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">{{ $t('pets.birthdayOrAge') }}</label>
               <div class="grid grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-xs text-gray-500 mb-1">{{ $t('pets.birthday') }}</label>
+                  <label class="block text-xs text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mb-1">{{ $t('pets.birthday') }}</label>
                   <input
                     v-model="form.birthday"
                     type="date"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                    class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
                 <div>
-                  <label class="block text-xs text-gray-500 mb-1">{{ $t('pets.orAge') }}</label>
+                  <label class="block text-xs text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mb-1">{{ $t('pets.orAge') }}</label>
                   <input
                     v-model.number="form.age"
                     type="number"
                     min="0"
                     max="50"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                    class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                     :placeholder="$t('pets.years')"
                   />
                 </div>
@@ -151,25 +151,25 @@
 
         <!-- Step 2: Details -->
         <div v-show="currentStep === 1">
-          <h2 class="text-xl font-semibold text-gray-900 mb-6">{{ $t('pets.step2Title') }}</h2>
+          <h2 class="text-xl font-semibold text-neutral-900 dark:text-neutral-100 mb-6">{{ $t('pets.step2Title') }}</h2>
           <div class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('pets.weight') }}</label>
+              <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">{{ $t('pets.weight') }}</label>
               <input
                 v-model.number="form.weight"
                 type="number"
                 min="0"
                 max="200"
                 step="0.1"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                 :placeholder="$t('pets.enterWeight')"
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('pets.foodPreference') }}</label>
+              <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">{{ $t('pets.foodPreference') }}</label>
               <select
                 v-model="form.foodPreference"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
               >
                 <option value="">{{ $t('pets.selectPreference') }}</option>
                 <option value="Dry">{{ $t('pets.foodDry') }}</option>
@@ -179,7 +179,7 @@
               </select>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">{{ $t('pets.allergies') }}</label>
+              <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">{{ $t('pets.allergies') }}</label>
               <div class="flex flex-wrap gap-2">
                 <button
                   v-for="allergy in allergyOptions"
@@ -190,7 +190,7 @@
                     'px-3 py-1 rounded-full text-sm font-medium border transition-colors',
                     form.allergies.includes(allergy)
                       ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
-                      : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                      : 'bg-white dark:bg-stone-900 border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:bg-stone-950'
                   ]"
                 >
                   {{ allergy }}
@@ -198,18 +198,18 @@
               </div>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">{{ $t('pets.activityLevel') }}</label>
+              <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">{{ $t('pets.activityLevel') }}</label>
               <div class="flex items-center space-x-2">
                 <input
                   v-model.number="form.activityLevel"
                   type="range"
                   min="1"
                   max="5"
-                  class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                  class="flex-1 h-2 bg-neutral-200 dark:bg-stone-800 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                 />
-                <span class="text-sm font-medium text-gray-700 w-8 text-center">{{ form.activityLevel }}</span>
+                <span class="text-sm font-medium text-neutral-700 dark:text-neutral-300 w-8 text-center">{{ form.activityLevel }}</span>
               </div>
-              <div class="flex justify-between text-xs text-gray-400 mt-1">
+              <div class="flex justify-between text-xs text-neutral-400 dark:text-neutral-400 mt-1">
                 <span>{{ $t('pets.low') }}</span>
                 <span>{{ $t('pets.high') }}</span>
               </div>
@@ -219,16 +219,16 @@
 
         <!-- Step 3: Goals -->
         <div v-show="currentStep === 2">
-          <h2 class="text-xl font-semibold text-gray-900 mb-6">{{ $t('pets.step3Title') }}</h2>
+          <h2 class="text-xl font-semibold text-neutral-900 dark:text-neutral-100 mb-6">{{ $t('pets.step3Title') }}</h2>
           <div class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">{{ $t('pets.healthGoals') }}</label>
+              <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">{{ $t('pets.healthGoals') }}</label>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <label
                   v-for="goal in healthGoalOptions"
                   :key="goal"
-                  class="flex items-center p-3 border rounded-md cursor-pointer hover:bg-gray-50"
-                  :class="form.healthGoals.includes(goal) ? 'border-indigo-300 bg-indigo-50' : 'border-gray-300'"
+                  class="flex items-center p-3 border rounded-md cursor-pointer hover:bg-neutral-50 dark:bg-stone-950"
+                  :class="form.healthGoals.includes(goal) ? 'border-indigo-300 bg-indigo-50' : 'border-neutral-300 dark:border-neutral-700'"
                 >
                   <input
                     :value="goal"
@@ -236,16 +236,16 @@
                     type="checkbox"
                     class="form-checkbox h-4 w-4 text-indigo-600 rounded"
                   />
-                  <span class="ml-3 text-sm text-gray-700">{{ goal }}</span>
+                  <span class="ml-3 text-sm text-neutral-700 dark:text-neutral-300">{{ goal }}</span>
                 </label>
               </div>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('pets.specialNeeds') }}</label>
+              <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">{{ $t('pets.specialNeeds') }}</label>
               <textarea
                 v-model="form.specialNeeds"
                 rows="4"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                 :placeholder="$t('pets.specialNeedsPlaceholder')"
               ></textarea>
             </div>
@@ -258,7 +258,7 @@
         <button
           v-if="currentStep > 0"
           @click="prevStep"
-          class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+          class="px-4 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md shadow-sm text-sm font-medium text-neutral-700 dark:text-neutral-300 bg-white dark:bg-stone-900 hover:bg-neutral-50 dark:bg-stone-950"
         >
           {{ $t('common.previous') }}
         </button>

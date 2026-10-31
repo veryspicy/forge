@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section v-if="tabs.length" class="mx-auto max-w-6xl px-4 py-6">
     <!-- Tab 切换 -->
     <div class="mb-4 flex gap-2 overflow-x-auto">
@@ -6,7 +6,7 @@
         v-for="(tab, i) in tabs"
         :key="i"
         class="whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition"
-        :class="i === activeTab ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+        :class="i === activeTab ? 'bg-accent-600 text-white' : 'bg-neutral-100 dark:bg-stone-800 text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 hover:bg-neutral-200 dark:bg-stone-800'"
         @click="activeTab = i"
       >
         {{ tab.name || `Tab ${i + 1}` }}
@@ -17,9 +17,15 @@
       class="diy-goods-grid grid grid-cols-2 gap-3 md:gap-4"
       :style="{ '--cols': String(config.columns || 2) }"
     >
-      <ProductCard v-for="p in activeProducts" :key="p.id" :product="p" />
+      <div
+        v-for="(p, idx) in activeProducts"
+        :key="p.id"
+        v-reveal="{ delay: Math.min(idx, 11) * 50 }"
+      >
+        <ProductCard :product="p" />
+      </div>
     </div>
-    <div v-if="!activeProducts.length" class="py-8 text-center text-sm text-gray-400">
+    <div v-if="!activeProducts.length" class="py-8 text-center text-sm text-neutral-400 dark:text-neutral-400">
       No products in this group
     </div>
   </section>

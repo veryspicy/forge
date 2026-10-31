@@ -1,8 +1,8 @@
-<template>
+﻿<template>
   <div class="fixed bottom-4 right-4 z-40">
     <!-- Toggle Button -->
     <button
-      class="w-14 h-14 rounded-full bg-primary-600 text-white shadow-lg hover:bg-primary-700 transition flex items-center justify-center"
+      class="w-14 h-14 rounded-full bg-accent-600 text-white shadow-lg hover:bg-accent-500 transition flex items-center justify-center"
       @click="open = !open"
     >
       <svg v-if="!open" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -17,12 +17,13 @@
     <Transition name="widget">
       <div
         v-if="open"
-        class="absolute bottom-16 right-0 w-80 bg-white rounded-2xl shadow-2xl border overflow-hidden"
+        class="absolute bottom-16 right-0 w-80 bg-white dark:bg-stone-900 rounded-2xl shadow-2xl border overflow-hidden"
       >
         <!-- Header -->
-        <div class="bg-primary-600 text-white px-4 py-3 flex items-center justify-between">
+        <div class="bg-accent-600 text-white px-4 py-3 flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <span class="text-lg">🐾</span>
+<!-- eslint-disable-next-line vue/no-v-html -->
+            <span class="text-lg text-accent-500" v-html="emptyStateIcon('paw')" />
             <span class="font-semibold text-sm">{{ $t('chat.title') }}</span>
           </div>
           <button class="text-white/80 hover:text-white transition" @click="open = false">
@@ -35,7 +36,7 @@
         <!-- Messages -->
         <div class="h-64 overflow-y-auto p-3 space-y-3">
           <div v-if="messages.length === 0" class="text-center py-8">
-            <p class="text-sm text-gray-400">{{ $t('chat.welcomeHint') }}</p>
+            <p class="text-sm text-neutral-400 dark:text-neutral-400">{{ $t('chat.welcomeHint') }}</p>
           </div>
           <div
             v-for="(msg, idx) in messages"
@@ -47,8 +48,8 @@
               class="max-w-[85%] px-3 py-2 rounded-xl text-xs"
               :class="
                 msg.role === 'user'
-                  ? 'bg-primary-600 text-white rounded-br-sm'
-                  : 'bg-gray-100 text-gray-700 rounded-bl-sm'
+                  ? 'bg-accent-600 text-white rounded-br-sm'
+                  : 'bg-neutral-100 dark:bg-stone-800 text-neutral-700 dark:text-neutral-300 rounded-bl-sm'
               "
             >
               {{ msg.content }}
@@ -61,12 +62,12 @@
           <input
             v-model="input"
             type="text"
-            class="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-primary-400"
+            class="flex-1 text-sm border border-neutral-200 dark:border-neutral-700/60 rounded-lg px-3 py-1.5 focus:outline-none focus:border-accent-400"
             :placeholder="$t('chat.placeholder')"
             @keydown.enter="send"
           />
           <button
-            class="px-3 py-1.5 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 transition"
+            class="px-3 py-1.5 bg-accent-600 text-white text-sm rounded-lg hover:bg-accent-500 transition"
             @click="send"
           >
             {{ $t('chat.send') }}
@@ -79,6 +80,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { emptyStateIcon } from '~/utils/iconSvgs'
 
 const open = ref(false)
 const input = ref('')
