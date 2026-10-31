@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
-import { NButton, NColorPicker, NInput, NInputNumber, NSelect, NSlider, NSwitch, NTag } from 'naive-ui';
+import { NButton, NCheckbox, NColorPicker, NInput, NInputNumber, NSelect, NSlider, NSwitch, NTag } from 'naive-ui';
 import { VueDraggable } from 'vue-draggable-plus';
 import { useDiyStore, SITE_CONFIG_ITEMS, THEME_PRESETS } from '@/store/modules/diy';
 import type { SelectedElementInfo } from '@/store/modules/diy';
@@ -541,6 +541,7 @@ function collectUsedResourceIds(): string[] {
     if (id) ids.add(id);
   };
   if (c.brand?.logo?.data && c.brand?.logo?.resourceId) add(c.brand.logo.resourceId);
+  if (c.brand?.favicon && c.brand?.faviconResourceId) add(c.brand.faviconResourceId);
   (c.categories || []).forEach((cat: any) => {
     if (cat?.image && cat?.resourceId) add(cat.resourceId);
   });
@@ -555,7 +556,7 @@ function collectUsedResourceIds(): string[] {
 }
 
 /** 资源选择弹窗状态 */
-type PickerTarget = 'brandLogo' | 'heroBg' | 'categoryImage' | 'carouselImage' | 'carouselImageNew' | 'watermarkLogo';
+type PickerTarget = 'brandLogo' | 'favicon' | 'heroBg' | 'categoryImage' | 'carouselImage' | 'carouselImageNew' | 'watermarkLogo';
 const picker = reactive<{ show: boolean; target: PickerTarget | null; multiple: boolean; index: number }>({
   show: false,
   target: null,
@@ -577,6 +578,10 @@ function onResourcePicked(items: ResourceItem[]) {
     case 'brandLogo':
       config.value.brand.logo.data = first.url;
       config.value.brand.logo.resourceId = first.id;
+      break;
+    case 'favicon':
+      config.value.brand.favicon = first.url;
+      config.value.brand.faviconResourceId = first.id;
       break;
     case 'heroBg':
       config.value.homeHero.hero.backgroundImage = first.url;
@@ -616,6 +621,7 @@ function onResourcePicked(items: ResourceItem[]) {
 
 type UploadTarget =
   | { target: 'brandLogo' }
+  | { target: 'favicon' }
   | { target: 'heroBg' }
   | { target: 'categoryImage'; index: number }
   | { target: 'carouselImage'; index: number }
@@ -827,6 +833,17 @@ function removeTranslation(k: string) {
     Object.assign(config.value.i18n.translations[locale], rest);
   }
 }
+
+function togglePaymentMethod(m: string, checked: boolean) {
+  if (!config.value.shoppingInfo?.paymentMethods) return;
+  const methods = config.value.shoppingInfo.paymentMethods.methods;
+  if (checked) {
+    if (!methods.includes(m)) methods.push(m);
+  } else {
+    const idx = methods.indexOf(m);
+    if (idx >= 0) methods.splice(idx, 1);
+  }
+}
 </script>
 
 <template>
@@ -888,7 +905,214 @@ function removeTranslation(k: string) {
         </NButton>
       </div>
 
-      <!-- 1. 品牌配置 -->
+      <!-- 0. 店铺设置 -->
+      <div v-if="activeConfigKey === 'store'" class="flex flex-col gap-3">
+        <ConfigCard title="店铺信息">
+          <div class="flex flex-col gap-3">
+            <div class="flex flex-col gap-1">
+              <FieldLabel
+                label="店铺名称"
+                name="brand.name"
+                type="string"
+                range="≤ 50 字符"
+                example="Forge"
+                desc="店铺名称（品牌名），全局展示于页头/页脚及浏览器标题。"
+              />
+              <NInput v-model:value="config.brand.name" placeholder="请输入店铺名称" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <FieldLabel
+                label="品牌标语"
+                name="brand.tagline"
+                type="string"
+                range="≤ 80 字符"
+                example="AI-Powered Pet Supplies"
+                desc="品牌 Slogan；展示在前台页脚等位置。"
+              />
+              <NInput v-model:value="config.brand.tagline" placeholder="品牌标语" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <FieldLabel
+                label="品牌文字颜色"
+                name="brand.nameColor"
+                type="string"
+                range="hex 颜色"
+                example="#0f172a"
+                desc="品牌名称文字颜色。"
+              />
+              <NInput v-model:value="config.brand.nameColor" placeholder="#0f172a" />
+            </div>
+          </div>
+        </ConfigCard>
+
+        <ConfigCard title="品牌 Logo">
+          <div class="flex flex-col gap-3">
+            <div class="flex items-center justify-between gap-2">
+              <FieldLabel
+                label="Logo 类型"
+                name="brand.logo.type"
+                type="enum"
+                range="text | image | svg"
+                example="text"
+                desc="text 用文字 Logo；image 使用上传图片；svg 使用内联 SVG。"
+              />
+              <NSelect
+                v-model:value="config.brand.logo.type"
+                size="small"
+                style="width: 120px"
+                :options="[
+                  { label: '文字', value: 'text' },
+                  { label: '图片', value: 'image' },
+                  { label: 'SVG', value: 'svg' },
+                ]"
+              />
+            </div>
+            <template v-if="config.brand.logo.type === 'image'">
+              <div class="flex flex-col gap-1">
+                <FieldLabel
+                  label="Logo 图片"
+                  name="brand.logo.data"
+                  type="image URL"
+                  range="http(s):// 或上传"
+                  example="https://cdn.example.com/logo.png"
+                  desc="品牌 Logo 图片；上传或从资源库选择。"
+                />
+                <NButton size="small" @click="openResourcePicker({ target: 'brandLogo' })">
+                  <template #icon><SvgIcon icon="mdi:upload" /></template>
+                  上传 / 从资源库选择
+                </NButton>
+              </div>
+              <div v-if="config.brand.logo.data" class="relative">
+                <img
+                  :src="config.brand.logo.data"
+                  class="h-16 w-32 rounded border border-gray-200 object-contain dark:border-gray-700"
+                  alt="Logo"
+                />
+                <NButton
+                  size="tiny"
+                  quaternary
+                  type="error"
+                  class="absolute right-1 top-1"
+                  @click="config.brand.logo.data = ''"
+                >
+                  <template #icon><SvgIcon icon="mdi:close" /></template>
+                </NButton>
+              </div>
+            </template>
+            <template v-else-if="config.brand.logo.type === 'svg'">
+              <div class="flex flex-col gap-1">
+                <FieldLabel
+                  label="SVG 内容"
+                  name="brand.logo.data"
+                  type="string"
+                  range="内联 SVG 代码"
+                  example="<svg>...</svg>"
+                  desc="直接粘贴内联 SVG 代码。"
+                />
+                <NInput v-model:value="config.brand.logo.data" type="textarea" :rows="4" placeholder="<svg>...</svg>" />
+              </div>
+            </template>
+          </div>
+        </ConfigCard>
+
+        <ConfigCard title="浏览器标签图标（Favicon）">
+          <div class="flex flex-col gap-2">
+            <FieldLabel
+              label="浏览器标签图标"
+              name="brand.favicon"
+              type="image URL"
+              range="http(s):// 或上传"
+              example="https://cdn.example.com/favicon.ico"
+              desc="C 端浏览器标签页显示的站点图标；建议 32x32 或 16x16 的 ico/png。留空使用默认图标。"
+            />
+            <NButton size="small" @click="openResourcePicker({ target: 'favicon' })">
+              <template #icon><SvgIcon icon="mdi:upload" /></template>
+              上传 / 从资源库选择
+            </NButton>
+            <div v-if="config.brand.favicon" class="flex items-center gap-2">
+              <img
+                :src="config.brand.favicon"
+                class="h-8 w-8 rounded border border-gray-200 object-contain dark:border-gray-700"
+                alt="Favicon"
+              />
+              <NButton size="tiny" quaternary type="error" @click="config.brand.favicon = ''">
+                <template #icon><SvgIcon icon="mdi:close" /></template>
+              </NButton>
+            </div>
+          </div>
+        </ConfigCard>
+
+        <ConfigCard title="货币与区域">
+          <div class="flex flex-col gap-3">
+            <div class="flex flex-col gap-1">
+              <FieldLabel
+                label="默认货币"
+                name="currencies[0]"
+                type="string (ISO 4217)"
+                range="3 位大写字母代码"
+                example="USD"
+                desc="默认结算/展示货币；即货币列表的第一项。"
+              />
+              <NInput v-model:value="config.currencies[0]" placeholder="默认货币代码 (如 USD, CNY, EUR)" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <FieldLabel
+                label="销售区域"
+                name="regions[]"
+                type="array<string>"
+                range="两位大写国家/地区代码"
+                example="['US','EU','CN']"
+                desc="允许销售/配送的国家或地区代码列表。"
+              />
+              <div v-for="(region, idx) in config.regions" :key="idx" class="flex items-center gap-2">
+                <ConfigCard content-padding="6px 10px" class="flex-1">
+                  <NInput v-model:value="config.regions[idx]" size="small" placeholder="区域代码 (如 US, EU, CN)" />
+                </ConfigCard>
+                <NButton size="tiny" quaternary type="error" class="shrink-0" @click="config.regions.splice(idx, 1)">
+                  <template #icon><SvgIcon icon="mdi:close" /></template>
+                </NButton>
+              </div>
+              <NButton size="small" dashed @click="config.regions.push('')">
+                <template #icon><SvgIcon icon="mdi:plus" /></template>
+                添加区域
+              </NButton>
+            </div>
+          </div>
+        </ConfigCard>
+
+        <ConfigCard title="信任标识">
+          <div class="flex flex-col gap-3">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-sm text-gray-700 dark:text-gray-200">启用免邮（满额免运费）</span>
+              <NSwitch v-model:value="config.trustBadges.freeShipping.enabled" />
+            </div>
+            <div
+              class="flex items-center justify-between gap-2"
+              :class="{ 'pointer-events-none opacity-40': !config.trustBadges.freeShipping.enabled }"
+            >
+              <span class="text-sm text-gray-600 dark:text-gray-300">免邮阈值（金额）</span>
+              <NInputNumber v-model:value="config.trustBadges.freeShipping.threshold" size="small" :min="0" />
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-sm text-gray-700 dark:text-gray-200">启用退换货保障</span>
+              <NSwitch v-model:value="config.trustBadges.returns.enabled" />
+            </div>
+            <div
+              class="flex items-center justify-between gap-2"
+              :class="{ 'pointer-events-none opacity-40': !config.trustBadges.returns.enabled }"
+            >
+              <span class="text-sm text-gray-600 dark:text-gray-300">退换货天数</span>
+              <NInputNumber v-model:value="config.trustBadges.returns.days" size="small" :min="1" />
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-sm text-gray-700 dark:text-gray-200">启用安全结账标识</span>
+              <NSwitch v-model:value="config.trustBadges.secureCheckout.enabled" />
+            </div>
+          </div>
+        </ConfigCard>
+      </div>
+
+      <!-- 2. 主题配置 -->
       <div v-if="activeConfigKey === 'brand'" class="flex flex-col gap-3">
         <!-- 品牌预览卡片：Logo + 品牌名称/标语 -->
         <ConfigCard title="品牌预览">
@@ -2082,17 +2306,6 @@ function removeTranslation(k: string) {
           <div class="flex flex-col gap-3">
             <div class="flex flex-col gap-1">
               <FieldLabel
-                label="默认语言"
-                name="i18n.defaultLocale"
-                type="enum"
-                range="见下拉选项"
-                example="zh-CN"
-                desc="站点默认语言；未启用语言中不可选。"
-              />
-              <NSelect v-model:value="config.i18n.defaultLocale" :options="localeOptions" size="small" />
-            </div>
-            <div class="flex flex-col gap-1">
-              <FieldLabel
                 label="启用语言"
                 name="i18n.locales[]"
                 type="array<enum>"
@@ -2206,7 +2419,121 @@ function removeTranslation(k: string) {
         </div>
       </div>
 
-      <!-- 10. 商品排序 -->
+      <!-- 商品规则 -->
+      <div v-else-if="activeConfigKey === 'productRules'" class="flex flex-col gap-3">
+        <FieldLabel
+          label="商品规则"
+          name="productAudit.<field> / products.default_sort"
+          type="boolean | string"
+          range="见各字段说明"
+          example="{ enabled: false, default_sort: 'default' }"
+          desc="商品经营规则：审核开关控制新商品是否需管理员审核后可见；默认排序控制前台商品列表排序档。"
+        />
+        <ConfigCard title="商品审核" content-padding="12px">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-sm text-gray-700 dark:text-gray-200">新商品需审核后上架</span>
+            <NSwitch v-model:value="config.productAudit.enabled" />
+          </div>
+        </ConfigCard>
+        <ConfigCard title="商品排序" content-padding="12px">
+          <div class="flex flex-col gap-2">
+            <span class="text-sm text-gray-700 dark:text-gray-200">前台商品列表默认排序</span>
+            <NSelect v-model:value="config.products.default_sort" size="small" :options="PRODUCT_SORT_OPTIONS" />
+          </div>
+        </ConfigCard>
+      </div>
+
+      <!-- 订单设置 -->
+      <div v-else-if="activeConfigKey === 'orderSettings'" class="flex flex-col gap-3">
+        <FieldLabel
+          label="订单设置"
+          name="orderSettings.<field>"
+          type="boolean | number | string"
+          range="见各字段说明"
+          example="{ autoReview: false, maxItemsPerOrder: 10 }"
+          desc="订单流程相关配置；autoReview 开启后订单自动确认，无需人工审核。"
+        />
+        <ConfigCard title="订单基础设置" content-padding="12px">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-sm text-gray-700 dark:text-gray-200">自动确认订单（免人工审核）</span>
+            <NSwitch v-model:value="config.orderSettings.autoReview" />
+          </div>
+          <div class="mt-2 flex items-center justify-between gap-2">
+            <span class="text-sm text-gray-600 dark:text-gray-300">单笔订单商品上限</span>
+            <NInputNumber v-model:value="config.orderSettings.maxItemsPerOrder" size="small" :min="1" />
+          </div>
+          <div class="mt-2 flex items-center justify-between gap-2">
+            <span class="text-sm text-gray-600 dark:text-gray-300">订单号前缀</span>
+            <NInput v-model:value="config.orderSettings.orderPrefix" size="small" placeholder="PAI" />
+          </div>
+          <div class="mt-2 flex items-center justify-between gap-2">
+            <span class="text-sm text-gray-600 dark:text-gray-300">订单有效时长（小时）</span>
+            <NInputNumber v-model:value="config.orderSettings.expiryHours" size="small" :min="1" />
+          </div>
+        </ConfigCard>
+      </div>
+
+      <!-- 购物信息（组3 经营规则） -->
+      <div v-else-if="activeConfigKey === 'shoppingInfo'" class="flex flex-col gap-3">
+        <FieldLabel
+          label="购物信息"
+          name="shoppingInfo.<field>"
+          type="boolean | number | string[]"
+          range="见各字段说明"
+          example="{ delivery: { enabled: true, handlingDays: 2 }, importFee: { enabled: false }, paymentMethods: { enabled: true } }"
+          desc="C 端商品详情页展示的购物信息：预计送达、进口费、可接受的付款方式。"
+        />
+        <ConfigCard title="预计送达" content-padding="12px">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-sm text-gray-700 dark:text-gray-200">展示预计送达信息</span>
+            <NSwitch v-model:value="config.shoppingInfo.delivery.enabled" />
+          </div>
+          <div class="mt-2 flex items-center justify-between gap-2">
+            <span class="text-sm text-gray-600 dark:text-gray-300">处理天数（handling）</span>
+            <NInputNumber v-model:value="config.shoppingInfo.delivery.handlingDays" size="small" :min="0" />
+          </div>
+          <div class="mt-2 flex items-center justify-between gap-2">
+            <span class="text-sm text-gray-600 dark:text-gray-300">运输最小天数</span>
+            <NInputNumber v-model:value="config.shoppingInfo.delivery.transitMinDays" size="small" :min="0" />
+          </div>
+          <div class="mt-2 flex items-center justify-between gap-2">
+            <span class="text-sm text-gray-600 dark:text-gray-300">运输最大天数</span>
+            <NInputNumber v-model:value="config.shoppingInfo.delivery.transitMaxDays" size="small" :min="0" />
+          </div>
+        </ConfigCard>
+        <ConfigCard title="进口费" content-padding="12px">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-sm text-gray-700 dark:text-gray-200">展示进口费信息</span>
+            <NSwitch v-model:value="config.shoppingInfo.importFee.enabled" />
+          </div>
+          <div v-if="config.shoppingInfo.importFee.enabled" class="mt-2 flex items-center justify-between gap-2">
+            <span class="text-sm text-gray-600 dark:text-gray-300">进口费金额（USD）</span>
+            <NInputNumber v-model:value="config.shoppingInfo.importFee.amount" size="small" :min="0" />
+          </div>
+          <div v-if="config.shoppingInfo.importFee.enabled" class="mt-2 flex items-center justify-between gap-2">
+            <span class="text-sm text-gray-600 dark:text-gray-300">进口费说明</span>
+            <NInput v-model:value="config.shoppingInfo.importFee.label" size="small" placeholder="Import fees included" />
+          </div>
+        </ConfigCard>
+        <ConfigCard title="付款方式" content-padding="12px">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-sm text-gray-700 dark:text-gray-200">展示付款方式</span>
+            <NSwitch v-model:value="config.shoppingInfo.paymentMethods.enabled" />
+          </div>
+          <div class="mt-2 flex flex-wrap gap-2">
+            <NCheckbox
+              v-for="m in ['card', 'paypal', 'apple_pay', 'google_pay']"
+              :key="m"
+              :checked="config.shoppingInfo.paymentMethods.methods.includes(m)"
+              @update:checked="v => togglePaymentMethod(m, v)"
+            >
+              {{ m }}
+            </NCheckbox>
+          </div>
+        </ConfigCard>
+      </div>
+
+      <!-- 12. 图片水印 -->
       <div v-else-if="activeConfigKey === 'products'" class="flex flex-col gap-3">
         <FieldLabel
           label="商品默认排序"
@@ -2225,6 +2552,7 @@ function removeTranslation(k: string) {
       </div>
 
       <!-- 11. 货币配置 -->
+
       <div v-else-if="activeConfigKey === 'currencies'" class="flex flex-col gap-2">
         <FieldLabel
           label="结算货币"

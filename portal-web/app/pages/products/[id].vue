@@ -2,7 +2,7 @@
 <template>
   <div>
     <!-- Breadcrumb -->
-    <nav class="max-w-6xl mx-auto text-sm text-gray-500 mb-6">
+    <nav class="max-w-6xl mx-auto text-sm text-gray-500 pt-6 mb-6">
       <NuxtLink :to="localePath('/')" class="hover:text-primary-600">{{ $t('common.home') }}</NuxtLink>
       <span class="mx-2">/</span>
       <NuxtLink :to="localePath('/products')" class="hover:text-primary-600">{{ $t('common.products') }}</NuxtLink>
@@ -28,12 +28,15 @@
         <!-- Image Gallery -->
         <div>
           <!-- Main Image -->
-          <div class="bg-gray-100 rounded-xl overflow-hidden h-80 md:h-96 flex items-center justify-center">
+          <div
+            class="bg-white rounded-xl overflow-hidden aspect-square cursor-zoom-in"
+            @click="openLightbox(0)"
+          >
             <img
               v-if="activeImage"
               :src="activeImage"
               :alt="activeImageAlt"
-              class="w-full h-full object-cover"
+              class="w-full h-full object-contain"
             >
             <span v-else class="text-gray-400">{{ $t('products.noImage') }}</span>
           </div>
@@ -47,7 +50,7 @@
               :class="activeImage === img ? 'border-primary-500' : 'border-gray-200 hover:border-gray-400'"
               @click="activeImage = img"
             >
-              <img :src="img" :alt="imageAlt(img, idx)" class="w-full h-full object-cover" >
+              <img :src="img" :alt="imageAlt(img, idx)" class="w-full h-full object-contain bg-white" >
             </button>
           </div>
         </div>
@@ -97,9 +100,6 @@
             <span class="text-sm font-medium">{{ inventoryLabel }}</span>
           </div>
 
-          <!-- Description (localized) -->
-          <p v-if="displayDescription" class="mt-5 text-gray-600 leading-relaxed">{{ displayDescription }}</p>
-
           <!-- Variants -->
           <div v-if="product.variants && product.variants.length > 0" class="mt-5">
             <p class="text-sm font-medium text-gray-700 mb-2">{{ $t('products.options') }}:</p>
@@ -146,27 +146,76 @@
             </button>
           </div>
 
-          <!-- Trust Badges -->
-          <div class="mt-6 grid grid-cols-3 gap-2 text-center">
-            <div class="flex flex-col items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-2.5">
+          <!-- Trust Badges（按店铺设置 store.trust_badges 开关控制） -->
+          <div v-if="showTrustBadges" class="mt-6 grid grid-cols-3 gap-2 text-center">
+            <div v-if="trustBadgeFreeShipping" class="flex flex-col items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-2.5">
               <svg class="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h8m-8 0a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm8 0a2 2 0 1 0 4 0 2 2 0 0 0-4 0zm-8 3v6m8-6v6m-10 0h12a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2z" />
               </svg>
-              <span class="text-xs font-medium text-gray-700">{{ $t('products.trustFreeShipping') }}</span>
+              <span class="text-xs font-medium text-gray-700">{{ freeShippingText }}</span>
             </div>
-            <div class="flex flex-col items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-2.5">
+            <div v-if="trustBadgeReturns" class="flex flex-col items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-2.5">
               <svg class="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v6h6M20 20v-6h-6M4 16a8 8 0 0 0 14.1 2.5M20 8A8 8 0 0 0 5.9 5.5" />
               </svg>
-              <span class="text-xs font-medium text-gray-700">{{ $t('products.trustReturns') }}</span>
+              <span class="text-xs font-medium text-gray-700">{{ returnsText }}</span>
             </div>
-            <div class="flex flex-col items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-2.5">
+            <div v-if="trustBadgeSecure" class="flex flex-col items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-2.5">
               <svg class="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm7-3a7 7 0 1 1-14 0 7 7 0 0 1 14 0z" />
               </svg>
               <span class="text-xs font-medium text-gray-700">{{ $t('products.trustSecure') }}</span>
             </div>
           </div>
+
+          <!-- Shopping Info（店铺设置 store.shopping_info，垂直列表：运费/送达/退货/进口费/付款方式） -->
+          <ul v-if="showShoppingInfo" class="mt-6 space-y-3 text-sm">
+            <li v-if="shippingLine" class="flex items-start gap-2.5">
+              <svg class="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h8m-8 0a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm8 0a2 2 0 1 0 4 0 2 2 0 0 0-4 0zm-8 3v6m8-6v6m-10 0h12a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2z" />
+              </svg>
+              <div>
+                <p class="text-gray-500">{{ $t('products.shippingFee') }}</p>
+                <p class="text-gray-900 font-medium">{{ shippingLine }}</p>
+              </div>
+            </li>
+            <li v-if="deliveryLine" class="flex items-start gap-2.5">
+              <svg class="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m0 0h4a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h4z" />
+              </svg>
+              <div>
+                <p class="text-gray-500">{{ $t('products.deliveryEstimate') }}</p>
+                <p class="text-gray-900 font-medium">{{ deliveryLine }}</p>
+              </div>
+            </li>
+            <li v-if="returnsLine" class="flex items-start gap-2.5">
+              <svg class="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v6h6M20 20v-6h-6M4 16a8 8 0 0 0 14.1 2.5M20 8A8 8 0 0 0 5.9 5.5" />
+              </svg>
+              <div>
+                <p class="text-gray-500">{{ $t('products.returnPolicy') }}</p>
+                <p class="text-gray-900 font-medium">{{ returnsLine }}</p>
+              </div>
+            </li>
+            <li v-if="importFeeLine" class="flex items-start gap-2.5">
+              <svg class="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 3l1.9 5.7a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3L12 3z" />
+              </svg>
+              <div>
+                <p class="text-gray-500">{{ $t('products.importFee') }}</p>
+                <p class="text-gray-900 font-medium">{{ importFeeLine }}</p>
+              </div>
+            </li>
+            <li v-if="paymentLine" class="flex items-start gap-2.5">
+              <svg class="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 6h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zm3 8h5" />
+              </svg>
+              <div>
+                <p class="text-gray-500">{{ $t('products.paymentMethods') }}</p>
+                <p class="text-gray-900 font-medium">{{ paymentLine }}</p>
+              </div>
+            </li>
+          </ul>
 
           <!-- Pet Suitability Tags -->
           <div v-if="product.breed_groups && product.breed_groups.length > 0" class="mt-5">
@@ -200,7 +249,7 @@
         </div>
       </div>
 
-      <!-- Structured Detail Blocks -->
+      <!-- Structured Detail Blocks（商品介绍等文案由详情块承载，避免与 description 重复渲染） -->
       <section v-if="detailBlocks.length" class="mt-16">
         <h2 class="text-2xl font-bold text-gray-900 mb-6">{{ $t('products.detailsTitle') }}</h2>
         <DetailBlocks :blocks="detailBlocks" />
@@ -274,6 +323,46 @@
         </div>
       </section>
     </div>
+
+    <!-- Lightbox -->
+    <div
+      v-if="lightboxOpen"
+      class="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
+      @click.self="closeLightbox"
+    >
+      <button
+        class="absolute top-4 right-4 text-white/90 hover:text-white text-3xl leading-none p-2"
+        aria-label="Close"
+        @click="closeLightbox"
+      >
+        &times;
+      </button>
+      <button
+        v-if="lightboxImages.length > 1"
+        class="absolute left-4 text-white/90 hover:text-white text-4xl leading-none p-2"
+        aria-label="Previous"
+        @click="prevLightbox"
+      >
+        &#8249;
+      </button>
+      <img
+        v-if="lightboxImages.length"
+        :src="lightboxImages[lightboxIndex]"
+        :alt="imageAlt(lightboxImages[lightboxIndex], lightboxIndex)"
+        class="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
+      >
+      <button
+        v-if="lightboxImages.length > 1"
+        class="absolute right-4 text-white/90 hover:text-white text-4xl leading-none p-2"
+        aria-label="Next"
+        @click="nextLightbox"
+      >
+        &#8250;
+      </button>
+      <span v-if="lightboxImages.length > 1" class="absolute bottom-4 text-white/80 text-sm">
+        {{ lightboxIndex + 1 }} / {{ lightboxImages.length }}
+      </span>
+    </div>
   </div>
 </template>
 
@@ -307,6 +396,9 @@ const relatedProducts = ref<any[]>([])
 const productReviews = ref<any[]>([])
 const reviewsLoading = ref(false)
 const reviewSummary = ref<any>(null)
+const lightboxOpen = ref(false)
+const lightboxIndex = ref(0)
+const lightboxImages = computed(() => product.value?.images || [])
 
 // 语言映射：C 端 locale(zh/en/ar/de/fr) → 后端翻译 key（zh-cn/es/de 等）
 const backendLocaleKey = computed(() => {
@@ -375,6 +467,123 @@ const activeImageAlt = computed(() => {
   if (!product.value || !activeImage.value) return displayName.value
   return imageAlt(activeImage.value, 0)
 })
+
+// 信任标识：按店铺设置 store.trust_badges 的 enabled 开关控制展示
+const trustBadges = computed(() => product.value?.trust_badges)
+const showTrustBadges = computed(
+  () =>
+    !!trustBadges.value?.free_shipping?.enabled ||
+    !!trustBadges.value?.returns?.enabled ||
+    !!trustBadges.value?.secure_checkout?.enabled
+)
+const trustBadgeFreeShipping = computed(() => !!trustBadges.value?.free_shipping?.enabled)
+const trustBadgeReturns = computed(() => !!trustBadges.value?.returns?.enabled)
+const trustBadgeSecure = computed(() => !!trustBadges.value?.secure_checkout?.enabled)
+const freeShippingText = computed(() => {
+  const fs = trustBadges.value?.free_shipping
+  if (!fs?.enabled) return ''
+  const price = Number(product.value?.price ?? 0)
+  const threshold = Number(fs.threshold ?? 0)
+  if (threshold > 0 && price >= threshold) {
+    return t('products.trustFreeShipping')
+  }
+  if (threshold > 0) {
+    return t('products.trustFreeShippingOver', { threshold })
+  }
+  if (fs.fee != null && fs.fee > 0) {
+    return t('products.shippingFlatRate', { amount: formatPrice(fs.fee) })
+  }
+  return t('products.trustFreeShipping')
+})
+const returnsText = computed(() => {
+  const r = trustBadges.value?.returns
+  if (!r?.enabled) return ''
+  return r.days ? t('products.trustReturnsDays', { days: r.days }) : t('products.trustReturns')
+})
+
+// 购物信息：按店铺设置 store.shopping_info 各 enabled 开关控制展示
+const shoppingInfo = computed(() => product.value?.shopping_info)
+
+const shippingLine = computed(() => {
+  const fs = trustBadges.value?.free_shipping
+  if (!fs?.enabled) return ''
+  if (fs.threshold != null && fs.threshold > 0) {
+    return t('products.shippingFreeOver', { amount: formatPrice(fs.threshold) })
+  }
+  if (fs.fee != null && fs.fee > 0) {
+    return t('products.shippingFlatRate', { amount: formatPrice(fs.fee) })
+  }
+  return ''
+})
+
+const deliveryLine = computed(() => {
+  const d = shoppingInfo.value?.delivery
+  if (!d?.enabled) return ''
+  if (d.estimated_dates?.from && d.estimated_dates?.to) {
+    return t('products.deliveryRange', { from: d.estimated_dates.from, to: d.estimated_dates.to })
+  }
+  const minDays = (d.handling_days || 0) + (d.transit_min_days || 0)
+  const maxDays = (d.handling_days || 0) + (d.transit_max_days || 0)
+  if (maxDays > 0) {
+    return minDays === maxDays
+      ? t('products.deliveryDays', { count: minDays })
+      : t('products.deliveryDaysRange', { min: minDays, max: maxDays })
+  }
+  return ''
+})
+
+const returnsLine = computed(() => {
+  const r = trustBadges.value?.returns
+  if (!r?.enabled) return ''
+  const base = r.days ? t('products.returnsDays', { days: r.days }) : t('products.returnsAllowed')
+  return r.buyer_pays_shipping ? `${base} · ${t('products.buyerPaysReturnShipping')}` : base
+})
+
+const importFeeLine = computed(() => {
+  const f = shoppingInfo.value?.import_fee
+  if (!f?.enabled) return ''
+  const amount = f.amount != null && f.amount > 0 ? formatPrice(f.amount) : ''
+  if (f.label) return amount ? `${f.label} ${amount}` : f.label
+  return amount ? t('products.importFeeAmount', { amount }) : t('products.importFeeIncluded')
+})
+
+const paymentLine = computed(() => {
+  const p = shoppingInfo.value?.payment_methods
+  if (!p?.enabled || !p.methods?.length) return ''
+  const labels: Record<string, string> = {
+    card: t('products.paymentCard'),
+    paypal: 'PayPal',
+    apple_pay: 'Apple Pay',
+    google_pay: 'Google Pay',
+  }
+  return p.methods.map((m) => labels[m] || m).join(', ')
+})
+
+const showShoppingInfo = computed(
+  () => !!shippingLine.value || !!deliveryLine.value || !!returnsLine.value || !!importFeeLine.value || !!paymentLine.value
+)
+
+function openLightbox(idx: number) {
+  if (!lightboxImages.value.length) return
+  lightboxIndex.value = idx
+  lightboxOpen.value = true
+}
+
+function closeLightbox() {
+  lightboxOpen.value = false
+}
+
+function prevLightbox() {
+  const len = lightboxImages.value.length
+  if (!len) return
+  lightboxIndex.value = (lightboxIndex.value - 1 + len) % len
+}
+
+function nextLightbox() {
+  const len = lightboxImages.value.length
+  if (!len) return
+  lightboxIndex.value = (lightboxIndex.value + 1) % len
+}
 
 // SEO：seo_translations[locale] 优先，回退基准 seo_*；JSON-LD Product schema
 useSeoMeta({
@@ -515,4 +724,23 @@ onMounted(async () => {
     (p) => p.id !== route.params.id
   ).slice(0, 4)
 })
+
+onMounted(() => {
+  window.addEventListener('keydown', onLightboxKeydown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', onLightboxKeydown)
+})
+
+function onLightboxKeydown(e: KeyboardEvent) {
+  if (!lightboxOpen.value) return
+  if (e.key === 'Escape') {
+    closeLightbox()
+  } else if (e.key === 'ArrowLeft') {
+    prevLightbox()
+  } else if (e.key === 'ArrowRight') {
+    nextLightbox()
+  }
+}
 </script>

@@ -10,14 +10,48 @@ export interface ProductImageDetail {
   sort?: number;
 }
 
+export interface DetailBlockImage {
+  url?: string;
+  src?: string;
+  resource_id?: string | number;
+  alt?: string;
+}
+
+// 信任标识（店铺设置 store.trust_badges，C 端按 enabled 控制展示）
+export interface TrustBadges {
+  free_shipping?: { enabled?: boolean; threshold?: number; fee?: number };
+  returns?: { days?: number; enabled?: boolean; buyer_pays_shipping?: boolean };
+  secure_checkout?: { enabled?: boolean };
+}
+
+// 购物信息（店铺设置 store.shopping_info，C 端购物区按 enabled 控制展示）
+export interface ShoppingInfo {
+  delivery?: {
+    enabled?: boolean;
+    handling_days?: number;
+    transit_min_days?: number;
+    transit_max_days?: number;
+    estimated_dates?: { from?: string; to?: string };
+  };
+  import_fee?: {
+    enabled?: boolean;
+    amount?: number;
+    label?: string;
+  };
+  payment_methods?: {
+    enabled?: boolean;
+    methods?: string[];
+  };
+}
+
 export interface DetailBlock {
   type: "rich_text" | "image" | "image_text" | "spec_table" | "features" | "faq" | "video" | string;
   title?: string;
   html?: string;
   align?: string;
-  images?: string[];
+  images?: (string | DetailBlockImage)[];
   caption?: string;
-  image?: string;
+  image?: string | DetailBlockImage;
   layout?: string;
   columns?: string[];
   rows?: string[];
@@ -51,6 +85,8 @@ interface Product {
   description_translations?: Record<string, string>;
   detail_blocks?: DetailBlock[];
   detail_blocks_translations?: Record<string, DetailBlock[]>;
+  trust_badges?: TrustBadges;
+  shopping_info?: ShoppingInfo;
   seo_title?: string;
   seo_description?: string;
   seo_keywords?: string;

@@ -20,12 +20,24 @@
 
 <script setup lang="ts">
 import { useToast } from './composables/useToast'
+import { useSiteProfile } from './composables/useSiteProfile'
 const { toasts } = useToast()
+const { profile } = useSiteProfile()
+
+const faviconLink = computed(() => {
+  const favicon = profile.value.brand?.favicon
+  if (!favicon) return []
+  return [
+    { rel: 'icon', type: 'image/x-icon', href: favicon },
+    { rel: 'shortcut icon', type: 'image/x-icon', href: favicon },
+  ]
+})
 
 useHead({
   titleTemplate: "%s | Forge Shop",
   meta: [
     { name: "description", content: "AI-Powered Pet Supplies Store" },
   ],
+  link: faviconLink,
 });
 </script>

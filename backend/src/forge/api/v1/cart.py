@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any, cast
 from uuid import UUID
 
@@ -24,11 +25,12 @@ from forge.infrastructure.persistence.models import ORMCartItem, ORMProduct
 from forge.infrastructure.persistence.repositories.cart_repo import SQLAlchemyCartRepository
 from forge.infrastructure.persistence.repositories.product_repo import SQLAlchemyProductRepository
 from forge.infrastructure.persistence.repositories.user_repo import SQLAlchemyUserRepository
+from forge.infrastructure.site_config_service import get_free_shipping_threshold
 from forge.main.dependencies import get_db
 
 router = APIRouter(prefix="/cart", tags=["C-end Cart"])
 
-FREE_SHIPPING_THRESHOLD = 50
+FREE_SHIPPING_THRESHOLD = 50  # 保留常量仅作类型引用/文档，实际值由 get_free_shipping_threshold 读取（app_settings）
 FLAT_SHIPPING = 5
 CURRENCY = "USD"
 MAX_QUANTITY = 999
@@ -96,9 +98,15 @@ def _cart_item_dict(item: ORMCartItem) -> dict[str, Any]:
     }
 
 
-def _cart_summary(items: list[ORMCartItem]) -> dict[str, Any]:
+async def _cart_summary(items: list[ORMCartItem], free_shipping_threshold: Decimal | None) -> dict[str, Any]:
     subtotal = round(sum(float(i.price) * int(i.quantity) for i in items), 2)
-    shipping_cost = 0.0 if subtotal > FREE_SHIPPING_THRESHOLD else float(FLAT_SHIPPING)
+    shipping_cost = (
+        0.0
+        if free_shipping_threshold is not None
+        and free_shipping_threshold > 0
+        and subtotal > float(free_shipping_threshold)
+        else float(FLAT_SHIPPING)
+    )
     total = round(subtotal + shipping_cost, 2)
     return {
         "items": [_cart_item_dict(i) for i in items],
@@ -124,7 +132,8 @@ async def get_cart(
     """当前用户购物车内容与金额汇总。"""
     owner_id = await _current_owner_id(user_claims, db)
     items = await SQLAlchemyCartRepository.list_by_user(db, owner_id)
-    return _cart_summary(items)
+    free_shipping_threshold = await get_free_shipping_threshold(db)
+    return await _cart_summary(items, free_shipping_threshold)
 
 
 @router.post("/items")
