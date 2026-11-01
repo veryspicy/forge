@@ -391,7 +391,9 @@
     "trackingStatus": "Status",
     "noShipment": "Tracking info not available yet, please check back later",
     "noTrackingEvents": "No tracking events yet",
-    "trackingUpdate": "Update"
+    "trackingUpdate": "Update",
+    "payPalRedirecting": "Redirecting to PayPal…",
+    "payPalCompleting": "Completing payment…"
   },
   "returns": {
     "title": "Returns & Refunds",

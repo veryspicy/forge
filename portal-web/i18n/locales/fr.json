@@ -381,7 +381,9 @@
     "trackingStatus": "Statut",
     "noShipment": "Informations de suivi pas encore disponibles, veuillez réessayer plus tard",
     "noTrackingEvents": "Aucun événement de suivi",
-    "trackingUpdate": "Mise à jour"
+    "trackingUpdate": "Mise à jour",
+    "payPalRedirecting": "Redirection vers PayPal…",
+    "payPalCompleting": "Finalisation du paiement…"
   },
   "returns": {
     "title": "Retours & Remboursements",

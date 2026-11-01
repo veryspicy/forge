@@ -719,6 +719,9 @@ class ORMOrder(Base):
     payment_method = Column(String(50), nullable=True)
     payment_status = Column(String(20), nullable=False, server_default="unpaid")
     payment_intent_id = Column(String(500), nullable=True)
+    # 多渠道支付适配器（P0 框架）：渠道侧捕获流水号（PayPal capture id / Stripe charge id ...）与渠道扩展元数据
+    payment_transaction_id = Column(String(500), nullable=True)
+    payment_channel_meta = Column(JSONB, nullable=True)
     paid_at = Column(DateTime(timezone=False), nullable=True)
     confirmed_at = Column(DateTime(timezone=False), nullable=True)
     shipped_at = Column(DateTime(timezone=False), nullable=True)

@@ -122,6 +122,22 @@ export function useApi() {
     });
   };
 
+  // 多渠道支付（P0）：创建支付会话（mock/paypal 等渠道）
+  const createPaymentSession = async (orderNumber: string, data: { channel: string; return_url?: string; cancel_url?: string }) => {
+    return authFetch(`${API_BASE}/orders/${orderNumber}/payment-session`, {
+      method: "POST",
+      body: data,
+    });
+  };
+
+  // 多渠道支付（P0）：服务端捕获/确认支付
+  const capturePayment = async (orderNumber: string, data: { session_id: string; card?: Record<string, string> }) => {
+    return authFetch(`${API_BASE}/orders/${orderNumber}/payment-capture`, {
+      method: "POST",
+      body: data,
+    });
+  };
+
   const confirmReceipt = async (orderNumber: string) => {
     return authFetch(`${API_BASE}/orders/${orderNumber}/confirm-receipt`, {
       method: "POST",
@@ -290,6 +306,8 @@ export function useApi() {
     fetchOrderDetail,
     cancelOrder,
     payOrder,
+    createPaymentSession,
+    capturePayment,
     confirmReceipt,
     updateShippingAddress,
     deleteOrder,
