@@ -741,8 +741,9 @@ definePageMeta({
 })
 
 const route = useRoute()
+const router = useRouter()
 const orderStore = useOrderStore()
-const { fetchShipments, fetchReturnEligibility, createReturn, fetchMyReturns, cancelReturn, submitReturnShipment } = useApi()
+const { fetchShipments, fetchReturnEligibility, createReturn, fetchMyReturns, cancelReturn, submitReturnShipment, createPaymentSession, capturePayment } = useApi()
 const { toMessage, resolveCode } = useApiError()
 const { toast } = useToast()
 const { t } = useI18n()
@@ -865,6 +866,11 @@ const cardNumberText = computed({
 
 const doPay = async () => {
   cardError.value = ''
+  // PayPal：走多渠道新链路（payment-session -> 跳转审批 -> payment-capture）
+  if (payForm.value.method === 'paypal') {
+    await doPayPal()
+    return
+  }
   if (payForm.value.method === 'card') {
     const card = payForm.value.card
     if (!card.name || !card.number || !card.expiry || !card.cvv) {
@@ -884,6 +890,38 @@ const doPay = async () => {
       payment_method: payForm.value.method,
       card: payForm.value.method === 'card' ? { ...payForm.value.card } : undefined,
     })
+    showPayModal.value = false
+    toast.success(t('orders.paySuccess'))
+    await reloadOrder()
+  } catch (err: any) {
+    cardError.value = toMessage(err)
+  } finally {
+    paying.value = false
+  }
+}
+
+// PayPal 支付链路：创建会话 -> 有 approve_url 则跳转 PayPal 审批，回跳后由 onMounted 捕获；无则直接捕获
+const doPayPal = async () => {
+  paying.value = true
+  cardError.value = ''
+  try {
+    const base = window.location.origin + window.location.pathname
+    const session = await createPaymentSession(orderId.value, {
+      channel: 'paypal',
+      return_url: `${base}?pp=1`,
+      cancel_url: base,
+    })
+    if (!session?.session_id) {
+      throw new Error('PAYMENT_GATEWAY_ERROR')
+    }
+    // 记录会话供 PayPal 审批回跳后完成支付
+    sessionStorage.setItem(`forge_pp_${orderId.value}`, JSON.stringify({ session_id: session.session_id, ts: Date.now() }))
+    if (session.approve_url) {
+      window.location.href = session.approve_url
+      return
+    }
+    // 无跳转地址（如 mock 渠道演示）：直接捕获完成
+    await capturePayment(orderId.value, { session_id: session.session_id })
     showPayModal.value = false
     toast.success(t('orders.paySuccess'))
     await reloadOrder()
@@ -1226,6 +1264,21 @@ onMounted(async () => {
     }
     // 售后：可退性 + 已有退货单
     await Promise.all([loadReturnEligibility(), loadReturns()])
+    // PayPal 审批回跳：?pp=1 且本地存有会话记录 -> 完成捕获
+    const ppRaw = sessionStorage.getItem(`forge_pp_${orderId.value}`)
+    if (route.query.pp === '1' && ppRaw) {
+      try {
+        const saved = JSON.parse(ppRaw)
+        await capturePayment(orderId.value, { session_id: saved.session_id })
+        sessionStorage.removeItem(`forge_pp_${orderId.value}`)
+        toast.success(t('orders.paySuccess'))
+        await reloadOrder()
+      } catch (err: any) {
+        toast.error(toMessage(err))
+      } finally {
+        await router.replace({ query: {} })
+      }
+    }
     // 列表页“去支付”跳转时自动唤起支付弹窗
     if (route.query.pay === '1' && canPay.value) {
       openPayModal()

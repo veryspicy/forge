@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any, cast
 from uuid import UUID
 
@@ -28,7 +29,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from forge.api.errors import APIError, ErrorCode
 from forge.api.v1.auth import get_current_user
-from forge.application.services.payment_gateway import get_payment_gateway
+from forge.application.services.app_settings_service import get_setting as get_app_setting
+from forge.application.services.payment_gateway import get_payment_gateway, get_payment_registry
 from forge.infrastructure.persistence.models import ORMOrder, ORMShipment
 from forge.infrastructure.persistence.repositories.order_repo import (
     SQLAlchemyCustomerOrderRepository,
@@ -93,6 +95,29 @@ class OrderPay(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     payment_method: str = Field(min_length=1, max_length=50)
+    card: CardPay | None = None
+
+
+class PaymentSessionCreate(BaseModel):
+    """多渠道支付会话创建（P0 框架）。
+
+    channel 为渠道名（mock / paypal / ...）；return_url / cancel_url 仅供
+    重定向类渠道（paypal）在 PayPal 侧完成后回跳使用。
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    channel: str = Field(default="mock", min_length=1, max_length=50)
+    return_url: str | None = Field(default=None, max_length=1000)
+    cancel_url: str | None = Field(default=None, max_length=1000)
+
+
+class PaymentCapturePayload(BaseModel):
+    """支付捕获确认：携带渠道侧会话 id（PayPal order id / mock pi id）。"""
+
+    model_config = ConfigDict(extra="ignore")
+
+    session_id: str = Field(min_length=1, max_length=500)
     card: CardPay | None = None
 
 
@@ -281,6 +306,31 @@ async def _lock_order_by_number(db: AsyncSession, order_number: str) -> ORMOrder
     return row
 
 
+async def _enabled_channels(db: AsyncSession) -> list[str]:
+    """启用渠道集合：env FORGE_PAYMENT_ENABLED_CHANNELS 优先，其次 app_settings payment.enabled_channels，缺省 mock。"""
+    raw = os.getenv("FORGE_PAYMENT_ENABLED_CHANNELS")
+    if raw:
+        channels = [c.strip().lower() for c in raw.split(",") if c.strip()]
+        if channels:
+            return channels
+    setting = await get_app_setting(db, "payment", None)
+    if isinstance(setting, dict):
+        enabled = setting.get("enabled_channels")
+        if isinstance(enabled, list) and enabled:
+            return [str(c).lower() for c in enabled]
+    return ["mock"]
+
+
+def _channel_for_order(order: ORMOrder) -> str:
+    """从订单已落库的渠道元数据推导实际支付渠道，兼容旧单（paypal -> paypal，其余 mock）。"""
+    meta: dict[str, Any] = cast(dict[str, Any] | None, order.payment_channel_meta) or {}
+    channel = meta.get("channel")
+    if channel:
+        return str(channel)
+    method = str(order.payment_method or "mock").lower()
+    return "paypal" if method == "paypal" else "mock"
+
+
 @router.post("/{order_number}/pay")
 async def pay_order(
     order_number: str,
@@ -321,6 +371,111 @@ async def pay_order(
     if locked.user_id != owner_id:
         raise APIError(ErrorCode.ORDER_NOT_FOUND, message="Order does not exist.")
     paid = await SQLAlchemyCustomerOrderRepository.mark_paid(db, locked, method, payment_intent_id=intent.id)
+    await db.commit()
+    await db.refresh(paid, attribute_names=["items"])
+    return _order_to_dict(paid)
+
+
+@router.post("/{order_number}/payment-session")
+async def create_payment_session(
+    order_number: str,
+    payload: PaymentSessionCreate,
+    user_claims: dict[str, object] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """创建支付会话（多渠道适配器 P0）。
+
+    - channel 必须是当前启用渠道（app_settings payment.enabled_channels / env FORGE_PAYMENT_ENABLED_CHANNELS）
+    - mock：返回 session_id，前端直接携带 card 调 payment-capture 完成
+    - paypal：返回 session_id + approve_url，前端用 Smart Buttons / 重定向审批后调 payment-capture
+    - 会话 id 落库为 payment_intent_id，渠道名写入 payment_channel_meta.channel
+    """
+    owner_id = await _current_owner_id(user_claims, db)
+    order = await _owned_order_or_404(db, owner_id, order_number)
+    if order.payment_status == "paid":
+        return _order_to_dict(order)
+    channel_name = (payload.channel or "mock").lower()
+    if channel_name not in await _enabled_channels(db):
+        raise APIError(
+            ErrorCode.PAYMENT_METHOD_UNSUPPORTED,
+            message=f"Payment channel '{channel_name}' is not enabled.",
+        )
+    channel = get_payment_registry().get(channel_name)
+    session = await channel.create_session(
+        cast(str, order.order_number),
+        cast(Any, order.total),
+        cast(str, order.currency or "USD"),
+        return_url=payload.return_url,
+        cancel_url=payload.cancel_url,
+    )
+    locked = await _lock_order_by_number(db, order_number)
+    if locked.user_id != owner_id:
+        raise APIError(ErrorCode.ORDER_NOT_FOUND, message="Order does not exist.")
+    locked.payment_intent_id = cast(Any, session.session_id)
+    locked.payment_channel_meta = cast(
+        Any, {"channel": channel_name, "session_status": session.status, **(session.channel_meta or {})}
+    )
+    await db.flush()
+    await db.commit()
+    return {
+        "order_number": order_number,
+        "channel": session.channel,
+        "session_id": session.session_id,
+        "status": session.status,
+        "approve_url": session.approve_url,
+        "redirect_url": session.redirect_url,
+        "qr_code": session.qr_code,
+        "client_token": session.client_token,
+        "amount": str(session.amount) if session.amount is not None else None,
+        "currency": session.currency,
+    }
+
+
+@router.post("/{order_number}/payment-capture")
+async def capture_payment(
+    order_number: str,
+    payload: PaymentCapturePayload,
+    user_claims: dict[str, object] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """服务端捕获/确认支付（多渠道适配器 P0）。
+
+    - 渠道按订单已落库的 payment_channel_meta.channel 选择（兼容旧单：paypal -> paypal，其余 mock）
+    - mock：同步确认（card 可选；重复捕获幂等返回成功）
+    - paypal：Smart Buttons 审批后携带 PayPal order id 调 capture
+    - 成功后写 payment_transaction_id / payment_channel_meta 并 mark_paid
+    """
+    owner_id = await _current_owner_id(user_claims, db)
+    order = await _owned_order_or_404(db, owner_id, order_number)
+    if order.payment_status == "paid":
+        return _order_to_dict(order)
+    channel_name = _channel_for_order(order)
+    channel = get_payment_registry().get(channel_name)
+    card = payload.card.model_dump(exclude_none=True) if payload.card else None
+    result = await channel.capture(payload.session_id, card=card)
+    if not result.success:
+        raise APIError(
+            ErrorCode.PAYMENT_DECLINED,
+            message=result.error_message or "Payment capture failed.",
+        )
+    locked = await _lock_order_by_number(db, order_number)
+    if locked.user_id != owner_id:
+        raise APIError(ErrorCode.ORDER_NOT_FOUND, message="Order does not exist.")
+    if locked.payment_status == "paid":
+        await db.commit()
+        await db.refresh(locked, attribute_names=["items"])
+        return _order_to_dict(locked)
+    business_method = str(locked.payment_method or "card").lower()
+    if business_method not in {"card", "paypal"}:
+        business_method = "card"
+    paid = await SQLAlchemyCustomerOrderRepository.mark_paid(
+        db,
+        locked,
+        business_method,
+        payment_intent_id=result.session_id,
+        payment_transaction_id=result.transaction_id,
+        payment_channel_meta={"channel": channel_name, **(result.channel_meta or {})},
+    )
     await db.commit()
     await db.refresh(paid, attribute_names=["items"])
     return _order_to_dict(paid)

@@ -381,7 +381,9 @@
     "trackingStatus": "الحالة",
     "noShipment": "معلومات التتبع غير متاحة بعد، يرجى التحقق لاحقًا",
     "noTrackingEvents": "لا توجد أحداث تتبع بعد",
-    "trackingUpdate": "تحديث"
+    "trackingUpdate": "تحديث",
+    "payPalRedirecting": "جارٍ التحويل إلى PayPal…",
+    "payPalCompleting": "جارٍ إتمام الدفع…"
   },
   "returns": {
     "title": "الإرجاع والاسترداد",

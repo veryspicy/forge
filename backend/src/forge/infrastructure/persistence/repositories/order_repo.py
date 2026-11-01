@@ -728,6 +728,8 @@ class SQLAlchemyCustomerOrderRepository:
         order: ORMOrder,
         payment_method: str,
         payment_intent_id: str | None = None,
+        payment_transaction_id: str | None = None,
+        payment_channel_meta: dict[str, Any] | None = None,
     ) -> ORMOrder:
         """Mark an order paid and move pending -> confirmed (industry: paid=confirmed).
 
@@ -746,6 +748,10 @@ class SQLAlchemyCustomerOrderRepository:
         order.payment_method = cast(Any, payment_method)
         if payment_intent_id:
             order.payment_intent_id = cast(Any, payment_intent_id)
+        if payment_transaction_id:
+            order.payment_transaction_id = cast(Any, payment_transaction_id)
+        if payment_channel_meta is not None:
+            order.payment_channel_meta = cast(Any, payment_channel_meta)
         order.paid_at = cast(Any, now)
         order.confirmed_at = cast(Any, now)
         order.updated_at = cast(Any, now)

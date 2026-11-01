@@ -391,7 +391,9 @@
     "trackingStatus": "状态",
     "noShipment": "物流信息暂未更新，请稍后查看",
     "noTrackingEvents": "暂无物流动态",
-    "trackingUpdate": "更新"
+    "trackingUpdate": "更新",
+    "payPalRedirecting": "正在跳转 PayPal…",
+    "payPalCompleting": "正在完成支付…"
   },
   "returns": {
     "title": "退货与退款",

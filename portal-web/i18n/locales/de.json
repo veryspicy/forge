@@ -381,7 +381,9 @@
     "trackingStatus": "Status",
     "noShipment": "Versandinformationen noch nicht verfügbar, bitte später erneut prüfen",
     "noTrackingEvents": "Noch keine Sendungsereignisse",
-    "trackingUpdate": "Aktualisierung"
+    "trackingUpdate": "Aktualisierung",
+    "payPalRedirecting": "Weiterleitung zu PayPal…",
+    "payPalCompleting": "Zahlung wird abgeschlossen…"
   },
   "returns": {
     "title": "Retouren & Erstattungen",

@@ -169,6 +169,13 @@ except ImportError:
     pass
 
 try:
+    from forge.api.v1.webhooks import router as webhooks_router
+
+    app.include_router(webhooks_router, prefix="/api/v1")
+except ImportError:
+    pass
+
+try:
     from forge.api.v1.reviews import public_reviews_router as public_product_reviews_router
     from forge.api.v1.reviews import router as public_reviews_router
 

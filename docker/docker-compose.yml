@@ -153,6 +153,12 @@ services:
       <<: *common-vars
       TZ: Asia/Shanghai
       AI_SERVICE_URL: http://ai-service:8001
+      # PayPal sandbox 凭证（值来自 docker/.env，不入库，见 DEV-RULES §13.4）
+      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID:-}
+      PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET:-}
+      PAYPAL_MODE: ${PAYPAL_MODE:-sandbox}
+      PAYPAL_WEBHOOK_ID: ${PAYPAL_WEBHOOK_ID:-}
+      FORGE_PAYMENT_ENABLED_CHANNELS: ${FORGE_PAYMENT_ENABLED_CHANNELS:-paypal,mock}
     volumes:
       - ../backend/src:/app/src  # 热重载
       - ../backend/uploads:/app/uploads  # 本地降级图片持久化，容器重建不丢
