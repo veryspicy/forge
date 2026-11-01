@@ -325,6 +325,46 @@ const customRoutes = [
         }
       }
     ]
+  },
+
+  // ============ 9. CMS Content ============
+  {
+    name: 'content',
+    path: '/content',
+    meta: {
+      title: 'Content',
+      i18nKey: 'route.content',
+      icon: 'mdi:file-document-edit',
+      order: 9,
+      roles: ['super_admin', 'admin']
+    },
+    redirect: '/content/list',
+    children: [
+      {
+        name: 'content-list',
+        path: '/content/list',
+        component: 'layout.base$view.content',
+        meta: {
+          title: 'Content',
+          i18nKey: 'route.content',
+          icon: 'mdi:file-document-edit',
+          order: 1,
+          roles: ['super_admin', 'admin']
+        }
+      },
+      {
+        name: 'content-edit',
+        path: '/content/edit',
+        component: 'layout.base$view.content-edit',
+        meta: {
+          title: 'Edit Content',
+          i18nKey: 'route.content-edit',
+          hideInMenu: true,
+          activeMenu: 'content-list',
+          roles: ['super_admin', 'admin']
+        }
+      }
+    ]
   }
 ];
 

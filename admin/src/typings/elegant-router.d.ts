@@ -25,6 +25,8 @@ declare module "@elegant-router/types" {
     "ai-probe": "/ai-probe";
     "brands": "/brands";
     "categories": "/categories";
+    "content": "/content";
+    "content-edit": "/content-edit";
     "dashboard": "/dashboard";
     "iframe-page": "/iframe-page/:url";
     "login": "/login/:module(pwd-login|code-login|register|reset-pwd|bind-wechat)?";
@@ -82,6 +84,8 @@ declare module "@elegant-router/types" {
     | "ai-probe"
     | "brands"
     | "categories"
+    | "content"
+    | "content-edit"
     | "dashboard"
     | "iframe-page"
     | "login"
@@ -126,6 +130,8 @@ declare module "@elegant-router/types" {
     | "ai-probe"
     | "brands"
     | "categories"
+    | "content"
+    | "content-edit"
     | "dashboard"
     | "orders-detail"
     | "orders"

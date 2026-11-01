@@ -308,7 +308,9 @@ const local: App.I18n.Schema = {
     settings: '设置',
     'admin-users': '管理员',
     roles: '角色管理',
-    'site-config': '站点配置'
+    'site-config': '站点配置',
+    content: '内容管理',
+    'content-edit': '编辑内容'
   },
   page: {
     dashboard: {
@@ -378,6 +380,20 @@ const local: App.I18n.Schema = {
       partial: '部分成功',
       confirmImport: '确认导入选中的货源商品？',
       importResult: '导入完成：新增 {imported}，失败 {failed}'
+    },
+    content: {
+      title: '标题',
+      slug: 'Slug',
+      body: '正文（HTML）',
+      seoTitle: 'SEO 标题',
+      seoDescription: 'SEO 描述',
+      status: '状态',
+      draft: '草稿',
+      published: '已发布',
+      publish: '发布',
+      unpublish: '下架',
+      unpublished: '已下架',
+      searchPlaceholder: '搜索标题 / Slug'
     },
     pricing: {
       title: '定价',
