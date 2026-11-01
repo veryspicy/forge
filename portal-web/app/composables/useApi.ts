@@ -90,6 +90,11 @@ export function useApi() {
     return authFetch(`${API_BASE}/pets/${petId}/recommendations`);
   };
 
+  // CMS Content（按 slug 拉取已发布内容页；未发布/不存在时抛 404，由页面降级为 Coming soon）
+  const fetchContent = async (slug: string) => {
+    return authFetch(`${API_BASE}/content/${slug}`);
+  };
+
   const updatePet = async (id: string, data: any) => {
     return authFetch(`${API_BASE}/pets/${id}`, {
       method: "PATCH",
@@ -321,6 +326,7 @@ export function useApi() {
     aiChat,
     fetchRecommendations,
     fetchPetRecommendations,
+    fetchContent,
     fetchConversations,
     deleteConversation,
     fetchCart,
