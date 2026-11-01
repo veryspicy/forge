@@ -124,7 +124,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
                     {
                         "labelKey": "footer.petFood",
                         "label": "宠物食品",
-                        "to": "/products?category=pet-food",
+                        "to": "/products?category=cat-food",
                         "visible": True,
                     },
                     {"labelKey": "footer.toys", "label": "玩具", "to": "/products?category=toys", "visible": True},

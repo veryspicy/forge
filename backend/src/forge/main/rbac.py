@@ -77,6 +77,7 @@ MODULE_NAMES: dict[str, str] = {
     "settings": "系统设置",
     "site_config": "站点配置",
     "site_profile": "站点资料",
+    "content": "内容管理",
     "admin_roles": "角色管理",
     "admin_users": "管理员",
     "users": "用户管理",

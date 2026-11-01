@@ -91,6 +91,9 @@ _safe_include("admin_roles", prefix="/roles", tags=["Admin - Roles"])
 # Site Profiles
 _safe_include("site_profile", prefix="/site-profiles", tags=["Admin - Site Profiles"])
 
+# CMS Content（轻量 CMS 内容管理）
+_safe_include("content", prefix="/content", tags=["Admin - CMS Content"])
+
 # Convenience site endpoint (site_router on site_profile module)
 try:
     import forge.api.admin.v1.site_profile as _sp
