@@ -9,9 +9,10 @@ import {
   NButton,
   NSelect,
   NSpace,
+  NPopconfirm,
   useMessage
 } from 'naive-ui';
-import { get, post, patch } from '@/service/api/helper';
+import { get, post, patch, del } from '@/service/api/helper';
 
 const route = useRoute();
 const router = useRouter();
@@ -41,7 +42,8 @@ async function load() {
   loading.value = true;
   try {
     const res = await get(`/api/admin/v1/content/${id}`);
-    const d = res.data;
+    // 兼容后端详情接口 {data:{...}} 包裹与无包裹两种响应
+    const d = res.data?.data ?? res.data;
     form.value = {
       slug: d.slug ?? '',
       title: d.title ?? '',
@@ -69,6 +71,13 @@ async function save() {
   } finally {
     saving.value = false;
   }
+}
+
+async function remove() {
+  if (!id) return;
+  await del(`/api/admin/v1/content/${id}`);
+  message.success(t('common.deleteSuccess'));
+  router.push('/content');
 }
 
 onMounted(load);
@@ -105,6 +114,12 @@ onMounted(load);
         <NSpace>
           <NButton type="primary" :loading="saving" @click="save">{{ t('common.save') }}</NButton>
           <NButton @click="router.back()">{{ t('common.cancel') }}</NButton>
+          <NPopconfirm v-if="id" @positive-click="remove">
+            <template #trigger>
+              <NButton type="error">{{ t('common.delete') }}</NButton>
+            </template>
+            {{ t('common.confirmDelete') }}
+          </NPopconfirm>
         </NSpace>
       </NFormItem>
     </NForm>

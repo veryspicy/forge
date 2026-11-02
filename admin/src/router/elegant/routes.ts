@@ -84,6 +84,24 @@ export const generatedRoutes: GeneratedRoute[] = [
     }
   },
   {
+    name: 'content',
+    path: '/content',
+    component: 'layout.base$view.content',
+    meta: {
+      title: 'content',
+      i18nKey: 'route.content'
+    }
+  },
+  {
+    name: 'content-edit',
+    path: '/content-edit',
+    component: 'layout.base$view.content-edit',
+    meta: {
+      title: 'content-edit',
+      i18nKey: 'route.content-edit'
+    }
+  },
+  {
     name: 'dashboard',
     path: '/dashboard',
     component: 'layout.base$view.dashboard',
@@ -250,24 +268,6 @@ export const generatedRoutes: GeneratedRoute[] = [
     meta: {
       title: 'users',
       i18nKey: 'route.users'
-    }
-  },
-  {
-    name: 'content',
-    path: '/content',
-    component: 'layout.base$view.content',
-    meta: {
-      title: 'content',
-      i18nKey: 'route.content'
-    }
-  },
-  {
-    name: 'content-edit',
-    path: '/content-edit',
-    component: 'layout.base$view.content-edit',
-    meta: {
-      title: 'content-edit',
-      i18nKey: 'route.content-edit'
     }
   }
 ];

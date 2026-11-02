@@ -24,6 +24,7 @@ const local: App.I18n.Schema = {
     delete: '删除',
     deleteSuccess: '删除成功',
     confirmDelete: '确认删除吗？',
+    updateTime: '更新时间',
     save: '保存',
     name: '名称',
     status: '状态',
@@ -310,6 +311,7 @@ const local: App.I18n.Schema = {
     roles: '角色管理',
     'site-config': '站点配置',
     content: '内容管理',
+    'content-list': '内容列表',
     'content-edit': '编辑内容'
   },
   page: {

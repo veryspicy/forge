@@ -112,7 +112,8 @@ const columns: DataTableColumns<any> = [
               NPopconfirm,
               { onPositiveClick: () => remove(row) },
               {
-                default: () =>
+                default: () => t('common.confirmDelete'),
+                trigger: () =>
                   h(NButton, { size: 'small', type: 'error' }, { default: () => t('common.delete') })
               }
             )

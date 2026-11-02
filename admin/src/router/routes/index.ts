@@ -334,7 +334,7 @@ const customRoutes = [
     meta: {
       title: 'Content',
       i18nKey: 'route.content',
-      icon: 'mdi:file-document-edit',
+      icon: 'mdi:file-document-outline',
       order: 9,
       roles: ['super_admin', 'admin']
     },
@@ -345,9 +345,9 @@ const customRoutes = [
         path: '/content/list',
         component: 'layout.base$view.content',
         meta: {
-          title: 'Content',
-          i18nKey: 'route.content',
-          icon: 'mdi:file-document-edit',
+          title: 'Content List',
+          i18nKey: 'route.content-list',
+          icon: 'mdi:file-document-outline',
           order: 1,
           roles: ['super_admin', 'admin']
         }

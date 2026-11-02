@@ -24,6 +24,7 @@ const local: App.I18n.Schema = {
     delete: 'Delete',
     deleteSuccess: 'Delete Success',
     confirmDelete: 'Are you sure you want to delete?',
+    updateTime: 'Update Time',
     save: 'Save',
     name: 'Name',
     status: 'Status',
@@ -314,6 +315,7 @@ const local: App.I18n.Schema = {
     roles: 'Roles',
     'site-config': 'Site Config',
     content: 'Content',
+    'content-list': 'Content List',
     'content-edit': 'Edit Content'
   },
   page: {
