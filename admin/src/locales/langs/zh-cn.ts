@@ -824,6 +824,12 @@ const local: App.I18n.Schema = {
       storeSettings: '店铺设置',
       transitMaxDays: '运输最长（天）',
       transitMinDays: '运输最短（天）',
+      menuOrder: '菜单排序',
+      menuOrderTip: '拖拽调整侧边栏菜单顺序，保存后对所有管理员生效。',
+      saveMenuOrder: '保存菜单顺序',
+      menuOrderSaved: '菜单顺序已保存',
+      menuOrderSaveFail: '菜单顺序保存失败',
+      resetMenuOrder: '恢复默认顺序',
     },
     modelManagement: {
       title: '模型管理',

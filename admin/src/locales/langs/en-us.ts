@@ -831,6 +831,12 @@ const local: App.I18n.Schema = {
       storeSettings: 'Store Settings',
       transitMaxDays: 'Transit Max (days)',
       transitMinDays: 'Transit Min (days)',
+      menuOrder: 'Menu Order',
+      menuOrderTip: 'Drag to reorder sidebar menus. Saved order applies to all admins.',
+      saveMenuOrder: 'Save Menu Order',
+      menuOrderSaved: 'Menu order saved',
+      menuOrderSaveFail: 'Failed to save menu order',
+      resetMenuOrder: 'Reset to Default Order',
     },
     modelManagement: {
       title: 'Model Management',
