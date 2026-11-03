@@ -65,9 +65,7 @@ class SQLAlchemyContentRepository:
 
     @staticmethod
     async def get_published_by_slug(db: AsyncSession, slug: str) -> ORMContent | None:
-        result = await db.execute(
-            select(ORMContent).where(ORMContent.slug == slug, ORMContent.status == "published")
-        )
+        result = await db.execute(select(ORMContent).where(ORMContent.slug == slug, ORMContent.status == "published"))
         return result.scalar_one_or_none()
 
     @staticmethod

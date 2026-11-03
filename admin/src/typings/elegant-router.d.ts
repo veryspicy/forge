@@ -26,6 +26,7 @@ declare module "@elegant-router/types" {
     "brands": "/brands";
     "categories": "/categories";
     "content": "/content";
+    "content-list": "/content/list";
     "content-edit": "/content-edit";
     "dashboard": "/dashboard";
     "iframe-page": "/iframe-page/:url";
