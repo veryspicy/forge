@@ -24,6 +24,7 @@ const local: App.I18n.Schema = {
     delete: 'Delete',
     deleteSuccess: 'Delete Success',
     confirmDelete: 'Are you sure you want to delete?',
+    updateTime: 'Update Time',
     save: 'Save',
     name: 'Name',
     status: 'Status',
@@ -312,7 +313,10 @@ const local: App.I18n.Schema = {
     settings: 'Settings',
     'admin-users': 'Admin Users',
     roles: 'Roles',
-    'site-config': 'Site Config'
+    'site-config': 'Site Config',
+    content: 'Content',
+    'content-list': 'Content List',
+    'content-edit': 'Edit Content'
   },
   page: {
     dashboard: {
@@ -382,6 +386,20 @@ const local: App.I18n.Schema = {
       partial: 'Partial',
       confirmImport: 'Import selected products?',
       importResult: 'Import done: {imported} imported, {failed} failed'
+    },
+    content: {
+      title: 'Title',
+      slug: 'Slug',
+      body: 'Body (HTML)',
+      seoTitle: 'SEO Title',
+      seoDescription: 'SEO Description',
+      status: 'Status',
+      draft: 'Draft',
+      published: 'Published',
+      publish: 'Publish',
+      unpublish: 'Unpublish',
+      unpublished: 'Unpublished',
+      searchPlaceholder: 'Search title / slug'
     },
     pricing: {
       title: 'Pricing',

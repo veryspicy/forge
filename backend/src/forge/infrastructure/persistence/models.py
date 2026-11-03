@@ -1115,3 +1115,34 @@ class ORMAppSetting(Base):
             "updated_by": self.updated_by,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
+
+
+class ORMContent(Base):
+    """CMS 内容表（轻量 CMS：slug 驱动的内容页渲染，独立于 site_profile）。"""
+
+    __tablename__ = "content"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
+    slug = Column(String(128), nullable=False, unique=True, index=True)
+    title = Column(String(255), nullable=False)
+    body = Column(Text, nullable=False, default="")
+    seo_title = Column(String(255), nullable=True)
+    seo_description = Column(String(500), nullable=True)
+    status = Column(String(16), nullable=False, default="draft", server_default="draft")
+    published_at = Column(DateTime(timezone=False), nullable=True)
+    created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+    updated_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "slug": self.slug,
+            "title": self.title,
+            "body": self.body or "",
+            "seo_title": self.seo_title,
+            "seo_description": self.seo_description,
+            "status": self.status or "draft",
+            "published_at": self.published_at.isoformat() if self.published_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }

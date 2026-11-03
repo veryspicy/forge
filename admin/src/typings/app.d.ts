@@ -547,6 +547,7 @@ declare namespace App {
           productCategories: string;
         };
         suppliers: Record<string, string>;
+        content: Record<string, string>;
         pricing: Record<string, string>;
         shipments: Record<string, string>;
         returns: Record<string, string>;

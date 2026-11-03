@@ -78,11 +78,38 @@ const showFilters = ref(false)
 const sortBy = ref('popular')
 const filters = ref({})
 
+// Footer 等入口用站点标准 slug（site_defaults.categories）传 ?category=，需映射为商品 category 字面值
+const CAT_SLUG_TO_API: Record<string, string> = {
+  'cat-food': 'FOOD',
+  toys: 'TOYS',
+  'health-wellness': 'HEALTH',
+  accessories: 'ACCESSORIES',
+  grooming: 'GROOMING',
+}
+
+function toApiCategories(slugs: string[]): string[] {
+  return (slugs || []).map((s) => CAT_SLUG_TO_API[s] || s)
+}
+
 function applyFilters() {
-  productStore.loadProducts({ sort: sortBy.value, ...filters.value } as any)
+  const f: Record<string, any> = { sort: sortBy.value, ...filters.value }
+  if (Array.isArray(f.category)) f.category = toApiCategories(f.category)
+  productStore.loadProducts(f as any)
 }
 
 onMounted(() => {
-  productStore.loadProducts({ page_size: 12 } as any)
+  const route = useRoute()
+  const q = route.query.category
+  if (typeof q === 'string' && q) {
+    // Footer 联动：按标准 slug 初始化筛选并直接应用
+    filters.value = { category: [q] }
+    productStore.loadProducts({
+      page_size: 12,
+      sort: sortBy.value,
+      category: toApiCategories([q]),
+    } as any)
+  } else {
+    productStore.loadProducts({ page_size: 12 } as any)
+  }
 })
 </script>

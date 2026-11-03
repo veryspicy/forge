@@ -83,10 +83,11 @@ const { t } = useI18n()
 const props = defineProps<{ modelValue: Record<string, any> }>()
 const emit = defineEmits<{ 'update:modelValue': [value: Record<string, any>] }>()
 
+// 分类 value 与站点配置 site_defaults.categories 的标准 slug 保持一致（cat-food/toys/health-wellness/accessories）
 const categories = [
-  { label: t('categories.food'), value: 'food' },
+  { label: t('categories.food'), value: 'cat-food' },
   { label: t('categories.toys'), value: 'toys' },
-  { label: t('categories.health'), value: 'health' },
+  { label: t('categories.health'), value: 'health-wellness' },
   { label: t('categories.grooming'), value: 'grooming' },
   { label: t('categories.accessories'), value: 'accessories' },
 ]
@@ -96,6 +97,15 @@ const selectedCategories = ref<string[]>([])
 const priceMin = ref<number | null>(null)
 const priceMax = ref<number | null>(null)
 const selectedRating = ref<number | null>(null)
+
+// 外部（如 Footer ?category= 联动）传入的 category 数组同步到勾选状态
+watch(
+  () => props.modelValue?.category,
+  (val) => {
+    if (Array.isArray(val)) selectedCategories.value = [...val]
+  },
+  { immediate: true },
+)
 
 function toggleCategory(cat: string) {
   const idx = selectedCategories.value.indexOf(cat)
