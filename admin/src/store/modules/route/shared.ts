@@ -134,6 +134,79 @@ export function getGlobalMenusByAuthRoutes(routes: ElegantConstRoute[]) {
 }
 
 /**
+ * Menu order config persisted in app settings.
+ *
+ * Example:
+ * {
+ *   top: ['dashboard', 'merchandise', 'sales'],
+ *   children: { merchandise: ['products', 'categories'] }
+ * }
+ */
+export interface MenuOrderConfig {
+  top?: string[];
+  children?: Record<string, string[]>;
+}
+
+/**
+ * Apply persisted menu order to global menus.
+ *
+ * Reorders top-level menus by `order.top`, and reorders each group's children
+ * by `order.children[groupKey]`. Keys not present in the config keep their
+ * original position (stable append). Returns a new array without mutating input.
+ *
+ * @param menus Global menus
+ * @param order Menu order config
+ */
+export function applyMenuOrderByConfig(menus: App.Global.Menu[], order: MenuOrderConfig | null | undefined) {
+  if (!order) {
+    return menus;
+  }
+
+  const reorderByKeys = <T extends App.Global.Menu>(list: T[], keys?: string[]) => {
+    if (!keys?.length) {
+      return list;
+    }
+
+    const keySet = new Set(keys);
+
+    const keyed = new Map(list.map(item => [item.key, item]));
+
+    const ordered: T[] = [];
+
+    keys.forEach(key => {
+      const item = keyed.get(key);
+      if (item) {
+        ordered.push(item);
+        keyed.delete(key);
+      }
+    });
+
+    // keep items not present in keys, preserving original relative order
+    list.forEach(item => {
+      if (!keySet.has(item.key)) {
+        ordered.push(item);
+      }
+    });
+
+    return ordered;
+  };
+
+  const nextMenus = reorderByKeys(menus, order.top);
+
+  const childrenOrder = order.children;
+
+  if (childrenOrder) {
+    nextMenus.forEach(menu => {
+      if (menu.children?.length) {
+        menu.children = reorderByKeys(menu.children, childrenOrder[menu.key]);
+      }
+    });
+  }
+
+  return nextMenus;
+}
+
+/**
  * Update locale of global menus
  *
  * @param menus

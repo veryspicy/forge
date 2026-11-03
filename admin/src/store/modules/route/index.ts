@@ -12,7 +12,9 @@ import { getRouteName, getRoutePath } from '@/router/elegant/transform';
 import { markPhase } from '@/utils/stall-watchdog';
 import { useAuthStore } from '../auth';
 import { useTabStore } from '../tab';
+import { get } from '@/service/api/helper';
 import {
+  applyMenuOrderByConfig,
   filterAuthRoutesByRoles,
   filterRoutesByDev,
   getBreadcrumbsByRoute,
@@ -22,7 +24,8 @@ import {
   isRouteExistByRouteName,
   sortRoutesByOrder,
   transformMenuToSearchMenus,
-  updateLocaleOfGlobalMenus
+  updateLocaleOfGlobalMenus,
+  type MenuOrderConfig
 } from './shared';
 
 export const useRouteStore = defineStore(SetupStoreId.Route, () => {
@@ -86,7 +89,47 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
 
   /** Get global menus */
   function getGlobalMenus(routes: ElegantConstRoute[]) {
-    menus.value = getGlobalMenusByAuthRoutes(routes);
+    menus.value = applyMenuOrderByConfig(getGlobalMenusByAuthRoutes(routes), menuOrder.value);
+  }
+
+  /** Persisted menu order loaded from app settings (null = default order) */
+  const menuOrder = ref<MenuOrderConfig | null>(null);
+
+  /**
+   * Fetch persisted menu order from app settings.
+   *
+   * On failure or empty config, keeps default order.
+   */
+  async function fetchMenuOrderFromSettings() {
+    try {
+      const { data, error } = await get<Record<string, unknown>>('/api/admin/v1/settings/');
+
+      if (error || !data) {
+        return;
+      }
+
+      menuOrder.value = (data.menu_order ?? null) as MenuOrderConfig | null;
+    } catch (e) {
+      console.error('[route] fetch menu order failed', e);
+    }
+  }
+
+  /**
+   * Refresh rendered menus with a given order config without re-initializing routes.
+   *
+   * Used by the settings page right after saving a new menu order, so the sidebar
+   * updates immediately.
+   *
+   * @param order New menu order config (null = default order)
+   */
+  function refreshMenusWithOrder(order: MenuOrderConfig | null) {
+    menuOrder.value = order;
+
+    const allRoutes = filterRoutesByDev([...constantRoutes.value, ...authRoutes.value]);
+
+    const sortRoutes = sortRoutesByOrder(allRoutes);
+
+    getGlobalMenus(sortRoutes);
   }
 
   /** Update global menus by locale */
@@ -161,6 +204,8 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
 
     markPhase('route:init-constant:start', { mode: authRouteMode.value });
 
+    await fetchMenuOrderFromSettings();
+
     const staticRoute = createStaticRoutes();
 
     if (authRouteMode.value === 'static') {
@@ -193,6 +238,8 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
     if (!authStore.userInfo.userId) {
       await authStore.initUserInfo();
     }
+
+    await fetchMenuOrderFromSettings();
 
     if (authRouteMode.value === 'static') {
       initStaticAuthRoute();
@@ -395,6 +442,7 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
     getIsAuthRouteExist,
     getIsAuthRouteRegistered,
     getSelectedMenuKeyPath,
+    refreshMenusWithOrder,
     onRouteSwitchWhenLoggedIn,
     onRouteSwitchWhenNotLoggedIn
   };

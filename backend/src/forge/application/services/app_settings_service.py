@@ -28,6 +28,9 @@ DEFAULT_SETTINGS: dict[str, Any] = {
         "import_fee": {"enabled": False, "amount": None, "label": ""},
         "payment_methods": {"enabled": True, "methods": ["card", "paypal", "apple_pay", "google_pay"]},
     },
+    # 后台侧边栏菜单自定义排序：top 为一级菜单 key 顺序，children 为各一级菜单下二级菜单 key 顺序；
+    # 未配置（空对象）时按路由 meta.order 默认排序渲染
+    "menu_order": {},
 }
 
 
