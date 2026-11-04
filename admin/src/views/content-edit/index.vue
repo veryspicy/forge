@@ -25,6 +25,7 @@ const saving = ref(false);
 
 const form = ref({
   slug: '',
+  locale: 'en',
   title: '',
   body: '',
   seo_title: '',
@@ -37,6 +38,11 @@ const statusOptions = [
   { label: t('page.content.published'), value: 'published' }
 ];
 
+const localeOptions = [
+  { label: 'English', value: 'en' },
+  { label: '中文', value: 'zh' }
+];
+
 async function load() {
   if (!id) return;
   loading.value = true;
@@ -46,6 +52,7 @@ async function load() {
     const d = res.data?.data ?? res.data;
     form.value = {
       slug: d.slug ?? '',
+      locale: d.locale ?? 'en',
       title: d.title ?? '',
       body: d.body ?? '',
       seo_title: d.seo_title ?? '',
@@ -88,6 +95,9 @@ onMounted(load);
     <NForm label-placement="left" label-width="120" :show-require-mark="false" class="max-w-3xl">
       <NFormItem label="Slug" :required="true">
         <NInput v-model:value="form.slug" placeholder="faqs / shipping / privacy" :disabled="loading" />
+      </NFormItem>
+      <NFormItem label="Lang" :required="true">
+        <NSelect v-model:value="form.locale" :options="localeOptions" :disabled="loading" class="w-40" />
       </NFormItem>
       <NFormItem :label="t('page.content.title')" :required="true">
         <NInput v-model:value="form.title" :disabled="loading" />

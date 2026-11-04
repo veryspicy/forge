@@ -1121,9 +1121,11 @@ class ORMContent(Base):
     """CMS 内容表（轻量 CMS：slug 驱动的内容页渲染，独立于 site_profile）。"""
 
     __tablename__ = "content"
+    __table_args__ = (UniqueConstraint("slug", "locale", name="uq_content_slug_locale"),)
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
-    slug = Column(String(128), nullable=False, unique=True, index=True)
+    slug = Column(String(128), nullable=False)
+    locale = Column(String(16), nullable=False, default="en", server_default="en")
     title = Column(String(255), nullable=False)
     body = Column(Text, nullable=False, default="")
     seo_title = Column(String(255), nullable=True)
@@ -1137,6 +1139,7 @@ class ORMContent(Base):
         return {
             "id": str(self.id),
             "slug": self.slug,
+            "locale": self.locale,
             "title": self.title,
             "body": self.body or "",
             "seo_title": self.seo_title,

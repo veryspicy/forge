@@ -25,6 +25,7 @@ class SQLAlchemyContentRepository:
         page_size: int = 20,
         search: str | None = None,
         status: str | None = None,
+        locale: str | None = None,
     ) -> dict[str, Any]:
         filters = []
         if search:
@@ -32,6 +33,8 @@ class SQLAlchemyContentRepository:
             filters.append(ORMContent.title.ilike(pattern) | ORMContent.slug.ilike(pattern))
         if status:
             filters.append(ORMContent.status == status)  # type: ignore[arg-type]
+        if locale:
+            filters.append(ORMContent.locale == locale)  # type: ignore[arg-type]
 
         total_query = select(func.count(ORMContent.id)).where(*filters)
         total = (await db.execute(total_query)).scalar_one()
@@ -59,13 +62,21 @@ class SQLAlchemyContentRepository:
         return result.scalar_one_or_none()
 
     @staticmethod
-    async def get_by_slug(db: AsyncSession, slug: str) -> ORMContent | None:
-        result = await db.execute(select(ORMContent).where(ORMContent.slug == slug))
+    async def get_by_slug_locale(db: AsyncSession, slug: str, locale: str = "en") -> ORMContent | None:
+        result = await db.execute(
+            select(ORMContent).where(ORMContent.slug == slug, ORMContent.locale == locale)
+        )
         return result.scalar_one_or_none()
 
     @staticmethod
-    async def get_published_by_slug(db: AsyncSession, slug: str) -> ORMContent | None:
-        result = await db.execute(select(ORMContent).where(ORMContent.slug == slug, ORMContent.status == "published"))
+    async def get_published_by_slug_locale(db: AsyncSession, slug: str, locale: str = "en") -> ORMContent | None:
+        result = await db.execute(
+            select(ORMContent).where(
+                ORMContent.slug == slug,
+                ORMContent.locale == locale,
+                ORMContent.status == "published",
+            )
+        )
         return result.scalar_one_or_none()
 
     @staticmethod

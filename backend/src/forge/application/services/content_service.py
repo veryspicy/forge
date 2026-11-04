@@ -16,6 +16,7 @@ from forge.infrastructure.persistence.models import ORMContent
 from forge.infrastructure.persistence.repositories.content_repo import SQLAlchemyContentRepository
 
 VALID_STATUSES = {"draft", "published"}
+SUPPORTED_LOCALES = {"en", "zh"}
 _SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
@@ -56,12 +57,20 @@ class ContentService:
                 {"slug": "slug 仅允许小写字母、数字与连字符（如 faqs / shipping）"},
             )
 
-        existing = await SQLAlchemyContentRepository.get_by_slug(db, slug)
+        locale = str(data.get("locale") or "en").lower()
+        if locale not in SUPPORTED_LOCALES:
+            raise ContentValidationError(
+                "locale 无效",
+                {"locale": f"locale 必须为 {sorted(SUPPORTED_LOCALES)} 之一"},
+            )
+
+        existing = await SQLAlchemyContentRepository.get_by_slug_locale(db, slug, locale)
         if existing:
-            raise ContentSlugConflictError(f"slug 已存在: {slug}")
+            raise ContentSlugConflictError(f"slug 已存在: {slug}（locale={locale}）")
 
         payload = dict(data)
         payload["slug"] = slug
+        payload["locale"] = locale
         payload.setdefault("status", "draft")
         payload.setdefault("body", "")
         if payload.get("status") == "published":
@@ -78,18 +87,33 @@ class ContentService:
         if errors:
             raise ContentValidationError("内容参数校验失败", errors)
 
+        # locale 变更时校验合法性
+        if "locale" in data and data["locale"]:
+            new_locale = str(data["locale"]).lower()
+            if new_locale not in SUPPORTED_LOCALES:
+                raise ContentValidationError(
+                    "locale 无效",
+                    {"locale": f"locale 必须为 {sorted(SUPPORTED_LOCALES)} 之一"},
+                )
+            data["locale"] = new_locale
+
+        target_locale = str(data.get("locale") or content.locale or "en").lower()
+
+        target_slug: str = str(content.slug)
         if "slug" in data and data["slug"]:
-            new_slug = _normalise_slug(str(data["slug"]))
-            if not new_slug or not _SLUG_RE.match(new_slug):
+            target_slug = _normalise_slug(str(data["slug"]))
+            if not target_slug or not _SLUG_RE.match(target_slug):
                 raise ContentValidationError(
                     "slug 格式无效",
                     {"slug": "slug 仅允许小写字母、数字与连字符（如 faqs / shipping）"},
                 )
-            if new_slug != content.slug:
-                existing = await SQLAlchemyContentRepository.get_by_slug(db, new_slug)
-                if existing and str(existing.id) != str(content.id):
-                    raise ContentSlugConflictError(f"slug 已存在: {new_slug}")
-                data["slug"] = new_slug
+            data["slug"] = target_slug
+
+        # (slug, locale) 复合唯一：任一维度变更都必须查重，否则会撞 DB 唯一约束抛 500
+        if target_slug != content.slug or target_locale != content.locale:
+            existing = await SQLAlchemyContentRepository.get_by_slug_locale(db, target_slug, target_locale)
+            if existing and str(existing.id) != str(content.id):
+                raise ContentSlugConflictError(f"slug 已存在: {target_slug}（locale={target_locale}）")
 
         # 发布/下架切换时维护 published_at
         new_status = data.get("status")

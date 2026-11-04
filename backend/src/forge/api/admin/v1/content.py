@@ -29,6 +29,7 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 class ContentCreate(BaseModel):
     slug: str
+    locale: str = "en"
     title: str
     body: str = ""
     seo_title: str | None = None
@@ -38,6 +39,7 @@ class ContentCreate(BaseModel):
 
 class ContentUpdate(BaseModel):
     slug: str | None = None
+    locale: str | None = None
     title: str | None = None
     body: str | None = None
     seo_title: str | None = None
@@ -109,6 +111,7 @@ async def list_contents(
     page_size: int = Query(default=20, ge=1, le=200),
     search: str | None = Query(default=None),
     status: str | None = Query(default=None),
+    locale: str | None = Query(default=None),
     admin: dict[str, Any] = Depends(require_permission("content", "manage")),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
@@ -121,6 +124,7 @@ async def list_contents(
         page_size=page_size,
         search=search,
         status=status,
+        locale=locale,
     )
     return result
 
