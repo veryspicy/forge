@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM docker.io/library/node:22-alpine
 
 WORKDIR /app
@@ -10,8 +11,10 @@ RUN npm install -g pnpm@11.21.0
 
 # Install dependencies (ignore scripts first to avoid ERR_PNPM_IGNORED_BUILDS)
 # pnpm-workspace.yaml carries overrides/allowBuilds needed by frozen install validation
+# store 缓存挂载：避免每次重建都从 registry 全量重下（此前单次 install 曾耗时 53min）
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --ignore-scripts
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store,sharing=locked \
+    pnpm install --frozen-lockfile --ignore-scripts --prefer-offline
 
 # Copy source (bind mount overlay for hot-reload)
 COPY . .
