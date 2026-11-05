@@ -24,6 +24,16 @@ import { useSiteProfile } from './composables/useSiteProfile'
 const { toasts } = useToast()
 const { profile } = useSiteProfile()
 
+// locale -> <html lang dir>：lang 取当前语言码，dir 取 locales 定义（ar=rtl，其余默认 ltr）
+const { locale, locales } = useI18n()
+
+const htmlLangDir = computed<{ lang: string; dir: 'ltr' | 'rtl' }>(() => {
+  const code = String(locale.value || '')
+  const list = (locales.value ?? []) as Array<{ code?: string; dir?: string }>
+  const hit = list.find(item => item?.code === code)
+  return { lang: code, dir: hit?.dir === 'rtl' ? 'rtl' : 'ltr' }
+})
+
 const faviconLink = computed(() => {
   const favicon = profile.value.brand?.favicon
   if (!favicon) return []
@@ -40,4 +50,10 @@ useHead({
   ],
   link: faviconLink,
 });
+
+// lang/dir 需随语言切换响应式更新：unhead 的 htmlAttrs 不接受 ComputedRef，改用 getter 形式的 useHead
+useHead(() => ({
+  // 语言与书写方向：lang 供 SEO/辅助阅读，dir 驱动 RTL（ar）与 LTR 布局
+  htmlAttrs: { ...htmlLangDir.value },
+}))
 </script>

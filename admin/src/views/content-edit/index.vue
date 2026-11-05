@@ -13,6 +13,7 @@ import {
   useMessage
 } from 'naive-ui';
 import { get, post, patch, del } from '@/service/api/helper';
+import { contentLocaleOptions } from '@/constants/content-locale';
 
 const route = useRoute();
 const router = useRouter();
@@ -38,10 +39,7 @@ const statusOptions = [
   { label: t('page.content.published'), value: 'published' }
 ];
 
-const localeOptions = [
-  { label: 'English', value: 'en' },
-  { label: '中文', value: 'zh' }
-];
+const localeOptions = contentLocaleOptions.map(({ label, value }) => ({ label, value }));
 
 async function load() {
   if (!id) return;

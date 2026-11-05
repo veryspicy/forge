@@ -13,6 +13,7 @@ import {
   useMessage
 } from 'naive-ui';
 import { get, del, post } from '@/service/api/helper';
+import { contentLocaleShort, contentLocaleSelectOptions } from '@/constants/content-locale';
 import type { DataTableColumns } from 'naive-ui';
 
 const router = useRouter();
@@ -33,10 +34,7 @@ const statusOptions = [
   { label: t('page.content.published'), value: 'published' }
 ];
 
-const localeOptions = [
-  { label: 'English', value: 'en' },
-  { label: '中文', value: 'zh' }
-];
+const localeOptions = contentLocaleSelectOptions;
 
 async function fetchData() {
   loading.value = true;
@@ -83,8 +81,8 @@ const columns: DataTableColumns<any> = [
     render: row =>
       h(
         NTag,
-        { type: row.locale === 'zh' ? 'info' : 'default', size: 'small' },
-        { default: () => (row.locale === 'zh' ? '中文' : 'EN') }
+        { type: row.locale === 'en' ? 'default' : 'info', size: 'small' },
+        { default: () => contentLocaleShort(row.locale) }
       )
   },
   {

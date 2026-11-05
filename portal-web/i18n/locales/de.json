@@ -56,7 +56,10 @@
     "aiTeaserDesc": "Erzählen Sie unserem KI-Assistenten von Ihrem Haustier und erhalten Sie sofort personalisierte Produktempfehlungen.",
     "categories": "Kategorien",
     "featured": "Empfohlene Produkte",
-    "startChat": "Chat starten"
+    "startChat": "Chat starten",
+    "addPet": "Haustier hinzufügen",
+    "heroDesc": "KI-gestützte Produktempfehlungen, abgestimmt auf Rasse, Alter und Gesundheitsbedürfnisse Ihres Haustiers. Entdecken Sie das beste Futter, Spielzeug und Zubehör.",
+    "shopNow": "Jetzt einkaufen"
   },
   "categories": {
     "food": "Futter",
@@ -383,7 +386,14 @@
     "noTrackingEvents": "Noch keine Sendungsereignisse",
     "trackingUpdate": "Aktualisierung",
     "payPalRedirecting": "Weiterleitung zu PayPal…",
-    "payPalCompleting": "Zahlung wird abgeschlossen…"
+    "payPalCompleting": "Zahlung wird abgeschlossen…",
+    "addressUpdateFailed": "Lieferadresse konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
+    "addressUpdated": "Lieferadresse aktualisiert",
+    "editOrder": "Bestellung bearbeiten",
+    "editShippingAddress": "Lieferadresse bearbeiten",
+    "editShippingAddressHint": "Die Lieferadresse kann nur vor dem Versand der Bestellung geändert werden.",
+    "saveAddress": "Adresse speichern",
+    "savingAddress": "Wird gespeichert..."
   },
   "returns": {
     "title": "Retouren & Erstattungen",
@@ -434,8 +444,24 @@
     },
     "errors": {
       "reasonRequired": "Bitte einen Grund auswählen",
-      "itemsRequired": "Bitte mindestens einen Artikel auswählen"
-    }
+      "itemsRequired": "Bitte mindestens einen Artikel auswählen",
+      "shipmentRequired": "Versanddienstleister und Sendungsnummer sind erforderlich"
+    },
+    "carrier": "Versanddienstleister",
+    "carrierPlaceholder": "z. B. DHL, USPS, SF Express",
+    "refundAfterReceive": "Die Erstattung erfolgt, sobald wir Ihre Rücksendung erhalten haben.",
+    "refundProcessing": "Wir haben Ihre Rücksendung erhalten. Ihre Erstattung wird bearbeitet.",
+    "shipBackTracking": "Rücksendung",
+    "shipmentModalHint": "Geben Sie Versanddienstleister und Sendungsnummer des zurückgesandten Pakets ein.",
+    "shipmentModalTitle": "Rücksendung",
+    "shipmentSubmitted": "Sendungsnummer übermittelt",
+    "shippedAt": "Versandt am",
+    "submitTracking": "Sendungsnummer hinzufügen",
+    "trackingHint": "Buchstaben, Ziffern, Bindestrich, Unterstrich oder Leerzeichen, 4-64 Zeichen.",
+    "trackingNumber": "Sendungsnummer",
+    "trackingNumberPlaceholder": "z. B. 1234567890",
+    "trackingRequired": "Bitte laden Sie für diese Anfrage die Rücksende-Sendungsnummer hoch.",
+    "updateTracking": "Sendungsnummer aktualisieren"
   },
   "chat": {
     "title": "KI-Chat",

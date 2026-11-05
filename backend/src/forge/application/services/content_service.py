@@ -14,10 +14,31 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from forge.infrastructure.persistence.models import ORMContent
 from forge.infrastructure.persistence.repositories.content_repo import SQLAlchemyContentRepository
+from forge.infrastructure.site_config_service import get_i18n_locales
 
 VALID_STATUSES = {"draft", "published"}
-SUPPORTED_LOCALES = {"en", "zh"}
+# 兜底语言集合：仅在站点配置缺失/损坏（get_i18n_locales 理论不会返回空）时使用
+FALLBACK_LOCALES = {"en", "zh"}
 _SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+
+
+async def get_supported_locales(db: AsyncSession) -> tuple[set[str], str]:
+    """从站点配置派生 CMS 支持的语言集合与默认语言。
+
+    语言清单唯一数据源为 site_profiles.config.i18n.locales（Admin 站点设置），
+    不再硬编码 en/zh，站点新增语言后 CMS 内容无需改代码即可支持。
+    """
+    locales, default_locale = await get_i18n_locales(db)
+    supported = set(locales) or set(FALLBACK_LOCALES)
+    if default_locale not in supported:
+        default_locale = "en" if "en" in supported else next(iter(sorted(supported)))
+    return supported, default_locale
+
+
+def normalise_locale(value: str | None) -> str:
+    """语言码规范化：小写、去空白、剥离 region 后缀（zh-CN -> zh）。"""
+    code = str(value or "").strip().lower().replace("_", "-")
+    return code.split("-")[0] if code else ""
 
 
 def _normalise_slug(value: str) -> str:
@@ -57,11 +78,12 @@ class ContentService:
                 {"slug": "slug 仅允许小写字母、数字与连字符（如 faqs / shipping）"},
             )
 
-        locale = str(data.get("locale") or "en").lower()
-        if locale not in SUPPORTED_LOCALES:
+        supported, default_locale = await get_supported_locales(db)
+        locale = normalise_locale(data.get("locale")) or default_locale
+        if locale not in supported:
             raise ContentValidationError(
                 "locale 无效",
-                {"locale": f"locale 必须为 {sorted(SUPPORTED_LOCALES)} 之一"},
+                {"locale": f"locale 必须为 {sorted(supported)} 之一（站点已启用语言）"},
             )
 
         existing = await SQLAlchemyContentRepository.get_by_slug_locale(db, slug, locale)
@@ -87,17 +109,19 @@ class ContentService:
         if errors:
             raise ContentValidationError("内容参数校验失败", errors)
 
+        supported, default_locale = await get_supported_locales(db)
+
         # locale 变更时校验合法性
         if "locale" in data and data["locale"]:
-            new_locale = str(data["locale"]).lower()
-            if new_locale not in SUPPORTED_LOCALES:
+            new_locale = normalise_locale(data["locale"])
+            if new_locale not in supported:
                 raise ContentValidationError(
                     "locale 无效",
-                    {"locale": f"locale 必须为 {sorted(SUPPORTED_LOCALES)} 之一"},
+                    {"locale": f"locale 必须为 {sorted(supported)} 之一（站点已启用语言）"},
                 )
             data["locale"] = new_locale
 
-        target_locale = str(data.get("locale") or content.locale or "en").lower()
+        target_locale = normalise_locale(data.get("locale")) or normalise_locale(str(content.locale)) or default_locale
 
         target_slug: str = str(content.slug)
         if "slug" in data and data["slug"]:

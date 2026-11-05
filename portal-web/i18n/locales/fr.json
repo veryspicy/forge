@@ -56,7 +56,10 @@
     "aiTeaserDesc": "Parlez de votre animal à notre assistant IA et obtenez des recommandations personnalisées instantanément.",
     "categories": "Catégories",
     "featured": "Produits vedettes",
-    "startChat": "Démarrer le chat"
+    "startChat": "Démarrer le chat",
+    "addPet": "Ajouter votre animal",
+    "heroDesc": "Des recommandations de produits alimentées par l'IA, adaptées à la race, à l'âge et aux besoins de santé de votre animal. Découvrez les meilleures croquettes, jouets et accessoires.",
+    "shopNow": "Acheter maintenant"
   },
   "categories": {
     "food": "Nourriture",
@@ -383,7 +386,14 @@
     "noTrackingEvents": "Aucun événement de suivi",
     "trackingUpdate": "Mise à jour",
     "payPalRedirecting": "Redirection vers PayPal…",
-    "payPalCompleting": "Finalisation du paiement…"
+    "payPalCompleting": "Finalisation du paiement…",
+    "addressUpdateFailed": "Échec de la mise à jour de l'adresse de livraison. Veuillez réessayer.",
+    "addressUpdated": "Adresse de livraison mise à jour",
+    "editOrder": "Modifier la commande",
+    "editShippingAddress": "Modifier l'adresse de livraison",
+    "editShippingAddressHint": "L'adresse de livraison ne peut être modifiée qu'avant l'expédition de la commande.",
+    "saveAddress": "Enregistrer l'adresse",
+    "savingAddress": "Enregistrement..."
   },
   "returns": {
     "title": "Retours & Remboursements",
@@ -434,8 +444,24 @@
     },
     "errors": {
       "reasonRequired": "Veuillez sélectionner un motif",
-      "itemsRequired": "Veuillez sélectionner au moins un article"
-    }
+      "itemsRequired": "Veuillez sélectionner au moins un article",
+      "shipmentRequired": "Le transporteur et le numéro de suivi sont obligatoires"
+    },
+    "carrier": "Transporteur",
+    "carrierPlaceholder": "ex. DHL, USPS, SF Express",
+    "refundAfterReceive": "Le remboursement sera effectué dès réception de votre retour.",
+    "refundProcessing": "Nous avons reçu votre retour. Votre remboursement est en cours de traitement.",
+    "shipBackTracking": "Retour de marchandise",
+    "shipmentModalHint": "Saisissez le transporteur et le numéro de suivi du colis retourné.",
+    "shipmentModalTitle": "Retour de marchandise",
+    "shipmentSubmitted": "Numéro de suivi envoyé",
+    "shippedAt": "Expédié le",
+    "submitTracking": "Ajouter le numéro de suivi",
+    "trackingHint": "Lettres, chiffres, tiret, souligné ou espace, 4 à 64 caractères.",
+    "trackingNumber": "Numéro de suivi",
+    "trackingNumberPlaceholder": "ex. 1234567890",
+    "trackingRequired": "Veuillez saisir le numéro de suivi du retour pour cette demande.",
+    "updateTracking": "Mettre à jour le suivi"
   },
   "chat": {
     "title": "Chat IA",

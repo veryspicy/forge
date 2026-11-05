@@ -56,7 +56,10 @@
     "aiTeaserDesc": "أخبر مساعدنا الذكي عن حيوانك الأليف واحصل على توصيات مخصصة فورًا.",
     "categories": "الفئات",
     "featured": "منتجات مميزة",
-    "startChat": "ابدأ الدردشة"
+    "startChat": "ابدأ الدردشة",
+    "addPet": "أضف حيوانك الأليف",
+    "heroDesc": "توصيات منتجات مدعومة بالذكاء الاصطناعي، مصممة وفق سلالة حيوانك الأليف وعمره واحتياجاته الصحية. اكتشف أفضل الطعام والألعاب والإكسسوارات.",
+    "shopNow": "تسوق الآن"
   },
   "categories": {
     "food": "طعام",
@@ -383,7 +386,14 @@
     "noTrackingEvents": "لا توجد أحداث تتبع بعد",
     "trackingUpdate": "تحديث",
     "payPalRedirecting": "جارٍ التحويل إلى PayPal…",
-    "payPalCompleting": "جارٍ إتمام الدفع…"
+    "payPalCompleting": "جارٍ إتمام الدفع…",
+    "addressUpdateFailed": "فشل تحديث عنوان الشحن. يرجى المحاولة مرة أخرى.",
+    "addressUpdated": "تم تحديث عنوان الشحن",
+    "editOrder": "تعديل الطلب",
+    "editShippingAddress": "تعديل عنوان الشحن",
+    "editShippingAddressHint": "يمكن تعديل عنوان الشحن فقط قبل شحن الطلب.",
+    "saveAddress": "حفظ العنوان",
+    "savingAddress": "جارٍ الحفظ..."
   },
   "returns": {
     "title": "الإرجاع والاسترداد",
@@ -434,8 +444,24 @@
     },
     "errors": {
       "reasonRequired": "يرجى اختيار سبب",
-      "itemsRequired": "يرجى اختيار منتج واحد على الأقل"
-    }
+      "itemsRequired": "يرجى اختيار منتج واحد على الأقل",
+      "shipmentRequired": "شركة الشحن ورقم التتبع مطلوبان"
+    },
+    "carrier": "شركة الشحن",
+    "carrierPlaceholder": "مثال: DHL، USPS، SF Express",
+    "refundAfterReceive": "سيتم استرداد المبلغ بعد استلامنا للمرتجع.",
+    "refundProcessing": "استلمنا مرتجعك. يجري الآن معالجة استرداد المبلغ.",
+    "shipBackTracking": "شحنة الإرجاع",
+    "shipmentModalHint": "أدخل شركة الشحن ورقم تتبع الطرد الذي أعدته.",
+    "shipmentModalTitle": "شحنة الإرجاع",
+    "shipmentSubmitted": "تم إرسال رقم التتبع",
+    "shippedAt": "تم الشحن في",
+    "submitTracking": "إضافة رقم التتبع",
+    "trackingHint": "حروف أو أرقام أو شرطة أو شرطة سفلية أو مسافة، من 4 إلى 64 حرفًا.",
+    "trackingNumber": "رقم التتبع",
+    "trackingNumberPlaceholder": "مثال: 1234567890",
+    "trackingRequired": "يرجى إدخال رقم تتبع المرتجع لهذا الطلب.",
+    "updateTracking": "تحديث التتبع"
   },
   "chat": {
     "title": "محادثة الذكاء الاصطناعي",
