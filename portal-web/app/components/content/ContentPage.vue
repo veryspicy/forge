@@ -44,23 +44,21 @@ useHead({ title: headTitle, meta: headMeta })
 </script>
 
 <template>
-  <div class="max-w-3xl mx-auto px-4 py-16">
-    <h1 class="text-3xl font-bold text-neutral-900 dark:text-neutral-100 mb-6">
-      {{ content?.title || fallbackTitle }}
-    </h1>
+  <article class="max-w-3xl mx-auto px-4 py-16 sm:py-20">
+    <header class="mb-10 sm:mb-12">
+      <h1
+        class="font-heading text-4xl sm:text-5xl font-semibold tracking-tight text-primary-900 dark:text-neutral-100"
+      >
+        {{ content?.title || fallbackTitle }}
+      </h1>
+      <!-- 装饰短横线：内容页统一的品牌分割符号 -->
+      <div class="mt-6 h-px w-16 bg-accent-400 dark:bg-accent-500" />
+    </header>
     <div v-if="loading" class="text-sm text-neutral-400 dark:text-neutral-400">
       {{ t('common.loading') }}
     </div>
-    <div
-      v-else-if="content"
-      class="prose prose-neutral dark:prose-invert max-w-none text-neutral-600 dark:text-neutral-400"
-      v-html="localizedBody"
-    />
-    <div
-      v-else
-      class="prose text-neutral-600 dark:text-neutral-400 dark:text-neutral-400"
-    >
-      <p>Coming soon.</p>
-    </div>
-  </div>
+    <!-- 正文统一走 RichText：prose-forge 排版基线（返回 null 时组件自身不渲染容器） -->
+    <RichText v-else-if="content" :html="localizedBody" />
+    <p v-else class="text-neutral-500 dark:text-neutral-400">Coming soon.</p>
+  </article>
 </template>

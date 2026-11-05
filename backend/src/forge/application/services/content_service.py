@@ -16,6 +16,8 @@ from forge.infrastructure.persistence.models import ORMContent
 from forge.infrastructure.persistence.repositories.content_repo import SQLAlchemyContentRepository
 from forge.infrastructure.site_config_service import get_i18n_locales
 
+from .richtext import sanitize_html
+
 VALID_STATUSES = {"draft", "published"}
 # 兜底语言集合：仅在站点配置缺失/损坏（get_i18n_locales 理论不会返回空）时使用
 FALLBACK_LOCALES = {"en", "zh"}
@@ -95,6 +97,8 @@ class ContentService:
         payload["locale"] = locale
         payload.setdefault("status", "draft")
         payload.setdefault("body", "")
+        # 写入侧强制净化：C 端 v-html 直接渲染，不做二次转义
+        payload["body"] = sanitize_html(payload.get("body"))
         if payload.get("status") == "published":
             payload.setdefault("published_at", datetime.now())
         return await SQLAlchemyContentRepository.create(db, payload)
@@ -146,6 +150,10 @@ class ContentService:
                 data["published_at"] = datetime.now()
             elif new_status != "published":
                 data["published_at"] = None
+
+        # 写入侧强制净化（仅当本次提交带 body 时）
+        if "body" in data:
+            data["body"] = sanitize_html(data.get("body"))
 
         return await SQLAlchemyContentRepository.update(db, content, data)
 

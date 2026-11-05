@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue';
 import { NButton, NFormItem, NInput, NSelect, NSpace, NTag } from 'naive-ui';
 import { VueDraggable } from 'vue-draggable-plus';
-import RichTextEditor from './RichTextEditor.vue';
+import RichTextEditor from '@/components/RichTextEditor.vue';
 import DetailBlockCanvas from './DetailBlockCanvas.vue';
 
 /**

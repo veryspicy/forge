@@ -60,6 +60,17 @@ export default defineNuxtPlugin((nuxtApp) => {
     if (theme.fontBody) {
       vars['--font-body'] = theme.fontBody
     }
+    // 富文本正排版本（CMS / 商品详情 / DIY 共用）：留空不写，main.css 内 var(--x, 默认) 兜底
+    const contentStyle = theme.contentStyle
+    if (contentStyle?.fontSize) {
+      vars['--content-font-size'] = contentStyle.fontSize
+    }
+    if (contentStyle?.lineHeight) {
+      vars['--content-line-height'] = contentStyle.lineHeight
+    }
+    if (contentStyle?.measure) {
+      vars['--content-measure'] = contentStyle.measure
+    }
     if (Object.keys(vars).length === 0) return
 
     let styleEl = document.getElementById(STYLE_ID) as HTMLStyleElement | null

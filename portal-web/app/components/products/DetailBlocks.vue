@@ -9,9 +9,9 @@ rich_text(title/html/align) / image(title/images/caption) / image_text(title/ima
   <div class="space-y-10">
     <template v-for="(block, idx) in blocks" :key="idx">
       <!-- 富文本 -->
-      <section v-if="block.type === 'rich_text'" class="prose max-w-none rich-content" :class="alignClass(block.align)">
+      <section v-if="block.type === 'rich_text'" :class="alignClass(block.align)">
         <h2 v-if="block.title" class="text-xl font-bold text-neutral-900 dark:text-neutral-100 mb-3">{{ block.title }}</h2>
-        <div v-if="block.html" class="text-neutral-700 dark:text-neutral-300 leading-relaxed" v-html="block.html" />
+        <RichText v-if="block.html" :html="block.html" width="full" />
       </section>
 
       <!-- 图片 -->
@@ -42,7 +42,7 @@ rich_text(title/html/align) / image(title/images/caption) / image_text(title/ima
         </div>
         <div class="md:[direction:ltr]">
           <h2 v-if="block.title" class="text-xl font-bold text-neutral-900 dark:text-neutral-100 mb-3">{{ block.title }}</h2>
-          <div v-if="block.html" class="text-neutral-700 dark:text-neutral-300 leading-relaxed" v-html="block.html" />
+          <RichText v-if="block.html" :html="block.html" width="full" />
         </div>
       </section>
 

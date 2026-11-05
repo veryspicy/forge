@@ -29,6 +29,7 @@
   },
   "devDependencies": {
     "@nuxt/eslint-config": "^0.7.0",
+    "@tailwindcss/typography": "^0.5.20",
     "@nuxt/schema": "^3.14.0",
     "@nuxt/test-utils": "^3.23.0",
     "@nuxt/ui": "^3.0.0",

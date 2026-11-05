@@ -47,6 +47,13 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "accentColor": "#A16207",
         "fontHeading": "Cormorant",
         "fontBody": "Montserrat",
+        # 富文本正文排版（CMS 内容页 / 商品详情 / DIY 富文本共用 .prose-forge 变量）
+        # 留空 = 走主站默认（17px / 1.75 / 68ch），填值则覆盖：允许带单位，如 "18px" / "1.8" / "72ch"
+        "contentStyle": {
+            "fontSize": "",
+            "lineHeight": "",
+            "measure": "",
+        },
     },
     "navigation": [
         {"key": "home", "to": "/", "labelKey": "nav.home", "label": "首页", "visible": True, "order": 0},
