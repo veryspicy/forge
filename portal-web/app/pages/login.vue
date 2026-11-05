@@ -46,7 +46,7 @@
             :disabled="loading"
             class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span v-if="loading" class="mr-2 inline-block animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+            <span v-if="loading" class="me-2 inline-block animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
             {{ loading ? $t('auth.signingIn') : $t('auth.signInButton') }}
           </button>
         </div>

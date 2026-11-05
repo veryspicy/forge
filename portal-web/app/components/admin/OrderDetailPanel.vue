@@ -74,12 +74,12 @@ function formatDate(val: string): string {
         <div class="overflow-hidden rounded border border-neutral-200">
           <table class="min-w-full text-xs">
             <thead>
-              <tr class="border-b border-neutral-200 bg-neutral-50 text-left">
+              <tr class="border-b border-neutral-200 bg-neutral-50 text-start">
                 <th class="px-3 py-2 font-medium text-neutral-500">商品名称</th>
                 <th class="px-3 py-2 font-medium text-neutral-500">SKU</th>
                 <th class="px-3 py-2 text-center font-medium text-neutral-500">数量</th>
-                <th class="px-3 py-2 text-right font-medium text-neutral-500">单价</th>
-                <th class="px-3 py-2 text-right font-medium text-neutral-500">小计</th>
+                <th class="px-3 py-2 text-end font-medium text-neutral-500">单价</th>
+                <th class="px-3 py-2 text-end font-medium text-neutral-500">小计</th>
               </tr>
             </thead>
             <tbody>
@@ -91,10 +91,10 @@ function formatDate(val: string): string {
                 <td class="px-3 py-2 text-neutral-700">{{ item.name }}</td>
                 <td class="px-3 py-2 font-mono text-neutral-500">{{ item.sku }}</td>
                 <td class="px-3 py-2 text-center text-neutral-600">{{ item.quantity }}</td>
-                <td class="px-3 py-2 text-right tabular-nums text-neutral-600">
+                <td class="px-3 py-2 text-end tabular-nums text-neutral-600">
                   {{ formatCurrency(item.unit_price) }}
                 </td>
-                <td class="px-3 py-2 text-right font-medium tabular-nums text-neutral-800">
+                <td class="px-3 py-2 text-end font-medium tabular-nums text-neutral-800">
                   {{ formatCurrency(item.subtotal) }}
                 </td>
               </tr>
@@ -126,9 +126,9 @@ function formatDate(val: string): string {
         <h4 class="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-3">
           状态时间线
         </h4>
-        <div class="relative pl-5">
+        <div class="relative ps-5">
           <!-- Vertical line -->
-          <div class="absolute left-[7px] top-1.5 bottom-1.5 w-px bg-neutral-200" />
+          <div class="absolute start-[7px] top-1.5 bottom-1.5 w-px bg-neutral-200" />
 
           <div
             v-for="(entry, ei) in timeline"
@@ -160,7 +160,7 @@ function formatDate(val: string): string {
               </span>
               <span
                 v-if="entry.time"
-                class="ml-2 text-xs text-neutral-400"
+                class="ms-2 text-xs text-neutral-400"
               >
                 {{ formatDate(entry.time) }}
               </span>

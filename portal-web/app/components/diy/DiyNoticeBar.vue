@@ -9,8 +9,8 @@
     </svg>
     <div class="relative flex-1 overflow-hidden">
       <div class="notice-marquee whitespace-nowrap" :style="{ animationDuration: `${Math.max(config.text.length / (config.speed || 50) * 10, 8)}s` }">
-        <span class="pr-16">{{ config.text }}</span>
-        <span class="pr-16">{{ config.text }}</span>
+        <span class="pe-16">{{ config.text }}</span>
+        <span class="pe-16">{{ config.text }}</span>
       </div>
     </div>
     <button v-if="config.closable" class="shrink-0 opacity-60 transition hover:opacity-100" @click="closed = true">
@@ -30,6 +30,11 @@ const closed = ref(false)
 </script>
 
 <style scoped>
+/* RTL：跑马灯从右往左滚动，动画方向取反 */
+[dir='rtl'] .notice-marquee {
+  animation-direction: reverse;
+}
+
 .notice-marquee {
   display: inline-block;
   animation-name: diy-notice-scroll;

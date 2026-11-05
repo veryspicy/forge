@@ -4,7 +4,7 @@
     <NuxtPage :transition="{ name: 'page', mode: 'out-in' }" />
   </NuxtLayout>
   <!-- Toast container -->
-  <div class="fixed bottom-4 right-4 z-[9999] flex flex-col gap-2">
+  <div class="fixed bottom-4 end-4 z-[9999] flex flex-col gap-2">
     <TransitionGroup name="toast">
       <div
         v-for="t in toasts"
@@ -21,18 +21,12 @@
 <script setup lang="ts">
 import { useToast } from './composables/useToast'
 import { useSiteProfile } from './composables/useSiteProfile'
+import { useDirection } from './composables/useDirection'
 const { toasts } = useToast()
 const { profile } = useSiteProfile()
 
 // locale -> <html lang dir>：lang 取当前语言码，dir 取 locales 定义（ar=rtl，其余默认 ltr）
-const { locale, locales } = useI18n()
-
-const htmlLangDir = computed<{ lang: string; dir: 'ltr' | 'rtl' }>(() => {
-  const code = String(locale.value || '')
-  const list = (locales.value ?? []) as Array<{ code?: string; dir?: string }>
-  const hit = list.find(item => item?.code === code)
-  return { lang: code, dir: hit?.dir === 'rtl' ? 'rtl' : 'ltr' }
-})
+const { htmlLangDir } = useDirection()
 
 const faviconLink = computed(() => {
   const favicon = profile.value.brand?.favicon

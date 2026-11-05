@@ -480,7 +480,7 @@ const tabs = [
                 min="0.1"
                 class="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-400 transition"
               />
-              <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400">&times;</span>
+              <span class="absolute end-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400">&times;</span>
             </div>
           </div>
 
@@ -494,7 +494,7 @@ const tabs = [
                 min="0"
                 class="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-400 transition"
               />
-              <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400">+</span>
+              <span class="absolute end-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400">+</span>
             </div>
           </div>
 
@@ -573,14 +573,14 @@ const tabs = [
       <div class="overflow-hidden rounded border border-neutral-200 bg-white">
         <table class="min-w-full text-sm">
           <thead>
-            <tr class="border-b border-neutral-200 bg-neutral-50 text-left">
+            <tr class="border-b border-neutral-200 bg-neutral-50 text-start">
               <th class="w-8 px-2 py-2.5" />
               <th
                 v-for="col in regionColumns"
                 :key="col.key"
                 :class="[
                   'px-4 py-2.5 font-medium text-neutral-600',
-                  (col.align as string) === 'right' && 'text-right',
+                  (col.align as string) === 'right' && 'text-end',
                   (col.align as string) === 'center' && 'text-center',
                 ]"
                 :style="col.width ? { width: col.width } : {}"
@@ -623,10 +623,10 @@ const tabs = [
                   {{ regionLabels[rule.region] ?? rule.region }}
                 </span>
               </td>
-              <td class="px-4 py-2.5 text-right tabular-nums text-neutral-700">
+              <td class="px-4 py-2.5 text-end tabular-nums text-neutral-700">
                 {{ rule.multiplier.toFixed(2) }}
               </td>
-              <td class="px-4 py-2.5 text-right tabular-nums text-neutral-700">
+              <td class="px-4 py-2.5 text-end tabular-nums text-neutral-700">
                 {{ rule.shipping_fee.toFixed(2) }}
               </td>
               <td class="px-4 py-2.5 text-center">
@@ -682,13 +682,13 @@ const tabs = [
       <div class="overflow-hidden rounded border border-neutral-200 bg-white">
         <table class="min-w-full text-sm">
           <thead>
-            <tr class="border-b border-neutral-200 bg-neutral-50 text-left">
+            <tr class="border-b border-neutral-200 bg-neutral-50 text-start">
               <th
                 v-for="col in promoColumns"
                 :key="col.key"
                 :class="[
                   'px-4 py-2.5 font-medium text-neutral-600',
-                  (col.align as string) === 'right' && 'text-right',
+                  (col.align as string) === 'right' && 'text-end',
                   (col.align as string) === 'center' && 'text-center',
                 ]"
                 :style="col.width ? { width: col.width } : {}"
@@ -788,23 +788,23 @@ const tabs = [
     <div class="mt-8 rounded-lg border border-secondary-100 bg-secondary-50/30 px-5 py-4">
       <h4 class="text-xs font-semibold uppercase tracking-wide text-secondary-700 mb-3">定价优先级</h4>
       <div class="space-y-2">
-        <div class="flex items-center gap-3 pl-0">
+        <div class="flex items-center gap-3 ps-0">
           <span class="flex items-center justify-center size-5 rounded bg-accent-500 text-white text-[10px] font-bold shrink-0">1</span>
           <span class="text-sm font-semibold text-accent-700">手动覆盖价</span>
-          <span class="text-xs text-neutral-400 ml-auto">最高优先级</span>
+          <span class="text-xs text-neutral-400 ms-auto">最高优先级</span>
         </div>
-        <div class="flex items-center gap-3 pl-6">
+        <div class="flex items-center gap-3 ps-6">
           <span class="flex items-center justify-center size-5 rounded bg-secondary-500 text-white text-[10px] font-bold shrink-0">2</span>
           <span class="text-sm font-medium text-secondary-700">促销折扣</span>
         </div>
-        <div class="flex items-center gap-3 pl-12">
+        <div class="flex items-center gap-3 ps-12">
           <span class="flex items-center justify-center size-5 rounded bg-primary-500 text-white text-[10px] font-bold shrink-0">3</span>
           <span class="text-sm text-primary-700">区域定价公式</span>
         </div>
-        <div class="flex items-center gap-3 pl-18">
+        <div class="flex items-center gap-3 ps-18">
           <span class="flex items-center justify-center size-5 rounded bg-neutral-400 text-white text-[10px] font-bold shrink-0">4</span>
           <span class="text-sm text-neutral-500">全局默认公式</span>
-          <span class="text-xs text-neutral-400 ml-auto">最低优先级</span>
+          <span class="text-xs text-neutral-400 ms-auto">最低优先级</span>
         </div>
       </div>
       <p class="mt-3 text-xs text-neutral-400 leading-relaxed">
@@ -1070,7 +1070,7 @@ const tabs = [
                   <span
                     :class="cn(
                       'inline-block size-4 rounded-full bg-white shadow transition-transform',
-                      promoForm.stackable ? 'translate-x-4' : 'translate-x-0.5'
+                      promoForm.stackable ? 'translate-x-4 rtl:-translate-x-4' : 'translate-x-0.5 rtl:-translate-x-0.5'
                     )"
                   />
                 </button>
@@ -1147,7 +1147,7 @@ const tabs = [
   opacity: 0;
 }
 
-.pl-18 {
+.ps-18 {
   padding-left: 4.5rem;
 }
 

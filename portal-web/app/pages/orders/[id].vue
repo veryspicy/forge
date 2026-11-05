@@ -145,26 +145,26 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-4">
               <div>
                 <span class="text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ $t('orders.carrier') }}:</span>
-                <span class="ml-2 font-medium">{{ s.carrier }}</span>
+                <span class="ms-2 font-medium">{{ s.carrier }}</span>
               </div>
               <div>
                 <span class="text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ $t('orders.trackingNumber') }}:</span>
-                <a v-if="s.tracking_url" :href="s.tracking_url" target="_blank" class="ml-2 font-medium text-indigo-600 hover:underline">
+                <a v-if="s.tracking_url" :href="s.tracking_url" target="_blank" class="ms-2 font-medium text-indigo-600 hover:underline">
                   {{ s.tracking_number }}
                 </a>
-                <span v-else class="ml-2 font-medium text-indigo-600">{{ s.tracking_number }}</span>
+                <span v-else class="ms-2 font-medium text-indigo-600">{{ s.tracking_number }}</span>
               </div>
               <div>
                 <span class="text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ $t('orders.trackingStatus') }}:</span>
-                <span class="ml-2 font-medium">{{ s.status }}</span>
+                <span class="ms-2 font-medium">{{ s.status }}</span>
               </div>
               <div v-if="s.estimated_delivery">
                 <span class="text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ $t('orders.estimatedDelivery') }}:</span>
-                <span class="ml-2 font-medium">{{ formatDate(s.estimated_delivery) }}</span>
+                <span class="ms-2 font-medium">{{ formatDate(s.estimated_delivery) }}</span>
               </div>
             </div>
             <!-- Events Timeline -->
-            <div v-if="(s.events || []).length > 0" class="relative pl-6 border-l-2 border-neutral-200 dark:border-neutral-700/60 space-y-4">
+            <div v-if="(s.events || []).length > 0" class="relative ps-6 border-s-2 border-neutral-200 dark:border-neutral-700/60 space-y-4">
               <div v-for="(evt, ei) in s.events" :key="ei" class="relative">
                 <div class="absolute -left-[25px] w-3 h-3 rounded-full border-2 border-indigo-500 bg-white dark:bg-stone-900"/>
                 <p class="text-sm font-medium text-neutral-900 dark:text-neutral-100">{{ evt.status || evt.description || evt.label || $t('orders.trackingUpdate') }}</p>
@@ -202,16 +202,16 @@
                   </svg>
                 </div>
               </div>
-              <div class="ml-4 flex-1">
+              <div class="ms-4 flex-1">
                 <p class="text-sm font-medium text-neutral-900 dark:text-neutral-100">{{ item.name || item.product_name }}</p>
                 <p class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mt-0.5">{{ $t('orders.qty') }}: {{ item.quantity }}</p>
               </div>
-              <div class="text-right">
+              <div class="text-end">
                 <p class="text-sm font-medium text-neutral-900 dark:text-neutral-100">{{ formatPrice(item.price || item.unit_price) }}</p>
                 <p class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mt-0.5">{{ formatPrice((item.price || item.unit_price) * item.quantity) }}</p>
                 <div v-if="canReview" class="mt-2">
                   <span v-if="isReviewed(item.id)" class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-neutral-100 dark:bg-stone-800 text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">
-                    <svg class="w-3.5 h-3.5 mr-1" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                    <svg class="w-3.5 h-3.5 me-1" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
                     {{ $t('reviews.reviewed') }}
                   </span>
                   <button
@@ -310,7 +310,7 @@
                   {{ $t('returns.trackingRequired') }}
                 </p>
               </div>
-              <div class="text-right">
+              <div class="text-end">
                 <p class="text-sm font-medium text-neutral-900 dark:text-neutral-100">{{ formatPrice(r.refund_amount || 0) }}</p>
                 <button
                   v-if="canSubmitShipment(r)"
@@ -626,7 +626,7 @@
               class="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-70"
               @click="doPay"
             >
-              <span v-if="paying" class="inline-block w-4 h-4 mr-2 border-2 border-white/40 border-t-white rounded-full animate-spin"/>
+              <span v-if="paying" class="inline-block w-4 h-4 me-2 border-2 border-white/40 border-t-white rounded-full animate-spin"/>
               {{ paying ? $t('orders.paying') : $t('orders.pay') }}
             </button>
           </div>
@@ -701,7 +701,7 @@
       <div class="flex min-h-full items-center justify-center p-4 text-center">
         <div class="fixed inset-0 bg-neutral-50 dark:bg-stone-9500/40 backdrop-blur-md transition-opacity" @click="closeDeleteModal" />
         <div
-          class="relative bg-white/85 backdrop-blur-2xl rounded-2xl shadow-2xl ring-1 ring-white/60 max-w-md w-full text-left"
+          class="relative bg-white/85 backdrop-blur-2xl rounded-2xl shadow-2xl ring-1 ring-white/60 max-w-md w-full text-start"
         >
           <div class="px-6 pt-5 pb-4 border-b">
             <h3 class="text-lg font-semibold text-neutral-900 dark:text-neutral-100">{{ $t('orders.deleteOrder') }}</h3>

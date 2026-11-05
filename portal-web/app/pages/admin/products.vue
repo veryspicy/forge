@@ -379,7 +379,7 @@ onMounted(() => {
       <!-- Search -->
       <div class="relative flex-1 min-w-[200px] max-w-[320px]">
         <svg
-          class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-neutral-400 pointer-events-none"
+          class="absolute start-3 top-1/2 -translate-y-1/2 size-4 text-neutral-400 pointer-events-none"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -394,7 +394,7 @@ onMounted(() => {
           v-model="searchQuery"
           type="text"
           placeholder="搜索商品名或SKU..."
-          class="w-full rounded border border-neutral-200 bg-white py-2 pl-9 pr-3 text-sm text-neutral-700 placeholder:text-neutral-400 outline-none transition-colors focus:border-accent-400 focus:ring-2 focus:ring-accent-400/15"
+          class="w-full rounded border border-neutral-200 bg-white py-2 ps-9 pe-3 text-sm text-neutral-700 placeholder:text-neutral-400 outline-none transition-colors focus:border-accent-400 focus:ring-2 focus:ring-accent-400/15"
           @input="onSearchInput"
         />
       </div>
@@ -706,28 +706,28 @@ onMounted(() => {
               <div>
                 <label class="block text-sm font-medium text-neutral-700 mb-1.5">成本价</label>
                 <div class="relative">
-                  <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400">¥</span>
+                  <span class="absolute start-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400">¥</span>
                   <input
                     v-model.number="form.cost_price"
                     type="number"
                     step="0.01"
                     min="0"
                     placeholder="0.00"
-                    class="w-full rounded border border-neutral-200 bg-white py-2 pl-7 pr-3 text-sm text-neutral-800 placeholder:text-neutral-400 outline-none transition-colors focus:border-accent-400 focus:ring-2 focus:ring-accent-400/15"
+                    class="w-full rounded border border-neutral-200 bg-white py-2 ps-7 pe-3 text-sm text-neutral-800 placeholder:text-neutral-400 outline-none transition-colors focus:border-accent-400 focus:ring-2 focus:ring-accent-400/15"
                   />
                 </div>
               </div>
               <div>
                 <label class="block text-sm font-medium text-neutral-700 mb-1.5">售价</label>
                 <div class="relative">
-                  <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400">¥</span>
+                  <span class="absolute start-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400">¥</span>
                   <input
                     v-model.number="form.price"
                     type="number"
                     step="0.01"
                     min="0"
                     placeholder="0.00"
-                    class="w-full rounded border border-neutral-200 bg-white py-2 pl-7 pr-3 text-sm text-neutral-800 placeholder:text-neutral-400 outline-none transition-colors focus:border-accent-400 focus:ring-2 focus:ring-accent-400/15"
+                    class="w-full rounded border border-neutral-200 bg-white py-2 ps-7 pe-3 text-sm text-neutral-800 placeholder:text-neutral-400 outline-none transition-colors focus:border-accent-400 focus:ring-2 focus:ring-accent-400/15"
                   />
                 </div>
               </div>
@@ -768,7 +768,7 @@ onMounted(() => {
                 >
                   <img :src="img" :alt="'Image ' + (idx + 1)" class="size-full object-cover" />
                   <button
-                    class="absolute top-0.5 right-0.5 size-5 rounded-full bg-black/50 text-white flex items-center justify-center text-xs leading-none hover:bg-red-500/80 transition-colors"
+                    class="absolute top-0.5 end-0.5 size-5 rounded-full bg-black/50 text-white flex items-center justify-center text-xs leading-none hover:bg-red-500/80 transition-colors"
                     @click="removeFormImage(idx)"
                   >&times;</button>
                 </div>
@@ -898,14 +898,14 @@ onMounted(() => {
               <div>
                 <label class="block text-sm font-medium text-neutral-700 mb-1.5">最高价格</label>
                 <div class="relative">
-                  <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400">¥</span>
+                  <span class="absolute start-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400">¥</span>
                   <input
                     v-model.number="probeMaxPrice"
                     type="number"
                     step="0.01"
                     min="0"
                     placeholder="不限"
-                    class="w-full rounded border border-neutral-200 bg-white py-2 pl-7 pr-3 text-sm text-neutral-800 placeholder:text-neutral-400 outline-none transition-colors focus:border-accent-400 focus:ring-2 focus:ring-accent-400/15"
+                    class="w-full rounded border border-neutral-200 bg-white py-2 ps-7 pe-3 text-sm text-neutral-800 placeholder:text-neutral-400 outline-none transition-colors focus:border-accent-400 focus:ring-2 focus:ring-accent-400/15"
                   />
                 </div>
               </div>

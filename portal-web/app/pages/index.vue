@@ -4,7 +4,7 @@
       <div class="relative w-full overflow-hidden">
         <div
           class="flex transition-transform duration-500 ease-in-out"
-          :style="{ transform: `translateX(-${activeIndex * 100}%)` }"
+          :style="carouselTrackStyle"
         >
           <div
             v-for="(img, idx) in profile.homeHero.carousel.images"
@@ -23,7 +23,7 @@
               />
               <h2
                 v-if="img.title"
-                class="absolute bottom-6 left-6 text-3xl font-bold text-white drop-shadow-lg"
+                class="absolute bottom-6 start-6 text-3xl font-bold text-white drop-shadow-lg"
               >
                 {{ img.title }}
               </h2>
@@ -36,7 +36,7 @@
               />
               <h2
                 v-if="img.title"
-                class="absolute bottom-6 left-6 text-3xl font-bold text-white drop-shadow-lg"
+                class="absolute bottom-6 start-6 text-3xl font-bold text-white drop-shadow-lg"
               >
                 {{ img.title }}
               </h2>
@@ -47,7 +47,7 @@
         <button
           v-if="maxIndex > 0"
           @click="prevSlide"
-          class="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white dark:hover:bg-stone-900 text-neutral-800 dark:text-neutral-200 w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition"
+          class="absolute start-4 top-1/2 -translate-y-1/2 rtl:rotate-180 bg-white/80 hover:bg-white dark:hover:bg-stone-900 text-neutral-800 dark:text-neutral-200 w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition"
           aria-label="Previous slide"
         >
           ‹
@@ -55,7 +55,7 @@
         <button
           v-if="maxIndex > 0"
           @click="nextSlide"
-          class="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white dark:hover:bg-stone-900 text-neutral-800 dark:text-neutral-200 w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition"
+          class="absolute end-4 top-1/2 -translate-y-1/2 rtl:rotate-180 bg-white/80 hover:bg-white dark:hover:bg-stone-900 text-neutral-800 dark:text-neutral-200 w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition"
           aria-label="Next slide"
         >
           ›
@@ -113,7 +113,7 @@
             Tailored for Your Pet
           </h2>
           <NuxtLink :to="localePath('/chat')" class="text-sm text-accent-600 hover:text-accent-700 font-medium">
-            Ask AI for more →
+            Ask AI for more <span class="inline-block rtl:-scale-x-100">→</span>
           </NuxtLink>
         </div>
 
@@ -145,7 +145,7 @@
                 <span class="text-xs px-2 py-0.5 bg-accent-100 text-accent-700 rounded-full font-medium">
                   {{ Math.round(product.confidence * 100) }}% match
                 </span>
-                <span class="text-xs text-accent-600 font-medium">View →</span>
+                <span class="text-xs text-accent-600 font-medium">View <span class="inline-block rtl:-scale-x-100">→</span></span>
               </div>
             </div>
           </div>
@@ -252,6 +252,7 @@ const petStore = usePetStore()
 const { fetchPetRecommendations, fetchProducts } = useApi()
 const { t, te } = useI18n()
 const { profile, hasFeature, visibleCategories } = useSiteProfile()
+const { isRtl } = useDirection()
 
 // t(missingKey) 返回自身字符串（truthy），|| 回退失效，需先 te() 判断 key 是否存在
 function safeT(key: string | undefined, ...fallbacks: (string | undefined)[]): string {
@@ -269,6 +270,10 @@ const isLoggedIn = computed(() => authStore.isAuthenticated)
 
 // ---------- Carousel ----------
 const activeIndex = ref(0)
+// RTL 下 flex 主轴反向（第 1 张在最右），轨道位移方向必须同步取反，否则轮播跳到空白
+const carouselTrackStyle = computed(() => ({
+  transform: `translateX(${isRtl.value ? '' : '-'}${activeIndex.value * 100}%)`,
+}))
 let autoplayTimer: ReturnType<typeof setInterval> | null = null
 
 const maxIndex = computed(() => {

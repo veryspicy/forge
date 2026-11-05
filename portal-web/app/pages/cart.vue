@@ -38,7 +38,7 @@
               </button>
             </div>
           </div>
-          <div class="text-right flex-shrink-0">
+          <div class="text-end flex-shrink-0">
             <p class="font-semibold text-neutral-900 dark:text-neutral-100">{{ formatPrice(item.product.price * item.quantity) }}</p>
             <button
               class="text-xs text-red-500 hover:text-red-700 mt-1 transition"

@@ -1,5 +1,5 @@
 ﻿<template>
-  <div class="fixed bottom-4 right-4 z-40">
+  <div class="fixed bottom-4 end-4 z-40">
     <!-- Toggle Button -->
     <button
       class="w-14 h-14 rounded-full bg-accent-600 text-white shadow-lg hover:bg-accent-500 transition flex items-center justify-center"
@@ -17,7 +17,7 @@
     <Transition name="widget">
       <div
         v-if="open"
-        class="absolute bottom-16 right-0 w-80 bg-white dark:bg-stone-900 rounded-2xl shadow-2xl border overflow-hidden"
+        class="absolute bottom-16 end-0 w-80 bg-white dark:bg-stone-900 rounded-2xl shadow-2xl border overflow-hidden"
       >
         <!-- Header -->
         <div class="bg-accent-600 text-white px-4 py-3 flex items-center justify-between">
@@ -48,8 +48,8 @@
               class="max-w-[85%] px-3 py-2 rounded-xl text-xs"
               :class="
                 msg.role === 'user'
-                  ? 'bg-accent-600 text-white rounded-br-sm'
-                  : 'bg-neutral-100 dark:bg-stone-800 text-neutral-700 dark:text-neutral-300 rounded-bl-sm'
+                  ? 'bg-accent-600 text-white rounded-ee-sm'
+                  : 'bg-neutral-100 dark:bg-stone-800 text-neutral-700 dark:text-neutral-300 rounded-es-sm'
               "
             >
               {{ msg.content }}

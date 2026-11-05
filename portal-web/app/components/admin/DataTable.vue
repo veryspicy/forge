@@ -64,7 +64,7 @@ function toggleRow(id: string) {
     <div class="overflow-x-auto">
       <table class="min-w-full text-sm">
         <thead>
-          <tr class="border-b border-neutral-200 bg-neutral-50 text-left">
+          <tr class="border-b border-neutral-200 bg-neutral-50 text-start">
             <th v-if="selectable" class="w-10 px-3 py-2.5">
               <input
                 type="checkbox"
@@ -79,7 +79,7 @@ function toggleRow(id: string) {
               :class="[
                 'px-4 py-2.5 font-medium text-neutral-600',
                 col.sortable && 'cursor-pointer select-none hover:text-neutral-900',
-                col.align === 'right' && 'text-right',
+                col.align === 'right' && 'text-end',
                 col.align === 'center' && 'text-center',
               ]"
               :style="col.width ? { width: col.width } : {}"
@@ -141,7 +141,7 @@ function toggleRow(id: string) {
                 :key="col.key"
                 :class="[
                   'px-4 py-2.5 text-neutral-700',
-                  col.align === 'right' && 'text-right',
+                  col.align === 'right' && 'text-end',
                   col.align === 'center' && 'text-center',
                 ]"
               >

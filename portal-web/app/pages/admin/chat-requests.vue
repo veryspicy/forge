@@ -1,7 +1,7 @@
 <template>
   <div class="flex h-[calc(100vh-7rem)] gap-0 overflow-hidden rounded-lg border border-neutral-200 bg-white">
     <!-- Left: Request List -->
-    <aside class="flex w-[360px] shrink-0 flex-col border-r border-neutral-200">
+    <aside class="flex w-[360px] shrink-0 flex-col border-e border-neutral-200">
       <!-- Search -->
       <div class="border-b border-neutral-200 px-4 py-3">
         <input
@@ -38,9 +38,9 @@
           v-for="req in filteredRequests"
           :key="req.id"
           :class="[
-            'flex w-full items-start gap-3 border-b border-neutral-100 px-4 py-3 text-left transition',
+            'flex w-full items-start gap-3 border-b border-neutral-100 px-4 py-3 text-start transition',
             selectedId === req.id
-              ? 'bg-accent-50 border-l-2 border-l-accent-500'
+              ? 'bg-accent-50 border-s-2 border-s-accent-500'
               : 'hover:bg-neutral-50',
           ]"
           @click="selectRequest(req)"
@@ -120,9 +120,9 @@
           <div v-for="(msg, idx) in selectedRequest.messages ?? []" :key="idx" class="mb-4">
             <!-- User message (right aligned) -->
             <div v-if="msg.role === 'user'" class="flex justify-end">
-              <div class="max-w-[70%] rounded-2xl rounded-br-md bg-neutral-100 px-4 py-2.5">
+              <div class="max-w-[70%] rounded-2xl rounded-ee-md bg-neutral-100 px-4 py-2.5">
                 <p class="text-sm text-neutral-800 whitespace-pre-wrap">{{ msg.content }}</p>
-                <p class="mt-1 text-right text-[11px] text-neutral-400">
+                <p class="mt-1 text-end text-[11px] text-neutral-400">
                   {{ formatTime(msg.timestamp ?? msg.created_at) }}
                 </p>
               </div>
@@ -140,7 +140,7 @@
               >
                 {{ msg.role === 'human' ? 'H' : 'AI' }}
               </span>
-              <div class="max-w-[70%] rounded-2xl rounded-bl-md bg-white border border-neutral-200 px-4 py-2.5">
+              <div class="max-w-[70%] rounded-2xl rounded-es-md bg-white border border-neutral-200 px-4 py-2.5">
                 <p class="text-sm text-neutral-800 whitespace-pre-wrap">{{ msg.content }}</p>
                 <p class="mt-1 text-[11px] text-neutral-400">
                   {{ formatTime(msg.timestamp ?? msg.created_at) }}
@@ -171,7 +171,7 @@
                   type="text"
                   placeholder="输入人工回复..."
                   :class="[
-                    'w-full rounded-lg border-2 px-4 py-2.5 pr-12 text-sm transition',
+                    'w-full rounded-lg border-2 px-4 py-2.5 pe-12 text-sm transition',
                     takeoverMessage.trim()
                       ? 'border-indigo-400 bg-indigo-50 text-neutral-800 placeholder-indigo-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200'
                       : 'border-amber-400 bg-amber-50 text-neutral-800 placeholder-amber-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-200',
@@ -179,7 +179,7 @@
                   @keyup.enter="sendTakeoverMessage"
                 />
                 <button
-                  class="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-md bg-indigo-500 px-3 py-1 text-xs font-medium text-white transition hover:bg-indigo-600 disabled:opacity-40"
+                  class="absolute end-1.5 top-1/2 -translate-y-1/2 rounded-md bg-indigo-500 px-3 py-1 text-xs font-medium text-white transition hover:bg-indigo-600 disabled:opacity-40"
                   :disabled="!takeoverMessage.trim()"
                   @click="sendTakeoverMessage"
                 >

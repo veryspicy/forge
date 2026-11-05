@@ -90,7 +90,7 @@
             :key="item.product.id"
             class="flex justify-between text-sm"
           >
-            <span class="text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 truncate mr-2">{{ item.product.name }} x{{ item.quantity }}</span>
+            <span class="text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 truncate me-2">{{ item.product.name }} x{{ item.quantity }}</span>
             <span class="text-neutral-900 dark:text-neutral-100">{{ formatPrice(item.product.price * item.quantity) }}</span>
           </div>
         </div>

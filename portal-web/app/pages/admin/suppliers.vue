@@ -408,7 +408,7 @@ onMounted(() => {
       <!-- Search -->
       <div class="relative flex-1 max-w-[320px]">
         <svg
-          class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-neutral-400 pointer-events-none"
+          class="absolute start-3 top-1/2 -translate-y-1/2 size-4 text-neutral-400 pointer-events-none"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -421,7 +421,7 @@ onMounted(() => {
           v-model="searchQuery"
           type="text"
           placeholder="搜索供应商名称..."
-          class="w-full rounded border border-neutral-200 bg-white py-2 pl-9 pr-3 text-sm text-neutral-700 placeholder:text-neutral-400 outline-none transition-colors focus:border-accent-400 focus:ring-2 focus:ring-accent-400/15"
+          class="w-full rounded border border-neutral-200 bg-white py-2 ps-9 pe-3 text-sm text-neutral-700 placeholder:text-neutral-400 outline-none transition-colors focus:border-accent-400 focus:ring-2 focus:ring-accent-400/15"
           @input="onSearchInput"
         />
       </div>
@@ -844,12 +844,12 @@ onMounted(() => {
               <!-- Dual panel: Shop Products vs Supplier Products -->
               <div class="flex-1 flex min-h-0 overflow-hidden">
                 <!-- Left panel: Shop Products -->
-                <div class="flex-1 flex flex-col min-w-0 border-r border-neutral-200">
+                <div class="flex-1 flex flex-col min-w-0 border-e border-neutral-200">
                   <div class="shrink-0 px-4 py-2.5 border-b border-neutral-100">
                     <h3 class="text-sm font-medium text-neutral-700">本店商品</h3>
                     <div class="relative mt-1.5">
                       <svg
-                        class="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-neutral-400 pointer-events-none"
+                        class="absolute start-2.5 top-1/2 -translate-y-1/2 size-3.5 text-neutral-400 pointer-events-none"
                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                       >
                         <circle cx="11" cy="11" r="8" />
@@ -859,7 +859,7 @@ onMounted(() => {
                         v-model="shopSearchQuery"
                         type="text"
                         placeholder="搜索..."
-                        class="w-full rounded border border-neutral-200 bg-white py-1.5 pl-7 pr-2.5 text-xs text-neutral-700 placeholder:text-neutral-400 outline-none transition-colors focus:border-accent-400"
+                        class="w-full rounded border border-neutral-200 bg-white py-1.5 ps-7 pe-2.5 text-xs text-neutral-700 placeholder:text-neutral-400 outline-none transition-colors focus:border-accent-400"
                       />
                     </div>
                   </div>
@@ -876,7 +876,7 @@ onMounted(() => {
                       </div>
                       <span
                         v-if="skuMappings.some((m) => m.shopSku === product.sku)"
-                        class="shrink-0 text-xs text-green-600 ml-2"
+                        class="shrink-0 text-xs text-green-600 ms-2"
                       >
                         已映射
                       </span>
@@ -911,7 +911,7 @@ onMounted(() => {
                     <h3 class="text-sm font-medium text-neutral-700">供应商商品</h3>
                     <div class="relative mt-1.5">
                       <svg
-                        class="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-neutral-400 pointer-events-none"
+                        class="absolute start-2.5 top-1/2 -translate-y-1/2 size-3.5 text-neutral-400 pointer-events-none"
                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                       >
                         <circle cx="11" cy="11" r="8" />
@@ -921,7 +921,7 @@ onMounted(() => {
                         v-model="supplierSearchQuery"
                         type="text"
                         placeholder="搜索..."
-                        class="w-full rounded border border-neutral-200 bg-white py-1.5 pl-7 pr-2.5 text-xs text-neutral-700 placeholder:text-neutral-400 outline-none transition-colors focus:border-accent-400"
+                        class="w-full rounded border border-neutral-200 bg-white py-1.5 ps-7 pe-2.5 text-xs text-neutral-700 placeholder:text-neutral-400 outline-none transition-colors focus:border-accent-400"
                       />
                     </div>
                   </div>
@@ -935,7 +935,7 @@ onMounted(() => {
                         <p class="text-sm text-neutral-700 truncate">{{ product.name }}</p>
                         <p class="text-xs text-neutral-400 font-mono">{{ product.sku }}</p>
                       </div>
-                      <span v-if="product.price" class="shrink-0 text-xs text-neutral-500 ml-2 tabular-nums">
+                      <span v-if="product.price" class="shrink-0 text-xs text-neutral-500 ms-2 tabular-nums">
                         &yen;{{ product.price }}
                       </span>
                     </div>

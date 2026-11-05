@@ -162,7 +162,7 @@
           <Transition name="user-dropdown">
             <div
               v-if="isAuthenticated && userDropdownOpen"
-              class="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-stone-900 rounded-lg shadow-lg border border-neutral-200 dark:border-neutral-700/60 py-1 z-50"
+              class="absolute end-0 top-full mt-2 w-48 bg-white dark:bg-stone-900 rounded-lg shadow-lg border border-neutral-200 dark:border-neutral-700/60 py-1 z-50"
             >
               <div class="px-4 py-2 border-b border-neutral-100">
                 <p class="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">{{ user?.name }}</p>
@@ -176,7 +176,7 @@
                 {{ t('nav.orders') }}
               </NuxtLink>
               <button
-                class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                class="w-full text-start px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                 @click="handleLogout"
               >
                 {{ t('nav.logout') }}
@@ -241,7 +241,7 @@
           </template>
           <button
             v-else
-            class="text-lg font-medium px-4 py-3 rounded-lg transition-colors text-left text-red-600 hover:bg-red-50"
+            class="text-lg font-medium px-4 py-3 rounded-lg transition-colors text-start text-red-600 hover:bg-red-50"
             @click="handleLogout"
           >
             {{ t('nav.logout') }}
