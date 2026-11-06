@@ -77,6 +77,7 @@ const { logout } = authStore;
 const adminStore = useAdminStore();
 const { sidebarCollapsed } = storeToRefs(adminStore);
 const { toggleSidebar } = adminStore;
+const localePath = useLocalePath();
 
 const isMobile = ref(false);
 const showUserMenu = ref(false);
@@ -114,7 +115,7 @@ function handleClickOutside(e: MouseEvent) {
 function handleLogout() {
   logout();
   showUserMenu.value = false;
-  navigateTo("/login");
+  navigateTo(localePath("/login"));
 }
 
 onMounted(() => {

@@ -7,6 +7,7 @@ definePageMeta({
 });
 
 const store = useAdminStore();
+const localePath = useLocalePath();
 
 // Date display
 const todayDate = computed(() => {
@@ -94,11 +95,11 @@ function formatTime(raw: string): string {
 }
 
 function goToOrders() {
-  navigateTo("/admin/orders");
+  navigateTo(localePath("/admin/orders"));
 }
 
 function goToOrdersWithFilter(status: string) {
-  navigateTo(`/admin/orders?status=${status}`);
+  navigateTo(localePath(`/admin/orders?status=${status}`));
 }
 
 onMounted(() => {
