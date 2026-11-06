@@ -603,10 +603,16 @@ podman exec forge-postgres psql -U postgres -d forge -c "SELECT count(*) FROM di
 
 ### 13.2 Git Hooks
 
-- **backend**：`backend/.pre-commit-config.yaml`（pre-commit 框架）。安装：`uv tool install pre-commit && cd backend && pre-commit install --hook-type pre-commit --hook-type commit-msg`；手动全量检查：`pre-commit run --all-files`
-  - 本机注意：pre-commit 框架安装在 `C:\Users\tank\.local\precommit-env`，hook 通过该环境执行 ruff/mypy；若系统 App Control 阻止 `.venv` 内 Python 执行，可改用 `uv tool install` 安装的独立环境运行 `pre-commit run --all-files`
-- **portal-web / admin**：simple-git-hooks（配置在各自 package.json），`pnpm install` 时由 `prepare` 脚本自动安装 hooks
-- **hooks 架构冲突（重要）**：backend 使用 pre-commit 框架、前端使用 simple-git-hooks，两者都占用 `.git/hooks/`，后者安装会覆盖前者。当前统一由 backend 的 pre-commit 框架管理 git hooks（含 commit-msg 校验，全仓库生效）；simple-git-hooks 仅保留配置，**不要在本地安装**（会破坏 backend hooks）。前端模块的提交信息校验由 pre-commit 的 commit-msg hook 统一兜底（conventional-pre-commit）
+**基线实况（2026-11-06 逐项核对，以此为准）**：仓库唯一的 hook 安装器是 **simple-git-hooks**（配置在 `admin/`、`portal-web/` 的 package.json `simple-git-hooks` 字段），`pnpm install` 的 `prepare` 阶段把两个薄包装写入 `.git/hooks/`：
+
+| hook | 入口 | 覆盖范围 |
+|------|------|----------|
+| pre-commit | `scripts/pre-commit.mjs` | 按 staged 文件定位子项目并跑对应门禁：admin（`pnpm typecheck` + oxlint/eslint 检查模式，禁 `--fix` 防 diff 漂移）、portal-web（`pnpm lint` + `pnpm typecheck`）、backend（`uv run ruff check .` + `uv run mypy .`）；纯根级配置/文档改动直接放行 |
+| commit-msg | `portal-web/scripts/check-commit-msg.mjs` | Conventional Commits 校验（§15），`merge` / `revert` / `fixup!` / `squash!` 放行 |
+
+- **backend 的 pre-commit 框架不再落地本机**：`backend/.pre-commit-config.yaml` 保留作 CI 与他机参考，但本机 `uv tool install pre-commit` 不可用（`%APPDATA%\uv\tools\pre-commit` 为空壳目录、`~\.local\precommit-env` 无二进制），且其 ruff/mypy 条目与 `scripts/pre-commit.mjs` 内的 backend 门禁重复。backend 提交前门禁统一由 `scripts/pre-commit.mjs` 执行；需要手动全量时用 `cd backend; uv run ruff check .; uv run mypy .`
+- **禁止再安装第二套 hook 安装器（重要）**：两套安装器都写 `.git/hooks/pre-commit`，后装者静默覆盖先装者，会让门禁在无报错的情况下失效。任何"提交没有被检查"的现象，先用 `Get-Content .git/hooks/pre-commit` 确认入口仍是 `node scripts/pre-commit.mjs`
+- **hook 安装/恢复**：`cd portal-web; pnpm install`（`prepare` 自动写 hooks）。撤销单个 hook 临时跳过用 `SKIP_SIMPLE_GIT_HOOKS=1 git commit ...`，禁止用 `git commit --no-verify` 代替（`--no-verify` 会同时跳过 commit-msg 校验）
 - **本机 node 环境**：node 通过 fnm 管理（multishell 目录 `C:\Users\tank\AppData\Local\fnm_multishells\<id>`），PowerShell 默认 PATH 不含 node，运行 node/pnpm 前需注入：`Get-ChildItem $env:LOCALAPPDATA\fnm_multishells -Directory | Sort-Object LastWriteTime -Descending | Select-Object -First 1`
 - **hook 的 node 版本守卫（2026-11-05）**：`scripts/pre-commit.mjs` 启动后先校验当前 node ≥ 22.13（pnpm 11.x 硬门槛）。低于门槛时自动扫描 fnm / nvm / volta 安装目录，取满足条件的最高版本 re-exec 自身，并把该 node 所在目录前置到 PATH，使 `pnpm lint` / `pnpm typecheck` 子进程命中合规 node；`FORGE_HOOK_NODE_REEXEC=1` 防递归。找不到合规 node 时直接报错阻断，并提示安装 node ≥ 22.13。
   - 反例（2026-11-05）：hook 直接用宿主默认 node v22.12.0 跑 `pnpm lint`，报 `This version of pnpm requires at least Node.js v22.13` 导致提交被拦，只能手工在命令前注入 fnm PATH 才能提交
