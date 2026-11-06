@@ -608,6 +608,8 @@ podman exec forge-postgres psql -U postgres -d forge -c "SELECT count(*) FROM di
 - **portal-web / admin**：simple-git-hooks（配置在各自 package.json），`pnpm install` 时由 `prepare` 脚本自动安装 hooks
 - **hooks 架构冲突（重要）**：backend 使用 pre-commit 框架、前端使用 simple-git-hooks，两者都占用 `.git/hooks/`，后者安装会覆盖前者。当前统一由 backend 的 pre-commit 框架管理 git hooks（含 commit-msg 校验，全仓库生效）；simple-git-hooks 仅保留配置，**不要在本地安装**（会破坏 backend hooks）。前端模块的提交信息校验由 pre-commit 的 commit-msg hook 统一兜底（conventional-pre-commit）
 - **本机 node 环境**：node 通过 fnm 管理（multishell 目录 `C:\Users\tank\AppData\Local\fnm_multishells\<id>`），PowerShell 默认 PATH 不含 node，运行 node/pnpm 前需注入：`Get-ChildItem $env:LOCALAPPDATA\fnm_multishells -Directory | Sort-Object LastWriteTime -Descending | Select-Object -First 1`
+- **hook 的 node 版本守卫（2026-11-05）**：`scripts/pre-commit.mjs` 启动后先校验当前 node ≥ 22.13（pnpm 11.x 硬门槛）。低于门槛时自动扫描 fnm / nvm / volta 安装目录，取满足条件的最高版本 re-exec 自身，并把该 node 所在目录前置到 PATH，使 `pnpm lint` / `pnpm typecheck` 子进程命中合规 node；`FORGE_HOOK_NODE_REEXEC=1` 防递归。找不到合规 node 时直接报错阻断，并提示安装 node ≥ 22.13。
+  - 反例（2026-11-05）：hook 直接用宿主默认 node v22.12.0 跑 `pnpm lint`，报 `This version of pnpm requires at least Node.js v22.13` 导致提交被拦，只能手工在命令前注入 fnm PATH 才能提交
 - 本地 hooks 执行的是提交前快检；CI 始终兜底执行同等检查，两者缺一不可
 
 ### 13.3 CI 门槛（.github/workflows/ci-cd.yml）
