@@ -264,6 +264,10 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "lastUpdated": "",
         "vatId": "",
         "rcsNumber": "",
+        # 按语言覆盖（可选）：{locale: {字段: 值}}，留空字段回退上面的全局值。
+        # 用于占位符处于语法内嵌位置、直填全局值会语病的字段（典型 {{JURISDICTION}}：
+        # de 需 “der Volksrepublik China”、fr 需 “la République populaire de Chine”）。
+        "byLocale": {},
     },
     # 商品审核开关（迁移自 admin app_settings product_audit_enabled，默认关闭）
     "productAudit": {

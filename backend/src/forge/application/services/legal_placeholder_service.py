@@ -19,6 +19,10 @@ VAT ID / RCS 号）不在 CMS 正文里写死，正文只写占位符，渲染�
     {{LAST_UPDATED}}       -> legal.lastUpdated（按内容语言本地化格式）
     {{VAT_ID}}             -> legal.vatId
     {{RCS_NUMBER}}         -> legal.rcsNumber
+
+按语言覆盖：``legal.byLocale[locale][字段]`` 若为非空值，优先于上面的全局值。
+用于占位符处于语法内嵌位置、直填全局值会语病的字段（如德语
+``Es gilt das Recht von {{JURISDICTION}}`` 需 ``der Volksrepublik China``）。
 """
 
 from __future__ import annotations
@@ -144,9 +148,31 @@ def format_legal_date(value: str, locale: str) -> str:
     return f"{month_name} {parsed.day}, {parsed.year}"
 
 
+def _normalise_locale(locale: str | None) -> str:
+    """``de-DE`` / ``DE`` / ``de_DE`` → ``de``。"""
+    return (locale or "en").strip().lower().replace("_", "-").split("-")[0] or "en"
+
+
+def resolve_legal_block(legal: dict[str, Any] | None, locale: str | None) -> dict[str, Any]:
+    """合并全局 legal 与 ``byLocale[locale]`` 覆盖层，返回当前语言的生效值。
+
+    覆盖层只对非空值生效：某语言未覆盖的字段回退全局值。
+    """
+    block = dict(legal or {})
+    overrides = block.pop("byLocale", None)
+    if isinstance(overrides, dict):
+        per_locale = overrides.get(_normalise_locale(locale))
+        if isinstance(per_locale, dict):
+            for field, raw in per_locale.items():
+                value = "" if raw is None else str(raw).strip()
+                if value:
+                    block[field] = value
+    return block
+
+
 def build_legal_replacements(legal: dict[str, Any] | None, locale: str = "en") -> dict[str, str]:
     """构建 ``占位符 -> 替换值`` 映射；未配置（空值）的字段不进入映射。"""
-    block = legal or {}
+    block = resolve_legal_block(legal, locale)
     replacements: dict[str, str] = {}
     for placeholder, field in PLACEHOLDER_FIELD_MAP.items():
         raw = block.get(field)
@@ -176,12 +202,14 @@ def render_legal_placeholders(text: str | None, legal: dict[str, Any] | None, lo
     return rendered
 
 
-def missing_legal_fields(text: str | None, legal: dict[str, Any] | None) -> list[str]:
+def missing_legal_fields(
+    text: str | None, legal: dict[str, Any] | None, locale: str = "en"
+) -> list[str]:
     """返回正文用到、但站点配置尚未填写的 legal 字段名（用于 Admin/导入器给出补齐清单）。"""
     if not text:
         return []
     placeholders = set(PLACEHOLDER_RE.findall(text))
-    block = legal or {}
+    block = resolve_legal_block(legal, locale)
     missing: list[str] = []
     for placeholder in sorted(placeholders):
         field = PLACEHOLDER_FIELD_MAP.get(placeholder)

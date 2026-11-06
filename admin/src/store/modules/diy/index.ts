@@ -43,7 +43,9 @@ const DEFAULT_SITE_CONFIG = {
     jurisdiction: '',
     lastUpdated: '',
     vatId: '',
-    rcsNumber: ''
+    rcsNumber: '',
+    // 按语言覆盖（可选）：{locale: {字段: 值}}，留空字段回退上面的全局值
+    byLocale: {} as Record<string, Record<string, string>>
   },
   brand: { name: 'Forge', tagline: '', favicon: '', logo: { type: 'text', data: '' } },
   theme: {

@@ -105,6 +105,56 @@ const localeTabsOptions = computed(() => {
   });
 });
 
+/** 法务信息按语言覆盖：占位符落在语法内嵌位置时（de: “Recht von {{JURISDICTION}}”）
+ *  需要该语言自己的写法，留空字段回退全局值。 */
+const legalOverrideLocale = ref('de');
+const legalOverrideLocaleOptions = [
+  { label: 'English (en)', value: 'en' },
+  { label: '中文 (zh)', value: 'zh' },
+  { label: 'Deutsch (de)', value: 'de' },
+  { label: 'Français (fr)', value: 'fr' },
+  { label: 'العربية (ar)', value: 'ar' }
+];
+type LegalOverrideField = 'companyLegalName' | 'registeredAddress' | 'privacyEmail' | 'jurisdiction';
+
+function emptyLegalOverride() {
+  return { companyLegalName: '', registeredAddress: '', privacyEmail: '', jurisdiction: '' };
+}
+
+/** 取（必要时创建）指定语言的覆盖桶，保证 v-model 写入落在 store.siteConfig 上 */
+function legalOverrideBucket(lang: string) {
+  const legal = config.value.legal as any;
+  if (!legal.byLocale || typeof legal.byLocale !== 'object') legal.byLocale = {};
+  if (!legal.byLocale[lang]) legal.byLocale[lang] = emptyLegalOverride();
+  return legal.byLocale[lang] as Record<LegalOverrideField, string>;
+}
+
+const legalOverride = computed(() => legalOverrideBucket(legalOverrideLocale.value));
+
+/** 各语言 {{JURISDICTION}} 内嵌句式的推荐写法（只填空字段，不覆盖已填内容） */
+const SUGGESTED_JURISDICTION: Record<string, string> = {
+  en: 'the People\u2019s Republic of China',
+  zh: '中华人民共和国',
+  de: 'der Volksrepublik China',
+  fr: 'la République populaire de Chine',
+  ar: 'جمهورية الصين الشعبية'
+};
+
+function applySuggestedJurisdictions() {
+  Object.entries(SUGGESTED_JURISDICTION).forEach(([lang, value]) => {
+    const bucket = legalOverrideBucket(lang);
+    if (!bucket.jurisdiction) bucket.jurisdiction = value;
+  });
+}
+
+watch(
+  () => legalOverrideLocale.value,
+  lang => {
+    legalOverrideBucket(lang);
+  },
+  { immediate: true }
+);
+
 const FLAG_LABELS: Record<string, string> = {
   show_pets_page: '宠物页面',
   show_ai_chat: 'AI客服聊天',
@@ -1216,6 +1266,35 @@ function togglePaymentMethod(m: string, checked: boolean) {
               desc="渲染时按页面语言本地化：en → November 6, 2026；de → 6. November 2026；fr/ar → 6 novembre 2026；zh → 2026年11月6日。"
             />
             <NInput v-model:value="config.legal.lastUpdated" placeholder="2026-11-06" />
+          </div>
+        </ConfigCard>
+
+        <ConfigCard title="按语言覆盖（可选）">
+          <div class="flex flex-col gap-3">
+            <div class="text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+              占位符落在语法内嵌位置时必须用该语言自己的写法，否则会渲染成病句（例：de 正文 “Es gilt das Recht von
+              <code v-pre>{{JURISDICTION}}</code>”，填「中国」会变成 “Recht von 中国”）。此处只为选定语言覆盖以下字段，留空即回退上方全局值。
+            </div>
+            <div class="flex items-center gap-2">
+              <NSelect v-model:value="legalOverrideLocale" :options="legalOverrideLocaleOptions" size="small" class="w-40" />
+              <NButton size="small" secondary type="primary" @click="applySuggestedJurisdictions">填入推荐管辖写法</NButton>
+            </div>
+            <div class="flex flex-col gap-1">
+              <span class="text-sm text-gray-600 dark:text-gray-300">管辖法律（该语言写法）</span>
+              <NInput v-model:value="legalOverride.jurisdiction" placeholder="如 der Volksrepublik China" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <span class="text-sm text-gray-600 dark:text-gray-300">公司法定主体名</span>
+              <NInput v-model:value="legalOverride.companyLegalName" placeholder="留空回退全局值" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <span class="text-sm text-gray-600 dark:text-gray-300">注册地址</span>
+              <NInput v-model:value="legalOverride.registeredAddress" type="textarea" :autosize="{ minRows: 2, maxRows: 3 }" placeholder="留空回退全局值" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <span class="text-sm text-gray-600 dark:text-gray-300">隐私联系邮箱</span>
+              <NInput v-model:value="legalOverride.privacyEmail" placeholder="留空回退全局值" />
+            </div>
           </div>
         </ConfigCard>
       </div>
