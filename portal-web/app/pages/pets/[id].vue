@@ -1,7 +1,7 @@
 <template>
   <div class="pet-detail">
-    <button class="back-btn" @click="navigateTo('/pets')">
-      ← {{ $t('pets.back') }}
+    <button class="back-btn" @click="navigateTo(localePath('/pets'))">
+      <span class="inline-block rtl:-scale-x-100">←</span> {{ $t('pets.back') }}
     </button>
 
     <div v-if="loading" class="loading">{{ $t('common.loading') }}</div>

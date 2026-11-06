@@ -59,6 +59,7 @@ definePageMeta({
 })
 
 const router = useRouter();
+const localePath = useLocalePath();
 const petStore = usePetStore();
 const form = ref({ name: "", breed: "GOLDEN_RETRIEVER", breed_custom: "", birthday: "", weight: null as number | null });
 const submit = async () => {
@@ -74,6 +75,6 @@ const submit = async () => {
     spayed_neutered: false,
   }
   await petStore.addPet(payload);
-  router.push("/pets");
+  router.push(localePath('/pets'));
 };
 </script>
