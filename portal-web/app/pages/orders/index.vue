@@ -272,7 +272,7 @@ function formatDate(dateStr: string): string {
 }
 
 function viewOrder(orderNo: string | number) {
-  navigateTo(`/orders/${orderNo}`)
+  navigateTo(localePath(`/orders/${orderNo}`))
 }
 
 const busyId = ref<string | null>(null)
@@ -302,7 +302,7 @@ function canDelete(status: string): boolean {
 
 // 去支付：跳转详情页并自动唤起支付弹窗（?pay=1）
 function goPay(orderNo: string | number) {
-  navigateTo(`/orders/${orderNo}?pay=1`)
+  navigateTo(localePath(`/orders/${orderNo}?pay=1`))
 }
 
 async function cancelOrder(orderNo: string | number) {

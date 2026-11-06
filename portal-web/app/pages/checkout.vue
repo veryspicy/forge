@@ -139,6 +139,7 @@ const { toMessage } = useApiError()
 const error = ref('')
 const submitting = ref(false)
 const router = useRouter()
+const localePath = useLocalePath()
 
 onMounted(() => {
   cartStore.loadCart()
@@ -181,7 +182,7 @@ async function placeOrder() {
       },
     })
     cartStore.clearCart()
-    router.push(`/orders/${order.order_number || order.id}`)
+    router.push(localePath(`/orders/${order.order_number || order.id}`))
   } catch (err: any) {
     error.value = toMessage(err)
   } finally {

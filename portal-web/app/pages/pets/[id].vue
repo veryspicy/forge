@@ -136,7 +136,7 @@ async function fetchData() {
 async function handleDelete() {
   if (confirm(t('pets.confirmDelete', { name: pet.value?.name }) as string)) {
     await deletePet(pet.value.id)
-    navigateTo('/pets')
+    navigateTo(localePath('/pets'))
   }
 }
 
