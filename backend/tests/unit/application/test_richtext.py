@@ -23,9 +23,7 @@ def test_strips_script_and_its_content() -> None:
 
 
 def test_drops_javascript_scheme_in_links() -> None:
-    assert sanitize_html('<a href="javascript:alert(1)">x</a>') == (
-        '<a rel="noopener noreferrer">x</a>'
-    )
+    assert sanitize_html('<a href="javascript:alert(1)">x</a>') == ('<a rel="noopener noreferrer">x</a>')
 
 
 def test_drops_obfuscated_scheme_with_control_chars() -> None:
@@ -35,9 +33,7 @@ def test_drops_obfuscated_scheme_with_control_chars() -> None:
 
 def test_external_link_gets_target_and_rel() -> None:
     html = '<a href="https://example.com" target="_blank">ok</a>'
-    assert sanitize_html(html) == (
-        '<a href="https://example.com" target="_blank" rel="noopener noreferrer">ok</a>'
-    )
+    assert sanitize_html(html) == ('<a href="https://example.com" target="_blank" rel="noopener noreferrer">ok</a>')
 
 
 def test_relative_link_is_kept() -> None:
