@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import {
@@ -122,11 +122,75 @@ async function remove() {
   router.push('/content');
 }
 
-onMounted(load);
+// 预览栏宽度：拖拽分隔条调整，范围 260px ~ 视口 60%，宽度持久化到 localStorage
+const PREVIEW_MIN_WIDTH = 260;
+const PREVIEW_DEFAULT_WIDTH = 360;
+const PREVIEW_MAX_RATIO = 0.6;
+const PREVIEW_STORAGE_KEY = 'forge:content-preview-width';
+
+const previewWidth = ref(PREVIEW_DEFAULT_WIDTH);
+const resizing = ref(false);
+
+function clampPreviewWidth(value: number) {
+  const max = Math.max(PREVIEW_MIN_WIDTH, Math.floor(window.innerWidth * PREVIEW_MAX_RATIO));
+  return Math.min(Math.max(Math.round(value), PREVIEW_MIN_WIDTH), max);
+}
+
+function loadPreviewWidth() {
+  const saved = Number(localStorage.getItem(PREVIEW_STORAGE_KEY));
+  previewWidth.value = Number.isFinite(saved) && saved > 0 ? clampPreviewWidth(saved) : PREVIEW_DEFAULT_WIDTH;
+}
+
+function persistPreviewWidth(width: number) {
+  localStorage.setItem(PREVIEW_STORAGE_KEY, String(width));
+}
+
+function resetPreviewWidth() {
+  previewWidth.value = PREVIEW_DEFAULT_WIDTH;
+  persistPreviewWidth(PREVIEW_DEFAULT_WIDTH);
+}
+
+// 分隔条在预览左侧：鼠标左移 => 预览变宽
+function startResize(event: MouseEvent) {
+  if (event.button !== 0 || resizing.value) return;
+  event.preventDefault();
+  resizing.value = true;
+  const startX = event.clientX;
+  const startWidth = previewWidth.value;
+  const onMove = (ev: MouseEvent) => {
+    previewWidth.value = clampPreviewWidth(startWidth + (startX - ev.clientX));
+  };
+  const onUp = () => {
+    resizing.value = false;
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('mouseup', onUp);
+    document.body.style.removeProperty('user-select');
+    persistPreviewWidth(previewWidth.value);
+  };
+  // 拖拽期间禁用文本选中，避免划选正文
+  document.body.style.userSelect = 'none';
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+}
+
+// 窗口收窄时收缩到合法区间，避免预览挤掉正文
+function handleWindowResize() {
+  previewWidth.value = clampPreviewWidth(previewWidth.value);
+}
+
+onMounted(() => {
+  loadPreviewWidth();
+  window.addEventListener('resize', handleWindowResize);
+  load();
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleWindowResize);
+});
 </script>
 
 <template>
-  <div class="p-4 grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(300px,1fr)]">
+  <div class="content-edit-layout p-4" :style="{ '--preview-w': `${previewWidth}px` }">
     <NForm label-placement="left" label-width="120" :show-require-mark="false" class="w-full min-w-0">
       <NFormItem label="Slug" :required="true">
         <NInput v-model:value="form.slug" placeholder="faqs / shipping / privacy" :disabled="loading" />
@@ -200,8 +264,17 @@ onMounted(load);
       </NFormItem>
     </NForm>
 
+    <!-- 拖拽分隔条：调整右侧预览宽度，双击复位 -->
+    <div
+      class="preview-resizer"
+      :class="{ 'is-active': resizing }"
+      title="拖动调整预览宽度（双击复位）"
+      @mousedown="startResize"
+      @dblclick="resetPreviewWidth"
+    />
+
     <aside
-      class="sticky top-4 flex max-h-[calc(100vh-2rem)] min-w-0 flex-col overflow-hidden rounded-md border border-gray-200 bg-white"
+      class="preview-pane sticky top-4 flex max-h-[calc(100vh-2rem)] min-w-0 flex-col overflow-hidden rounded-md border border-gray-200 bg-white"
     >
       <div class="border-b border-gray-100 px-4 py-2 text-xs text-gray-400">排版预览（与前台 prose 基线近似）</div>
       <div v-if="form.body" class="rich-preview flex-1 overflow-y-auto p-4" v-html="form.body" />
@@ -209,3 +282,37 @@ onMounted(load);
     </aside>
   </div>
 </template>
+
+<style scoped>
+.content-edit-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 1rem;
+}
+
+.preview-resizer {
+  display: none;
+}
+
+@media (min-width: 1280px) {
+  .content-edit-layout {
+    grid-template-columns: minmax(0, 1fr) 10px var(--preview-w, 360px);
+  }
+
+  .preview-resizer {
+    display: block;
+    align-self: stretch;
+    min-height: 120px;
+    border-radius: 9999px;
+    background-color: transparent;
+    cursor: col-resize;
+    transition: background-color 0.15s ease;
+  }
+
+  .preview-resizer:hover,
+  .preview-resizer.is-active {
+    background-color: #e5e7eb;
+  }
+}
+</style>
