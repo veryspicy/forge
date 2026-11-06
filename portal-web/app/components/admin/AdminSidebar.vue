@@ -1,7 +1,7 @@
 <template>
   <aside
     :class="[
-      'fixed inset-y-0 left-0 z-40 flex flex-col bg-neutral-900 text-neutral-100 transition-all duration-300',
+      'fixed inset-y-0 start-0 z-40 flex flex-col bg-neutral-900 text-neutral-100 transition-all duration-300',
       collapsed ? 'w-16' : 'w-60',
     ]"
   >

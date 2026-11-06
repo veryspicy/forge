@@ -241,7 +241,7 @@
             <table class="mt-3 w-full text-sm border-collapse">
               <tbody>
                 <tr v-for="spec in productSpecs" :key="spec.label" class="border-b border-neutral-100">
-                  <td class="py-2 pr-4 text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 font-medium">{{ $t(`products.spec.${spec.label.toLowerCase()}`) }}</td>
+                  <td class="py-2 pe-4 text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 font-medium">{{ $t(`products.spec.${spec.label.toLowerCase()}`) }}</td>
                   <td class="py-2 text-neutral-900 dark:text-neutral-100">{{ spec.value }}</td>
                 </tr>
               </tbody>
@@ -283,7 +283,7 @@
                       :style="{ width: (reviewSummary.review_count ? (reviewSummary.distribution?.[star] || 0) / reviewSummary.review_count * 100 : 0) + '%' }"
                     />
                   </div>
-                  <span class="w-6 text-xs text-neutral-400 dark:text-neutral-400 text-right">{{ reviewSummary.distribution?.[star] || 0 }}</span>
+                  <span class="w-6 text-xs text-neutral-400 dark:text-neutral-400 text-end">{{ reviewSummary.distribution?.[star] || 0 }}</span>
                 </div>
               </div>
             </div>
@@ -332,7 +332,7 @@
       @click.self="closeLightbox"
     >
       <button
-        class="absolute top-4 right-4 text-white/90 hover:text-white text-3xl leading-none p-2"
+        class="absolute top-4 end-4 text-white/90 hover:text-white text-3xl leading-none p-2"
         aria-label="Close"
         @click="closeLightbox"
       >
@@ -340,7 +340,7 @@
       </button>
       <button
         v-if="lightboxImages.length > 1"
-        class="absolute left-4 text-white/90 hover:text-white text-4xl leading-none p-2"
+        class="absolute start-4 rtl:rotate-180 text-white/90 hover:text-white text-4xl leading-none p-2"
         aria-label="Previous"
         @click="prevLightbox"
       >
@@ -354,7 +354,7 @@
       >
       <button
         v-if="lightboxImages.length > 1"
-        class="absolute right-4 text-white/90 hover:text-white text-4xl leading-none p-2"
+        class="absolute end-4 rtl:rotate-180 text-white/90 hover:text-white text-4xl leading-none p-2"
         aria-label="Next"
         @click="nextLightbox"
       >

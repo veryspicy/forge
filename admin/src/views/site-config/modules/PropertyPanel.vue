@@ -1440,6 +1440,53 @@ function togglePaymentMethod(m: string, checked: boolean) {
             desc="正文字体栈，可填 Google Fonts 字体名 + 兜底字体。"
           />
           <NInput v-model:value="config.theme.fontBody" placeholder="如 Inter, sans-serif" />
+
+          <div
+            class="mt-1 rounded border border-dashed border-gray-200 border-solid p-2 text-[11px] leading-relaxed text-gray-400 dark:border-gray-700"
+          >
+            📐 富文本排版：作用于 CMS 内容页、商品详情富文本、DIY 富文本块（共用
+            <code>.prose-forge</code>
+            ）。三项留空即用主站基准 17px / 1.75 / 68ch。
+          </div>
+          <FieldLabel
+            label="正文字号"
+            name="contentStyle.fontSize"
+            type="string (css length)"
+            range="12px ~ 22px"
+            example="17px"
+            desc="正文基准字号，需带单位。留空 = 17px。"
+          />
+          <NInput
+            v-model:value="config.theme.contentStyle.fontSize"
+            placeholder="留空 = 17px"
+            size="small"
+          />
+          <FieldLabel
+            label="正文行高"
+            name="contentStyle.lineHeight"
+            type="string (number)"
+            range="1.4 ~ 2.0"
+            example="1.75"
+            desc="正文行高倍数，不带单位。留空 = 1.75。"
+          />
+          <NInput
+            v-model:value="config.theme.contentStyle.lineHeight"
+            placeholder="留空 = 1.75"
+            size="small"
+          />
+          <FieldLabel
+            label="阅读行宽"
+            name="contentStyle.measure"
+            type="string (css length)"
+            range="52ch ~ 88ch"
+            example="68ch"
+            desc="正文最大行宽，需带单位（ch / rem / px）。留空 = 68ch。"
+          />
+          <NInput
+            v-model:value="config.theme.contentStyle.measure"
+            placeholder="留空 = 68ch"
+            size="small"
+          />
         </div>
       </div>
 

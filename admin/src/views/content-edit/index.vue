@@ -13,6 +13,9 @@ import {
   useMessage
 } from 'naive-ui';
 import { get, post, patch, del } from '@/service/api/helper';
+import { contentLocaleOptions } from '@/constants/content-locale';
+import { CONTENT_TEMPLATES, getTemplateBody } from '@/constants/content-templates';
+import RichTextEditor from '@/components/RichTextEditor.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -25,6 +28,7 @@ const saving = ref(false);
 
 const form = ref({
   slug: '',
+  locale: 'en',
   title: '',
   body: '',
   seo_title: '',
@@ -37,6 +41,43 @@ const statusOptions = [
   { label: t('page.content.published'), value: 'published' }
 ];
 
+const localeOptions = contentLocaleOptions.map(({ label, value }) => ({ label, value }));
+
+// 富文本编辑器开关：inline 模式展开在表单内，保存后回写 form.body（HTML）
+const editorShow = ref(false);
+
+// 内容骨架模板：一键插入结构化 HTML（隐私政策 / 服务条款 / 配送政策 / FAQ）
+const templateOptions = CONTENT_TEMPLATES.map(item => ({ label: item.label, value: item.key }));
+const selectedTemplate = ref<string | null>(null);
+
+function insertTemplate() {
+  const tpl = CONTENT_TEMPLATES.find(item => item.key === selectedTemplate.value);
+  if (!tpl) {
+    message.warning('请先选择内容模板');
+    return;
+  }
+  const html = getTemplateBody(tpl, form.value.locale);
+  if (!html) {
+    message.warning('该模板暂无内容');
+    return;
+  }
+  const isFallback = form.value.locale !== 'en' && form.value.locale !== 'zh';
+  if (!form.value.body.trim()) {
+    form.value.body = html;
+  } else {
+    form.value.body = `${form.value.body.trimEnd()}\n\n${html}`;
+  }
+  message.success(
+    isFallback
+      ? `已插入 ${tpl.label}（${form.value.locale} 暂无骨架，已用 en 版本，请翻译后发布）`
+      : `已插入模板：${tpl.label}`
+  );
+}
+
+function applyBody(html: string) {
+  form.value.body = html;
+}
+
 async function load() {
   if (!id) return;
   loading.value = true;
@@ -46,6 +87,7 @@ async function load() {
     const d = res.data?.data ?? res.data;
     form.value = {
       slug: d.slug ?? '',
+      locale: d.locale ?? 'en',
       title: d.title ?? '',
       body: d.body ?? '',
       seo_title: d.seo_title ?? '',
@@ -89,17 +131,55 @@ onMounted(load);
       <NFormItem label="Slug" :required="true">
         <NInput v-model:value="form.slug" placeholder="faqs / shipping / privacy" :disabled="loading" />
       </NFormItem>
+      <NFormItem label="Lang" :required="true">
+        <NSelect v-model:value="form.locale" :options="localeOptions" :disabled="loading" class="w-40" />
+      </NFormItem>
       <NFormItem :label="t('page.content.title')" :required="true">
         <NInput v-model:value="form.title" :disabled="loading" />
       </NFormItem>
       <NFormItem :label="t('page.content.body')">
-        <NInput
-          v-model:value="form.body"
-          type="textarea"
-          :rows="12"
-          :disabled="loading"
-          placeholder="HTML content"
-        />
+        <div class="w-full flex flex-col gap-2">
+          <div class="flex items-center justify-between gap-3">
+            <span class="text-xs text-gray-500">
+              HTML 正文，C 端按统一富文本基线排版（标题 / 列表 / 引用 / 图片 / 视频）
+            </span>
+            <div class="flex items-center gap-2">
+              <NSelect
+                v-model:value="selectedTemplate"
+                :options="templateOptions"
+                size="small"
+                placeholder="内容骨架模板"
+                clearable
+                class="w-52"
+              />
+              <NButton size="small" :disabled="loading" @click="insertTemplate">插入模板</NButton>
+              <NButton size="small" :disabled="loading" @click="editorShow = !editorShow">
+                {{ editorShow ? '收起编辑器' : '富文本编辑' }}
+              </NButton>
+            </div>
+          </div>
+          <!-- 复用商品详情同一套 Tiptap 编辑器（富文本 / Markdown 双模，落库 HTML） -->
+          <RichTextEditor
+            v-if="editorShow"
+            inline
+            :show="editorShow"
+            :html="form.body"
+            title="正文"
+            @save="applyBody"
+            @update:show="(v: boolean) => (editorShow = v)"
+          />
+          <NInput
+            v-model:value="form.body"
+            type="textarea"
+            :rows="editorShow ? 4 : 12"
+            :disabled="loading"
+            placeholder="HTML content"
+          />
+          <div v-if="form.body" class="rounded-md border border-gray-200 bg-white p-4">
+            <div class="mb-2 text-xs text-gray-400">排版预览（与前台 prose 基线近似）</div>
+            <div class="rich-preview" v-html="form.body" />
+          </div>
+        </div>
       </NFormItem>
       <NFormItem :label="t('page.content.seoTitle')">
         <NInput v-model:value="form.seo_title" :disabled="loading" />

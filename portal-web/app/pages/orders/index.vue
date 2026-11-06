@@ -122,7 +122,7 @@
     <div v-if="showEditModal" class="fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
       <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center">
         <div class="fixed inset-0 bg-neutral-50 dark:bg-stone-9500/40 backdrop-blur-md transition-opacity" @click="closeEditModal"/>
-        <div class="relative bg-white/85 backdrop-blur-2xl rounded-2xl shadow-2xl ring-1 ring-white/60 max-w-lg w-full text-left">
+        <div class="relative bg-white/85 backdrop-blur-2xl rounded-2xl shadow-2xl ring-1 ring-white/60 max-w-lg w-full text-start">
           <div class="px-6 pt-5 pb-4 border-b">
             <h3 class="text-lg font-semibold text-neutral-900 dark:text-neutral-100">{{ $t('orders.editShippingAddress') }}</h3>
             <p class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 mt-1">{{ $t('orders.editShippingAddressHint') }}</p>
@@ -209,7 +209,7 @@
       <div class="flex min-h-full items-center justify-center p-4 text-center">
         <div class="fixed inset-0 bg-neutral-50 dark:bg-stone-9500/40 backdrop-blur-md transition-opacity" @click="closeDeleteModal" />
         <div
-          class="relative bg-white/85 backdrop-blur-2xl rounded-2xl shadow-2xl ring-1 ring-white/60 max-w-md w-full text-left"
+          class="relative bg-white/85 backdrop-blur-2xl rounded-2xl shadow-2xl ring-1 ring-white/60 max-w-md w-full text-start"
         >
           <div class="px-6 pt-5 pb-4 border-b">
             <h3 class="text-lg font-semibold text-neutral-900 dark:text-neutral-100">{{ $t('orders.deleteOrder') }}</h3>

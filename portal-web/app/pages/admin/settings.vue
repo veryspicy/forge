@@ -325,11 +325,11 @@ onMounted(() => {
       <div class="overflow-x-auto px-6 pb-4">
         <table v-if="apiKeys.length > 0" class="min-w-full text-sm">
           <thead>
-            <tr class="border-b border-neutral-100 text-left">
-              <th class="py-2.5 pr-4 font-medium text-neutral-500">名称</th>
-              <th class="py-2.5 pr-4 font-medium text-neutral-500">创建时间</th>
-              <th class="py-2.5 pr-4 font-medium text-neutral-500">最后使用</th>
-              <th class="py-2.5 pr-4 font-medium text-neutral-500">状态</th>
+            <tr class="border-b border-neutral-100 text-start">
+              <th class="py-2.5 pe-4 font-medium text-neutral-500">名称</th>
+              <th class="py-2.5 pe-4 font-medium text-neutral-500">创建时间</th>
+              <th class="py-2.5 pe-4 font-medium text-neutral-500">最后使用</th>
+              <th class="py-2.5 pe-4 font-medium text-neutral-500">状态</th>
               <th class="py-2.5 font-medium text-neutral-500">操作</th>
             </tr>
           </thead>
@@ -339,19 +339,19 @@ onMounted(() => {
               :key="key.id"
               class="border-b border-neutral-100/60 last:border-0"
             >
-              <td class="py-2.5 pr-4">
+              <td class="py-2.5 pe-4">
                 <span class="font-medium text-neutral-800">{{ key.name }}</span>
                 <div class="mt-0.5 font-mono text-[11px] text-neutral-400">
                   {{ key.key_prefix || "mcp-" }}...
                 </div>
               </td>
-              <td class="py-2.5 pr-4 tabular-nums text-neutral-600">
+              <td class="py-2.5 pe-4 tabular-nums text-neutral-600">
                 {{ formatDate(key.created_at) }}
               </td>
-              <td class="py-2.5 pr-4 tabular-nums text-neutral-500">
+              <td class="py-2.5 pe-4 tabular-nums text-neutral-500">
                 {{ key.last_used_at ? formatDate(key.last_used_at) : "从未使用" }}
               </td>
-              <td class="py-2.5 pr-4">
+              <td class="py-2.5 pe-4">
                 <span class="inline-flex items-center gap-1.5 text-xs">
                   <span
                     class="inline-block size-2 rounded-full shrink-0"
@@ -414,10 +414,10 @@ onMounted(() => {
       <div class="overflow-x-auto px-6 pb-4">
         <table v-if="users.length > 0" class="min-w-full text-sm">
           <thead>
-            <tr class="border-b border-neutral-100 text-left">
-              <th class="py-2.5 pr-4 font-medium text-neutral-500">用户名</th>
-              <th class="py-2.5 pr-4 font-medium text-neutral-500">邮箱</th>
-              <th class="py-2.5 pr-4 font-medium text-neutral-500">角色</th>
+            <tr class="border-b border-neutral-100 text-start">
+              <th class="py-2.5 pe-4 font-medium text-neutral-500">用户名</th>
+              <th class="py-2.5 pe-4 font-medium text-neutral-500">邮箱</th>
+              <th class="py-2.5 pe-4 font-medium text-neutral-500">角色</th>
               <th class="py-2.5 font-medium text-neutral-500">操作</th>
             </tr>
           </thead>
@@ -427,13 +427,13 @@ onMounted(() => {
               :key="user.id"
               class="border-b border-neutral-100/60 last:border-0"
             >
-              <td class="py-2.5 pr-4 font-medium text-neutral-800">
+              <td class="py-2.5 pe-4 font-medium text-neutral-800">
                 {{ user.username }}
               </td>
-              <td class="py-2.5 pr-4 tabular-nums text-neutral-500">
+              <td class="py-2.5 pe-4 tabular-nums text-neutral-500">
                 {{ user.email || "-" }}
               </td>
-              <td class="py-2.5 pr-4">
+              <td class="py-2.5 pe-4">
                 <select
                   :value="user.role"
                   :disabled="saveLoading.permissions"
@@ -493,7 +493,7 @@ onMounted(() => {
               v-model.number="systemParams.aiProbeThreshold"
               type="number"
               min="0"
-              class="w-28 rounded border border-neutral-300 px-3 py-1.5 text-right text-sm tabular-nums focus:border-accent-400 focus:outline-none focus:ring-1 focus:ring-accent-400"
+              class="w-28 rounded border border-neutral-300 px-3 py-1.5 text-end text-sm tabular-nums focus:border-accent-400 focus:outline-none focus:ring-1 focus:ring-accent-400"
             />
           </div>
         </div>
@@ -515,7 +515,7 @@ onMounted(() => {
               class="h-5 w-9 rounded-full bg-neutral-300 transition-colors peer-checked:bg-accent-500 peer-focus-visible:ring-2 peer-focus-visible:ring-accent-400 peer-focus-visible:ring-offset-1"
             />
             <div
-              class="absolute left-0.5 top-0.5 size-4 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-4"
+              class="absolute start-0.5 top-0.5 size-4 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-4 rtl:peer-checked:-translate-x-4"
             />
           </label>
         </div>
@@ -532,7 +532,7 @@ onMounted(() => {
               type="number"
               min="0.1"
               step="0.1"
-              class="w-24 rounded border border-neutral-300 px-3 py-1.5 text-right text-sm tabular-nums focus:border-accent-400 focus:outline-none focus:ring-1 focus:ring-accent-400"
+              class="w-24 rounded border border-neutral-300 px-3 py-1.5 text-end text-sm tabular-nums focus:border-accent-400 focus:outline-none focus:ring-1 focus:ring-accent-400"
             />
             <span class="text-xs text-neutral-500">x</span>
           </div>
@@ -550,7 +550,7 @@ onMounted(() => {
               v-model.number="systemParams.defaultShippingFee"
               type="number"
               min="0"
-              class="w-28 rounded border border-neutral-300 px-3 py-1.5 text-right text-sm tabular-nums focus:border-accent-400 focus:outline-none focus:ring-1 focus:ring-accent-400"
+              class="w-28 rounded border border-neutral-300 px-3 py-1.5 text-end text-sm tabular-nums focus:border-accent-400 focus:outline-none focus:ring-1 focus:ring-accent-400"
             />
           </div>
         </div>
@@ -596,7 +596,7 @@ onMounted(() => {
               class="h-5 w-9 rounded-full bg-neutral-300 transition-colors peer-checked:bg-accent-500 peer-focus-visible:ring-2 peer-focus-visible:ring-accent-400 peer-focus-visible:ring-offset-1"
             />
             <div
-              class="absolute left-0.5 top-0.5 size-4 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-4"
+              class="absolute start-0.5 top-0.5 size-4 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-4 rtl:peer-checked:-translate-x-4"
             />
           </label>
         </div>
@@ -617,7 +617,7 @@ onMounted(() => {
               class="h-5 w-9 rounded-full bg-neutral-300 transition-colors peer-checked:bg-accent-500 peer-focus-visible:ring-2 peer-focus-visible:ring-accent-400 peer-focus-visible:ring-offset-1"
             />
             <div
-              class="absolute left-0.5 top-0.5 size-4 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-4"
+              class="absolute start-0.5 top-0.5 size-4 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-4 rtl:peer-checked:-translate-x-4"
             />
           </label>
         </div>
@@ -633,7 +633,7 @@ onMounted(() => {
               v-model.number="notificationSettings.lowStockThreshold"
               type="number"
               min="0"
-              class="w-24 rounded border border-neutral-300 px-3 py-1.5 text-right text-sm tabular-nums focus:border-accent-400 focus:outline-none focus:ring-1 focus:ring-accent-400"
+              class="w-24 rounded border border-neutral-300 px-3 py-1.5 text-end text-sm tabular-nums focus:border-accent-400 focus:outline-none focus:ring-1 focus:ring-accent-400"
             />
             <span class="text-xs text-neutral-500">件</span>
           </div>

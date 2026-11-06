@@ -327,6 +327,12 @@ export interface SiteProfile {
     accentColor?: string
     fontHeading?: string
     fontBody?: string
+    /** 富文本正排版本（CMS / 商品详情 / DIY 共用）；留空走 main.css 默认 */
+    contentStyle?: {
+      fontSize?: string
+      lineHeight?: string
+      measure?: string
+    }
   }
   navigation: NavItem[]
   sections: Section[]

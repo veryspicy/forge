@@ -43,7 +43,13 @@ const DEFAULT_SITE_CONFIG = {
     secondaryColor: '#f0a020',
     accentColor: '#2080f0',
     fontHeading: 'Inter',
-    fontBody: 'Inter'
+    fontBody: 'Inter',
+    // 富文本正文排版（CMS / 商品详情 / DIY 共用），空字符串 = 走前端默认值
+    contentStyle: {
+      fontSize: '',
+      lineHeight: '',
+      measure: ''
+    }
   },
   navigation: [
     { key: 'home', to: '/', labelKey: 'nav.home', label: '首页', visible: true, order: 0 },

@@ -14,7 +14,7 @@
     <div
       :class="[
         'flex flex-1 flex-col transition-all duration-300',
-        sidebarCollapsed ? 'ml-16' : 'ml-60',
+        sidebarCollapsed ? 'ms-16' : 'ms-60',
       ]"
     >
       <!-- Top bar -->
@@ -47,10 +47,10 @@
           <!-- Dropdown -->
           <div
             v-if="showUserMenu"
-            class="absolute right-0 top-full mt-1 w-44 rounded border border-neutral-200 bg-white py-1 shadow-lg"
+            class="absolute end-0 top-full mt-1 w-44 rounded border border-neutral-200 bg-white py-1 shadow-lg"
           >
             <button
-              class="w-full px-4 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50"
+              class="w-full px-4 py-2 text-start text-sm text-neutral-700 hover:bg-neutral-50"
               @click="handleLogout"
             >
               退出登录

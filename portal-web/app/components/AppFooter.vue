@@ -85,7 +85,7 @@
 
       <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
         <p data-copyright class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">
-          {{ profile.footer.copyright || t('footer.copyright') || '© 2026 Forge' }}
+          {{ te('footer.copyright') ? t('footer.copyright') : (profile.footer.copyright || '© 2026 Forge') }}
         </p>
         <p class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">
           {{ t('footer.paymentMethods') }}

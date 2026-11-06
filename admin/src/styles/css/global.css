@@ -13,3 +13,88 @@ html {
   overflow-x: hidden;
   color: rgb(var(--base-text-color));
 }
+
+/* 富文本排版预览（content-edit 等后台页面）
+ * Admin 使用 UnoCSS 无 typography preset，这里只做与前台 prose-forge 近似的轻量基线，
+ * 仅用于后台所见即所得的视觉反馈，不作为前台排版权威（前台见 portal-web main.css）。 */
+.rich-preview {
+  font-size: 15px;
+  line-height: 1.75;
+  color: #3f3a34;
+}
+.rich-preview > :first-child {
+  margin-top: 0;
+}
+.rich-preview p {
+  margin: 0.9em 0;
+}
+.rich-preview h1,
+.rich-preview h2,
+.rich-preview h3,
+.rich-preview h4 {
+  margin: 1.6em 0 0.6em;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.rich-preview h1 {
+  font-size: 1.6em;
+}
+.rich-preview h2 {
+  font-size: 1.35em;
+}
+.rich-preview h3 {
+  font-size: 1.15em;
+}
+.rich-preview ul {
+  margin: 0.9em 0;
+  padding-left: 1.35em;
+  list-style: disc;
+}
+.rich-preview ol {
+  margin: 0.9em 0;
+  padding-left: 1.35em;
+  list-style: decimal;
+}
+.rich-preview li {
+  margin: 0.35em 0;
+}
+.rich-preview blockquote {
+  margin: 1.1em 0;
+  padding: 0.2em 0 0.2em 1em;
+  border-left: 2px solid #d8cbb4;
+  color: #6b6358;
+}
+.rich-preview a {
+  color: var(--primary-color, #b8860b);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.rich-preview strong {
+  font-weight: 600;
+}
+.rich-preview hr {
+  width: 4rem;
+  margin: 2.2em auto;
+  border: 0;
+  border-top: 1px solid #e5e1da;
+}
+.rich-preview img,
+.rich-preview video {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  margin: 0.75em auto;
+  border-radius: 0.5rem;
+}
+.rich-preview table {
+  width: 100%;
+  font-size: 0.95em;
+  border-collapse: collapse;
+}
+.rich-preview th,
+.rich-preview td {
+  padding: 0.5em 0.6em;
+  border: 1px solid #e5e1da;
+  text-align: left;
+}

@@ -125,6 +125,35 @@ async def get_order_settings(db: AsyncSession) -> dict[str, Any]:
     return block
 
 
+async def get_i18n_locales(db: AsyncSession) -> tuple[list[str], str]:
+    """站点启用的语言列表与默认语言（唯一数据源：site_profiles.config.i18n）。
+
+    返回 ``(locales, default_locale)``：locales 为小写语言码去重后的有序列表，
+    default_locale 保证存在且包含于 locales（配置异常时兜底 ``en``）。
+
+    业务消费方（CMS 内容 locale 校验、C 端内容接口回退链）统一从此派生，
+    避免在代码里硬编码语言集合，新增语言只需在 Admin 站点设置中勾选。
+    """
+    config = await get_site_config(db)
+    i18n = config.get("i18n")
+    block: dict[str, Any] = i18n if isinstance(i18n, dict) else {}
+
+    locales: list[str] = []
+    raw = block.get("locales")
+    if isinstance(raw, list):
+        for item in raw:
+            code = str(item).strip().lower()
+            if code and code not in locales:
+                locales.append(code)
+
+    default_locale = str(block.get("defaultLocale") or "en").strip().lower() or "en"
+    if not locales:
+        locales = [default_locale]
+    elif default_locale not in locales:
+        locales.insert(0, default_locale)
+    return locales, default_locale
+
+
 def _to_public_shopping_info(block: dict[str, Any]) -> dict[str, Any]:
     """将站点配置 camelCase 的 shoppingInfo 转换为 C 端契约（snake_case，与 app_settings 旧格式一致）。
 

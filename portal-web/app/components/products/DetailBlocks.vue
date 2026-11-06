@@ -9,9 +9,9 @@ rich_text(title/html/align) / image(title/images/caption) / image_text(title/ima
   <div class="space-y-10">
     <template v-for="(block, idx) in blocks" :key="idx">
       <!-- 富文本 -->
-      <section v-if="block.type === 'rich_text'" class="prose max-w-none rich-content" :class="alignClass(block.align)">
+      <section v-if="block.type === 'rich_text'" :class="alignClass(block.align)">
         <h2 v-if="block.title" class="text-xl font-bold text-neutral-900 dark:text-neutral-100 mb-3">{{ block.title }}</h2>
-        <div v-if="block.html" class="text-neutral-700 dark:text-neutral-300 leading-relaxed" v-html="block.html" />
+        <RichText v-if="block.html" :html="block.html" width="full" />
       </section>
 
       <!-- 图片 -->
@@ -30,8 +30,8 @@ rich_text(title/html/align) / image(title/images/caption) / image_text(title/ima
       </section>
 
       <!-- 图文 -->
-      <section v-else-if="block.type === 'image_text'" class="grid md:grid-cols-2 gap-6 items-center" :class="block.layout === 'right' ? 'md:[direction:rtl]' : ''">
-        <div class="md:[direction:ltr]">
+      <section v-else-if="block.type === 'image_text'" class="grid md:grid-cols-2 gap-6 items-center">
+        <div :class="block.layout === 'right' ? 'md:order-2' : 'md:order-1'">
           <img
             v-if="normalizedImage(block.image)"
             :src="normalizedImage(block.image)"
@@ -40,9 +40,9 @@ rich_text(title/html/align) / image(title/images/caption) / image_text(title/ima
             loading="lazy"
           />
         </div>
-        <div class="md:[direction:ltr]">
+        <div :class="block.layout === 'right' ? 'md:order-1' : 'md:order-2'">
           <h2 v-if="block.title" class="text-xl font-bold text-neutral-900 dark:text-neutral-100 mb-3">{{ block.title }}</h2>
-          <div v-if="block.html" class="text-neutral-700 dark:text-neutral-300 leading-relaxed" v-html="block.html" />
+          <RichText v-if="block.html" :html="block.html" width="full" />
         </div>
       </section>
 
@@ -56,7 +56,7 @@ rich_text(title/html/align) / image(title/images/caption) / image_text(title/ima
                 <th
                   v-for="(col, i) in block.columns"
                   :key="i"
-                  class="px-4 py-2 text-left font-medium text-neutral-700 dark:text-neutral-300"
+                  class="px-4 py-2 text-start font-medium text-neutral-700 dark:text-neutral-300"
                 >
                   {{ col }}
                 </th>
@@ -135,7 +135,7 @@ const props = defineProps<{ blocks: DetailBlock[] }>()
 
 function alignClass(align?: string) {
   if (align === 'center') return 'text-center'
-  if (align === 'right') return 'text-right'
+  if (align === 'right') return 'text-end'
   return ''
 }
 

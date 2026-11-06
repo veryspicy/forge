@@ -32,7 +32,7 @@
     <!-- AI recommended badge -->
     <span
       v-if="product.tags?.includes('ai-recommended') || product.is_ai_generated"
-      class="absolute top-2 left-2 bg-secondary-500 text-white text-xs font-medium px-2 py-0.5 rounded-full"
+      class="absolute top-2 start-2 bg-secondary-500 text-white text-xs font-medium px-2 py-0.5 rounded-full"
     >
       {{ $t('products.aiPick') }}
     </span>
@@ -84,7 +84,7 @@
         <span class="text-neutral-300">
           {{ '☆'.repeat(5 - Math.floor(product.rating || 0)) }}
         </span>
-        <span class="text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 ml-1">({{ product.review_count || 0 }})</span>
+        <span class="text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 ms-1">({{ product.review_count || 0 }})</span>
       </div>
 
       <!-- Inventory status -->
@@ -99,7 +99,7 @@
 
     <!-- Add to cart hover button -->
     <button
-      class="absolute bottom-0 left-0 right-0 bg-accent-600 text-white text-sm font-medium py-2.5 text-center opacity-0 group-hover:opacity-100 hover:bg-accent-500 transition-all translate-y-full group-hover:translate-y-0"
+      class="absolute bottom-0 start-0 end-0 bg-accent-600 text-white text-sm font-medium py-2.5 text-center opacity-0 group-hover:opacity-100 hover:bg-accent-500 transition-all translate-y-full group-hover:translate-y-0"
       @click.prevent="addToCart"
     >
       {{ $t('products.addToCart') }}

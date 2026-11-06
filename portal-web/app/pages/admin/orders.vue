@@ -330,7 +330,7 @@ onMounted(() => {
         <label class="block text-xs font-medium text-neutral-500 mb-1">搜索订单号</label>
         <div class="relative">
           <svg
-            class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-neutral-400"
+            class="pointer-events-none absolute start-2.5 top-1/2 -translate-y-1/2 size-3.5 text-neutral-400"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -343,7 +343,7 @@ onMounted(() => {
             v-model="searchQuery"
             type="text"
             placeholder="输入订单号..."
-            class="w-full rounded border border-neutral-300 bg-white py-1.5 pl-8 pr-3 text-sm text-neutral-800 placeholder-neutral-400 outline-none transition-shadow focus:border-accent-400 focus:ring-2 focus:ring-accent-400/20"
+            class="w-full rounded border border-neutral-300 bg-white py-1.5 ps-8 pe-3 text-sm text-neutral-800 placeholder-neutral-400 outline-none transition-shadow focus:border-accent-400 focus:ring-2 focus:ring-accent-400/20"
             @keyup.enter="fetchOrders(1)"
           />
         </div>
@@ -417,7 +417,7 @@ onMounted(() => {
 
       <button
         v-if="hasActiveFilters"
-        class="ml-1 rounded-full px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
+        class="ms-1 rounded-full px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
         @click="clearFilters"
       >
         清除筛选
@@ -429,7 +429,7 @@ onMounted(() => {
       <div class="overflow-x-auto">
         <table class="min-w-full text-sm">
           <thead>
-            <tr class="border-b border-neutral-200 bg-neutral-50 text-left">
+            <tr class="border-b border-neutral-200 bg-neutral-50 text-start">
               <!-- Expand toggle column -->
               <th class="w-10 px-2 py-2.5" />
               <th
@@ -437,7 +437,7 @@ onMounted(() => {
                 :key="col.key"
                 :class="[
                   'px-4 py-2.5 font-medium text-neutral-600',
-                  col.align === 'right' && 'text-right',
+                  col.align === 'right' && 'text-end',
                   col.align === 'center' && 'text-center',
                 ]"
                 :style="col.width ? { width: col.width } : {}"
@@ -494,7 +494,7 @@ onMounted(() => {
                   <td class="px-4 py-2.5 text-center text-neutral-600">
                     {{ order.item_count }}
                   </td>
-                  <td class="px-4 py-2.5 text-right font-semibold text-neutral-800 tabular-nums">
+                  <td class="px-4 py-2.5 text-end font-semibold text-neutral-800 tabular-nums">
                     {{ formatCurrency(order.total_amount) }}
                   </td>
                   <td class="px-4 py-2.5">

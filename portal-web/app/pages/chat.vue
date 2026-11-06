@@ -70,7 +70,7 @@
                   <p class="text-sm font-medium text-neutral-800 dark:text-neutral-200 truncate">{{ rec.product_name }}</p>
                   <p class="text-xs text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ rec.reason }}</p>
                 </div>
-                <div class="text-right shrink-0">
+                <div class="text-end shrink-0">
                   <span class="text-xs px-2 py-0.5 bg-accent-100 text-accent-700 rounded-full font-medium">
                     {{ Math.round(rec.confidence * 100) }}% match
                   </span>

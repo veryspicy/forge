@@ -13,6 +13,7 @@ import {
   useMessage
 } from 'naive-ui';
 import { get, del, post } from '@/service/api/helper';
+import { contentLocaleShort, contentLocaleSelectOptions } from '@/constants/content-locale';
 import type { DataTableColumns } from 'naive-ui';
 
 const router = useRouter();
@@ -26,11 +27,14 @@ const page = ref(1);
 const pageSize = ref(20);
 const search = ref('');
 const status = ref<string | null>(null);
+const locale = ref<string | null>(null);
 
 const statusOptions = [
   { label: t('page.content.draft'), value: 'draft' },
   { label: t('page.content.published'), value: 'published' }
 ];
+
+const localeOptions = contentLocaleSelectOptions;
 
 async function fetchData() {
   loading.value = true;
@@ -38,6 +42,7 @@ async function fetchData() {
     const params: Record<string, any> = { page: page.value, page_size: pageSize.value };
     if (search.value) params.search = search.value;
     if (status.value) params.status = status.value;
+    if (locale.value) params.locale = locale.value;
     const res = await get('/api/admin/v1/content/', params);
     items.value = res.data?.items ?? [];
     total.value = res.data?.total ?? 0;
@@ -70,6 +75,16 @@ async function remove(row: any) {
 const columns: DataTableColumns<any> = [
   { title: t('page.content.title'), key: 'title' },
   { title: 'Slug', key: 'slug' },
+  {
+    title: 'Lang',
+    key: 'locale',
+    render: row =>
+      h(
+        NTag,
+        { type: row.locale === 'en' ? 'default' : 'info', size: 'small' },
+        { default: () => contentLocaleShort(row.locale) }
+      )
+  },
   {
     title: t('common.status'),
     key: 'status',
@@ -152,6 +167,14 @@ onMounted(fetchData);
         :options="statusOptions"
         clearable
         :placeholder="t('common.status')"
+        class="w-32"
+        @update:value="page = 1; fetchData()"
+      />
+      <NSelect
+        v-model:value="locale"
+        :options="localeOptions"
+        clearable
+        placeholder="Lang"
         class="w-32"
         @update:value="page = 1; fetchData()"
       />

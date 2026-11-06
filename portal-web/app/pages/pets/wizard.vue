@@ -4,10 +4,10 @@
       <!-- Page Header -->
       <div class="mb-8">
         <button
-          @click="navigateTo('/pets')"
+          @click="navigateTo(localePath('/pets'))"
           class="inline-flex items-center text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300 mb-4"
         >
-          <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-4 h-4 me-1 rtl:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
           </svg>
           {{ $t('common.back') }}
@@ -41,7 +41,7 @@
               </div>
               <span
                 :class="[
-                  'ml-3 text-sm font-medium',
+                  'ms-3 text-sm font-medium',
                   currentStep >= idx ? 'text-neutral-900 dark:text-neutral-100' : 'text-neutral-400 dark:text-neutral-400'
                 ]"
               >
@@ -109,7 +109,7 @@
                     value="Male"
                     class="form-radio h-4 w-4 text-indigo-600"
                   />
-                  <span class="ml-2 text-sm text-neutral-700 dark:text-neutral-300">{{ $t('pets.male') }}</span>
+                  <span class="ms-2 text-sm text-neutral-700 dark:text-neutral-300">{{ $t('pets.male') }}</span>
                 </label>
                 <label class="inline-flex items-center">
                   <input
@@ -118,7 +118,7 @@
                     value="Female"
                     class="form-radio h-4 w-4 text-indigo-600"
                   />
-                  <span class="ml-2 text-sm text-neutral-700 dark:text-neutral-300">{{ $t('pets.female') }}</span>
+                  <span class="ms-2 text-sm text-neutral-700 dark:text-neutral-300">{{ $t('pets.female') }}</span>
                 </label>
               </div>
             </div>
@@ -236,7 +236,7 @@
                     type="checkbox"
                     class="form-checkbox h-4 w-4 text-indigo-600 rounded"
                   />
-                  <span class="ml-3 text-sm text-neutral-700 dark:text-neutral-300">{{ goal }}</span>
+                  <span class="ms-3 text-sm text-neutral-700 dark:text-neutral-300">{{ goal }}</span>
                 </label>
               </div>
             </div>
@@ -278,7 +278,7 @@
           class="px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <span v-if="submitting" class="inline-flex items-center">
-            <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+            <svg class="animate-spin -ms-1 me-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
@@ -300,6 +300,7 @@ definePageMeta({
 })
 
 const petStore = usePetStore()
+const localePath = useLocalePath()
 const currentStep = ref(0)
 const submitting = ref(false)
 
@@ -378,7 +379,7 @@ const submitForm = async () => {
       allergies: form.allergies,
     }
     await petStore.addPet(payload)
-    navigateTo('/pets')
+    navigateTo(localePath('/pets'))
   } catch (err: any) {
     console.error('Failed to create pet:', err)
   } finally {

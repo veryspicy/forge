@@ -91,8 +91,9 @@ export function useApi() {
   };
 
   // CMS Content（按 slug 拉取已发布内容页；未发布/不存在时抛 404，由页面降级为 Coming soon）
-  const fetchContent = async (slug: string) => {
-    return authFetch(`${API_BASE}/content/${slug}`);
+  // locale 用于按语言获取独立内容（en/zh），缺省 en
+  const fetchContent = async (slug: string, locale: string = 'en') => {
+    return authFetch(`${API_BASE}/content/${slug}?locale=${encodeURIComponent(locale)}`);
   };
 
   const updatePet = async (id: string, data: any) => {

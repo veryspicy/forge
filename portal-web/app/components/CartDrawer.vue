@@ -115,4 +115,9 @@ function close() {
   opacity: 0;
   transform: translateX(40px);
 }
+/* RTL：抽屉贴逻辑末端，需从左侧滑入 */
+[dir='rtl'] .drawer-enter-from,
+[dir='rtl'] .drawer-leave-to {
+  transform: translateX(-40px);
+}
 </style>

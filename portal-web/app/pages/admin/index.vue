@@ -199,7 +199,7 @@ onMounted(() => {
 
         <!-- Pending audit orders -->
         <button
-          class="w-full rounded border border-red-200 bg-red-50 px-4 py-3.5 text-left transition-colors hover:bg-red-100/70"
+          class="w-full rounded border border-red-200 bg-red-50 px-4 py-3.5 text-start transition-colors hover:bg-red-100/70"
           @click="goToOrdersWithFilter('pending_audit')"
         >
           <div class="flex items-center justify-between">
@@ -213,7 +213,7 @@ onMounted(() => {
 
         <!-- Procurement issues -->
         <button
-          class="w-full rounded border border-amber-200 bg-amber-50 px-4 py-3.5 text-left transition-colors hover:bg-amber-100/70"
+          class="w-full rounded border border-amber-200 bg-amber-50 px-4 py-3.5 text-start transition-colors hover:bg-amber-100/70"
           @click="goToOrdersWithFilter('procurement_failed')"
         >
           <div class="flex items-center justify-between">
