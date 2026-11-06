@@ -166,7 +166,7 @@
             <!-- Events Timeline -->
             <div v-if="(s.events || []).length > 0" class="relative ps-6 border-s-2 border-neutral-200 dark:border-neutral-700/60 space-y-4">
               <div v-for="(evt, ei) in s.events" :key="ei" class="relative">
-                <div class="absolute -left-[25px] w-3 h-3 rounded-full border-2 border-indigo-500 bg-white dark:bg-stone-900"/>
+                <div class="absolute -start-[25px] w-3 h-3 rounded-full border-2 border-indigo-500 bg-white dark:bg-stone-900"/>
                 <p class="text-sm font-medium text-neutral-900 dark:text-neutral-100">{{ evt.status || evt.description || evt.label || $t('orders.trackingUpdate') }}</p>
                 <p class="text-xs text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ evt.location || '' }}</p>
                 <p class="text-xs text-neutral-400 dark:text-neutral-400">{{ formatDateTime(evt.timestamp || evt.date || evt.time) }}</p>

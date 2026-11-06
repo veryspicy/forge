@@ -137,7 +137,7 @@ function formatDate(val: string): string {
           >
             <!-- Dot -->
             <div
-              class="absolute -left-5 top-1 flex items-center justify-center"
+              class="absolute -start-5 top-1 flex items-center justify-center"
             >
               <div
                 :class="[

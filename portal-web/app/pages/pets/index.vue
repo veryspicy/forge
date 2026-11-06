@@ -382,7 +382,7 @@ async function savePet() {
 }
 
 function viewPet(pet: any) {
-  navigateTo(`/pets/${pet.id}`)
+  navigateTo(localePath(`/pets/${pet.id}`))
 }
 
 async function confirmDelete(pet: any) {

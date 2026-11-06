@@ -4,7 +4,7 @@
       <!-- Page Header -->
       <div class="mb-8">
         <button
-          @click="navigateTo('/pets')"
+          @click="navigateTo(localePath('/pets'))"
           class="inline-flex items-center text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300 mb-4"
         >
           <svg class="w-4 h-4 me-1 rtl:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -300,6 +300,7 @@ definePageMeta({
 })
 
 const petStore = usePetStore()
+const localePath = useLocalePath()
 const currentStep = ref(0)
 const submitting = ref(false)
 
@@ -378,7 +379,7 @@ const submitForm = async () => {
       allergies: form.allergies,
     }
     await petStore.addPet(payload)
-    navigateTo('/pets')
+    navigateTo(localePath('/pets'))
   } catch (err: any) {
     console.error('Failed to create pet:', err)
   } finally {

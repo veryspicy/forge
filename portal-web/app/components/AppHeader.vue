@@ -110,7 +110,7 @@
           </svg>
           <span
             v-if="cartStore.itemCount > 0"
-            class="absolute -top-1 -right-2 bg-accent-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-0.5 leading-none"
+            class="absolute -top-1 -end-2 bg-accent-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-0.5 leading-none"
           >
             {{ cartStore.itemCount }}
           </span>
