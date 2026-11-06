@@ -197,11 +197,14 @@
 @keyframes slide-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes scale-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 @keyframes slide-in-right { from { transform: translateX(100%); } to { transform: translateX(0); } }
+/* RTL：从逻辑起始侧（右侧为 start 时为左）滑入，保持"从屏外滑进"的观感一致 */
+@keyframes slide-in-left { from { transform: translateX(-100%); } to { transform: translateX(0); } }
 
 .animate-fade-in { animation: fade-in 0.3s ease-out-expo; }
 .animate-slide-up { animation: slide-up 0.4s ease-out-expo; }
 .animate-scale-in { animation: scale-in 0.25s ease-out-expo; }
 .animate-slide-in-right { animation: slide-in-right 0.35s ease-out-expo; }
+[dir='rtl'] .animate-slide-in-right { animation-name: slide-in-left; }
 
 /* Easing for Expo */
 :root {
@@ -371,8 +374,8 @@ h1, h2, h3, h4, h5, h6 {
   .prose-forge :where(blockquote) {
     font-style: normal;
     font-weight: 400;
-    border-left-width: 2px;
-    padding-left: 1.1em;
+    border-inline-start-width: 2px;
+    padding-inline-start: 1.1em;
   }
   .prose-forge :where(blockquote p:first-of-type)::before,
   .prose-forge :where(blockquote p:last-of-type)::after {

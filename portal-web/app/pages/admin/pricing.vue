@@ -1148,7 +1148,7 @@ const tabs = [
 }
 
 .ps-18 {
-  padding-left: 4.5rem;
+  padding-inline-start: 4.5rem;
 }
 
 /* Custom select styling */
@@ -1157,6 +1157,10 @@ select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 0.75rem center;
-  padding-right: 2.25rem;
+  padding-inline-end: 2.25rem;
+}
+/* RTL：下拉箭头镜像到左侧 */
+[dir='rtl'] select {
+  background-position: left 0.75rem center;
 }
 </style>

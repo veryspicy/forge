@@ -15,7 +15,7 @@
         <!-- Breadcrumb -->
         <nav class="flex mb-6 text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">
           <button class="hover:text-neutral-700 dark:hover:text-neutral-300" @click="navigateTo('/orders')">{{ $t('orders.orders') }}</button>
-          <svg class="w-4 h-4 mx-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-4 h-4 mx-2 rtl:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
           </svg>
           <span class="text-neutral-900 dark:text-neutral-100 font-medium order-no">#{{ order.order_number || order.id }}</span>

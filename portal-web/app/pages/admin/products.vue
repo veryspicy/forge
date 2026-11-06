@@ -1012,6 +1012,11 @@ onMounted(() => {
 .drawer-leave-to > div:nth-child(2) {
   transform: translateX(100%);
 }
+/* RTL：抽屉贴逻辑末端，改从左侧滑入 */
+[dir='rtl'] .drawer-enter-from > div:nth-child(2),
+[dir='rtl'] .drawer-leave-to > div:nth-child(2) {
+  transform: translateX(-100%);
+}
 
 /* Modal transition */
 .modal-enter-active,
