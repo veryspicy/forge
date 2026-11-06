@@ -202,9 +202,7 @@ def render_legal_placeholders(text: str | None, legal: dict[str, Any] | None, lo
     return rendered
 
 
-def missing_legal_fields(
-    text: str | None, legal: dict[str, Any] | None, locale: str = "en"
-) -> list[str]:
+def missing_legal_fields(text: str | None, legal: dict[str, Any] | None, locale: str = "en") -> list[str]:
     """返回正文用到、但站点配置尚未填写的 legal 字段名（用于 Admin/导入器给出补齐清单）。"""
     if not text:
         return []
