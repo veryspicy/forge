@@ -126,8 +126,8 @@ onMounted(load);
 </script>
 
 <template>
-  <div class="p-4">
-    <NForm label-placement="left" label-width="120" :show-require-mark="false" class="max-w-3xl">
+  <div class="p-4 grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(300px,1fr)]">
+    <NForm label-placement="left" label-width="120" :show-require-mark="false" class="w-full min-w-0">
       <NFormItem label="Slug" :required="true">
         <NInput v-model:value="form.slug" placeholder="faqs / shipping / privacy" :disabled="loading" />
       </NFormItem>
@@ -175,10 +175,6 @@ onMounted(load);
             :disabled="loading"
             placeholder="HTML content"
           />
-          <div v-if="form.body" class="rounded-md border border-gray-200 bg-white p-4">
-            <div class="mb-2 text-xs text-gray-400">排版预览（与前台 prose 基线近似）</div>
-            <div class="rich-preview" v-html="form.body" />
-          </div>
         </div>
       </NFormItem>
       <NFormItem :label="t('page.content.seoTitle')">
@@ -203,5 +199,13 @@ onMounted(load);
         </NSpace>
       </NFormItem>
     </NForm>
+
+    <aside
+      class="sticky top-4 flex max-h-[calc(100vh-2rem)] min-w-0 flex-col overflow-hidden rounded-md border border-gray-200 bg-white"
+    >
+      <div class="border-b border-gray-100 px-4 py-2 text-xs text-gray-400">排版预览（与前台 prose 基线近似）</div>
+      <div v-if="form.body" class="rich-preview flex-1 overflow-y-auto p-4" v-html="form.body" />
+      <div v-else class="flex-1 px-4 py-10 text-center text-xs text-gray-300">暂无正文，预览为空</div>
+    </aside>
   </div>
 </template>
