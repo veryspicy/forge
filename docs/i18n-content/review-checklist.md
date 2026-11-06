@@ -85,17 +85,27 @@ AIGC:
 - **发布闸门**：占位符无法解析（对应字段为空或未知占位符）时，该语言内容按未就绪跳过，返回 404，不会把半成品法务页推上线
 - **导入器**：`temp/import_i18n_content.py` 默认读取站点当前法务配置判定可发布性，并打印「待补字段」清单
 
-| 字段 | 对应占位符 | 使用页面 | 当前值 |
+| 字段 | 对应占位符 | 使用页面 | 当前值（2026-11-06） |
 |---|---|---|---|
-| companyLegalName | `{{COMPANY_LEGAL_NAME}}` | privacy / terms（de/fr/ar） | 待填 |
-| registeredAddress | `{{COMPANY_ADDRESS}}` | privacy / terms（de/fr/ar） | 待填 |
-| privacyEmail | `{{PRIVACY_EMAIL}}` | privacy（de/fr/ar） | 待填（建议 privacy@ 自有域名） |
-| jurisdiction | `{{JURISDICTION}}` | terms（de/fr/ar） | 待填 |
-| lastUpdated | `{{LAST_UPDATED}}` | privacy / terms | 待填（填日期按语言自动本地化） |
-| vatId | `{{VAT_ID}}` | de Impressum 扩展 | 待填（有则填） |
-| rcsNumber | `{{RCS_NUMBER}}` | fr mentions légales 扩展 | 待填（有则填） |
+| companyLegalName | `{{COMPANY_LEGAL_NAME}}` | privacy / terms（de/fr/ar） | 已填：上海戈拉光电科技有限公司 |
+| registeredAddress | `{{COMPANY_ADDRESS}}` | privacy / terms（de/fr/ar） | 已填 |
+| privacyEmail | `{{PRIVACY_EMAIL}}` | privacy（de/fr/ar） | 已填：tandong917@outlook.com |
+| jurisdiction | `{{JURISDICTION}}` | terms（de/fr/ar） | 已填：中国（de/fr/ar 按语言覆盖，见 4.1.1） |
+| lastUpdated | `{{LAST_UPDATED}}` | privacy / terms | 已填：2026-11-06 |
+| vatId | `{{VAT_ID}}` | de Impressum 扩展 | 未填（有则填） |
+| rcsNumber | `{{RCS_NUMBER}}` | fr mentions légales 扩展 | 未填（有则填） |
 
 补齐后即可对法务页执行发布（三语 privacy/terms），无需再改代码。
+
+### 4.1.1 已执行状态（2026-11-06）
+
+- **导入发布**：ar/de/fr 各 11 篇已 `--apply --publish-legal` 落库，content 表 5 语 × 11 篇全部 `published`；C 端 5 语 × 3 法务页共 15 组合全部 200，零残留占位符。
+- **管辖地按语言覆盖**：`site_profiles.config.legal.byLocale` 支持按语言覆写字段（当前只覆写 `jurisdiction`），渲染取值顺序为「按语言覆盖 → 全局值」。
+  - de：`der Volksrepublik China`
+  - fr：`la République populaire de Chine`
+  - ar：`جمهورية الصين الشعبية`
+- **en/zh 口径统一**：原 en「laws applicable to the place where Forge operates」、zh「Forge 经营所在地适用法律」已改为明确适用中华人民共和国法律，并补上与三语一致的强制消费者保护保留条款（不限制用户所在国家/地区的强制性消费者权利），与 de/fr/ar 及同类 DTC 站点写法对齐。
+- **脚本**：`temp/fix_terms_jurisdiction.py`（en/zh 口径修正，默认 dry-run，`--apply` 写库前自动 `pg_dump` 备份）。
 
 ### 4.2 仍待决策
 
