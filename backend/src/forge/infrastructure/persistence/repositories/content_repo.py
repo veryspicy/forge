@@ -63,9 +63,7 @@ class SQLAlchemyContentRepository:
 
     @staticmethod
     async def get_by_slug_locale(db: AsyncSession, slug: str, locale: str = "en") -> ORMContent | None:
-        result = await db.execute(
-            select(ORMContent).where(ORMContent.slug == slug, ORMContent.locale == locale)
-        )
+        result = await db.execute(select(ORMContent).where(ORMContent.slug == slug, ORMContent.locale == locale))
         return result.scalar_one_or_none()
 
     @staticmethod
