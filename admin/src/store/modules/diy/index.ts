@@ -11,9 +11,10 @@ export const SITE_CONFIG_GROUPS = [
 
 export type SiteConfigGroupKey = (typeof SITE_CONFIG_GROUPS)[number]['key'];
 
-/** 站点配置项的 key 列表（3 组 11 项，每项必须带 icon） */
+/** 站点配置项的 key 列表（3 组 17 项，每项必须带 icon） */
 export const SITE_CONFIG_ITEMS = [
   { key: 'store', label: '店铺设置', icon: 'mdi:store', group: 'shop' },
+  { key: 'legal', label: '法务信息', icon: 'mdi:gavel', group: 'shop' },
   { key: 'brand', label: '品牌', icon: 'mdi:tag-text', group: 'shop' },
   { key: 'currencies', label: '货币', icon: 'mdi:cash', group: 'shop' },
   { key: 'theme', label: '主题', icon: 'mdi:palette', group: 'display' },
@@ -34,6 +35,16 @@ export const SITE_CONFIG_ITEMS = [
 export type SiteConfigKey = (typeof SITE_CONFIG_ITEMS)[number]['key'];
 
 const DEFAULT_SITE_CONFIG = {
+  // 法务信息：对外法务事实唯一数据源，CMS 法务页用 {{COMPANY_LEGAL_NAME}} 等占位符注入
+  legal: {
+    companyLegalName: '',
+    registeredAddress: '',
+    privacyEmail: '',
+    jurisdiction: '',
+    lastUpdated: '',
+    vatId: '',
+    rcsNumber: ''
+  },
   brand: { name: 'Forge', tagline: '', favicon: '', logo: { type: 'text', data: '' } },
   theme: {
     preset: 'forge' as string,

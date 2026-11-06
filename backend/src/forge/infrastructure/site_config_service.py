@@ -184,6 +184,33 @@ def _to_public_shopping_info(block: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+# 法务信息块字段（camelCase，与 site_defaults.DEFAULT_CONFIG["legal"] 一致）
+LEGAL_TEXT_FIELDS: tuple[str, ...] = (
+    "companyLegalName",
+    "registeredAddress",
+    "privacyEmail",
+    "jurisdiction",
+    "lastUpdated",
+    "vatId",
+    "rcsNumber",
+)
+
+
+async def get_legal_info(db: AsyncSession) -> dict[str, str]:
+    """法务信息：公司主体名 / 注册地址 / 隐私邮箱 / 管辖法律 / 生效日期 / VAT ID / RCS 号。
+
+    唯一数据源：site_profiles.config.legal（Admin → 站点设置 → 法务信息）。
+    始终返回全部键（未配置为空字符串），供 CMS 法务占位符渲染与 C 端展示复用；
+    调用方据空字符串判定“该占位符尚未配置”，不要在此处补默认文案。
+    """
+    block = await _read_block(db, "legal") or {}
+    result: dict[str, str] = {}
+    for field in LEGAL_TEXT_FIELDS:
+        raw = block.get(field)
+        result[field] = "" if raw is None else str(raw).strip()
+    return result
+
+
 async def get_shopping_info(db: AsyncSession) -> dict[str, Any]:
     """购物信息（运费/预计送达/进口费/付款方式）：优先站点配置 shoppingInfo；存量缺失时回退 app_settings。
 

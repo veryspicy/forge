@@ -252,6 +252,19 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "importFee": {"enabled": False, "amount": None, "label": ""},
         "paymentMethods": {"enabled": True, "methods": ["card", "paypal", "apple_pay", "google_pay"]},
     },
+    # 法务信息（组1 店铺基础）：对外法务事实的唯一数据源。
+    # CMS 法务页正文使用 {{COMPANY_LEGAL_NAME}} 等占位符，渲染时由此块注入
+    # （见 forge.application.services.legal_placeholder_service）。
+    # 默认全空 = 尚未配置；空值占位符会让对应内容页视为未就绪（不对外展示）。
+    "legal": {
+        "companyLegalName": "",
+        "registeredAddress": "",
+        "privacyEmail": "",
+        "jurisdiction": "",
+        "lastUpdated": "",
+        "vatId": "",
+        "rcsNumber": "",
+    },
     # 商品审核开关（迁移自 admin app_settings product_audit_enabled，默认关闭）
     "productAudit": {
         "enabled": False,

@@ -1112,8 +1112,116 @@ function togglePaymentMethod(m: string, checked: boolean) {
         </ConfigCard>
       </div>
 
+      <!-- 法务信息（组1 店铺基础）：CMS 法务页占位符的唯一数据源 -->
+      <div v-else-if="activeConfigKey === 'legal'" class="flex flex-col gap-3">
+        <div
+          class="rounded border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-700 dark:bg-amber-900/20 dark:text-amber-300"
+        >
+          这里的值会注入到 CMS 法务页正文的占位符中（<code v-pre>{{COMPANY_LEGAL_NAME}}</code> /
+          <code v-pre>{{COMPANY_ADDRESS}}</code> / <code v-pre>{{PRIVACY_EMAIL}}</code> /
+          <code v-pre>{{JURISDICTION}}</code> / <code v-pre>{{LAST_UPDATED}}</code> /
+          <code v-pre>{{VAT_ID}}</code> / <code v-pre>{{RCS_NUMBER}}</code>）。 任一字段留空，引用它的页面（privacy /
+          terms / cookies）即视为未就绪，不会对外展示。
+        </div>
+
+        <ConfigCard title="公司主体">
+          <div class="flex flex-col gap-3">
+            <div class="flex flex-col gap-1">
+              <FieldLabel
+                label="公司法定主体名"
+                name="legal.companyLegalName"
+                type="string"
+                range="与营业执照完全一致"
+                example="Forge Pet Supplies Co., Ltd."
+                desc="德国 Impressum（§5 DDG）、法国 mentions légales 强制披露项。"
+              />
+              <NInput v-model:value="config.legal.companyLegalName" placeholder="如 XXXXXX有限公司" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <FieldLabel
+                label="注册地址"
+                name="legal.registeredAddress"
+                type="string (textarea)"
+                range="可送达地址，含国家"
+                example="XX省XX市XX区XX路XX号（邮编 XXXXXX）"
+                desc="必须是可实际投递的地址，不能只写邮箱或信箱。"
+              />
+              <NInput
+                v-model:value="config.legal.registeredAddress"
+                type="textarea"
+                :autosize="{ minRows: 2, maxRows: 4 }"
+                placeholder="注册地址"
+              />
+            </div>
+            <div class="flex flex-col gap-1">
+              <FieldLabel
+                label="增值税号 (VAT ID)"
+                name="legal.vatId"
+                type="string"
+                range="按注册国格式"
+                example="DE123456789"
+                desc="仅欧盟主体需要（德国 Impressum 要求）；无则留空。"
+              />
+              <NInput v-model:value="config.legal.vatId" placeholder="留空则不注入 VAT 号" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <FieldLabel
+                label="RCS 号"
+                name="legal.rcsNumber"
+                type="string"
+                range="按注册地格式"
+                example="RCS Paris 123 456 789"
+                desc="法国 mentions légales 要求；非法国主体留空。"
+              />
+              <NInput v-model:value="config.legal.rcsNumber" placeholder="留空则不注入 RCS 号" />
+            </div>
+          </div>
+        </ConfigCard>
+
+        <ConfigCard title="联系方式与管辖">
+          <div class="flex flex-col gap-3">
+            <div class="flex flex-col gap-1">
+              <FieldLabel
+                label="隐私联系邮箱"
+                name="legal.privacyEmail"
+                type="email"
+                range="≤ 254 字符"
+                example="privacy@yourdomain.com"
+                desc="隐私政策中数据主体行使权利的收件邮箱（GDpr / CNIL 建议为专用别名）。"
+              />
+              <NInput v-model:value="config.legal.privacyEmail" placeholder="privacy@yourdomain.com" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <FieldLabel
+                label="管辖法律"
+                name="legal.jurisdiction"
+                type="string"
+                range="法律适用 + 管辖地"
+                example="中华人民共和国法律；消费者住所地强制保护规定优先"
+                desc="写入 terms 的适用法律条款；面向欧盟/中东消费者须保留当地强制保护优先。"
+              />
+              <NInput v-model:value="config.legal.jurisdiction" placeholder="如 中华人民共和国法律（消费者保护强制规定优先）" />
+            </div>
+          </div>
+        </ConfigCard>
+
+        <ConfigCard title="生效日期">
+          <div class="flex flex-col gap-1">
+            <FieldLabel
+              label="法务页生效日期"
+              name="legal.lastUpdated"
+              type="string (YYYY-MM-DD)"
+              range="YYYY-MM-DD，留空则不注入"
+              example="2026-11-06"
+              desc="渲染时按页面语言本地化：en → November 6, 2026；de → 6. November 2026；fr/ar → 6 novembre 2026；zh → 2026年11月6日。"
+            />
+            <NInput v-model:value="config.legal.lastUpdated" placeholder="2026-11-06" />
+          </div>
+        </ConfigCard>
+      </div>
+
       <!-- 2. 主题配置 -->
-      <div v-if="activeConfigKey === 'brand'" class="flex flex-col gap-3">
+      <div v-else-if="activeConfigKey === 'brand'" class="flex flex-col gap-3">
         <!-- 品牌预览卡片：Logo + 品牌名称/标语 -->
         <ConfigCard title="品牌预览">
           <div class="flex items-center gap-3">
