@@ -14,7 +14,7 @@
       <template v-else-if="order">
         <!-- Breadcrumb -->
         <nav class="flex mb-6 text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">
-          <button class="hover:text-neutral-700 dark:hover:text-neutral-300" @click="navigateTo('/orders')">{{ $t('orders.orders') }}</button>
+          <button class="hover:text-neutral-700 dark:hover:text-neutral-300" @click="navigateTo(localePath('/orders'))">{{ $t('orders.orders') }}</button>
           <svg class="w-4 h-4 mx-2 rtl:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
           </svg>
@@ -742,6 +742,7 @@ definePageMeta({
 
 const route = useRoute()
 const router = useRouter()
+const localePath = useLocalePath()
 const orderStore = useOrderStore()
 const { fetchShipments, fetchReturnEligibility, createReturn, fetchMyReturns, cancelReturn, submitReturnShipment, createPaymentSession, capturePayment } = useApi()
 const { toMessage, resolveCode } = useApiError()
@@ -961,7 +962,7 @@ const doDeleteOrder = async () => {
     await orderStore.deleteOrder(orderId.value)
     toast.success(t('orders.orderDeleted'))
     showDeleteModal.value = false
-    navigateTo('/orders')
+    navigateTo(localePath('/orders'))
   } catch (err: any) {
     error.value = toMessage(err)
   } finally {

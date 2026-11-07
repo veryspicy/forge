@@ -134,6 +134,7 @@ podman network connect docker_forge forge-gateway
 9. **minio 官方镜像下架（已固化）**：Docker Hub 自 2025-10 起停止分发 `minio/minio` 仓库，任何 Docker Hub 代理（Harbor/公共加速器）均无法回源，拉取表现为空列表/静默卡死/exit 125。**必须使用 `ghcr.io/imagegenius/minio:latest`**，且显式绕过其 s6 入口（`entrypoint: ["minio"]` + `command: ["server", "/data", ...]`，实测 /init 硬编码 `server /config` 且不读 MINIO_OPTS，见 §8.1）。compose 已固化该镜像，重建直接 `podman-compose up -d` 即可，见 §8。
 10. **容器内 DNS 解析失败（已固化）**：backend 解析不到 `minio` 主机名时 P4 下载接口 503。根因：手动 `podman run` 缺 `--network-alias`，或曾用注入 `/etc/hosts` 写死 IP（**podman restart 会重置 /etc/hosts，IP 方案必然失效**）。正确通路：容器挂 `docker_forge` 网络 + compose 服务名（或 `--network-alias minio`）做 DNS 别名，backend 用 `MINIO_ENDPOINT=minio:9000`，见 §8。
 11. **恢复后漏查全组件导致误报"已修复"（2026-10-17）**：forge-minio Exited(0) 导致 C 端商品图 404，手动拉起 minio + restart backend 后仅抽样图片 200 即声称修复，未核对其余 9 容器。根因：恢复验证只覆盖故障单链路。强制：任何环境恢复/修复后必须执行 §5 步骤 6 的全组件健康检查，全绿才可声明完成。
+12. **git hooks 归属单一是本机基线（2026-11-06 核对固化）**：本机 `.git/hooks/pre-commit` 与 `commit-msg` 均由 **simple-git-hooks** 安装（入口分别是 `scripts/pre-commit.mjs`、`portal-web/scripts/check-commit-msg.mjs`），backend 的 `pre-commit` 框架在本机不可用（`%APPDATA%\uv\tools\pre-commit` 为空壳、`~\.local\precommit-env` 无二进制），其 ruff/mypy 职责已并入 `scripts/pre-commit.mjs`。**不要安装第二套安装器**——两套都写同一 hook 文件，后装者静默覆盖先装者，提交会在无报错情况下不跑质量门禁。环境重建后核对命令：`Get-Content .git/hooks/pre-commit`（应为 `node scripts/pre-commit.mjs`）、`Get-Content .git/hooks/commit-msg`（应为 `node portal-web/scripts/check-commit-msg.mjs`）；损坏时用 `cd portal-web; pnpm install` 恢复。完整条款见 DEV-RULES §13.2。
 
 ---
 
