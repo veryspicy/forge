@@ -81,6 +81,8 @@ warn_return_any = true
 warn_unused_configs = true
 explicit_package_bases = true
 mypy_path = "src"
+# 与 CI 口径对齐：CI 只校验 src/，tests/ 的类型标注属技术债另行收敛
+exclude = ["^tests/"]
 plugins = ["pydantic.mypy", "sqlalchemy.ext.mypy.plugin"]
 
 [[tool.mypy.overrides]]

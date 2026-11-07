@@ -184,6 +184,51 @@ def _to_public_shopping_info(block: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+# 法务信息块字段（camelCase，与 site_defaults.DEFAULT_CONFIG["legal"] 一致）
+LEGAL_TEXT_FIELDS: tuple[str, ...] = (
+    "companyLegalName",
+    "registeredAddress",
+    "privacyEmail",
+    "jurisdiction",
+    "lastUpdated",
+    "vatId",
+    "rcsNumber",
+)
+
+
+async def get_legal_info(db: AsyncSession) -> dict[str, Any]:
+    """法务信息：公司主体名 / 注册地址 / 隐私邮箱 / 管辖法律 / 生效日期 / VAT ID / RCS 号。
+
+    唯一数据源：site_profiles.config.legal（Admin → 站点设置 → 法务信息）。
+    始终返回全部键（未配置为空字符串），供 CMS 法务占位符渲染与 C 端展示复用；
+    调用方据空字符串判定“该占位符尚未配置”，不要在此处补默认文案。
+
+    另返回可选的 ``byLocale``：``{locale: {字段: 值}}``，用于按语言覆盖全局值
+    （占位符处于语法内嵌位置的字段，如德语 {{JURISDICTION}}）。空值不进入覆盖层。
+    """
+    block = await _read_block(db, "legal") or {}
+    result: dict[str, Any] = {}
+    for field in LEGAL_TEXT_FIELDS:
+        raw = block.get(field)
+        result[field] = "" if raw is None else str(raw).strip()
+
+    overrides: dict[str, dict[str, str]] = {}
+    raw_overrides = block.get("byLocale")
+    if isinstance(raw_overrides, dict):
+        for locale, values in raw_overrides.items():
+            if not isinstance(values, dict):
+                continue
+            cleaned = {
+                field: str(values.get(field) or "").strip()
+                for field in LEGAL_TEXT_FIELDS
+                if str(values.get(field) or "").strip()
+            }
+            if cleaned:
+                overrides[str(locale).strip().lower()] = cleaned
+    result["byLocale"] = overrides
+    return result
+
+
 async def get_shopping_info(db: AsyncSession) -> dict[str, Any]:
     """购物信息（运费/预计送达/进口费/付款方式）：优先站点配置 shoppingInfo；存量缺失时回退 app_settings。
 

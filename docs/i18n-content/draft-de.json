@@ -1,0 +1,100 @@
+{
+  "_meta": {
+    "locale": "de",
+    "status": "DRAFT - 待业务/法务确认后导入",
+    "fact_baseline": "全部事实取自 content 表 locale=en 现有正文（$50 免运门槛、2 个工作日处理、30 天退货、5-10 个工作日退款、7 天破损申报、tandong917@outlook.com、全球发货、四种支付方式）",
+    "benchmark_source": "docs/i18n-content/benchmark-pet-dtc.md（Wild One / Fable / maxbone / Tuft+Paw / BARK 官网实查）",
+    "placeholders": ["{{COMPANY_LEGAL_NAME}}", "{{COMPANY_ADDRESS}}", "{{VAT_ID}}", "{{PRIVACY_EMAIL}}", "{{JURISDICTION}}", "{{LAST_UPDATED}}"],
+    "do_not_publish": ["privacy", "terms", "cookies"]
+  },
+  "pages": [
+    {
+      "slug": "faqs",
+      "title": "Häufig gestellte Fragen",
+      "seo_title": "FAQ - Einkauf, Versand und Rückgabe bei Forge",
+      "seo_description": "Antworten auf häufige Fragen zu Einkauf, Versand, Rückgabe und KI-Empfehlungen bei Forge.",
+      "body": "<h2>Häufig gestellte Fragen</h2><p>Alles Wichtige rund um Ihren Einkauf bei Forge. Sie finden keine Antwort? Schreiben Sie uns über unsere <a href=\"/contact\">Kontaktseite</a>.</p><h3>Wie lege ich ein Tierprofil an?</h3><p>Melden Sie sich in Ihrem Konto an, öffnen Sie <a href=\"/pets\">Meine Tiere</a> und hinterlegen Sie Rasse, Alter, Gewicht und gesundheitliche Hinweise. Auf Basis dieser Angaben schlägt unsere KI Produkte vor, die zu Ihrem Tier passen.</p><h3>In welche Länder liefern Sie?</h3><p>Wir versenden weltweit über unser globales Logistiknetzwerk. Lieferzeiten und Versandkosten unterscheiden sich je nach Region - Details finden Sie auf unserer <a href=\"/shipping\">Versandseite</a>.</p><h3>Wie lange dauert die Bearbeitung einer Bestellung?</h3><p>Bestellungen werden in der Regel innerhalb von 2 Werktagen bearbeitet. Sobald Ihre Sendung unterwegs ist, erhalten Sie eine Bestätigungs-E-Mail mit Sendungsnummer.</p><h3>Welche Zahlungsmethoden akzeptieren Sie?</h3><p>Wir akzeptieren gängige Kredit- und Debitkarten, PayPal, Apple Pay und Google Pay. Alle Transaktionen werden verschlüsselt und sicher verarbeitet.</p><h3>Wie funktionieren Rückgabe und Umtausch?</h3><p>Für die meisten Artikel gilt ein Rückgabefenster von 30 Tagen. Die vollständigen Bedingungen und den Ablauf finden Sie auf unserer <a href=\"/returns\">Seite für Rückgabe und Umtausch</a>.</p><h3>Wie funktioniert die KI-Empfehlung?</h3><p>Unsere KI verknüpft Ihr Tierprofil, den Alltag Ihres Tieres und die Produkteigenschaften, um die passendsten Artikel zuerst anzuzeigen. Sie ist eine Orientierungshilfe und kein Urteil - der gesamte Katalog bleibt jederzeit für Sie zugänglich.</p><h3>Wie erreiche ich den Kundenservice?</h3><p>Schreiben Sie uns an tandong917@outlook.com oder nutzen Sie das Formular auf unserer <a href=\"/contact\">Kontaktseite</a>. Wir antworten innerhalb eines Werktags.</p>",
+      "review_flags": []
+    },
+    {
+      "slug": "shipping",
+      "title": "Versandinformationen",
+      "seo_title": "Versandinformationen - Lieferzeiten und Versandkosten",
+      "seo_description": "Bearbeitungszeit, regionale Lieferzeiten, kostenloser Versand ab Bestellwert, Sendungsverfolgung und Zoll bei internationalen Lieferungen.",
+      "body": "<h2>Versandinformationen</h2><p>Wir sorgen für eine schnelle und zuverlässige Lieferung an Tierhalterinnen und Tierhalter weltweit.</p><h3>Bearbeitungszeit</h3><p>Bestellungen werden nach Zahlungseingang innerhalb von 2 Werktagen bearbeitet. In Spitzenzeiten und während Aktionen kann die Bearbeitung etwas länger dauern.</p><h3>Lieferzeiten</h3><p>Voraussichtliche Transportzeiten nach Region:</p><ul><li>Nordamerika: 5-10 Werktage</li><li>Europa: 5-9 Werktage</li><li>Naher Osten: 7-12 Werktage</li><li>Übrige Regionen: 7-14 Werktage</li></ul><p>Die Transportzeit beginnt mit der Übergabe an den Versanddienstleister. Die genannten Werte sind Richtwerte und keine garantierten Liefertermine.</p><h3>Versandkosten</h3><p>Ab einem Bestellwert von 50 USD versenden wir kostenfrei. Bei Bestellungen unterhalb dieses Wertes berechnen wir eine Pauschale, die im Checkout anhand des Lieferziels ermittelt wird. Maßgeblich ist die im Checkout angezeigte Währung.</p><h3>Sendungsverfolgung</h3><p>Sobald Ihre Bestellung versandt wurde, erhalten Sie per E-Mail eine Sendungsnummer. Den Status können Sie außerdem in Ihrem Konto unter <a href=\"/orders\">Bestellungen</a> einsehen.</p><h3>Internationale Lieferungen und Zoll</h3><p>Bei internationalen Bestellungen können im Zielland Einfuhrzölle und Steuern anfallen. Diese Abgaben trägt der Empfänger; sie sind im Bestellwert nicht enthalten, sofern im Checkout nichts anderes angegeben ist.</p>",
+      "review_flags": ["区域时效 4 档为对照同行区间拟定（Wild One 5-9/AE 2-4、Tuft+Paw 5-10、maxbone 3-7/7-10），需你确认真实承运商与时效后替换", "货币单位沿用 en 的 USD，若德国市场以 EUR 定价需同步调整"]
+    },
+    {
+      "slug": "returns",
+      "title": "Rückgabe & Umtausch",
+      "seo_title": "Rückgabe und Umtausch - 30 Tage Rückgaberecht bei Forge",
+      "seo_description": "Die meisten Artikel können innerhalb von 30 Tagen zurückgegeben werden. Bedingungen, Ablauf und Rückerstattungsdauer im Überblick.",
+      "body": "<h2>Rückgabe &amp; Umtausch</h2><p>Sie und Ihr Tier sollen mit jedem Einkauf vollständig zufrieden sein.</p><h3>30 Tage Rückgabefrist</h3><p>Die meisten Artikel können innerhalb von 30 Tagen nach Lieferung gegen Erstattung oder Umtausch zurückgegeben werden.</p><h3>Bedingungen</h3><ul><li>Artikel müssen unbenutzt und in der Originalverpackung sein</li><li>Kaufnachweis oder Bestellnummer erforderlich</li><li>Aus Hygienegründen sind geöffnete Verbrauchsgüter wie Futter und Leckerlis von der Rückgabe ausgeschlossen, sofern sie nicht mangelhaft sind</li><li>Personalisierte oder individuell angefertigte Artikel sind von der Rückgabe ausgeschlossen, sofern sie nicht beschädigt ankommen</li></ul><h3>Gesetzliches Widerrufsrecht (EU)</h3><p>Verbraucherinnen und Verbrauchern in der EU steht zusätzlich ein gesetzliches Widerrufsrecht von 14 Tagen ab Erhalt der Ware zu. Dieses Recht besteht unabhängig von unserer 30-tägigen Rückgabefrist und ohne Angabe von Gründen; ausgenommen sind unter anderem versiegelte Waren, die aus Gesundheits- oder Hygienegründen nicht zur Rückgabe geeignet sind, sowie individuell angefertigte Artikel. Die Rücksendekosten trägt der Verbraucher; die Erstattung erfolgt spätestens 14 Tage nach Zugang des Widerrufs.</p><h3>So starten Sie eine Rückgabe</h3><p>Kontaktieren Sie uns über die <a href=\"/contact\">Kontaktseite</a> oder per E-Mail an tandong917@outlook.com und nennen Sie Ihre Bestellnummer sowie den Grund. Wir senden Ihnen eine Rücksendeanleitung und, sofern zutreffend, ein vorfrankiertes Rücksendelabel.</p><h3>Rückerstattung</h3><p>Die Erstattung erfolgt auf das ursprüngliche Zahlungsmittel innerhalb von 5-10 Werktagen, nachdem der zurückgesandte Artikel bei uns eingegangen und geprüft wurde.</p><h3>Beschädigte oder falsche Artikel</h3><p>Sollte Ihre Bestellung beschädigt oder mit falschen Artikeln ankommen, melden Sie sich innerhalb von 7 Tagen nach Lieferung mit Fotos bei uns. Wir liefern Ersatz oder erstatten den Kaufpreis ohne Zusatzkosten.</p>",
+      "review_flags": ["德国法下需在 Widerrufsbelehrung 中提供可保存的撤回权说明与撤回表格模板，建议由法务出正式版", "退货运费由客户承担需在下单前明确告知，现表述已标注"]
+    },
+    {
+      "slug": "contact",
+      "title": "Kontakt",
+      "seo_title": "Kontakt Forge - Support, Bestellungen und Partnerschaften",
+      "seo_description": "Erreichen Sie das Forge-Team bei Fragen zu Bestellungen, Produkten, Partnerschaften oder Feedback. Wir antworten innerhalb eines Werktags.",
+      "body": "<h2>Kontakt</h2><p>Wir freuen uns, von Tierhalterinnen und Tierhaltern zu hören. Unser Support-Team hilft Ihnen bei Bestellungen, Produktfragen und allem dazwischen.</p><h3>Kundenservice</h3><p>Schreiben Sie uns an tandong917@outlook.com. Wir antworten innerhalb eines Werktags.</p><h3>Hilfe zur Bestellung</h3><p>Bei Fragen zu einer konkreten Bestellung nennen Sie bitte Ihre Bestellnummer (zu finden in Ihrem Konto unter <a href=\"/orders\">Bestellungen</a>), damit wir Ihr Anliegen schneller lösen können.</p><h3>Geschäftliche Partnerschaften</h3><p>Interesse an Großhandel, Markenkooperationen oder Medienpartnerschaften? Schreiben Sie uns mit einer kurzen Vorstellung, wir melden uns zurück.</p><h3>Feedback</h3><p>Ihr Feedback macht Forge besser. Ob Produktvorschlag oder Erfahrungsbericht - wir hören es gern.</p>",
+      "review_flags": ["德国市场通常需在此页或独立 Impressum 页注明 {{COMPANY_LEGAL_NAME}} / {{COMPANY_ADDRESS}} / {{VAT_ID}}，是否需要独立法律声明页待你决策"]
+    },
+    {
+      "slug": "story",
+      "title": "Unsere Geschichte",
+      "seo_title": "Unsere Geschichte - Warum es Forge gibt",
+      "seo_description": "Forge entstand aus einer einfachen Beobachtung: Tierhalter wollen das Beste für ihre Tiere, doch die Auswahl ist überwältigend.",
+      "body": "<h2>Unsere Geschichte</h2><p>Forge entstand aus einer einfachen Beobachtung: Tierhalterinnen und Tierhalter wollen das Beste für ihre Tiere, doch unter der endlosen Zahl an Optionen das richtige Produkt zu finden, ist überwältigend.</p><h3>Warum Forge</h3><p>Wir haben einen KI-gestützten Shop für Tierbedarf gebaut, der lernt, was jedes Tier einzigartig macht - Rasse, Alter, Gewicht, Aktivität und gesundheitliche Bedürfnisse - und daraus wirklich relevante Empfehlungen ableitet.</p><h3>Woran wir glauben</h3><ul><li>Jedes Tier ist ein Individuum, keine Kategorie</li><li>Beratung muss ehrlich sein, auch wenn sie uns einen Verkauf kostet</li><li>Gutes Design macht die Pflege eines Tieres einfacher</li><li>Nachhaltigkeit ist eine Grundlage, kein Feature</li></ul><h3>Wohin wir gehen</h3><p>Wir bauen eine globale Gemeinschaft von Tierhalterinnen und Tierhaltern auf, die für ihre Tiere klügere Entscheidungen treffen - unterstützt von einer KI, die mit jeder Interaktion besser wird.</p>",
+      "review_flags": []
+    },
+    {
+      "slug": "sustainability",
+      "title": "Nachhaltigkeit",
+      "seo_title": "Nachhaltigkeit - Forges Engagement für die Umwelt",
+      "seo_description": "Recycelbare Verpackungen, bewusste Beschaffung, ein reduzierter CO2-Fußabdruck pro Bestellung und Unterstützung des Tierschutzes.",
+      "body": "<h2>Nachhaltigkeit</h2><p>Wir sind überzeugt: Tiere zu versorgen und den Planeten zu schonen gehören zusammen.</p><h3>Verantwortungsvolle Verpackung</h3><p>Wir setzen auf recycelbare und möglichst sparsame Verpackungen und reduzieren Plastik, wo es die Produktsicherheit zulässt.</p><h3>Bewusste Beschaffung</h3><p>Wir arbeiten mit Lieferanten zusammen, die ethische und ökologische Standards erfüllen, und bevorzugen Produkte aus nachhaltigen oder recycelten Materialien.</p><h3>Fußabdruck reduzieren</h3><p>Von gebündelten Lieferungen bis zu digitalen Rechnungen suchen wir Wege, den CO2-Fußabdruck jeder Bestellung zu senken.</p><h3>Etwas zurückgeben</h3><p>Ein Teil unserer Erlöse unterstützt Tierschutzorganisationen, die sich auf Rettung, Versorgung und Vermittlung konzentrieren.</p>",
+      "review_flags": ["『A share of proceeds』的受益组织与比例未在 en 中量化，德语版沿用不量化表述；若要对德宣传具体比例或认证，需有可核验依据（避免 §5 UWG 误导性宣传风险）"]
+    },
+    {
+      "slug": "blog",
+      "title": "Der Forge Blog",
+      "seo_title": "Der Forge Blog - Ratgeber und Geschichten rund um Tiere",
+      "seo_description": "Fundierte Ratgeber und Geschichten, die Ihnen helfen, Ihr Tier mit Sicherheit zu versorgen.",
+      "body": "<h2>Der Forge Blog</h2><p>Fundierte Ratgeber und Geschichten, die Ihnen helfen, Ihr Tier mit Sicherheit zu versorgen.</p><h3>Was Sie hier finden</h3><p>Neue Beiträge erscheinen regelmäßig. Abonnieren Sie unseren Newsletter, um die neuesten Artikel direkt in Ihr Postfach zu erhalten.</p>",
+      "review_flags": []
+    },
+    {
+      "slug": "careers",
+      "title": "Karriere bei Forge",
+      "seo_title": "Karriere bei Forge - Die Zukunft der Tierpflege mitgestalten",
+      "seo_description": "Arbeiten Sie bei Forge in Engineering, Produktdesign, Tierpflege-Inhalten, Lieferkette und Kundenerfahrung. Viele Stellen sind remote möglich.",
+      "body": "<h2>Karriere bei Forge</h2><p>Wir sind ein kleines, engagiertes Team, das mit KI die Zukunft der Tierpflege gestaltet - und würden uns freuen, mit den richtigen Menschen zu wachsen.</p><h3>Was uns wichtig ist</h3><ul><li>Verantwortung und Handwerk in allem, was wir liefern</li><li>Direkte, ehrliche Kommunikation</li><li>Tier zuerst denken - in jeder Entscheidung</li><li>Klein ausliefern, schnell lernen, offen iterieren</li></ul><h3>Bereiche, in denen wir einstellen</h3><p>Engineering, Produktdesign, Tierpflege-Inhalte, Lieferkette und Kundenerfahrung. Viele Stellen sind remote möglich.</p><h3>So bewerben Sie sich</h3><p>Senden Sie Ihren Lebenslauf und ein paar Zeilen, warum Sie zu Forge möchten, an tandong917@outlook.com. Wir antworten auf jede Bewerbung.</p>",
+      "review_flags": []
+    },
+    {
+      "slug": "privacy",
+      "title": "Datenschutzerklärung",
+      "seo_title": "Datenschutzerklärung - So erhebt und schützt Forge Ihre Daten",
+      "seo_description": "Welche Daten Forge erhebt, wie wir sie verwenden und weitergeben und welche Rechte Sie nach DSGVO haben.",
+      "body": "<h2>Datenschutzerklärung</h2><p>Ihre Privatsphäre ist uns wichtig. Diese Erklärung beschreibt, welche personenbezogenen Daten wir erheben, wie wir sie verwenden und welche Rechte Ihnen zustehen.</p><p><strong>Verantwortlicher:</strong> {{COMPANY_LEGAL_NAME}}, {{COMPANY_ADDRESS}}<br><strong>Stand:</strong> {{LAST_UPDATED}}</p><h3>Welche Daten wir erheben</h3><ul><li>Kontodaten wie Name, E-Mail-Adresse und Lieferadresse</li><li>Bestell- und Zahlungsdaten. Kartendaten werden von unseren Zahlungsdienstleistern verarbeitet und nicht bei uns gespeichert</li><li>Tierprofile, die Sie anlegen, einschließlich Rasse, Alter, Gewicht und gesundheitlicher Hinweise</li><li>Nutzungsdaten wie aufgerufene Seiten, Gerätetyp und ungefährer Standort</li></ul><h3>Zwecke und Rechtsgrundlagen</h3><ul><li>Vertragserfüllung: Abwicklung und Lieferung Ihrer Bestellungen (Art. 6 Abs. 1 lit. b DSGVO)</li><li>Personalisierung von KI-Produktempfehlungen für Ihre Tiere</li><li>Kundenservice und Bearbeitung Ihrer Anfragen</li><li>Verbesserung unserer Produkte, Inhalte und des Shops</li></ul><h3>Weitergabe von Daten</h3><p>Wir geben Daten nur an Dienstleister weiter, die den Shop betrieblich unterstützen (Zahlungsabwicklung, Versand, Hosting), sowie wenn gesetzliche Pflichten bestehen. Wir verkaufen keine personenbezogenen Daten an Dritte.</p><h3>Speicherdauer</h3><p>Bestelldaten speichern wir so lange, wie es handels- und steuerrechtliche Aufbewahrungsfristen verlangen; übrige Daten nur so lange, wie es für die genannten Zwecke erforderlich ist.</p><h3>Ihre Rechte</h3><p>Sie haben das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch. Zudem können Sie sich bei einer Datenschutzaufsichtsbehörde beschweren. Wenden Sie sich zur Ausübung Ihrer Rechte an {{PRIVACY_EMAIL}}.</p><h3>Kontakt</h3><p>Fragen zu dieser Erklärung? Schreiben Sie an {{PRIVACY_EMAIL}}.</p>",
+      "review_flags": ["法务页：需法务而非机翻定稿", "需补齐 {{COMPANY_LEGAL_NAME}} / {{COMPANY_ADDRESS}} / {{PRIVACY_EMAIL}} / {{LAST_UPDATED}}", "需确认是否需要在欧盟任命 Art. 27 DSGVO 代表、是否使用 DPA 与第三方分析工具（决定 cookies/privacy 交叉表述）"]
+    },
+    {
+      "slug": "terms",
+      "title": "Allgemeine Geschäftsbedingungen",
+      "seo_title": "AGB - Nutzungsbedingungen von Forge",
+      "seo_description": "Die Bedingungen für die Nutzung von Forge: Vertragsschluss, Preise, Produktinformationen, geistiges Eigentum und Haftung.",
+      "body": "<h2>Allgemeine Geschäftsbedingungen</h2><p>Mit dem Zugriff auf Forge oder der Nutzung unserer Dienste stimmen Sie diesen Bedingungen zu. Bitte lesen Sie sie sorgfältig.</p><p><strong>Anbieter:</strong> {{COMPANY_LEGAL_NAME}}, {{COMPANY_ADDRESS}}<br><strong>Stand:</strong> {{LAST_UPDATED}}</p><h3>Nutzung des Angebots</h3><p>Sie müssen mindestens 18 Jahre alt sein oder den Dienst unter Aufsicht einer erziehungsberechtigten Person nutzen, um eine Bestellung aufzugeben. Für die Richtigkeit der von Ihnen gemachten Angaben sind Sie verantwortlich.</p><h3>Vertragsschluss und Preise</h3><p>Die Darstellung von Produkten im Shop stellt kein rechtlich bindendes Angebot dar. Mit dem Absenden der Bestellung geben Sie ein verbindliches Angebot ab; der Vertrag kommt mit unserer Auftragsbestätigung zustande. Alle Preise werden in der ausgewählten Währung angezeigt und können sich ändern. Wir können Bestellungen ablehnen oder stornieren, etwa bei Betrugsverdacht, offensichtlichen Preisirrtümern oder fehlender Verfügbarkeit.</p><h3>Produktinformationen</h3><p>Wir bemühen uns um korrekte Produktbeschreibungen und Abbildungen, können jedoch nicht garantieren, dass alle Angaben fehlerfrei sind. Tatsächliche Produkte können leicht von Abbildungen abweichen.</p><h3>Geistiges Eigentum</h3><p>Alle Inhalte dieser Website - einschließlich Texte, Grafiken, Logos und Software - sind Eigentum von Forge oder seinen Lizenzgebern und gesetzlich geschützt.</p><h3>Haftungsbeschränkung</h3><p>Soweit gesetzlich zulässig, haftet Forge nicht für mittelbare Schäden, Begleit- oder Folgeschäden aus der Nutzung des Dienstes. Die Haftung für Vorsatz, grobe Fahrlässigkeit sowie für Schäden aus der Verletzung von Leben, Körper oder Gesundheit bleibt unberührt.</p><h3>Anwendbares Recht</h3><p>Es gilt das Recht von {{JURISDICTION}} unter Ausschluss des Kollisionsrechts. Zwingende Verbraucherschutzvorschriften des Aufenthaltsstaats bleiben unberührt.</p><h3>Änderungen dieser Bedingungen</h3><p>Wir können diese Bedingungen gelegentlich aktualisieren. Die weitere Nutzung des Dienstes nach einer Änderung gilt als Zustimmung zu den geänderten Bedingungen.</p>",
+      "review_flags": ["法务页：AGB 需法务定稿，尤其 Vertragsschluss 时点、Preisangaben（是否含 MwSt.）、Widerrufsbelehrung 附件", "需确认 {{JURISDICTION}}；面向德国消费者时须标注价格是否含法定增值税（PAngV）", "en 版 privacy/terms 正文存在重复段落与占位符，本次德语版未复制该缺陷；en 侧缺陷另开 fix 处理"]
+    },
+    {
+      "slug": "cookies",
+      "title": "Cookie-Richtlinie",
+      "seo_title": "Cookie-Richtlinie - Forge",
+      "seo_description": "Wie Forge Cookies und ähnliche Technologien verwendet, welche Arten eingesetzt werden und wie Sie sie steuern oder löschen können.",
+      "body": "<h2>Cookie-Richtlinie</h2><p>Diese Richtlinie erläutert, wie Forge Cookies und ähnliche Technologien einsetzt und wie Sie sie steuern können.</p><h3>Was sind Cookies?</h3><p>Cookies sind kleine Textdateien, die beim Besuch einer Website auf Ihrem Gerät gespeichert werden. Sie helfen dem Shop, Ihre Einstellungen zu speichern und die Nutzung auszuwerten.</p><h3>Welche Cookies wir einsetzen</h3><ul><li>Notwendige Cookies: erforderlich für Anmeldung, Warenkorb und Checkout</li><li>Präferenz-Cookies: speichern Sprache, Währung und Region</li><li>Analyse-Cookies: helfen uns zu verstehen, wie der Shop genutzt wird</li><li>Marketing-Cookies: messen die Wirkung unserer Kampagnen</li></ul><h3>Einwilligung</h3><p>Nicht notwendige Cookies setzen wir nur mit Ihrer Einwilligung nach § 25 Abs. 1 TDDDG. Sie können Ihre Einwilligung jederzeit über den Cookie-Hinweis widerrufen und die Auswahl anschließend anpassen.</p><h3>Cookies von Dritten</h3><p>Einige Partner (Zahlungsdienstleister, Analyse-Dienste) können eigene Cookies setzen, wenn Sie deren Dienste auf unserer Website nutzen.</p><h3>Cookies verwalten</h3><p>Sie können Cookies über Ihre Browsereinstellungen steuern oder löschen. Das Blockieren notwendiger Cookies kann zentrale Funktionen wie die Anmeldung oder den Abschluss eines Kaufs beeinträchtigen.</p><h3>Aktualisierungen</h3><p>Wir können diese Richtlinie anpassen, wenn sich unsere Praktiken ändern. Änderungen werden auf dieser Seite veröffentlicht.</p>",
+      "review_flags": ["法务页：需与实际 cookie banner 的类别、第三方清单一致（当前 banner 分类需核对）"]
+    }
+  ]
+}
