@@ -69,8 +69,9 @@
           </svg>
         </button>
 
-        <!-- Language Select：选项由站点 i18n 配置驱动，支持任意启用语言 -->
+        <!-- Language Select：选项由站点 i18n 配置驱动，支持任意启用语言；单语模式隐藏 -->
         <select
+          v-if="showLocaleSwitch"
           v-model="currentLocale"
           class="hidden sm:block text-xs bg-transparent border border-neutral-200 dark:border-neutral-700/60 rounded-md px-2 py-1.5 text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 focus:outline-none focus:border-accent-400 cursor-pointer"
           @change="onLocaleChange"
@@ -117,12 +118,12 @@
         </button>
 
         <!-- User / Auth -->
-        <div class="hidden sm:flex relative" ref="userMenuRef">
+        <div ref="userMenuRef" class="hidden sm:flex relative">
           <button
             v-if="!isAuthenticated"
             class="p-2 text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
-            @click="navigateTo(localePath('/login'))"
             :title="t('nav.login')"
+            @click="navigateTo(localePath('/login'))"
           >
             <svg
               width="22"
@@ -188,8 +189,8 @@
         <!-- Mobile Hamburger -->
         <button
           class="md:hidden p-2 text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100"
-          @click="mobileMenuOpen = !mobileMenuOpen"
           aria-label="Toggle menu"
+          @click="mobileMenuOpen = !mobileMenuOpen"
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
             <line x1="3" y1="6" x2="21" y2="6" />
@@ -283,7 +284,7 @@
               <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
             </svg>
           </button>
-          <div class="flex items-center justify-between">
+          <div v-if="showLocaleSwitch" class="flex items-center justify-between">
             <label class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ t('nav.language') }}</label>
             <select
               v-model="currentLocale"
@@ -321,12 +322,12 @@ const localePath = useLocalePath()
 
 const cartStore = useCartStore()
 const route = useRoute()
-const { locale, setLocale, t, te } = useI18n()
+const { locale, setLocale, t } = useI18n()
 const authStore = useAuthStore()
 const { isAuthenticated, user } = storeToRefs(authStore)
 const { logout, fetchUser } = authStore
 const { currency: currentCurrency, setCurrency } = useCurrency()
-const { profile, visibleNav, resolveText } = useSiteProfile()
+const { profile, activeLocales, visibleNav, resolveText } = useSiteProfile()
 const { theme, toggleTheme } = useTheme()
 
 const mobileMenuOpen = ref(false)
@@ -359,15 +360,27 @@ onUnmounted(() => {
   window.removeEventListener('scroll', onScroll)
 })
 
-// ---- 语言选项：由站点 i18n 配置驱动（profile.i18n.locales） ----
+// ---- 语言选项：由站点生效语言驱动（profile.i18n 总闸 + 勾选清单） ----
 const LOCALE_LABELS: Record<string, string> = {
   en: 'EN', 'zh': 'ZH', 'zh-CN': '简体中文', 'zh-TW': '繁體中文',
   ar: 'AR', de: 'DE', fr: 'FR', es: 'ES', ja: 'JA', ko: 'KO',
   pt: 'PT', ru: 'RU', it: 'IT', nl: 'NL', pl: 'PL', tr: 'TR',
 }
 const enabledLocaleOptions = computed(() => {
-  const codes = profile.value.i18n.locales?.length ? profile.value.i18n.locales : ['en']
+  const codes = activeLocales.value.length ? activeLocales.value : ['en']
   return codes.map((c: string) => ({ code: c, label: LOCALE_LABELS[c] || c.toUpperCase() }))
+})
+
+// 单语模式（总闸关闭或只勾选一种语言）下没有任何切换意义，隐藏切换器
+const showLocaleSwitch = computed(() => enabledLocaleOptions.value.length > 1)
+watch(showLocaleSwitch, (show) => {
+  // 生效语言被收敛后，当前访问语言可能已失效 → 跟随站点默认语言
+  if (!show) {
+    const fallback = enabledLocaleOptions.value[0]?.code
+    if (fallback && currentLocale.value !== fallback) {
+      currentLocale.value = fallback as typeof currentLocale.value
+    }
+  }
 })
 
 const navLinks = computed(() => {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, h } from 'vue';
+import { ref, onMounted, computed, h } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import {
@@ -13,7 +13,8 @@ import {
   useMessage
 } from 'naive-ui';
 import { get, del, post } from '@/service/api/helper';
-import { contentLocaleShort, contentLocaleSelectOptions } from '@/constants/content-locale';
+import { contentLocaleShort, buildContentLocaleSelectOptions } from '@/constants/content-locale';
+import { useDiyStore } from '@/store/modules/diy';
 import type { DataTableColumns } from 'naive-ui';
 
 const router = useRouter();
@@ -34,7 +35,9 @@ const statusOptions = [
   { label: t('page.content.published'), value: 'published' }
 ];
 
-const localeOptions = contentLocaleSelectOptions;
+// 语言下拉：运行时读站点配置（i18n 总闸 + 勾选清单），单语模式只剩默认语言
+const diyStore = useDiyStore();
+const localeOptions = computed(() => buildContentLocaleSelectOptions(diyStore.siteConfig.i18n));
 
 async function fetchData() {
   loading.value = true;
@@ -149,7 +152,15 @@ function onPageSizeChange(s: number) {
   fetchData();
 }
 
-onMounted(fetchData);
+onMounted(async () => {
+  // 先取站点 i18n 配置，保证语言下拉与后端校验口径一致
+  await diyStore.fetchSiteConfig();
+  // 已选语言若因站点配置收敛而失效，清空筛选避免空列表
+  if (locale.value && !localeOptions.value.some((opt: any) => opt.value === locale.value)) {
+    locale.value = null;
+  }
+  fetchData();
+});
 </script>
 
 <template>

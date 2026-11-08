@@ -105,6 +105,32 @@ const localeTabsOptions = computed(() => {
   });
 });
 
+/** 多语言总闸（i18n.enabled，缺省 true：兼容未写入该字段的存量配置） */
+const i18nEnabled = computed({
+  get: () => config.value.i18n?.enabled !== false,
+  set: (val: boolean) => {
+    if (!config.value.i18n) config.value.i18n = {};
+    config.value.i18n.enabled = val;
+  }
+});
+
+/** 默认语言候选：优先已勾选语言（空清单时退回全集） */
+const defaultLocaleOptions = computed(() => {
+  const locales: string[] = (config.value.i18n?.locales || []).filter(Boolean);
+  const pool = locales.length > 0 ? localeOptions.filter(opt => locales.includes(opt.value)) : localeOptions;
+  return pool.length > 0 ? pool : localeOptions;
+});
+
+/** 生效语言预览（总闸关闭 → 仅默认语言） */
+const effectiveLocaleLabels = computed(() => {
+  const def = String(config.value.i18n?.defaultLocale || 'en');
+  const codes = i18nEnabled.value ? (config.value.i18n?.locales || [def]) : [def];
+  return codes
+    .filter(Boolean)
+    .map((code: string) => localeOptions.find(opt => opt.value === code)?.label || code)
+    .join('、');
+});
+
 /** 法务信息按语言覆盖：占位符落在语法内嵌位置时（de: “Recht von {{JURISDICTION}}”）
  *  需要该语言自己的写法，留空字段回退全局值。 */
 const legalOverrideLocale = ref('de');
@@ -797,10 +823,9 @@ const activeLocale = ref<string>('en');
 watch(
   () => config.value.i18n?.defaultLocale,
   v => {
-    if (v && !config.value.i18n?.locales?.includes(v)) {
-      // skip
-    }
-    if (v && config.value.i18n?.locales?.length) {
+    // 默认语言必须始终在勾选清单内（已是后端/ C 端派生口径的前提）
+    if (v && Array.isArray(config.value.i18n?.locales) && config.value.i18n.locales.length > 0) {
+      if (!config.value.i18n.locales.includes(v)) config.value.i18n.locales.unshift(v);
       activeLocale.value = v;
     }
   },
@@ -2538,6 +2563,27 @@ function togglePaymentMethod(m: string, checked: boolean) {
       <div v-else-if="activeConfigKey === 'i18n'" class="flex flex-col gap-4">
         <ConfigCard title="语言设置">
           <div class="flex flex-col gap-3">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex min-w-0 flex-col gap-0.5">
+                <span class="text-xs font-medium text-gray-600 dark:text-gray-300">多语言总闸</span>
+                <span class="text-xs leading-relaxed text-gray-400">
+                  关闭后站点只保留默认语言（单语模式）：C 端访问其他语言前缀统一 302 到默认语言，前台隐藏语言切换器，
+                  CMS 内容仅可录入默认语言。勾选的语言会保留但不生效。
+                </span>
+              </div>
+              <NSwitch v-model:value="i18nEnabled" size="small" class="shrink-0" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <FieldLabel
+                label="默认语言"
+                name="i18n.defaultLocale"
+                type="enum"
+                range="已勾选语言之一"
+                example="en"
+                desc="站点主语言；也是单语模式下的唯一语言、内容接口回退链的兜底语言。"
+              />
+              <NSelect v-model:value="config.i18n.defaultLocale" :options="defaultLocaleOptions" size="small" />
+            </div>
             <div class="flex flex-col gap-1">
               <FieldLabel
                 label="启用语言"
@@ -2545,9 +2591,18 @@ function togglePaymentMethod(m: string, checked: boolean) {
                 type="array<enum>"
                 range="至少 1 个"
                 example="['zh-CN','en-US']"
-                desc="启用的语言列表；下方下拉框切换编辑各语言翻译。"
+                desc="逐语言开关；下方下拉框切换编辑各语言翻译。总闸关闭时全部不生效。"
               />
-              <NSelect v-model:value="config.i18n.locales" :options="localeOptions" multiple size="small" />
+              <NSelect
+                v-model:value="config.i18n.locales"
+                :options="localeOptions"
+                multiple
+                size="small"
+                :disabled="!i18nEnabled"
+              />
+            </div>
+            <div class="rounded bg-gray-50 px-3 py-2 text-xs text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+              当前生效语言：{{ effectiveLocaleLabels }}{{ i18nEnabled ? '' : '（总闸已关闭，仅默认语言）' }}
             </div>
           </div>
         </ConfigCard>

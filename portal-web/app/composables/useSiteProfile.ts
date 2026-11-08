@@ -53,7 +53,6 @@ export function useSiteProfile() {
     locale,
     setLocale,
     getLocaleMessage,
-    setLocaleMessage,
     mergeLocaleMessage,
     t,
   } = useI18n()
@@ -117,13 +116,26 @@ export function useSiteProfile() {
     seo: { titleTemplate: '', description: '', homeTitle: '', metaKeywords: '' },
     featureFlags: {},
     currencies: [],
-    i18n: { defaultLocale: 'en', locales: ['en'], translations: {} },
+    i18n: { enabled: true, defaultLocale: 'en', locales: ['en'], translations: {} },
     regions: [],
     diyPageSlug: '',
     homeHero: { useCarousel: false, hero: { titleKey: 'hero.title', title: '', subtitleKey: 'hero.subtitle', subtitle: '', cta1LabelKey: 'hero.cta1Label', cta1Label: '', cta1To: '/products', cta2LabelKey: 'hero.cta2Label', cta2Label: '', cta2To: '/pets', backgroundImage: '' }, carousel: { images: [], autoplay: true, interval: 4000 } },
   }
 
   const profile = computed(() => data.value ?? defaultProfile)
+
+  /**
+   * 站点**生效**语言清单：总闸 i18n.enabled 关闭时只保留默认语言（单语模式），
+   * 打开时按 Admin 勾选的 i18n.locales 生效。语言切换器与访问拦截以此为准。
+   */
+  const activeLocales = computed<string[]>(() => {
+    const cfg = profile.value.i18n
+    const def = (cfg?.defaultLocale || 'en').toLowerCase()
+    const list = (cfg?.locales ?? []).map((c) => String(c).toLowerCase()).filter(Boolean)
+    const base = list.length > 0 ? list : [def]
+    if (cfg?.enabled === false) return [def]
+    return base.includes(def) ? base : [def, ...base]
+  })
 
   // 把站点配置 i18n.translations 合并进 vue-i18n 运行时 messages，保证 t(labelKey) 生效。
   // 规则：不使用 setLocaleMessage（会整体覆盖，易在静态默认 JSON 加载完成前被冲掉），
@@ -244,6 +256,7 @@ export function useSiteProfile() {
 
   return {
     profile,
+    activeLocales,
     pending,
     error,
     refresh,
@@ -353,6 +366,8 @@ export interface SiteProfile {
   featureFlags: Record<string, boolean>
   currencies: string[]
   i18n: {
+    /** 多语言总闸：false 时站点只保留 defaultLocale（单语模式），语言切换器隐藏、其他语言前缀 302 回默认语言 */
+    enabled?: boolean
     defaultLocale: string
     locales: string[]
     translations?: Record<string, Record<string, string>>

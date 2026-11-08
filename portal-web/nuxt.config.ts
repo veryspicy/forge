@@ -2,6 +2,10 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 
 import tailwindcss from "@tailwindcss/vite";
+import type { LocaleObject } from "@nuxtjs/i18n";
+
+// 构建期支持的语言清单（与运行期「站点生效语言」分离，后者由后端站点配置派生）
+import { PORTAL_DEFAULT_LOCALE, PORTAL_LOCALES } from "./app/utils/i18n-config";
 
 // 容器内 routeRules/devProxy 的 backend 代理目标（compose 注入 NUXT_BACKEND_URL=http://backend:8000；
 // 本地开发未注入时回退 127.0.0.1:8000）
@@ -59,15 +63,10 @@ export default defineNuxtConfig({
   i18n: {
     langDir: "locales",
     strategy: "prefix",
-    defaultLocale: "en",
+    defaultLocale: PORTAL_DEFAULT_LOCALE,
     vueI18n: "./i18n.config.ts",
-    locales: [
-      { code: "en", name: "English", file: "en.json" },
-      { code: "zh", name: "中文", file: "zh.json" },
-      { code: "ar", name: "العربية", file: "ar.json", dir: "rtl" },
-      { code: "de", name: "Deutsch", file: "de.json" },
-      { code: "fr", name: "Français", file: "fr.json" },
-    ],
+    // 构建期支持全集；站点生效语言由 site_profiles.config.i18n 运行期派生（locale-guard 拦截未生效前缀）
+    locales: PORTAL_LOCALES as unknown as LocaleObject[],
     bundle: {
       optimizeTranslationDirective: false,
     },
