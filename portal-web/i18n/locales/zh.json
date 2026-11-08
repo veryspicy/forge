@@ -281,6 +281,8 @@
     "paymentMethod": "支付方式",
     "creditCard": "信用卡/借记卡",
     "paypal": "PayPal",
+    "stripe": "信用卡 / Apple Pay / Google Pay（Stripe）",
+    "stripeRedirect": "将跳转到 Stripe 安全收银台完成支付。",
     "cardNumber": "卡号",
     "expiryDate": "有效期",
     "cvc": "CVC",

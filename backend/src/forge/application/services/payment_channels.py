@@ -64,6 +64,10 @@ class PayPalChannel(PaymentChannel):
                 message="PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET are not configured.",
             )
 
+    @property
+    def configured(self) -> bool:
+        return bool(self._client_id and self._client_secret)
+
     async def _access_token(self, client: httpx.AsyncClient) -> str:
         self._require_credentials()
         auth = base64.b64encode(f"{self._client_id}:{self._client_secret}".encode()).decode()
@@ -212,8 +216,17 @@ class PayPalChannel(PaymentChannel):
                 refund_id=data.get("id"),
             )
 
-    async def handle_webhook(self, headers: dict[str, Any], body: dict[str, Any]) -> WebhookEvent:
-        """Verify PayPal webhook signature via the verify-webhook-signature API."""
+    async def handle_webhook(
+        self,
+        headers: dict[str, Any],
+        body: dict[str, Any],
+        raw_body: bytes | None = None,
+    ) -> WebhookEvent:
+        """Verify PayPal webhook signature via the verify-webhook-signature API.
+
+        ``raw_body`` is unused: PayPal verifies the parsed event server-side,
+        so no local HMAC over the raw payload is needed.
+        """
         self._require_credentials()
         if not self._webhook_id:
             raise APIError(ErrorCode.PAYMENT_GATEWAY_ERROR, message="PAYPAL_WEBHOOK_ID is not configured.")

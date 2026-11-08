@@ -53,7 +53,7 @@ VALID_ORDER_STATUSES = {
     "cancelled",
     "refunded",
 }
-VALID_PAYMENT_METHODS = {"card", "paypal"}
+VALID_PAYMENT_METHODS = {"card", "paypal", "stripe"}
 
 
 # ---------------------------------------------------------------------------
@@ -244,6 +244,36 @@ async def list_orders(
         db, owner_id, page=page, page_size=page_size, status=status_filter
     )
     return cast(dict[str, Any], result)
+
+
+@router.get("/payment-channels")
+async def list_payment_channels(
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """当前站点启用的支付渠道与能力（供 C 端结账/订单支付弹窗渲染）。
+
+    - 启用集合来自 app_settings payment.enabled_channels（env 优先）
+    - 只返回已注册到 PaymentRegistry 的渠道，避免前端拿到不可用渠道
+    - 无需登录：结账页在登录态之外也要能展示可用支付方式
+    """
+    registry = get_payment_registry()
+    channels: list[dict[str, Any]] = []
+    for name in await _enabled_channels(db):
+        if not registry.is_registered(name):
+            continue
+        payment_channel = registry.get(name)
+        caps = payment_channel.capabilities
+        channels.append(
+            {
+                "channel": name,
+                "flow": caps.flow,
+                "supports_refund": caps.supports_refund,
+                "supported_currencies": list(caps.supported_currencies),
+                # 凭证未配置的渠道不暴露给前端，避免用户选到必然失败的支付方式
+                "available": bool(getattr(payment_channel, "configured", True)),
+            }
+        )
+    return {"channels": channels}
 
 
 @router.post("")

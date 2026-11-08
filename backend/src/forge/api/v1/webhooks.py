@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, Request
@@ -44,11 +45,16 @@ async def receive_webhook(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
-    """渠道 webhook 统一入口：验签 -> 归一化 -> 驱动订单状态。"""
+    """渠道 webhook 统一入口：验签 -> 归一化 -> 驱动订单状态。
+
+    原始请求体（raw bytes）必须原样传给渠道：Stripe 的 Stripe-Signature 是
+    对 "<timestamp>.<raw body>" 计算的 HMAC，重新序列化 JSON 会导致验签必然失败。
+    """
     payment_channel = get_payment_registry().get(channel)
     headers = dict(request.headers)
-    body: dict[str, Any] = await request.json()
-    event = await payment_channel.handle_webhook(headers, body)
+    raw_body = await request.body()
+    body: dict[str, Any] = json.loads(raw_body) if raw_body else {}
+    event = await payment_channel.handle_webhook(headers, body, raw_body)
 
     if event.event_type == "payment.captured":
         order = await _find_order_by_session(db, event.session_id)

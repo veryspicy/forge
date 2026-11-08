@@ -1,6 +1,15 @@
 ﻿// Forge — API composable
 import { useAuthStore } from "~/stores/auth";
 
+/** 支付渠道能力（GET /orders/payment-channels） */
+export interface PaymentChannelInfo {
+  channel: string
+  flow: string // redirect | popup | qr | client_token | mock
+  supports_refund: boolean
+  supported_currencies: string[]
+  available: boolean
+}
+
 export function useApi() {
   const API_BASE = useRuntimeConfig().public.apiBase;
 
@@ -128,7 +137,12 @@ export function useApi() {
     });
   };
 
-  // 多渠道支付（P0）：创建支付会话（mock/paypal 等渠道）
+  // 多渠道支付（P0）：站点启用的支付渠道（含可用性与 flow），供结账/支付弹窗渲染
+  const fetchPaymentChannels = async (): Promise<{ channels: PaymentChannelInfo[] }> => {
+    return (await authFetch(`${API_BASE}/orders/payment-channels`)) as { channels: PaymentChannelInfo[] };
+  };
+
+  // 多渠道支付（P0）：创建支付会话（mock/paypal/stripe 等渠道）
   const createPaymentSession = async (orderNumber: string, data: { channel: string; return_url?: string; cancel_url?: string }) => {
     return authFetch(`${API_BASE}/orders/${orderNumber}/payment-session`, {
       method: "POST",
@@ -314,6 +328,7 @@ export function useApi() {
     payOrder,
     createPaymentSession,
     capturePayment,
+    fetchPaymentChannels,
     confirmReceipt,
     updateShippingAddress,
     deleteOrder,

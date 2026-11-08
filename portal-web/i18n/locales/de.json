@@ -281,6 +281,8 @@
     "paymentMethod": "Zahlungsmethode",
     "creditCard": "Kredit-/Debitkarte",
     "paypal": "PayPal",
+    "stripe": "Karte / Apple Pay / Google Pay (Stripe)",
+    "stripeRedirect": "Sie werden zur sicheren Stripe-Kasse weitergeleitet.",
     "cardNumber": "Kartennummer",
     "expiryDate": "Ablaufdatum",
     "cvc": "CVC",
