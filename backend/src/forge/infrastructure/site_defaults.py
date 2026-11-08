@@ -202,6 +202,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "metaDescription": "",
     },
     "i18n": {
+        # 多语言总闸：false 时站点只保留 defaultLocale 一种生效语言（其余语言的内容/路由一律不可达）
+        "enabled": True,
         "defaultLocale": "en",
         "locales": ["en", "zh", "ar", "de", "fr"],
         "translations": {

@@ -175,6 +175,8 @@ const DEFAULT_SITE_CONFIG = {
   },
   seo: { titleTemplate: '%s | Forge', homeTitle: 'Forge - 专业宠物用品商店', description: '', metaKeywords: '' },
   i18n: {
+    // 多语言总闸：false 时站点只保留默认语言（单语模式），C 端隐藏语言切换器并 302 未生效语言前缀
+    enabled: true,
     defaultLocale: 'en',
     locales: ['en', 'zh', 'ar', 'de', 'fr'] as string[],
     // 预置默认站点配置引用的所有动态 i18n key（nav./cat./footer.），

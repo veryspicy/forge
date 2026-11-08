@@ -125,18 +125,20 @@ async def get_order_settings(db: AsyncSession) -> dict[str, Any]:
     return block
 
 
-async def get_i18n_locales(db: AsyncSession) -> tuple[list[str], str]:
-    """站点启用的语言列表与默认语言（唯一数据源：site_profiles.config.i18n）。
+async def get_i18n_settings(db: AsyncSession) -> tuple[bool, list[str], str]:
+    """站点多语言总闸、已勾选语言列表与默认语言（唯一数据源：site_profiles.config.i18n）。
 
-    返回 ``(locales, default_locale)``：locales 为小写语言码去重后的有序列表，
-    default_locale 保证存在且包含于 locales（配置异常时兜底 ``en``）。
+    返回 ``(enabled, locales, default_locale)``：
 
-    业务消费方（CMS 内容 locale 校验、C 端内容接口回退链）统一从此派生，
-    避免在代码里硬编码语言集合，新增语言只需在 Admin 站点设置中勾选。
+    - ``enabled``：多语言总闸，缺省 True（兼容存量配置）；False 时站点只保留默认语言
+    - ``locales``：Admin 里勾选的原始语言清单（小写去重、有序，不含默认语言兜底插入）
+    - ``default_locale``：默认语言，保证被加入 ``locales`` 且位于其中
     """
     config = await get_site_config(db)
     i18n = config.get("i18n")
     block: dict[str, Any] = i18n if isinstance(i18n, dict) else {}
+
+    enabled = bool(block.get("enabled", True))
 
     locales: list[str] = []
     raw = block.get("locales")
@@ -151,6 +153,19 @@ async def get_i18n_locales(db: AsyncSession) -> tuple[list[str], str]:
         locales = [default_locale]
     elif default_locale not in locales:
         locales.insert(0, default_locale)
+    return enabled, locales, default_locale
+
+
+async def get_i18n_locales(db: AsyncSession) -> tuple[list[str], str]:
+    """站点**生效**语言列表与默认语言（业务消费方唯一入口）。
+
+    总闸 ``i18n.enabled`` 关闭时只返回 ``[default_locale]``，即单语模式；
+    打开时返回全部已勾选语言。业务消费方（CMS 内容 locale 校验、C 端内容接口回退链）
+    统一从此派生，避免在代码里硬编码语言集合，新增语言只需在 Admin 站点设置中勾选。
+    """
+    enabled, locales, default_locale = await get_i18n_settings(db)
+    if not enabled:
+        return [default_locale], default_locale
     return locales, default_locale
 
 

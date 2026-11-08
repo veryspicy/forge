@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import {
@@ -13,7 +13,8 @@ import {
   useMessage
 } from 'naive-ui';
 import { get, post, patch, del } from '@/service/api/helper';
-import { contentLocaleOptions } from '@/constants/content-locale';
+import { buildContentLocaleSelectOptions, resolveActiveLocales } from '@/constants/content-locale';
+import { useDiyStore } from '@/store/modules/diy';
 import { CONTENT_TEMPLATES, getTemplateBody } from '@/constants/content-templates';
 import RichTextEditor from '@/components/RichTextEditor.vue';
 
@@ -41,7 +42,16 @@ const statusOptions = [
   { label: t('page.content.published'), value: 'published' }
 ];
 
-const localeOptions = contentLocaleOptions.map(({ label, value }) => ({ label, value }));
+// 语言下拉：运行时读站点配置（i18n 总闸 + 勾选清单）；存量内容所在语言始终允许保留
+const diyStore = useDiyStore();
+const localeOptions = computed(() => {
+  const options = buildContentLocaleSelectOptions(diyStore.siteConfig.i18n);
+  const current = form.value.locale;
+  if (current && !options.some(opt => opt.value === current)) {
+    options.unshift({ label: current.toUpperCase(), value: current });
+  }
+  return options;
+});
 
 // 富文本编辑器开关：inline 模式展开在表单内，保存后回写 form.body（HTML）
 const editorShow = ref(false);
@@ -178,10 +188,15 @@ function handleWindowResize() {
   previewWidth.value = clampPreviewWidth(previewWidth.value);
 }
 
-onMounted(() => {
+onMounted(async () => {
   loadPreviewWidth();
   window.addEventListener('resize', handleWindowResize);
-  load();
+  // 先取站点 i18n 配置：新建内容默认落到站点默认语言，下拉与后端校验同源
+  await diyStore.fetchSiteConfig();
+  if (!id) {
+    form.value.locale = resolveActiveLocales(diyStore.siteConfig.i18n)[0] || 'en';
+  }
+  await load();
 });
 
 onBeforeUnmount(() => {

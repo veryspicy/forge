@@ -115,10 +115,10 @@ class ContentService:
 
         supported, default_locale = await get_supported_locales(db)
 
-        # locale 变更时校验合法性
+        # locale 变更时校验合法性（语言未变时不校验：站点停用某语言后，其存量内容仍可编辑正文）
         if "locale" in data and data["locale"]:
             new_locale = normalise_locale(data["locale"])
-            if new_locale not in supported:
+            if new_locale != normalise_locale(str(content.locale)) and new_locale not in supported:
                 raise ContentValidationError(
                     "locale 无效",
                     {"locale": f"locale 必须为 {sorted(supported)} 之一（站点已启用语言）"},
