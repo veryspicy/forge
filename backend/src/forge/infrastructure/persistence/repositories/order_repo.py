@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from forge.api.errors import APIError, ErrorCode
+from forge.application.services import tax_service
 from forge.infrastructure.persistence.models import ORMOrder, ORMOrderItem, ORMProduct, ORMShipment, ORMUser
 
 
@@ -431,6 +432,10 @@ def _order_to_dict(order: ORMOrder) -> dict[str, object]:
         "user_id": str(order.user_id),
         "subtotal": float(order.subtotal),
         "tax": float(order.tax),
+        "tax_rate": float(order.tax_rate) if order.tax_rate is not None else 0.0,
+        "tax_name": order.tax_name or "",
+        "tax_jurisdiction": order.tax_jurisdiction or "",
+        "tax_inclusive": bool(order.tax_inclusive),
         "shipping_cost": float(order.shipping_cost),
         "discount": float(order.discount),
         "total": float(order.total),
@@ -642,6 +647,7 @@ class SQLAlchemyCustomerOrderRepository:
         now = SQLAlchemyCustomerOrderRepository._now()
         order_number = SQLAlchemyCustomerOrderRepository._generate_order_number()
         subtotal = Decimal("0")
+        tax_basis: list[dict[str, Any]] = []
         order = ORMOrder(
             id=uuid4(),
             order_number=order_number,
@@ -684,7 +690,9 @@ class SQLAlchemyCustomerOrderRepository:
             )
             db.add(item)
             items.append(item)
-            subtotal += unit_price * quantity
+            line_subtotal = unit_price * quantity
+            subtotal += line_subtotal
+            tax_basis.append({"category": product.category, "amount": line_subtotal})
             # 只有自采购行扣减本地库存；代发行不扣
             if item_mode != _FULFILLMENT_DROPSHIP and product.inventory is not None:
                 product.inventory = cast(Any, product.inventory - quantity)
@@ -697,9 +705,28 @@ class SQLAlchemyCustomerOrderRepository:
             and subtotal > free_shipping_threshold
             else Decimal(str(_FLAT_SHIPPING))
         )
+
+        # 计税（A 方案静态税率表）：按收货地址辖区 + 行类目逐行命中税率，结果落订单快照
+        address = shipping_address or {}
+        country = str(address.get("country") or address.get("country_code") or "")
+        region = str(address.get("state") or address.get("region") or address.get("province") or "")
+        tax_lines = [(line.get("category"), cast(Decimal, line["amount"])) for line in tax_basis]
+        tax_result = await tax_service.calculate_tax(
+            db, country=country, region=region, lines=tax_lines, shipping=shipping_cost
+        )
+
         order.subtotal = cast(Any, subtotal)
         order.shipping_cost = cast(Any, shipping_cost)
-        order.total = cast(Any, subtotal + shipping_cost)
+        order.tax = cast(Any, tax_result.tax_amount)
+        order.tax_rate = cast(Any, tax_result.rate)
+        order.tax_name = cast(Any, tax_result.name)
+        order.tax_jurisdiction = cast(Any, tax_result.jurisdiction or None)
+        order.tax_inclusive = cast(Any, tax_result.inclusive)
+        # 价内含税：税额已包含在售价中，不再叠加到总额
+        order.total = cast(
+            Any,
+            subtotal + shipping_cost if tax_result.inclusive else subtotal + shipping_cost + tax_result.tax_amount,
+        )
         await db.flush()
         return order
 

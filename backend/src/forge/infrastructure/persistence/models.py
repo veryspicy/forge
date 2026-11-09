@@ -711,6 +711,11 @@ class ORMOrder(Base):
     user_id = Column(UUID(as_uuid=True), nullable=False)
     subtotal = Column(Numeric(12, 2), nullable=False)
     tax = Column(Numeric(12, 2), nullable=False)
+    # 税费快照：下单时的税率/税名/辖区，后续调税率不影响历史订单
+    tax_rate = Column(Numeric(6, 4), nullable=True)
+    tax_name = Column(String(100), nullable=True)
+    tax_jurisdiction = Column(String(20), nullable=True)
+    tax_inclusive = Column(Boolean, nullable=False, default=False, server_default="false")
     shipping_cost = Column(Numeric(12, 2), nullable=False)
     discount = Column(Numeric(12, 2), nullable=False)
     total = Column(Numeric(12, 2), nullable=False)

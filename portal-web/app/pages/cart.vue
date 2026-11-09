@@ -56,15 +56,19 @@
         <div class="space-y-2 text-sm">
           <div class="flex justify-between text-neutral-600 dark:text-neutral-400 dark:text-neutral-400">
             <span>{{ $t('cart.subtotal') }}</span>
-            <span>{{ formatPrice(cartStore.total) }}</span>
+            <span>{{ formatPrice(cartStore.subtotal) }}</span>
           </div>
           <div class="flex justify-between text-neutral-600 dark:text-neutral-400 dark:text-neutral-400">
             <span>{{ $t('cart.shipping') }}</span>
-            <span>{{ cartStore.total > 50 ? $t('cart.free') : formatPrice(5) }}</span>
+            <span>{{ cartStore.shipping > 0 ? formatPrice(cartStore.shipping) : $t('cart.free') }}</span>
+          </div>
+          <div v-if="cartStore.tax > 0" class="flex justify-between text-neutral-600 dark:text-neutral-400 dark:text-neutral-400">
+            <span>{{ cartStore.taxLabel }}</span>
+            <span>{{ formatPrice(cartStore.tax) }}</span>
           </div>
           <div class="border-t pt-2 mt-2 flex justify-between font-semibold text-neutral-900 dark:text-neutral-100">
             <span>{{ $t('cart.total') }}</span>
-            <span>{{ formatPrice(cartStore.total > 50 ? cartStore.total : cartStore.total + 5) }}</span>
+            <span>{{ formatPrice(cartStore.total) }}</span>
           </div>
         </div>
         <NuxtLink

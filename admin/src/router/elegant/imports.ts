@@ -30,6 +30,7 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   dashboard: () => import("@/views/dashboard/index.vue"),
   "orders-detail": () => import("@/views/orders-detail/index.vue"),
   orders: () => import("@/views/orders/index.vue"),
+  "payment-config": () => import("@/views/payment-config/index.vue"),
   pricing: () => import("@/views/pricing/index.vue"),
   "product-types": () => import("@/views/product-types/index.vue"),
   "products-detail": () => import("@/views/products-detail/index.vue"),
@@ -42,5 +43,6 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   shipments: () => import("@/views/shipments/index.vue"),
   "site-config": () => import("@/views/site-config/index.vue"),
   suppliers: () => import("@/views/suppliers/index.vue"),
+  "tax-config": () => import("@/views/tax-config/index.vue"),
   users: () => import("@/views/users/index.vue"),
 };

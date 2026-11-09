@@ -229,16 +229,22 @@ export function useApi() {
   };
 
   // Cart
-  const fetchCart = async (): Promise<{
+  const fetchCart = async (params?: { country?: string; region?: string }): Promise<{
     items: Array<{
       id: string; user_id: string; product_id: string;
       name: string; price: number; quantity: number;
       image: string; subtotal: number;
     }>;
     item_count: number; subtotal: number; tax: number;
-    shipping: number; total: number;
+    tax_rate?: number; tax_name?: string; tax_label?: string;
+    tax_jurisdiction?: string; tax_inclusive?: boolean;
+    shipping_cost?: number; shipping: number; total: number;
   }> => {
-    return authFetch(`${API_BASE}/cart/items`) as any;
+    const qs = new URLSearchParams();
+    if (params?.country) qs.set("country", params.country);
+    if (params?.region) qs.set("region", params.region);
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return authFetch(`${API_BASE}/cart/items${suffix}`) as any;
   };
 
   const addToCart = async (data: {

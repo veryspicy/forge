@@ -33,7 +33,9 @@ declare module "@elegant-router/types" {
     "login": "/login/:module(pwd-login|code-login|register|reset-pwd|bind-wechat)?";
     "orders": "/orders";
     "orders-detail": "/orders-detail";
+    "payment-config": "/payment-config";
     "pricing": "/pricing";
+    "tax-config": "/tax-config";
     "product-types": "/product-types";
     "products": "/products";
     "products-detail": "/products-detail";
@@ -92,7 +94,9 @@ declare module "@elegant-router/types" {
     | "login"
     | "orders"
     | "orders-detail"
+    | "payment-config"
     | "pricing"
+    | "tax-config"
     | "product-types"
     | "products"
     | "products-detail"
@@ -136,7 +140,9 @@ declare module "@elegant-router/types" {
     | "dashboard"
     | "orders-detail"
     | "orders"
+    | "payment-config"
     | "pricing"
+    | "tax-config"
     | "product-types"
     | "products-detail"
     | "products-new"

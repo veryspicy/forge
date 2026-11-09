@@ -51,6 +51,7 @@ from urllib.parse import urlencode
 import httpx
 
 from forge.api.errors import APIError, ErrorCode
+from forge.application.services.payment_config_service import resolve
 from forge.application.services.payment_gateway import (
     CaptureResult,
     ChannelCapabilities,
@@ -146,20 +147,32 @@ class StripeChannel(PaymentChannel):
     )
 
     def __init__(self, transport: httpx.AsyncBaseTransport | None = None) -> None:
-        self._secret_key = os.getenv("STRIPE_SECRET_KEY")
-        self._webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
-        self._base_url = (os.getenv("STRIPE_API_BASE") or "https://api.stripe.com").rstrip("/")
+        self._secret_key: str | None = None
+        self._webhook_secret: str | None = None
+        self._base_url = "https://api.stripe.com"
         # Injected only by tests (httpx.MockTransport); None keeps real networking.
         self._transport = transport
+        self._sync_credentials()
 
     # -- helpers ------------------------------------------------------------
+
+    def _sync_credentials(self) -> None:
+        """从后台配置（运行期快照）拉取凭证，未配置时回退环境变量。
+
+        每次调用都重新解析，因此 Admin 保存配置后无需重启进程即可生效。
+        """
+        self._secret_key = resolve("stripe", "STRIPE_SECRET_KEY")
+        self._webhook_secret = resolve("stripe", "STRIPE_WEBHOOK_SECRET")
+        self._base_url = (resolve("stripe", "STRIPE_API_BASE") or "https://api.stripe.com").rstrip("/")
 
     @property
     def configured(self) -> bool:
         """True when a secret key is present (used by /payment-channels probes)."""
+        self._sync_credentials()
         return bool(self._secret_key)
 
     def _require_credentials(self) -> None:
+        self._sync_credentials()
         if not self._secret_key:
             raise APIError(
                 ErrorCode.PAYMENT_GATEWAY_ERROR,
@@ -336,6 +349,7 @@ class StripeChannel(PaymentChannel):
             )
 
     def _verify_signature(self, headers: dict[str, Any], raw_body: bytes) -> None:
+        self._sync_credentials()
         if not self._webhook_secret:
             raise APIError(ErrorCode.PAYMENT_GATEWAY_ERROR, message="STRIPE_WEBHOOK_SECRET is not configured.")
         signature_header = ""

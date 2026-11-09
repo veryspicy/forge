@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from forge.application.services import payment_config_service
 from forge.application.services.payment_gateway import get_payment_registry
 from forge.infrastructure.persistence.models import ORMOrder
 from forge.infrastructure.persistence.repositories.order_repo import SQLAlchemyCustomerOrderRepository
@@ -50,6 +51,8 @@ async def receive_webhook(
     原始请求体（raw bytes）必须原样传给渠道：Stripe 的 Stripe-Signature 是
     对 "<timestamp>.<raw body>" 计算的 HMAC，重新序列化 JSON 会导致验签必然失败。
     """
+    # 刷新渠道运行期配置，保证 webhook 验签用的是后台最新配置的签名密钥
+    await payment_config_service.refresh(db)
     payment_channel = get_payment_registry().get(channel)
     headers = dict(request.headers)
     raw_body = await request.body()

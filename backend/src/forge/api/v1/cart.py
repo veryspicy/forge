@@ -15,12 +15,14 @@ from decimal import Decimal
 from typing import Any, cast
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from forge.api.errors import APIError, ErrorCode
 from forge.api.v1.auth import get_current_user
+from forge.application.services import tax_service
 from forge.infrastructure.persistence.models import ORMCartItem, ORMProduct
 from forge.infrastructure.persistence.repositories.cart_repo import SQLAlchemyCartRepository
 from forge.infrastructure.persistence.repositories.product_repo import SQLAlchemyProductRepository
@@ -98,7 +100,23 @@ def _cart_item_dict(item: ORMCartItem) -> dict[str, Any]:
     }
 
 
-async def _cart_summary(items: list[ORMCartItem], free_shipping_threshold: Decimal | None) -> dict[str, Any]:
+async def _product_categories(db: AsyncSession, items: list[ORMCartItem]) -> dict[int, str]:
+    """取购物车商品的类目，用于匹配税率档（类目粒度税率）。"""
+    ids = [int(i.product_id) for i in items if i.product_id is not None]
+    if not ids:
+        return {}
+    rows = (await db.execute(select(ORMProduct.id, ORMProduct.category).where(ORMProduct.id.in_(ids)))).all()
+    return {int(r[0]): str(r[1] or "") for r in rows}
+
+
+async def _cart_summary(
+    db: AsyncSession,
+    items: list[ORMCartItem],
+    free_shipping_threshold: Decimal | None,
+    *,
+    country: str | None = None,
+    region: str | None = None,
+) -> dict[str, Any]:
     subtotal = round(sum(float(i.price) * int(i.quantity) for i in items), 2)
     shipping_cost = (
         0.0
@@ -107,12 +125,30 @@ async def _cart_summary(items: list[ORMCartItem], free_shipping_threshold: Decim
         and subtotal > float(free_shipping_threshold)
         else float(FLAT_SHIPPING)
     )
-    total = round(subtotal + shipping_cost, 2)
+    # 税费按辖区（国家/州省）+ 商品类目命中静态税率表；下单时以收货地址再精算并落快照
+    categories = await _product_categories(db, items)
+    tax_lines = [
+        (categories.get(int(i.product_id)), Decimal(str(i.price)) * Decimal(int(i.quantity))) for i in items
+    ]
+    tax_result = await tax_service.calculate_tax(
+        db,
+        country=country,
+        region=region,
+        lines=tax_lines,
+        shipping=Decimal(str(shipping_cost)),
+    )
+    tax_amount = float(tax_result.tax_amount)
+    total = round(subtotal + shipping_cost if tax_result.inclusive else subtotal + shipping_cost + tax_amount, 2)
     return {
         "items": [_cart_item_dict(i) for i in items],
         "subtotal": subtotal,
         "shipping_cost": shipping_cost,
-        "tax": 0.0,
+        "tax": tax_amount,
+        "tax_rate": float(tax_result.rate),
+        "tax_name": tax_result.name,
+        "tax_label": tax_result.label,
+        "tax_jurisdiction": tax_result.jurisdiction,
+        "tax_inclusive": tax_result.inclusive,
         "total": total,
         "currency": CURRENCY,
         "item_count": sum(int(i.quantity) for i in items),
@@ -126,14 +162,18 @@ async def _cart_summary(items: list[ORMCartItem], free_shipping_threshold: Decim
 
 @router.get("/items")
 async def get_cart(
+    country: str | None = Query(default=None, max_length=2, description="收货国家 ISO-2，用于计税"),
+    region: str | None = Query(default=None, max_length=50, description="州/省代码，用于计税"),
     user_claims: dict[str, object] = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """当前用户购物车内容与金额汇总。"""
+    """当前用户购物车内容与金额汇总（含按辖区计算的税费）。"""
     owner_id = await _current_owner_id(user_claims, db)
     items = await SQLAlchemyCartRepository.list_by_user(db, owner_id)
     free_shipping_threshold = await get_free_shipping_threshold(db)
-    return await _cart_summary(items, free_shipping_threshold)
+    return await _cart_summary(
+        db, items, free_shipping_threshold, country=country, region=region
+    )
 
 
 @router.post("/items")

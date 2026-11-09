@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import os
 from typing import Any, cast
 from uuid import UUID
 
@@ -29,7 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from forge.api.errors import APIError, ErrorCode
 from forge.api.v1.auth import get_current_user
-from forge.application.services.app_settings_service import get_setting as get_app_setting
+from forge.application.services import payment_config_service
 from forge.application.services.payment_gateway import get_payment_gateway, get_payment_registry
 from forge.infrastructure.persistence.models import ORMOrder, ORMShipment
 from forge.infrastructure.persistence.repositories.order_repo import (
@@ -337,18 +336,14 @@ async def _lock_order_by_number(db: AsyncSession, order_number: str) -> ORMOrder
 
 
 async def _enabled_channels(db: AsyncSession) -> list[str]:
-    """启用渠道集合：env FORGE_PAYMENT_ENABLED_CHANNELS 优先，其次 app_settings payment.enabled_channels，缺省 mock。"""
-    raw = os.getenv("FORGE_PAYMENT_ENABLED_CHANNELS")
-    if raw:
-        channels = [c.strip().lower() for c in raw.split(",") if c.strip()]
-        if channels:
-            return channels
-    setting = await get_app_setting(db, "payment", None)
-    if isinstance(setting, dict):
-        enabled = setting.get("enabled_channels")
-        if isinstance(enabled, list) and enabled:
-            return [str(c).lower() for c in enabled]
-    return ["mock"]
+    """启用渠道集合（后台配置优先，env / mock 兜底）。
+
+    启用集合与凭证都来自 Admin「支付配置」页（``app_settings.payment`` +
+    ``system_configs.payment.channels``）；这里顺带刷新渠道适配器的运行期快照，
+    因此后台保存后下一次请求即生效，无需重启或重新发布。
+    """
+    await payment_config_service.refresh(db)
+    return await payment_config_service.load_enabled_channels(db)
 
 
 def _channel_for_order(order: ORMOrder) -> str:

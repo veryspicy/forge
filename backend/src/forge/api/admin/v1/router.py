@@ -78,6 +78,12 @@ _safe_include("ai_probe", prefix="/ai", tags=["Admin - Probe"])
 # Model Management（多供应商模型配置与可用性测试）
 _safe_include("ai_config", prefix="/ai-config", tags=["Admin - Model Management"])
 
+# Payment Config（支付渠道启停 + 凭证，运行期生效）
+_safe_include("payment_config", prefix="/payment-config", tags=["Admin - Payment Config"])
+
+# Tax Config（税率表 + 价内含税 + 计税预览，运行期生效）
+_safe_include("tax_config", prefix="/tax-config", tags=["Admin - Tax Config"])
+
 # Users
 _safe_include("users", prefix="/users", tags=["Admin - Users"])
 

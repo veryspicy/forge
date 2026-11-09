@@ -558,6 +558,8 @@ declare namespace App {
         archive: Record<string, string>;
         aiProbe: Record<string, string>;
         modelManagement: Record<string, string>;
+        paymentConfig: Record<string, string>;
+        taxConfig: Record<string, string>;
         users: Record<string, string>;
         site: Record<string, string>;
         settings: Record<string, string>;

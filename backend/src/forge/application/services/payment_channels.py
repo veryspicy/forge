@@ -23,13 +23,13 @@ Env knobs (read lazily per call, no app_settings coupling):
 from __future__ import annotations
 
 import base64
-import os
 from decimal import Decimal
 from typing import Any
 
 import httpx
 
 from forge.api.errors import APIError, ErrorCode
+from forge.application.services.payment_config_service import resolve
 from forge.application.services.payment_gateway import (
     CaptureResult,
     ChannelCapabilities,
@@ -51,13 +51,28 @@ class PayPalChannel(PaymentChannel):
     )
 
     def __init__(self) -> None:
-        self._client_id = os.getenv("PAYPAL_CLIENT_ID")
-        self._client_secret = os.getenv("PAYPAL_CLIENT_SECRET")
-        self._mode = (os.getenv("PAYPAL_MODE", "sandbox") or "sandbox").lower()
-        self._webhook_id = os.getenv("PAYPAL_WEBHOOK_ID")
-        self._base_url = "https://api-m.sandbox.paypal.com" if self._mode == "sandbox" else "https://api-m.paypal.com"
+        self._client_id: str | None = None
+        self._client_secret: str | None = None
+        self._mode = "sandbox"
+        self._webhook_id: str | None = None
+        self._base_url = "https://api-m.sandbox.paypal.com"
+        self._sync_credentials()
+
+    def _sync_credentials(self) -> None:
+        """从后台配置（运行期快照）拉取凭证，未配置时回退环境变量。
+
+        每次调用都重新解析，Admin 保存配置后无需重启即可生效。
+        """
+        self._client_id = resolve("paypal", "PAYPAL_CLIENT_ID")
+        self._client_secret = resolve("paypal", "PAYPAL_CLIENT_SECRET")
+        self._mode = (resolve("paypal", "PAYPAL_MODE") or "sandbox").lower()
+        self._webhook_id = resolve("paypal", "PAYPAL_WEBHOOK_ID")
+        self._base_url = (
+            "https://api-m.sandbox.paypal.com" if self._mode == "sandbox" else "https://api-m.paypal.com"
+        )
 
     def _require_credentials(self) -> None:
+        self._sync_credentials()
         if not self._client_id or not self._client_secret:
             raise APIError(
                 ErrorCode.PAYMENT_GATEWAY_ERROR,
@@ -66,6 +81,7 @@ class PayPalChannel(PaymentChannel):
 
     @property
     def configured(self) -> bool:
+        self._sync_credentials()
         return bool(self._client_id and self._client_secret)
 
     async def _access_token(self, client: httpx.AsyncClient) -> str:
