@@ -257,7 +257,32 @@ const customRoutes = [
           title: 'Site Config',
           i18nKey: 'route.site-config',
           icon: 'mdi:cog-outline',
+          order: 1,
           roles: ['super_admin', 'admin', 'operator']
+        }
+      },
+      {
+        name: 'payment-config',
+        path: '/payment-config',
+        component: 'layout.base$view.payment-config',
+        meta: {
+          title: 'Payment Channels',
+          i18nKey: 'route.payment-config',
+          icon: 'mdi:credit-card-settings-outline',
+          order: 2,
+          roles: ['super_admin', 'admin']
+        }
+      },
+      {
+        name: 'tax-config',
+        path: '/tax-config',
+        component: 'layout.base$view.tax-config',
+        meta: {
+          title: 'Tax Config',
+          i18nKey: 'route.tax-config',
+          icon: 'mdi:percent-outline',
+          order: 3,
+          roles: ['super_admin', 'admin']
         }
       }
     ]
@@ -321,30 +346,6 @@ const customRoutes = [
           i18nKey: 'route.ai-config',
           icon: 'mdi:brain',
           order: 4,
-          roles: ['super_admin', 'admin']
-        }
-      },
-      {
-        name: 'payment-config',
-        path: '/payment-config',
-        component: 'layout.base$view.payment-config',
-        meta: {
-          title: 'Payment Channels',
-          i18nKey: 'route.payment-config',
-          icon: 'mdi:credit-card-settings-outline',
-          order: 5,
-          roles: ['super_admin', 'admin']
-        }
-      },
-      {
-        name: 'tax-config',
-        path: '/tax-config',
-        component: 'layout.base$view.tax-config',
-        meta: {
-          title: 'Tax Config',
-          i18nKey: 'route.tax-config',
-          icon: 'mdi:percent-outline',
-          order: 6,
           roles: ['super_admin', 'admin']
         }
       }
