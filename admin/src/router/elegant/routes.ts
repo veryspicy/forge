@@ -154,6 +154,15 @@ export const generatedRoutes: GeneratedRoute[] = [
     }
   },
   {
+    name: 'payment-config',
+    path: '/payment-config',
+    component: 'layout.base$view.payment-config',
+    meta: {
+      title: 'payment-config',
+      i18nKey: 'route.payment-config'
+    }
+  },
+  {
     name: 'pricing',
     path: '/pricing',
     component: 'layout.base$view.pricing',
@@ -259,6 +268,15 @@ export const generatedRoutes: GeneratedRoute[] = [
     meta: {
       title: 'suppliers',
       i18nKey: 'route.suppliers'
+    }
+  },
+  {
+    name: 'tax-config',
+    path: '/tax-config',
+    component: 'layout.base$view.tax-config',
+    meta: {
+      title: 'tax-config',
+      i18nKey: 'route.tax-config'
     }
   },
   {

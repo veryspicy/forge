@@ -284,7 +284,7 @@ AUTH_ROUTE_TREE = [
             "title": "System",
             "i18nKey": "route.system",
             "icon": "mdi:cog",
-            "order": 8,
+            "order": 9,
             "roles": ["super_admin", "admin"],
         },
         "children": [
@@ -351,7 +351,7 @@ AUTH_ROUTE_TREE = [
             "title": "Content",
             "i18nKey": "route.content",
             "icon": "mdi:file-document-edit",
-            "order": 9,
+            "order": 8,
             "roles": ["super_admin", "admin"],
         },
         "children": [

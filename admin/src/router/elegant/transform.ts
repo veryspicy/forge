@@ -163,6 +163,7 @@ function transformElegantRouteToVueRoute(
 const routeMap: RouteMap = {
   "root": "/",
   "not-found": "/:pathMatch(.*)*",
+  "content-list": "/content/list",
   "403": "/403",
   "404": "/404",
   "500": "/500",
@@ -172,7 +173,6 @@ const routeMap: RouteMap = {
   "brands": "/brands",
   "categories": "/categories",
   "content": "/content",
-  "content-list": "/content/list",
   "content-edit": "/content-edit",
   "dashboard": "/dashboard",
   "iframe-page": "/iframe-page/:url",

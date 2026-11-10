@@ -288,7 +288,7 @@ const customRoutes = [
     ]
   },
 
-  // ============ 8. System ============
+  // ============ 9. System ============
   {
     name: 'system',
     path: '/system',
@@ -296,7 +296,7 @@ const customRoutes = [
       title: 'System',
       i18nKey: 'route.system',
       icon: 'mdi:cog',
-      order: 8,
+      order: 9,
       roles: ['super_admin', 'admin']
     },
     redirect: '/admin-users',
@@ -352,7 +352,7 @@ const customRoutes = [
     ]
   },
 
-  // ============ 9. CMS Content ============
+  // ============ 8. CMS Content ============
   {
     name: 'content',
     path: '/content',
@@ -360,7 +360,7 @@ const customRoutes = [
       title: 'Content',
       i18nKey: 'route.content',
       icon: 'mdi:file-document-outline',
-      order: 9,
+      order: 8,
       roles: ['super_admin', 'admin']
     },
     redirect: '/content/list',
