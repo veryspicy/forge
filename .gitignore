@@ -33,6 +33,9 @@ temp_*
 *.ps1
 !docker/rebuild-admin.ps1
 !docker/check-admin.ps1
+!docker/rebuild-service.ps1
+!docker/preflight.ps1
+!docker/up.ps1
 portal-web/.output/
 !scripts/*.ps1
 backend/uploads/
