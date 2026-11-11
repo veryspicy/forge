@@ -26,7 +26,7 @@
 #   -Strict          abort (exit 1) when a threshold is exceeded
 #   -PruneTimeoutSec hard timeout for prune (default 180)
 #   -MinFreeGB       host free space warning threshold (default 20)
-#   -MaxVhdxGB       machine vhdx size warning threshold (default 100)
+#   -MaxVhdxGB       machine vhdx size warning threshold (default 45; machine disk is 50GB)
 #   -MaxDangling     dangling image count warning threshold (default 100)
 #
 # Exit codes: 0 ok / 1 threshold breached with -Strict / 2 machine not usable
@@ -37,7 +37,7 @@ param(
     [switch]$Strict,
     [int]$PruneTimeoutSec = 180,
     [int]$MinFreeGB = 20,
-    [int]$MaxVhdxGB = 100,
+    [int]$MaxVhdxGB = 45,
     [int]$MaxDangling = 100
 )
 

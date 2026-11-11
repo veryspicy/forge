@@ -39,7 +39,7 @@ podman compose down
 | 项目 | 说明 | 默认阈值 | 超阈值行为 |
 |------|------|---------|-----------|
 | podman machine | 未运行则自动 `machine start` 并轮询 API 就绪 | — | 起不来则退出码 2，阻止启动 |
-| machine vhdx | 宿主机上的实体文件大小（不会自动缩小） | > 100 GB | 告警，`-Strict` 下中止 |
+| machine vhdx | 宿主机上的实体文件大小（不会自动缩小） | > 45 GB（machine 磁盘 50 GB） | 告警，`-Strict` 下中止 |
 | 宿主磁盘剩余 | vhdx 所在盘剩余空间 | < 20 GB | 告警，`-Strict` 下中止 |
 | 悬空镜像数 | `podman images -f dangling=true` 计数 | > 100 | 告警，`-Strict` 下中止 |
 | 已停止容器 | `container prune -f` 清理 | — | 直接清理 |
