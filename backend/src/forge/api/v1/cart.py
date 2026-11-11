@@ -127,9 +127,7 @@ async def _cart_summary(
     )
     # 税费按辖区（国家/州省）+ 商品类目命中静态税率表；下单时以收货地址再精算并落快照
     categories = await _product_categories(db, items)
-    tax_lines = [
-        (categories.get(int(i.product_id)), Decimal(str(i.price)) * Decimal(int(i.quantity))) for i in items
-    ]
+    tax_lines = [(categories.get(int(i.product_id)), Decimal(str(i.price)) * Decimal(int(i.quantity))) for i in items]
     tax_result = await tax_service.calculate_tax(
         db,
         country=country,
@@ -171,9 +169,7 @@ async def get_cart(
     owner_id = await _current_owner_id(user_claims, db)
     items = await SQLAlchemyCartRepository.list_by_user(db, owner_id)
     free_shipping_threshold = await get_free_shipping_threshold(db)
-    return await _cart_summary(
-        db, items, free_shipping_threshold, country=country, region=region
-    )
+    return await _cart_summary(db, items, free_shipping_threshold, country=country, region=region)
 
 
 @router.post("/items")

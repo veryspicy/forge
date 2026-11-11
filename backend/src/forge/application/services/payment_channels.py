@@ -67,9 +67,7 @@ class PayPalChannel(PaymentChannel):
         self._client_secret = resolve("paypal", "PAYPAL_CLIENT_SECRET")
         self._mode = (resolve("paypal", "PAYPAL_MODE") or "sandbox").lower()
         self._webhook_id = resolve("paypal", "PAYPAL_WEBHOOK_ID")
-        self._base_url = (
-            "https://api-m.sandbox.paypal.com" if self._mode == "sandbox" else "https://api-m.paypal.com"
-        )
+        self._base_url = "https://api-m.sandbox.paypal.com" if self._mode == "sandbox" else "https://api-m.paypal.com"
 
     def _require_credentials(self) -> None:
         self._sync_credentials()

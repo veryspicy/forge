@@ -51,8 +51,14 @@ ANY = "*"
 # 默认税率表（Admin 可改；未保存过配置时生效）
 # 说明：仅作开站兜底，正式经营需按实际注册辖区与商品类目（如部分美国州宠物食品免税）调整。
 DEFAULT_RATES: tuple[dict[str, Any], ...] = (
-    {"country": "US", "region": ANY, "category": ANY, "rate": "0", "name": "US Sales Tax",
-     "applies_to_shipping": False},
+    {
+        "country": "US",
+        "region": ANY,
+        "category": ANY,
+        "rate": "0",
+        "name": "US Sales Tax",
+        "applies_to_shipping": False,
+    },
     {"country": "CA", "region": ANY, "category": ANY, "rate": "0.05", "name": "GST", "applies_to_shipping": False},
     {"country": "GB", "region": ANY, "category": ANY, "rate": "0.20", "name": "VAT", "applies_to_shipping": True},
     {"country": "DE", "region": ANY, "category": ANY, "rate": "0.19", "name": "VAT", "applies_to_shipping": True},
@@ -61,8 +67,14 @@ DEFAULT_RATES: tuple[dict[str, Any], ...] = (
     {"country": "ES", "region": ANY, "category": ANY, "rate": "0.21", "name": "VAT", "applies_to_shipping": True},
     {"country": "NL", "region": ANY, "category": ANY, "rate": "0.21", "name": "VAT", "applies_to_shipping": True},
     {"country": "AU", "region": ANY, "category": ANY, "rate": "0.10", "name": "GST", "applies_to_shipping": True},
-    {"country": "JP", "region": ANY, "category": ANY, "rate": "0.10", "name": "Consumption Tax",
-     "applies_to_shipping": True},
+    {
+        "country": "JP",
+        "region": ANY,
+        "category": ANY,
+        "rate": "0.10",
+        "name": "Consumption Tax",
+        "applies_to_shipping": True,
+    },
     {"country": "CN", "region": ANY, "category": ANY, "rate": "0.13", "name": "VAT", "applies_to_shipping": True},
 )
 
@@ -196,9 +208,7 @@ def _from_dict(value: dict[str, Any]) -> _TaxConfig:
 
 
 async def _load_row(db: AsyncSession) -> dict[str, Any] | None:
-    row = (
-        await db.execute(select(ORMAppSetting).where(ORMAppSetting.key == TAX_SETTING_KEY))
-    ).scalar_one_or_none()
+    row = (await db.execute(select(ORMAppSetting).where(ORMAppSetting.key == TAX_SETTING_KEY))).scalar_one_or_none()
     value = row.value if row is not None else None
     return dict(value) if isinstance(value, dict) else None
 
@@ -352,9 +362,7 @@ async def calculate_tax(
     shipping: Decimal = Decimal("0"),
 ) -> TaxResult:
     """统一计税入口（购物车报价与下单共用）。"""
-    return await get_tax_provider().calculate(
-        db, country=country, region=region, lines=lines, shipping=shipping
-    )
+    return await get_tax_provider().calculate(db, country=country, region=region, lines=lines, shipping=shipping)
 
 
 async def save_config(db: AsyncSession, values: dict[str, Any], updated_by: str | None = None) -> dict[str, Any]:
@@ -403,9 +411,7 @@ async def save_config(db: AsyncSession, values: dict[str, Any], updated_by: str 
         "default_rate": str(default_rate),
         "rates": rates,
     }
-    row = (
-        await db.execute(select(ORMAppSetting).where(ORMAppSetting.key == TAX_SETTING_KEY))
-    ).scalar_one_or_none()
+    row = (await db.execute(select(ORMAppSetting).where(ORMAppSetting.key == TAX_SETTING_KEY))).scalar_one_or_none()
     if row is None:
         db.add(ORMAppSetting(key=TAX_SETTING_KEY, value=payload, updated_by=updated_by))
     else:

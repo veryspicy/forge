@@ -107,9 +107,7 @@ async def test_create_session_requires_return_url() -> None:
 
 async def test_create_session_rejects_unsupported_currency() -> None:
     with pytest.raises(APIError):
-        await _channel(_no_call).create_session(
-            "ORD-1", Decimal("10"), "XYZ", return_url="https://shop.test/rtn"
-        )
+        await _channel(_no_call).create_session("ORD-1", Decimal("10"), "XYZ", return_url="https://shop.test/rtn")
 
 
 async def test_missing_secret_key_raises_clear_error(monkeypatch: pytest.MonkeyPatch) -> None:

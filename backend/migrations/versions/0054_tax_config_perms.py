@@ -52,6 +52,4 @@ def downgrade() -> None:
             "(SELECT id FROM permissions WHERE code IN ('tax_config:view', 'tax_config:manage'))"
         )
     )
-    op.execute(
-        sa.text("DELETE FROM permissions WHERE code IN ('tax_config:view', 'tax_config:manage')")
-    )
+    op.execute(sa.text("DELETE FROM permissions WHERE code IN ('tax_config:view', 'tax_config:manage')"))

@@ -90,9 +90,7 @@ async def toggle_channel(
     claims: dict[str, Any] = Depends(require_permission("payment_config", "manage")),
 ) -> dict[str, Any]:
     """开关某个支付渠道（C 端按钮随之出现/消失）。"""
-    saved = await payment_config_service.set_channel_enabled(
-        db, channel, payload.enabled, updated_by=_actor_id(claims)
-    )
+    saved = await payment_config_service.set_channel_enabled(db, channel, payload.enabled, updated_by=_actor_id(claims))
     await db.commit()
     await payment_config_service.refresh(db, force=True)
     return {"channel": channel.lower(), "enabled": payload.enabled, "enabled_channels": saved}
@@ -106,9 +104,7 @@ async def update_channel_credentials(
     claims: dict[str, Any] = Depends(require_permission("payment_config", "manage")),
 ) -> dict[str, Any]:
     """保存渠道凭证（敏感字段加密入库，明文不回显）。"""
-    await payment_config_service.save_credentials(
-        db, channel, payload.values, updated_by=_actor_id(claims)
-    )
+    await payment_config_service.save_credentials(db, channel, payload.values, updated_by=_actor_id(claims))
     await db.commit()
     await payment_config_service.refresh(db, force=True)
     states = await payment_config_service.load_channel_states(db)

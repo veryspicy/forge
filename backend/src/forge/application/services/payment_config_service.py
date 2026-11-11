@@ -277,9 +277,7 @@ async def _decrypted_credentials(db: AsyncSession) -> dict[str, dict[str, str]]:
 
 async def load_enabled_channels(db: AsyncSession) -> list[str]:
     """启用渠道集合：app_settings ``payment.enabled_channels`` > env > 默认 mock。"""
-    row = (
-        await db.execute(select(ORMAppSetting).where(ORMAppSetting.key == ENABLED_SETTING_KEY))
-    ).scalar_one_or_none()
+    row = (await db.execute(select(ORMAppSetting).where(ORMAppSetting.key == ENABLED_SETTING_KEY))).scalar_one_or_none()
     value = row.value if row is not None else None
     if isinstance(value, dict):
         enabled = value.get(ENABLED_FIELD)
@@ -294,9 +292,7 @@ async def load_enabled_channels(db: AsyncSession) -> list[str]:
 
 
 async def _payment_setting(db: AsyncSession) -> dict[str, Any]:
-    row = (
-        await db.execute(select(ORMAppSetting).where(ORMAppSetting.key == ENABLED_SETTING_KEY))
-    ).scalar_one_or_none()
+    row = (await db.execute(select(ORMAppSetting).where(ORMAppSetting.key == ENABLED_SETTING_KEY))).scalar_one_or_none()
     value = row.value if row is not None else None
     return dict(value) if isinstance(value, dict) else {}
 
@@ -327,9 +323,7 @@ async def save_enabled_channels(
         )
     setting = await _payment_setting(db)
     setting[ENABLED_FIELD] = ordered
-    row = (
-        await db.execute(select(ORMAppSetting).where(ORMAppSetting.key == ENABLED_SETTING_KEY))
-    ).scalar_one_or_none()
+    row = (await db.execute(select(ORMAppSetting).where(ORMAppSetting.key == ENABLED_SETTING_KEY))).scalar_one_or_none()
     if row is None:
         row = ORMAppSetting(key=ENABLED_SETTING_KEY, value=setting, updated_by=updated_by)
         db.add(row)

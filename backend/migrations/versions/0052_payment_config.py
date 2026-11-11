@@ -58,6 +58,4 @@ def downgrade() -> None:
             "(SELECT id FROM permissions WHERE code IN ('payment_config:view', 'payment_config:manage'))"
         )
     )
-    op.execute(
-        sa.text("DELETE FROM permissions WHERE code IN ('payment_config:view', 'payment_config:manage')")
-    )
+    op.execute(sa.text("DELETE FROM permissions WHERE code IN ('payment_config:view', 'payment_config:manage')"))
