@@ -100,12 +100,16 @@
 **工具基线**：
 
 - **安装路径**：`C:\Program Files\GitHub CLI\gh.exe`（若当前终端 PATH 未含，用完整路径调用）
-- **代理配置**：用户级环境变量 `HTTP_PROXY` / `HTTPS_PROXY = http://127.0.0.1:10808`（v2rayN 本地端口）已永久写入，**新开终端生效**；当前终端临时注入用 `$env:HTTPS_PROXY="http://127.0.0.1:10808"`；`NO_PROXY=localhost,127.0.0.1,::1`
+- **代理端口必须动态读取，禁止写死**：v2rayN/xray 的本地入站端口在原端口被占用时会自动漂移，任何硬编码端口（10808 / 10809 / 10911 / 11133 等）迟早失效，表现为 git/gh 报 `Failed to connect to github.com:443 over proxy 127.0.0.1`。唯一权威来源是 v2rayN 配置文件 `<v2rayN>\guiConfigs\guiNConfig.json` 的 `.inbound[0].localPort`，生成的运行时配置 `binConfigs\config.json` 中该入站协议为 `mixed`，即同一端口同时提供 HTTP 与 SOCKS 代理，故 `http://127.0.0.1:<port>` 与 `socks5://127.0.0.1:<port>` 均可用。
+- **取端口统一走脚本**：`powershell -ExecutionPolicy Bypass -File scripts/get-proxy-port.ps1`（自动定位 guiNConfig.json、读端口、校验端口是否有监听、打印 env/git 两种用法）；`-Quiet` 只输出端口号供脚本调用；`-Apply -RepoPath <repo>` 把当前端口写回该仓库的 `http.proxy` / `https.proxy`。端口未监听时脚本给 Warning，说明是「v2rayN 核心未启动/绑定失败」而非端口写错，禁止此时反复改端口猜。
+- **当前终端注入**：`$env:HTTPS_PROXY` / `$env:HTTP_PROXY = http://127.0.0.1:<port>`，`$env:NO_PROXY="localhost,127.0.0.1,::1"`。用户级环境变量里的历史端口可能已过期，**不得默认其有效**，以脚本读取值为准。
+- **注意**：`guiConfigs\guiNConfig.json` 中 `inbound[0].protocol` 显示为 `socks`，但运行时配置为 `mixed`，不要据此判定「只能走 SOCKS」而改用 socks5 协议绕路。
 - **登录状态**：`gh auth login` 设备码流程已完成，账号 veryspicy（keyring），token scopes 含 `repo` / `workflow`，可用 `gh auth status` 验证
-- **关键前置坑**：gh 请求 api.github.com 必须走代理，否则报 `Post "https://api.github.com/graphql": unexpected EOF`；执行 gh 前先确认 `echo $env:HTTPS_PROXY` 非空（新终端或临时注入）
+- **关键前置坑**：gh 请求 api.github.com 必须走代理，否则报 `Post "https://api.github.com/graphql": unexpected EOF`；执行 gh / git push 前先跑 `scripts/get-proxy-port.ps1` 取端口并注入环境变量。注意 `$env:HTTPS_PROXY` 非空**不代表可用**——用户级变量可能残留已失效的历史端口，必须同时确认脚本报 `listener: OK`。
 
 **执行步骤**：
 
+0. **先取端口**：`powershell -ExecutionPolicy Bypass -File scripts/get-proxy-port.ps1`，确认输出 `listener: OK` 后，按脚本打印的 env 行注入 `$env:HTTPS_PROXY` / `$env:HTTP_PROXY`；需要让仓库内脚本（`merge-dev.ps1` 等）直接调 git 时，用 `-Apply -RepoPath <repo>` 写回仓库 config
 1. 查询 CI 状态：`gh api repos/{owner}/{repo}/actions/runs` / `gh api repos/{owner}/{repo}/actions/jobs/{id}/logs`（§1.4 步骤 2 优先路径）
 2. 创建/查看 PR：`gh pr create --base dev --head <branch>` / `gh pr view <number>`（squash message 同样必须符合 §15.2 规范）
 3. 通用仓库操作：`gh repo view`、`gh api <path>`
@@ -113,9 +117,12 @@
 **禁止事项**：
 
 - **禁止**在 gh CLI 可用时仍走"git credential fill 取 PAT 调 REST API"或"派 browser-agent 开 PR"旧路径
-- **禁止**执行 gh 命令前不确认代理环境变量已生效（新开终端或临时注入，二选一）
+- **禁止**执行 gh / git push 前不确认代理可用（以 `scripts/get-proxy-port.ps1` 读出的端口 + `listener: OK` 为准，新开终端或临时注入二选一）
+- **禁止**在规则、脚本、仓库配置里写死代理端口号；端口只允许来自 v2rayN 配置的运行时读取值
 
 **反例（2026-10-27）**：`gh auth login` 在旧终端执行时报 `unexpected EOF`——用户级代理环境变量刚写入但旧终端未加载，gh 直连 api.github.com 被断；新终端加载代理后重试即成功。此前长期无 gh CLI，CI 查询依赖 git credential fill 取 PAT、PR 创建依赖 browser-agent，均属应被本条规则取代的旧路径。
+
+**反例（2026-11-11）**：合并 `feature/container-preflight-bootstrap` 时 git push 连续失败——仓库 `.git/config` 里 `http.proxy=socks5h://127.0.0.1:11111`、`https.proxy=http://127.0.0.1:10922` 是早期会话写入的硬编码端口，两个端口均已无监听；同时本机 v2rayN 的实际入站已漂移到 11133（原端口被占用后核心重新绑定）。定位方式：`Get-NetTCPConnection -State Listen` 过滤 xray/v2rayN 进程 PID 找到真实监听端口，再从 `guiConfigs\guiNConfig.json` 的 `.inbound[0].localPort` 确认。教训：**端口不得写死进仓库配置**，且 `$env:HTTPS_PROXY` 有值不等于有效（用户级变量同样残留 10808 这类过期端口）。
 
 ---
 

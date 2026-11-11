@@ -49,3 +49,4 @@
 | 2026-10-27 | 新增 DEV-RULES §1.6「gh CLI 工具基线」；映射「合并 dev / 发布 / 打 tag」补充 §1.6（CI 查询优先 gh CLI） |
 | 2026-11-05 | DEV-RULES §13.2 新增「hook 的 node 版本守卫」（`scripts/pre-commit.mjs` 自动切换 fnm 中 ≥22.13 的 node 并前置 PATH）；「提交代码（通用）」映射补充 §13.2 |
 | 2026-11-11 | DEV-RULES §23 标题由「Podman Machine 环境运维约束」改为「本地开发环境约束：Podman Machine 运维基线」，明确其定位为本地开发环境约束（非项目业务规则），内容不变；与 §16「基础设施环境基线」边界：§16 管容器/网络/访问入口，§23 管 machine 存储与重建 |
+| 2026-11-11 | §1.6「gh CLI 工具基线」代理条款修订：代理端口禁止写死，统一由 `scripts/get-proxy-port.ps1` 从 v2rayN 配置 `guiConfigs\guiNConfig.json` 的 `.inbound[0].localPort` 动态读取（运行时为 `mixed`，HTTP/SOCKS 同端口），脚本支持 `-Quiet`、`-Apply -RepoPath`；新增「执行步骤 0 先取端口」、禁止写死端口条目、2026-11-11 端口漂移反例 |
