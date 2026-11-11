@@ -1078,7 +1078,7 @@ admin / portal 重建后，旧标签页持有的是**指向旧容器的失效连
 
 ---
 
-## 23. Podman Machine 环境运维约束（强制）
+## 23. 本地开发环境约束：Podman Machine 运维基线（强制）
 
 > **背景**：podman machine（wsl 后端）的 ext4.vhdx 默认落在系统盘用户目录且动态扩展，`build --no-cache` 会产生大量中间层镜像使 vhdx 只增不缩，是系统盘主要占用源之一。2026-10 实测 vhdx 膨胀至 117.3 GB，系统盘可用仅 25.6 GB（8.9%），逼近处置水位。本章固化 machine 存储位置、重建、清理与监控约束。
 
@@ -1093,6 +1093,27 @@ admin / portal 重建后，旧标签页持有的是**指向旧容器的失效连
 3. **当前用户（老板）的指定**：存储位置 `F:\podman-machine`，网络模式 User mode networking（`UserModeNetworking=true`）
 4. **禁止迁移策略**：本章不提供 vhdx 迁移方案（如 `wsl --export/import` 搬家、compact 后迁移等）；位置不符时走 §23.2 重建流程，重建前必须先备份
 
+**当前基线（2026-11-11 重建后，以 `podman machine inspect` 为准）**：
+
+| 项 | 值 |
+|----|----|
+| machine 名 | `podman-machine-default`（wsl 后端，rootless） |
+| 磁盘上限 | 50 GiB（`--disk-size 50`） |
+| 内存 | 4096 MiB（`--memory 4096`） |
+| CPU | 8（`--cpus 8`） |
+| 网络模式 | `UserModeNetworking=true` |
+| vhdx 实体路径 | `F:\podman-machine\podman-machine-default\ext4.vhdx` |
+| vhdx 告警阈值 | 45 GB（preflight `-MaxVhdxGB`），宿主盘剩余 20 GB |
+
+**落盘实现方式（必须按此复现）**：`podman machine init` 没有指定存储路径的参数，`F:\podman-machine` 通过目录 junction 实现——
+
+1. 直接 `podman machine init --cpus 8 --disk-size 50 --memory 4096`，vhdx 落 `C:\Users\<user>\.local\share\containers\podman\machine\wsl\wsldist\podman-machine-default\ext4.vhdx`
+2. `wsl --shutdown` 释放文件句柄（否则报"另一个进程正在使用此文件"）
+3. `Move-Item ...\wsldist\podman-machine-default F:\podman-machine\`（保持 `podman-machine-default\ext4.vhdx` 层级）
+4. `cmd /c rmdir ...\wsl\wsldist` 删空目录，再 `cmd /c mklink /J ...\wsl\wsldist F:\podman-machine`
+
+陷阱：`init` 前若残留 `wsldist` 目录或 junction（如上次中断），会报 `could not create wsldist directory: ... already exists`，必须先清空 `...\machine\wsl\` 下除 `cache` 外的所有内容再重试。
+
 **反例（2026-10）**：默认路径 `C:\Users\<user>\.local\share\containers\podman\machine\wsl\wsldist\podman-machine-default\ext4.vhdx` 膨胀至 117.3 GB，系统盘仅剩 25.6 GB（8.9%）。
 
 ### 23.2 machine 重建纪律（高风险）
@@ -1106,6 +1127,19 @@ admin / portal 重建后，旧标签页持有的是**指向旧容器的失效连
 3. 重建后核对：machine 存储落在指定位置（§23.1）、`UserModeNetworking=true`、端口与 system connection 正常（ssh 端口可能被重分配，需更新 connection）
 
 **反例**：曾出现 podman machine 启动后 ssh 端口冲突被重分配（56736→51528），未更新 system connection 导致后续命令失败。
+
+**标准重建流程（save/load 版，2026-11-11 实测）**：
+
+1. **备份**（落非系统盘，如 `G:\backup`）
+   - `podman exec forge-postgres bash -c "pg_dump -U postgres -d forge --clean --if-exists -f /tmp/x.sql"` + `podman cp` 取回
+   - 卷：`podman volume export <vol> --output <tar>`（postgres-data / minio-data / admin-assets-history / gateway-logs；redis-data 为缓存可跳过）
+   - 镜像：`podman save -o images_forge.tar`（4 个 localhost/forge-*）+ `podman save -o images_base.tar`（postgres/redis/minio/rocketmq/nginx）
+   - `docker\.env` 拷贝（gitignore 文件；compose 本体在 git 内不需备份）
+2. **销毁**：`podman machine stop` → `podman machine rm --force` → `wsl --unregister <闲置 distro>`；残留目录用 `delete` 工具清理（禁止 shell 递归删除，会被安全策略拦截）
+3. **重建**：按 §23.1 落盘流程 init + junction
+4. **恢复**：`podman machine start` → `podman volume create` 5 个卷 → `podman volume import <vol> <tar>` → `podman load -i` 两组镜像 → `podman-compose --project-name docker -f docker\docker-compose.yml up -d`
+   - **顺序铁律**：卷必须 import 完成后再 `up -d`，否则 postgres 会用空库初始化
+5. **验证（不得省略）**：`information_schema` 表数 43、`products` 32 行、`alembic_version` 有版本、minio bucket（forge / product-images）、8002/health、8001/health、3000、8080、8080/admin/ 均 200、10 个容器 Up
 
 ### 23.3 无用容器与镜像清理
 
@@ -1126,11 +1160,12 @@ admin / portal 重建后，旧标签页持有的是**指向旧容器的失效连
 
 1. 系统盘水位：可用 <15% 必须评估处置，<10% 必须立即处置并告知用户
 2. 监控重点：`podman system df` 占用、machine vhdx 大小（主要占用源）、无用容器/镜像堆积
-3. 水位与占用情况必须在会话中如实同步给用户，禁止用"环境优化""整理"等中性词掩盖删除/清理动作
+3. **machine 侧阈值**（与 `docker\preflight.ps1` 保持一致）：vhdx > 45 GB 告警（磁盘上限 50 GB，逼近即走重建而非 compact）；vhdx 所在盘（F:）剩余 < 20 GB 告警
+4. 水位与占用情况必须在会话中如实同步给用户，禁止用"环境优化""整理"等中性词掩盖删除/清理动作
 
 **反例**：仅凭 `build --no-cache` 成功就宣布环境健康，未核对磁盘水位，导致系统盘逼近 <10% 处置线才被发现。
 
 ---
 
-*最后更新：2026-10-24*
+*最后更新：2026-11-11*
 
