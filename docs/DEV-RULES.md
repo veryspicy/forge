@@ -1078,7 +1078,7 @@ admin / portal 重建后，旧标签页持有的是**指向旧容器的失效连
 
 ---
 
-## 23. Podman Machine 环境运维约束（强制）
+## 23. 本地开发环境约束：Podman Machine 运维基线（强制）
 
 > **背景**：podman machine（wsl 后端）的 ext4.vhdx 默认落在系统盘用户目录且动态扩展，`build --no-cache` 会产生大量中间层镜像使 vhdx 只增不缩，是系统盘主要占用源之一。2026-10 实测 vhdx 膨胀至 117.3 GB，系统盘可用仅 25.6 GB（8.9%），逼近处置水位。本章固化 machine 存储位置、重建、清理与监控约束。
 
