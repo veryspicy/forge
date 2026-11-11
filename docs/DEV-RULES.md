@@ -100,12 +100,16 @@
 **工具基线**：
 
 - **安装路径**：`C:\Program Files\GitHub CLI\gh.exe`（若当前终端 PATH 未含，用完整路径调用）
-- **代理配置**：用户级环境变量 `HTTP_PROXY` / `HTTPS_PROXY = http://127.0.0.1:10808`（v2rayN 本地端口）已永久写入，**新开终端生效**；当前终端临时注入用 `$env:HTTPS_PROXY="http://127.0.0.1:10808"`；`NO_PROXY=localhost,127.0.0.1,::1`
+- **代理端口必须动态读取，禁止写死**：v2rayN/xray 的本地入站端口在原端口被占用时会自动漂移，任何硬编码端口（10808 / 10809 / 10911 / 11133 等）迟早失效，表现为 git/gh 报 `Failed to connect to github.com:443 over proxy 127.0.0.1`。唯一权威来源是 v2rayN 配置文件 `<v2rayN>\guiConfigs\guiNConfig.json` 的 `.inbound[0].localPort`，生成的运行时配置 `binConfigs\config.json` 中该入站协议为 `mixed`，即同一端口同时提供 HTTP 与 SOCKS 代理，故 `http://127.0.0.1:<port>` 与 `socks5://127.0.0.1:<port>` 均可用。
+- **取端口统一走脚本**：`powershell -ExecutionPolicy Bypass -File scripts/get-proxy-port.ps1`（自动定位 guiNConfig.json、读端口、校验端口是否有监听、打印 env/git 两种用法）；`-Quiet` 只输出端口号供脚本调用；`-Apply -RepoPath <repo>` 把当前端口写回该仓库的 `http.proxy` / `https.proxy`。端口未监听时脚本给 Warning，说明是「v2rayN 核心未启动/绑定失败」而非端口写错，禁止此时反复改端口猜。
+- **当前终端注入**：`$env:HTTPS_PROXY` / `$env:HTTP_PROXY = http://127.0.0.1:<port>`，`$env:NO_PROXY="localhost,127.0.0.1,::1"`。用户级环境变量里的历史端口可能已过期，**不得默认其有效**，以脚本读取值为准。
+- **注意**：`guiConfigs\guiNConfig.json` 中 `inbound[0].protocol` 显示为 `socks`，但运行时配置为 `mixed`，不要据此判定「只能走 SOCKS」而改用 socks5 协议绕路。
 - **登录状态**：`gh auth login` 设备码流程已完成，账号 veryspicy（keyring），token scopes 含 `repo` / `workflow`，可用 `gh auth status` 验证
-- **关键前置坑**：gh 请求 api.github.com 必须走代理，否则报 `Post "https://api.github.com/graphql": unexpected EOF`；执行 gh 前先确认 `echo $env:HTTPS_PROXY` 非空（新终端或临时注入）
+- **关键前置坑**：gh 请求 api.github.com 必须走代理，否则报 `Post "https://api.github.com/graphql": unexpected EOF`；执行 gh / git push 前先跑 `scripts/get-proxy-port.ps1` 取端口并注入环境变量。注意 `$env:HTTPS_PROXY` 非空**不代表可用**——用户级变量可能残留已失效的历史端口，必须同时确认脚本报 `listener: OK`。
 
 **执行步骤**：
 
+0. **先取端口**：`powershell -ExecutionPolicy Bypass -File scripts/get-proxy-port.ps1`，确认输出 `listener: OK` 后，按脚本打印的 env 行注入 `$env:HTTPS_PROXY` / `$env:HTTP_PROXY`；需要让仓库内脚本（`merge-dev.ps1` 等）直接调 git 时，用 `-Apply -RepoPath <repo>` 写回仓库 config
 1. 查询 CI 状态：`gh api repos/{owner}/{repo}/actions/runs` / `gh api repos/{owner}/{repo}/actions/jobs/{id}/logs`（§1.4 步骤 2 优先路径）
 2. 创建/查看 PR：`gh pr create --base dev --head <branch>` / `gh pr view <number>`（squash message 同样必须符合 §15.2 规范）
 3. 通用仓库操作：`gh repo view`、`gh api <path>`
@@ -113,9 +117,12 @@
 **禁止事项**：
 
 - **禁止**在 gh CLI 可用时仍走"git credential fill 取 PAT 调 REST API"或"派 browser-agent 开 PR"旧路径
-- **禁止**执行 gh 命令前不确认代理环境变量已生效（新开终端或临时注入，二选一）
+- **禁止**执行 gh / git push 前不确认代理可用（以 `scripts/get-proxy-port.ps1` 读出的端口 + `listener: OK` 为准，新开终端或临时注入二选一）
+- **禁止**在规则、脚本、仓库配置里写死代理端口号；端口只允许来自 v2rayN 配置的运行时读取值
 
 **反例（2026-10-27）**：`gh auth login` 在旧终端执行时报 `unexpected EOF`——用户级代理环境变量刚写入但旧终端未加载，gh 直连 api.github.com 被断；新终端加载代理后重试即成功。此前长期无 gh CLI，CI 查询依赖 git credential fill 取 PAT、PR 创建依赖 browser-agent，均属应被本条规则取代的旧路径。
+
+**反例（2026-11-11）**：合并 `feature/container-preflight-bootstrap` 时 git push 连续失败——仓库 `.git/config` 里 `http.proxy=socks5h://127.0.0.1:11111`、`https.proxy=http://127.0.0.1:10922` 是早期会话写入的硬编码端口，两个端口均已无监听；同时本机 v2rayN 的实际入站已漂移到 11133（原端口被占用后核心重新绑定）。定位方式：`Get-NetTCPConnection -State Listen` 过滤 xray/v2rayN 进程 PID 找到真实监听端口，再从 `guiConfigs\guiNConfig.json` 的 `.inbound[0].localPort` 确认。教训：**端口不得写死进仓库配置**，且 `$env:HTTPS_PROXY` 有值不等于有效（用户级变量同样残留 10808 这类过期端口）。
 
 ---
 
@@ -1078,7 +1085,7 @@ admin / portal 重建后，旧标签页持有的是**指向旧容器的失效连
 
 ---
 
-## 23. Podman Machine 环境运维约束（强制）
+## 23. 本地开发环境约束：Podman Machine 运维基线（强制）
 
 > **背景**：podman machine（wsl 后端）的 ext4.vhdx 默认落在系统盘用户目录且动态扩展，`build --no-cache` 会产生大量中间层镜像使 vhdx 只增不缩，是系统盘主要占用源之一。2026-10 实测 vhdx 膨胀至 117.3 GB，系统盘可用仅 25.6 GB（8.9%），逼近处置水位。本章固化 machine 存储位置、重建、清理与监控约束。
 
@@ -1093,6 +1100,27 @@ admin / portal 重建后，旧标签页持有的是**指向旧容器的失效连
 3. **当前用户（老板）的指定**：存储位置 `F:\podman-machine`，网络模式 User mode networking（`UserModeNetworking=true`）
 4. **禁止迁移策略**：本章不提供 vhdx 迁移方案（如 `wsl --export/import` 搬家、compact 后迁移等）；位置不符时走 §23.2 重建流程，重建前必须先备份
 
+**当前基线（2026-11-11 重建后，以 `podman machine inspect` 为准）**：
+
+| 项 | 值 |
+|----|----|
+| machine 名 | `podman-machine-default`（wsl 后端，rootless） |
+| 磁盘上限 | 50 GiB（`--disk-size 50`） |
+| 内存 | 4096 MiB（`--memory 4096`） |
+| CPU | 8（`--cpus 8`） |
+| 网络模式 | `UserModeNetworking=true` |
+| vhdx 实体路径 | `F:\podman-machine\podman-machine-default\ext4.vhdx` |
+| vhdx 告警阈值 | 45 GB（preflight `-MaxVhdxGB`），宿主盘剩余 20 GB |
+
+**落盘实现方式（必须按此复现）**：`podman machine init` 没有指定存储路径的参数，`F:\podman-machine` 通过目录 junction 实现——
+
+1. 直接 `podman machine init --cpus 8 --disk-size 50 --memory 4096`，vhdx 落 `C:\Users\<user>\.local\share\containers\podman\machine\wsl\wsldist\podman-machine-default\ext4.vhdx`
+2. `wsl --shutdown` 释放文件句柄（否则报"另一个进程正在使用此文件"）
+3. `Move-Item ...\wsldist\podman-machine-default F:\podman-machine\`（保持 `podman-machine-default\ext4.vhdx` 层级）
+4. `cmd /c rmdir ...\wsl\wsldist` 删空目录，再 `cmd /c mklink /J ...\wsl\wsldist F:\podman-machine`
+
+陷阱：`init` 前若残留 `wsldist` 目录或 junction（如上次中断），会报 `could not create wsldist directory: ... already exists`，必须先清空 `...\machine\wsl\` 下除 `cache` 外的所有内容再重试。
+
 **反例（2026-10）**：默认路径 `C:\Users\<user>\.local\share\containers\podman\machine\wsl\wsldist\podman-machine-default\ext4.vhdx` 膨胀至 117.3 GB，系统盘仅剩 25.6 GB（8.9%）。
 
 ### 23.2 machine 重建纪律（高风险）
@@ -1106,6 +1134,19 @@ admin / portal 重建后，旧标签页持有的是**指向旧容器的失效连
 3. 重建后核对：machine 存储落在指定位置（§23.1）、`UserModeNetworking=true`、端口与 system connection 正常（ssh 端口可能被重分配，需更新 connection）
 
 **反例**：曾出现 podman machine 启动后 ssh 端口冲突被重分配（56736→51528），未更新 system connection 导致后续命令失败。
+
+**标准重建流程（save/load 版，2026-11-11 实测）**：
+
+1. **备份**（落非系统盘，如 `G:\backup`）
+   - `podman exec forge-postgres bash -c "pg_dump -U postgres -d forge --clean --if-exists -f /tmp/x.sql"` + `podman cp` 取回
+   - 卷：`podman volume export <vol> --output <tar>`（postgres-data / minio-data / admin-assets-history / gateway-logs；redis-data 为缓存可跳过）
+   - 镜像：`podman save -o images_forge.tar`（4 个 localhost/forge-*）+ `podman save -o images_base.tar`（postgres/redis/minio/rocketmq/nginx）
+   - `docker\.env` 拷贝（gitignore 文件；compose 本体在 git 内不需备份）
+2. **销毁**：`podman machine stop` → `podman machine rm --force` → `wsl --unregister <闲置 distro>`；残留目录用 `delete` 工具清理（禁止 shell 递归删除，会被安全策略拦截）
+3. **重建**：按 §23.1 落盘流程 init + junction
+4. **恢复**：`podman machine start` → `podman volume create` 5 个卷 → `podman volume import <vol> <tar>` → `podman load -i` 两组镜像 → `podman-compose --project-name docker -f docker\docker-compose.yml up -d`
+   - **顺序铁律**：卷必须 import 完成后再 `up -d`，否则 postgres 会用空库初始化
+5. **验证（不得省略）**：`information_schema` 表数 43、`products` 32 行、`alembic_version` 有版本、minio bucket（forge / product-images）、8002/health、8001/health、3000、8080、8080/admin/ 均 200、10 个容器 Up
 
 ### 23.3 无用容器与镜像清理
 
@@ -1126,11 +1167,12 @@ admin / portal 重建后，旧标签页持有的是**指向旧容器的失效连
 
 1. 系统盘水位：可用 <15% 必须评估处置，<10% 必须立即处置并告知用户
 2. 监控重点：`podman system df` 占用、machine vhdx 大小（主要占用源）、无用容器/镜像堆积
-3. 水位与占用情况必须在会话中如实同步给用户，禁止用"环境优化""整理"等中性词掩盖删除/清理动作
+3. **machine 侧阈值**（与 `docker\preflight.ps1` 保持一致）：vhdx > 45 GB 告警（磁盘上限 50 GB，逼近即走重建而非 compact）；vhdx 所在盘（F:）剩余 < 20 GB 告警
+4. 水位与占用情况必须在会话中如实同步给用户，禁止用"环境优化""整理"等中性词掩盖删除/清理动作
 
 **反例**：仅凭 `build --no-cache` 成功就宣布环境健康，未核对磁盘水位，导致系统盘逼近 <10% 处置线才被发现。
 
 ---
 
-*最后更新：2026-10-24*
+*最后更新：2026-11-11*
 
