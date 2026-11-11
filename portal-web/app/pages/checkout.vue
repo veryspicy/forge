@@ -56,10 +56,19 @@
                 class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md focus:outline-none focus:ring-accent-500 focus:border-accent-500"
               >
                 <option value="US">United States</option>
-                <option value="UK">United Kingdom</option>
+                <option value="GB">United Kingdom</option>
                 <option value="DE">Germany</option>
                 <option value="FR">France</option>
               </select>
+            </div>
+            <div class="col-span-2">
+              <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">{{ $t('checkout.state') }}</label>
+              <input
+                v-model="form.state"
+                type="text"
+                placeholder="CA / BY / ..."
+                class="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md focus:outline-none focus:ring-accent-500 focus:border-accent-500"
+              />
             </div>
           </div>
         </div>
@@ -68,15 +77,17 @@
         <div class="bg-white dark:bg-stone-900 rounded-xl shadow-sm border p-6">
           <h2 class="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4">{{ $t('checkout.payment') }}</h2>
           <div class="space-y-3">
-            <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer" :class="form.payment === 'card' ? 'border-accent-500 bg-accent-50' : 'border-neutral-200 dark:border-neutral-700/60'">
-              <input v-model="form.payment" type="radio" value="card" class="text-accent-600 focus:ring-accent-500" />
-              <span class="text-sm font-medium text-neutral-900 dark:text-neutral-100">{{ $t('checkout.creditCard') }}</span>
-            </label>
-            <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer" :class="form.payment === 'paypal' ? 'border-accent-500 bg-accent-50' : 'border-neutral-200 dark:border-neutral-700/60'">
-              <input v-model="form.payment" type="radio" value="paypal" class="text-accent-600 focus:ring-accent-500" />
-              <span class="text-sm font-medium text-neutral-900 dark:text-neutral-100">{{ $t('checkout.paypal') }}</span>
+            <label
+              v-for="opt in payOptions"
+              :key="opt.value"
+              class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer"
+              :class="form.payment === opt.value ? 'border-accent-500 bg-accent-50' : 'border-neutral-200 dark:border-neutral-700/60'"
+            >
+              <input v-model="form.payment" type="radio" :value="opt.value" class="text-accent-600 focus:ring-accent-500" />
+              <span class="text-sm font-medium text-neutral-900 dark:text-neutral-100">{{ $t(opt.labelKey) }}</span>
             </label>
           </div>
+          <p v-if="form.payment === 'stripe'" class="mt-3 text-xs text-neutral-500 dark:text-neutral-400">{{ $t('checkout.stripeRedirect') }}</p>
           <p class="mt-4 text-xs text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ $t('checkout.payAfterOrderNote') }}</p>
         </div>
       </div>
@@ -97,15 +108,19 @@
         <div class="border-t mt-4 pt-4 space-y-2 text-sm">
           <div class="flex justify-between text-neutral-600 dark:text-neutral-400 dark:text-neutral-400">
             <span>{{ $t('checkout.subtotal') }}</span>
-            <span>{{ formatPrice(cartStore.total) }}</span>
+            <span>{{ formatPrice(cartStore.subtotal) }}</span>
           </div>
           <div class="flex justify-between text-neutral-600 dark:text-neutral-400 dark:text-neutral-400">
             <span>{{ $t('checkout.shipping') }}</span>
-            <span>{{ cartStore.total > 50 ? $t('checkout.free') : formatPrice(5) }}</span>
+            <span>{{ cartStore.shipping > 0 ? formatPrice(cartStore.shipping) : $t('checkout.free') }}</span>
+          </div>
+          <div v-if="cartStore.tax > 0" class="flex justify-between text-neutral-600 dark:text-neutral-400 dark:text-neutral-400">
+            <span>{{ cartStore.taxLabel }}</span>
+            <span>{{ formatPrice(cartStore.tax) }}</span>
           </div>
           <div class="flex justify-between font-semibold text-neutral-900 dark:text-neutral-100 pt-2 border-t">
             <span>{{ $t('checkout.total') }}</span>
-            <span>{{ formatPrice(cartStore.total > 50 ? cartStore.total : cartStore.total + 5) }}</span>
+            <span>{{ formatPrice(cartStore.total) }}</span>
           </div>
         </div>
         <button
@@ -122,7 +137,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useCartStore } from '~/stores/cart'
 import { useApi } from '~/composables/useApi'
 import { useCurrency } from '~/composables/useCurrency'
@@ -133,17 +148,13 @@ definePageMeta({
 
 const cartStore = useCartStore()
 const { formatPrice } = useCurrency()
-const { createOrder } = useApi()
+const { createOrder, fetchPaymentChannels } = useApi()
 const { t } = useI18n()
 const { toMessage } = useApiError()
 const error = ref('')
 const submitting = ref(false)
 const router = useRouter()
 const localePath = useLocalePath()
-
-onMounted(() => {
-  cartStore.loadCart()
-})
 
 const form = reactive({
   firstName: '',
@@ -152,8 +163,49 @@ const form = reactive({
   city: '',
   zipCode: '',
   country: 'US',
+  state: '',
   payment: 'card',
 })
+
+// 可用支付渠道（后端 /orders/payment-channels）：未配置凭证或未启用的渠道不展示
+const availableChannels = ref<string[]>(['mock'])
+
+type PayOption = { value: string; labelKey: string }
+
+// 渠道名 -> 订单 payment_method：mock 网关对外表现为「信用卡」选项
+const payOptions = computed<PayOption[]>(() => {
+  const opts: PayOption[] = []
+  if (availableChannels.value.includes('stripe')) opts.push({ value: 'stripe', labelKey: 'checkout.stripe' })
+  if (availableChannels.value.includes('paypal')) opts.push({ value: 'paypal', labelKey: 'checkout.paypal' })
+  if (availableChannels.value.includes('mock')) opts.push({ value: 'card', labelKey: 'checkout.creditCard' })
+  return opts
+})
+
+onMounted(async () => {
+  cartStore.loadCart({ country: form.country, region: form.state })
+  try {
+    const res = await fetchPaymentChannels()
+    const usable = (res?.channels || []).filter(c => c.available).map(c => c.channel)
+    if (usable.length) availableChannels.value = usable
+  } catch {
+    // 接口不可用（旧后端/网络异常）时回退到 mock 网关，保证结账流程不中断
+  }
+  if (!payOptions.value.some(o => o.value === form.payment)) {
+    form.payment = payOptions.value[0]?.value || 'card'
+  }
+})
+
+// 辖区变化后重新报价：税费由后端按国家/州省命中税率表返回，前端不硬编码税率
+let reloadTimer: ReturnType<typeof setTimeout> | null = null
+watch(
+  () => [form.country, form.state],
+  () => {
+    if (reloadTimer) clearTimeout(reloadTimer)
+    reloadTimer = setTimeout(() => {
+      cartStore.loadCart({ country: form.country, region: form.state })
+    }, 300)
+  },
+)
 
 async function placeOrder() {
   error.value = ''
@@ -175,7 +227,7 @@ async function placeOrder() {
         line1: form.address,
         line2: '',
         city: form.city,
-        state: '',
+        state: form.state,
         postal_code: form.zipCode,
         country: form.country,
         phone: '',

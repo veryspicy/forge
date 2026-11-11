@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import os
 from typing import Any, cast
 from uuid import UUID
 
@@ -29,7 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from forge.api.errors import APIError, ErrorCode
 from forge.api.v1.auth import get_current_user
-from forge.application.services.app_settings_service import get_setting as get_app_setting
+from forge.application.services import payment_config_service
 from forge.application.services.payment_gateway import get_payment_gateway, get_payment_registry
 from forge.infrastructure.persistence.models import ORMOrder, ORMShipment
 from forge.infrastructure.persistence.repositories.order_repo import (
@@ -53,7 +52,7 @@ VALID_ORDER_STATUSES = {
     "cancelled",
     "refunded",
 }
-VALID_PAYMENT_METHODS = {"card", "paypal"}
+VALID_PAYMENT_METHODS = {"card", "paypal", "stripe"}
 
 
 # ---------------------------------------------------------------------------
@@ -246,6 +245,36 @@ async def list_orders(
     return cast(dict[str, Any], result)
 
 
+@router.get("/payment-channels")
+async def list_payment_channels(
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """当前站点启用的支付渠道与能力（供 C 端结账/订单支付弹窗渲染）。
+
+    - 启用集合来自 app_settings payment.enabled_channels（env 优先）
+    - 只返回已注册到 PaymentRegistry 的渠道，避免前端拿到不可用渠道
+    - 无需登录：结账页在登录态之外也要能展示可用支付方式
+    """
+    registry = get_payment_registry()
+    channels: list[dict[str, Any]] = []
+    for name in await _enabled_channels(db):
+        if not registry.is_registered(name):
+            continue
+        payment_channel = registry.get(name)
+        caps = payment_channel.capabilities
+        channels.append(
+            {
+                "channel": name,
+                "flow": caps.flow,
+                "supports_refund": caps.supports_refund,
+                "supported_currencies": list(caps.supported_currencies),
+                # 凭证未配置的渠道不暴露给前端，避免用户选到必然失败的支付方式
+                "available": bool(getattr(payment_channel, "configured", True)),
+            }
+        )
+    return {"channels": channels}
+
+
 @router.post("")
 async def create_order(
     payload: OrderCreate,
@@ -307,18 +336,14 @@ async def _lock_order_by_number(db: AsyncSession, order_number: str) -> ORMOrder
 
 
 async def _enabled_channels(db: AsyncSession) -> list[str]:
-    """启用渠道集合：env FORGE_PAYMENT_ENABLED_CHANNELS 优先，其次 app_settings payment.enabled_channels，缺省 mock。"""
-    raw = os.getenv("FORGE_PAYMENT_ENABLED_CHANNELS")
-    if raw:
-        channels = [c.strip().lower() for c in raw.split(",") if c.strip()]
-        if channels:
-            return channels
-    setting = await get_app_setting(db, "payment", None)
-    if isinstance(setting, dict):
-        enabled = setting.get("enabled_channels")
-        if isinstance(enabled, list) and enabled:
-            return [str(c).lower() for c in enabled]
-    return ["mock"]
+    """启用渠道集合（后台配置优先，env / mock 兜底）。
+
+    启用集合与凭证都来自 Admin「支付配置」页（``app_settings.payment`` +
+    ``system_configs.payment.channels``）；这里顺带刷新渠道适配器的运行期快照，
+    因此后台保存后下一次请求即生效，无需重启或重新发布。
+    """
+    await payment_config_service.refresh(db)
+    return await payment_config_service.load_enabled_channels(db)
 
 
 def _channel_for_order(order: ORMOrder) -> str:

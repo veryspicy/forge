@@ -45,6 +45,10 @@ class _FakeOrder:
         self.user_id = UUID("d290f1ee-6c54-4b01-90e6-d701748f0851")
         self.subtotal = Decimal("10.00")
         self.tax = Decimal("0.00")
+        self.tax_rate = None
+        self.tax_name = ""
+        self.tax_jurisdiction = None
+        self.tax_inclusive = False
         self.shipping_cost = Decimal("0.00")
         self.discount = Decimal("0.00")
         self.total = Decimal("10.00")

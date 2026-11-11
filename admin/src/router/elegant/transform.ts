@@ -179,6 +179,7 @@ const routeMap: RouteMap = {
   "login": "/login/:module(pwd-login|code-login|register|reset-pwd|bind-wechat)?",
   "orders": "/orders",
   "orders-detail": "/orders-detail",
+  "payment-config": "/payment-config",
   "pricing": "/pricing",
   "product-types": "/product-types",
   "products": "/products",
@@ -191,6 +192,7 @@ const routeMap: RouteMap = {
   "shipments": "/shipments",
   "site-config": "/site-config",
   "suppliers": "/suppliers",
+  "tax-config": "/tax-config",
   "users": "/users"
 };
 

@@ -1,6 +1,7 @@
 // Forge — Cart Store (backend-persisted)
 import { defineStore } from "pinia";
 import { useApi } from "~/composables/useApi";
+import { useRegion } from "~/composables/useRegion";
 
 interface CartProduct {
   id: string;
@@ -23,7 +24,13 @@ export const useCartStore = defineStore("cart", () => {
   const couponCode = ref<string | null>(null);
   const discount = ref(0);
   const tax = ref(0);
+  // 税费口径由后端按收货辖区（静态税率表）返回，避免前端硬编码税率
+  const taxLabel = ref("Tax");
+  const taxRate = ref(0);
+  const taxInclusive = ref(false);
   const shipping = ref(0);
+  /** 后端返回的应付总额（含税/运费），优先使用，避免前端各算一套 */
+  const serverTotal = ref<number | null>(null);
   const currency = ref("USD");
 
   const { fetchCart, addToCart, updateCartItem, removeCartItem, clearCart } = useApi();
@@ -31,14 +38,21 @@ export const useCartStore = defineStore("cart", () => {
   const itemCount = computed(() => items.value.reduce((sum, i) => sum + i.quantity, 0));
   const subtotal = computed(() => items.value.reduce((sum, i) => sum + i.product.price * i.quantity, 0));
 
-  const total = computed(() => subtotal.value + tax.value + shipping.value - discount.value);
+  const total = computed(() =>
+    serverTotal.value !== null
+      ? serverTotal.value - discount.value
+      : subtotal.value + (taxInclusive.value ? 0 : tax.value) + shipping.value - discount.value,
+  );
 
   const isEmpty = computed(() => items.value.length === 0);
 
-  const loadCart = async () => {
+  const loadCart = async (jurisdiction?: { country?: string; region?: string }) => {
     loading.value = true;
     try {
-      const result: any = await fetchCart();
+      const regionStore = useRegion();
+      const result: any = await fetchCart(
+        jurisdiction ?? { country: regionStore.region.value },
+      );
       items.value = (result.items || []).map((item: any) => ({
         cartItemId: item.id,
         product: {
@@ -50,7 +64,12 @@ export const useCartStore = defineStore("cart", () => {
         quantity: item.quantity,
       }));
       tax.value = result.tax || 0;
-      shipping.value = result.shipping || 0;
+      taxRate.value = result.tax_rate || 0;
+      taxLabel.value = result.tax_label || result.tax_name || "Tax";
+      taxInclusive.value = !!result.tax_inclusive;
+      // 后端字段为 shipping_cost；兼容旧的 shipping 命名
+      shipping.value = result.shipping_cost ?? result.shipping ?? 0;
+      serverTotal.value = typeof result.total === "number" ? result.total : null;
       currency.value = result.currency || "USD";
       loaded.value = true;
     } catch {
@@ -107,6 +126,7 @@ export const useCartStore = defineStore("cart", () => {
       couponCode.value = null;
       discount.value = 0;
       tax.value = 0;
+      serverTotal.value = null;
       shipping.value = 0;
     } catch {
       /* ignore */
@@ -138,6 +158,9 @@ export const useCartStore = defineStore("cart", () => {
     couponCode,
     discount,
     tax,
+    taxLabel,
+    taxRate,
+    taxInclusive,
     shipping,
     currency,
     loadCart,

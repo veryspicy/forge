@@ -149,6 +149,16 @@ class PaymentChannel(ABC):
     channel: str
     capabilities: ChannelCapabilities
 
+    @property
+    def configured(self) -> bool:
+        """Whether runtime credentials are present.
+
+        ``False`` means the channel is registered but cannot take real money
+        yet; callers (e.g. /orders/payment-channels) hide it from the
+        storefront instead of letting the customer hit a hard error.
+        """
+        return True
+
     @abstractmethod
     async def create_session(
         self,
@@ -165,7 +175,19 @@ class PaymentChannel(ABC):
     async def refund(self, transaction_id: str, amount: Decimal, reason: str | None = None) -> RefundResult: ...
 
     @abstractmethod
-    async def handle_webhook(self, headers: dict[str, Any], body: dict[str, Any]) -> WebhookEvent: ...
+    async def handle_webhook(
+        self,
+        headers: dict[str, Any],
+        body: dict[str, Any],
+        raw_body: bytes | None = None,
+    ) -> WebhookEvent:
+        """Verify + normalize an inbound webhook.
+
+        ``raw_body`` carries the untouched request bytes; channels that sign
+        the raw payload locally (Stripe) require it, API-verified channels
+        (PayPal) may ignore it.
+        """
+        ...
 
 
 # ---------------------------------------------------------------------------
@@ -260,7 +282,12 @@ class MockPaymentChannel(PaymentChannel):
     async def refund(self, transaction_id: str, amount: Decimal, reason: str | None = None) -> RefundResult:
         return RefundResult(success=True, transaction_id=transaction_id, refund_id=f"ref_mock_{secrets.token_hex(8)}")
 
-    async def handle_webhook(self, headers: dict[str, Any], body: dict[str, Any]) -> WebhookEvent:
+    async def handle_webhook(
+        self,
+        headers: dict[str, Any],
+        body: dict[str, Any],
+        raw_body: bytes | None = None,
+    ) -> WebhookEvent:
         # Mock channels have no inbound webhooks.
         raise APIError(ErrorCode.PAYMENT_GATEWAY_ERROR, message="Mock channel does not accept webhooks.")
 
@@ -348,8 +375,10 @@ def get_payment_registry() -> PaymentRegistry:
         # Real-world channels register via lazy import; constructing a channel
         # is side-effect free (credentials are read lazily per call).
         from forge.application.services.payment_channels import PayPalChannel
+        from forge.application.services.payment_stripe import StripeChannel
 
         _registry.register(PayPalChannel())
+        _registry.register(StripeChannel())
     return _registry
 
 

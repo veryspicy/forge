@@ -545,25 +545,22 @@
             <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">{{ $t('checkout.paymentMethod') }}</label>
             <div class="grid grid-cols-2 gap-3">
               <button
+                v-for="opt in payOptions"
+                :key="opt.value"
                 type="button"
                 class="border rounded-lg px-4 py-3 text-sm font-medium flex items-center justify-center gap-2 transition"
-                :class="payForm.method === 'card' ? 'border-indigo-600 ring-1 ring-indigo-600 text-indigo-700' : 'border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 hover:border-neutral-400'"
-                @click="payForm.method = 'card'"
+                :class="payForm.method === opt.value ? 'border-indigo-600 ring-1 ring-indigo-600 text-indigo-700' : 'border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 hover:border-neutral-400'"
+                @click="payForm.method = opt.value"
               >
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M20 4H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V6a2 2 0 00-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
-                {{ $t('checkout.creditCard') }}
-              </button>
-              <button
-                type="button"
-                class="border rounded-lg px-4 py-3 text-sm font-medium flex items-center justify-center gap-2 transition"
-                :class="payForm.method === 'paypal' ? 'border-indigo-600 ring-1 ring-indigo-600 text-indigo-700' : 'border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 dark:text-neutral-400 hover:border-neutral-400'"
-                @click="payForm.method = 'paypal'"
-              >
-                <span class="font-bold italic">Pay<span class="text-blue-600">Pal</span></span>
-                {{ $t('checkout.paypal') }}
+                <svg v-if="opt.value === 'card'" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M20 4H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V6a2 2 0 00-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
+                <span v-else-if="opt.value === 'paypal'" class="font-bold italic">Pay<span class="text-blue-600">Pal</span></span>
+                <svg v-else class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 3c1.7 0 3.2.6 4.4 1.6L14.7 8.4A4 4 0 0012 7.5V5zm-4.4 2.4l1.7 1.7A4 4 0 008.5 12h3.1l2.3-2.3c.4.7.6 1.5.6 2.3h1.9c0-1.7-.6-3.2-1.6-4.4l1.8-1.8A7.5 7.5 0 0119.5 12h-1.9a5.6 5.6 0 01-1.1 3.4l1.8 1.8A7.5 7.5 0 014.5 12H6a5.6 5.6 0 001.6 4z"/></svg>
+                {{ $t(opt.labelKey) }}
               </button>
             </div>
           </div>
+
+          <p v-if="payForm.method === 'stripe'" class="mb-4 text-xs text-neutral-500 dark:text-neutral-400">{{ $t('checkout.stripeRedirect') }}</p>
 
           <div v-if="payForm.method === 'card'" class="space-y-3 mb-4">
             <p class="text-xs text-amber-600">{{ $t('checkout.testCardHint') }}</p>
@@ -744,7 +741,7 @@ const route = useRoute()
 const router = useRouter()
 const localePath = useLocalePath()
 const orderStore = useOrderStore()
-const { fetchShipments, fetchReturnEligibility, createReturn, fetchMyReturns, cancelReturn, submitReturnShipment, createPaymentSession, capturePayment } = useApi()
+const { fetchShipments, fetchReturnEligibility, createReturn, fetchMyReturns, cancelReturn, submitReturnShipment, createPaymentSession, capturePayment, fetchPaymentChannels } = useApi()
 const { toMessage, resolveCode } = useApiError()
 const { toast } = useToast()
 const { t } = useI18n()
@@ -782,8 +779,18 @@ const showPayModal = ref(false)
 const paying = ref(false)
 const cardError = ref('')
 const payForm = ref({
-  method: 'card' as 'card' | 'paypal',
+  method: 'card' as 'card' | 'paypal' | 'stripe',
   card: { name: '', number: '', expiry: '', cvv: '' },
+})
+
+// 站点启用的支付渠道（后端 /orders/payment-channels），未配置凭证的渠道不展示
+const availableChannels = ref<string[]>(['mock'])
+const payOptions = computed(() => {
+  const opts: { value: 'card' | 'paypal' | 'stripe'; labelKey: string }[] = []
+  if (availableChannels.value.includes('stripe')) opts.push({ value: 'stripe', labelKey: 'checkout.stripe' })
+  if (availableChannels.value.includes('paypal')) opts.push({ value: 'paypal', labelKey: 'checkout.paypal' })
+  if (availableChannels.value.includes('mock')) opts.push({ value: 'card', labelKey: 'checkout.creditCard' })
+  return opts
 })
 
 // ---- Review ----
@@ -829,7 +836,12 @@ const canReview = computed(() => {
 const isReviewed = (itemId: string) => orderStore.reviewedItemIds.has(String(itemId))
 
 const openPayModal = () => {
-  payForm.value = { method: order.value?.payment_method === 'paypal' ? 'paypal' : 'card', card: { name: '', number: '', expiry: '', cvv: '' } }
+  const preferred = order.value?.payment_method
+  const usable = payOptions.value.map(o => o.value)
+  const initial = usable.includes(preferred as any)
+    ? (preferred as 'card' | 'paypal' | 'stripe')
+    : (payOptions.value[0]?.value || 'card')
+  payForm.value = { method: initial, card: { name: '', number: '', expiry: '', cvv: '' } }
   cardError.value = ''
   showPayModal.value = true
 }
@@ -867,9 +879,9 @@ const cardNumberText = computed({
 
 const doPay = async () => {
   cardError.value = ''
-  // PayPal：走多渠道新链路（payment-session -> 跳转审批 -> payment-capture）
-  if (payForm.value.method === 'paypal') {
-    await doPayPal()
+  // 托管收银台渠道（PayPal / Stripe）：payment-session -> 跳转支付 -> payment-capture
+  if (payForm.value.method === 'paypal' || payForm.value.method === 'stripe') {
+    await doRedirectChannel(payForm.value.method)
     return
   }
   if (payForm.value.method === 'card') {
@@ -901,24 +913,29 @@ const doPay = async () => {
   }
 }
 
-// PayPal 支付链路：创建会话 -> 有 approve_url 则跳转 PayPal 审批，回跳后由 onMounted 捕获；无则直接捕获
-const doPayPal = async () => {
+// 托管收银台链路：创建会话 -> 有跳转地址则跳渠道页，回跳后由 onMounted 捕获；无则直接捕获
+// PayPal 用 approve_url，Stripe 用 redirect_url；会话暂存 key 与回跳参数一一对应
+const doRedirectChannel = async (channel: 'paypal' | 'stripe') => {
   paying.value = true
   cardError.value = ''
+  const flag = channel === 'paypal' ? 'pp' : 'st'
   try {
     const base = window.location.origin + window.location.pathname
     const session = await createPaymentSession(orderId.value, {
-      channel: 'paypal',
-      return_url: `${base}?pp=1`,
+      channel,
+      return_url: `${base}?${flag}=1`,
       cancel_url: base,
     })
     if (!session?.session_id) {
       throw new Error('PAYMENT_GATEWAY_ERROR')
     }
-    // 记录会话供 PayPal 审批回跳后完成支付
-    sessionStorage.setItem(`forge_pp_${orderId.value}`, JSON.stringify({ session_id: session.session_id, ts: Date.now() }))
-    if (session.approve_url) {
-      window.location.href = session.approve_url
+    // 记录会话供渠道回跳后完成支付
+    sessionStorage.setItem(`forge_${flag}_${orderId.value}`, JSON.stringify({ session_id: session.session_id, ts: Date.now() }))
+    const redirectUrl = channel === 'stripe'
+      ? (session.redirect_url || session.approve_url)
+      : session.approve_url
+    if (redirectUrl) {
+      window.location.href = redirectUrl
       return
     }
     // 无跳转地址（如 mock 渠道演示）：直接捕获完成
@@ -1254,6 +1271,14 @@ const doSubmitShipment = async () => {
 
 onMounted(async () => {
   try {
+    // 支付渠道能力（未配置凭证的渠道后端会标记 available=false）
+    try {
+      const res = await fetchPaymentChannels()
+      const usable = (res?.channels || []).filter(c => c.available).map(c => c.channel)
+      if (usable.length) availableChannels.value = usable
+    } catch {
+      // 渠道接口异常时回退到 mock 网关，保证支付弹窗仍可用
+    }
     await orderStore.loadOrderDetail(orderId.value)
     order.value = orderStore.currentOrder
     orderStore.loadMyReviews()
@@ -1265,13 +1290,14 @@ onMounted(async () => {
     }
     // 售后：可退性 + 已有退货单
     await Promise.all([loadReturnEligibility(), loadReturns()])
-    // PayPal 审批回跳：?pp=1 且本地存有会话记录 -> 完成捕获
-    const ppRaw = sessionStorage.getItem(`forge_pp_${orderId.value}`)
-    if (route.query.pp === '1' && ppRaw) {
+    // 托管收银台回跳：?pp=1（PayPal）/ ?st=1（Stripe）且本地存有会话 -> 完成捕获
+    for (const flag of ['pp', 'st'] as const) {
+      const raw = sessionStorage.getItem(`forge_${flag}_${orderId.value}`)
+      if (route.query[flag] !== '1' || !raw) continue
       try {
-        const saved = JSON.parse(ppRaw)
+        const saved = JSON.parse(raw)
         await capturePayment(orderId.value, { session_id: saved.session_id })
-        sessionStorage.removeItem(`forge_pp_${orderId.value}`)
+        sessionStorage.removeItem(`forge_${flag}_${orderId.value}`)
         toast.success(t('orders.paySuccess'))
         await reloadOrder()
       } catch (err: any) {
@@ -1279,6 +1305,7 @@ onMounted(async () => {
       } finally {
         await router.replace({ query: {} })
       }
+      break
     }
     // 列表页“去支付”跳转时自动唤起支付弹窗
     if (route.query.pay === '1' && canPay.value) {

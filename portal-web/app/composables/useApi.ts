@@ -1,6 +1,15 @@
 ﻿// Forge — API composable
 import { useAuthStore } from "~/stores/auth";
 
+/** 支付渠道能力（GET /orders/payment-channels） */
+export interface PaymentChannelInfo {
+  channel: string
+  flow: string // redirect | popup | qr | client_token | mock
+  supports_refund: boolean
+  supported_currencies: string[]
+  available: boolean
+}
+
 export function useApi() {
   const API_BASE = useRuntimeConfig().public.apiBase;
 
@@ -128,7 +137,12 @@ export function useApi() {
     });
   };
 
-  // 多渠道支付（P0）：创建支付会话（mock/paypal 等渠道）
+  // 多渠道支付（P0）：站点启用的支付渠道（含可用性与 flow），供结账/支付弹窗渲染
+  const fetchPaymentChannels = async (): Promise<{ channels: PaymentChannelInfo[] }> => {
+    return (await authFetch(`${API_BASE}/orders/payment-channels`)) as { channels: PaymentChannelInfo[] };
+  };
+
+  // 多渠道支付（P0）：创建支付会话（mock/paypal/stripe 等渠道）
   const createPaymentSession = async (orderNumber: string, data: { channel: string; return_url?: string; cancel_url?: string }) => {
     return authFetch(`${API_BASE}/orders/${orderNumber}/payment-session`, {
       method: "POST",
@@ -215,16 +229,22 @@ export function useApi() {
   };
 
   // Cart
-  const fetchCart = async (): Promise<{
+  const fetchCart = async (params?: { country?: string; region?: string }): Promise<{
     items: Array<{
       id: string; user_id: string; product_id: string;
       name: string; price: number; quantity: number;
       image: string; subtotal: number;
     }>;
     item_count: number; subtotal: number; tax: number;
-    shipping: number; total: number;
+    tax_rate?: number; tax_name?: string; tax_label?: string;
+    tax_jurisdiction?: string; tax_inclusive?: boolean;
+    shipping_cost?: number; shipping: number; total: number;
   }> => {
-    return authFetch(`${API_BASE}/cart/items`) as any;
+    const qs = new URLSearchParams();
+    if (params?.country) qs.set("country", params.country);
+    if (params?.region) qs.set("region", params.region);
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return authFetch(`${API_BASE}/cart/items${suffix}`) as any;
   };
 
   const addToCart = async (data: {
@@ -314,6 +334,7 @@ export function useApi() {
     payOrder,
     createPaymentSession,
     capturePayment,
+    fetchPaymentChannels,
     confirmReceipt,
     updateShippingAddress,
     deleteOrder,

@@ -281,6 +281,8 @@
     "paymentMethod": "طريقة الدفع",
     "creditCard": "بطاقة ائتمان/خصم",
     "paypal": "باي بال",
+    "stripe": "بطاقة / Apple Pay / Google Pay (Stripe)",
+    "stripeRedirect": "سيتم تحويلك إلى صفحة الدفع الآمنة من Stripe لإتمام العملية.",
     "cardNumber": "رقم البطاقة",
     "expiryDate": "تاريخ الانتهاء",
     "cvc": "رمز التحقق",

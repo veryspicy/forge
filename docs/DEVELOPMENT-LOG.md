@@ -330,3 +330,15 @@ PROCURING → PROCURE_FAILED (采购失败)
 | 供应商 SKU 映射 | Mock | 暂用 mock 数据，待对接真实供应商 API |
 | 角色权限严格检查 | 占位 | 当前已登录即可，后续收紧为三角色 RBAC |
 | 日期范围筛选器 | 可升级 | 当前为原生 date input，可升级为日期选择组件 |
+
+---
+
+## 2026-11-08 Stripe 支付渠道接入（P0-1）
+
+- 新增 `backend/src/forge/application/services/payment_stripe.py`：`StripeChannel` 实现 create_session（Checkout Session 托管收银台）/ capture（回跳查询 session 状态）/ refund（按 payment_intent）/ handle_webhook（本地 HMAC-SHA256 验签，5 分钟容差），零小数币种按 1:1 换算。
+- 抽象层增强：`PaymentChannel` 增加 `configured` 属性；PayPal 渠道按 client_id+secret 判定；`/orders/payment-channels` 附 `available` 标记，凭证缺失的渠道不下发给 C 端。
+- 归一化 wire 键名：不同渠道统一使用 `session_id` / `redirect_url` / `payment_intent`，避免前端按渠道 if/else。
+- C 端改造：`checkout.vue` 与 `orders/[id].vue` 支付方式改为按接口 dynamic 渲染，新增 `?st=1` 回跳与 `forge_st_{orderId}` 会话暂存；五语补齐 `stripe` / `stripeRedirect` 文案。
+- Webhook 入口透传原始 body（`request.body()`），保证验签在字节级成立。
+- 验证：backend pytest 140 passed / ruff / mypy 通过；portal-web eslint 0 error、nuxt typecheck EXIT=0；重建 backend + portal-web 容器后，`/api/v1/orders/payment-channels` 经网关 200，`stripe configured=False`（凭证未填，按预期隐藏）。
+- 说明文档：`docs/payment-stripe-integration.md`。

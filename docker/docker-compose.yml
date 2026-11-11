@@ -158,7 +158,11 @@ services:
       PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET:-}
       PAYPAL_MODE: ${PAYPAL_MODE:-sandbox}
       PAYPAL_WEBHOOK_ID: ${PAYPAL_WEBHOOK_ID:-}
-      FORGE_PAYMENT_ENABLED_CHANNELS: ${FORGE_PAYMENT_ENABLED_CHANNELS:-paypal,mock}
+      # Stripe 凭证（sk_test_/sk_live_ 与 whsec_，值来自 docker/.env，不入库）
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_API_BASE: ${STRIPE_API_BASE:-https://api.stripe.com}
+      FORGE_PAYMENT_ENABLED_CHANNELS: ${FORGE_PAYMENT_ENABLED_CHANNELS:-stripe,paypal,mock}
     volumes:
       - ../backend/src:/app/src  # 热重载
       - ../backend/uploads:/app/uploads  # 本地降级图片持久化，容器重建不丢

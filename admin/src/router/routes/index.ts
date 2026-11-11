@@ -323,6 +323,30 @@ const customRoutes = [
           order: 4,
           roles: ['super_admin', 'admin']
         }
+      },
+      {
+        name: 'payment-config',
+        path: '/payment-config',
+        component: 'layout.base$view.payment-config',
+        meta: {
+          title: 'Payment Channels',
+          i18nKey: 'route.payment-config',
+          icon: 'mdi:credit-card-settings-outline',
+          order: 5,
+          roles: ['super_admin', 'admin']
+        }
+      },
+      {
+        name: 'tax-config',
+        path: '/tax-config',
+        component: 'layout.base$view.tax-config',
+        meta: {
+          title: 'Tax Config',
+          i18nKey: 'route.tax-config',
+          icon: 'mdi:percent-outline',
+          order: 6,
+          roles: ['super_admin', 'admin']
+        }
       }
     ]
   },
