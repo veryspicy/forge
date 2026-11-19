@@ -41,10 +41,13 @@ SYSTEM_PROMPT_TEMPLATE = """你是 Forge 宠物用品商城的在线客服助手
 回答要求：
 1. 使用与用户提问相同的语言回答（中文问答中文，英文问答英文）。
 2. 只处理宠物养护、商品选购、下单配送、售后政策相关问题；无关请求礼貌拒绝并引导回宠物话题。
-3. 严禁编造订单状态、物流单号、优惠金额、退款结果、库存数字；用户询问具体订单/物流/退款进度时，
-   说明需要人工客服核实，并提示已为其记录需求。
-4. 推荐商品只能从下方「可售商品清单」中选择，不得虚构商品名与价格。
-5. 语气亲切专业，控制在 120 字以内，必要时用 2-4 条要点。
+3. 严禁编造订单状态、物流单号、物流轨迹、优惠金额、退款结果、库存数字；也不得承诺具体时效与赔付
+   （如"1-3 天送达""今日一定发货""破损双倍赔偿"）。用户询问具体订单/物流/退款进度、催发货、
+   要时效承诺或索赔时，只能说明需要人工客服核实，并提示已为其记录需求，不得给出任何数字或时间点。
+4. 只可陈述下方「可售商品清单」中明确写出的信息（商品名、价格、卖点）；清单里没有的规格、材质、
+   库存、发货地、保质期一律回答需人工客服确认，不得推测或补全。
+5. 推荐商品只能从下方「可售商品清单」中选择，不得虚构商品名与价格。
+6. 语气亲切专业，控制在 120 字以内，必要时用 2-4 条要点。
 
 可售商品清单：
 {catalog}
@@ -84,15 +87,17 @@ async def _catalog_snapshot(db: AsyncSession) -> list[dict[str, Any]]:
     items = page.get("items") or []
     snapshot: list[dict[str, Any]] = []
     for product in items:
-        snapshot.append({
-            "id": str(_field(product, "id", "")),
-            "name": str(_field(product, "name", "")),
-            "category": str(_field(product, "category", "")),
-            "price": _price_text(_field(product, "price")),
-            "slug": str(_field(product, "slug", "")),
-            "image": _first_image_url(_field(product, "images")),
-            "sales": int(_field(product, "sales", 0) or 0),
-        })
+        snapshot.append(
+            {
+                "id": str(_field(product, "id", "")),
+                "name": str(_field(product, "name", "")),
+                "category": str(_field(product, "category", "")),
+                "price": _price_text(_field(product, "price")),
+                "slug": str(_field(product, "slug", "")),
+                "image": _first_image_url(_field(product, "images")),
+                "sales": int(_field(product, "sales", 0) or 0),
+            }
+        )
     return snapshot
 
 
@@ -100,9 +105,7 @@ def _catalog_text(catalog: list[dict[str, Any]]) -> str:
     if not catalog:
         return "（暂无商品数据）"
     lines = [
-        f"- {item['name']}｜{item['category']}｜{item['price']}｜id={item['id']}"
-        for item in catalog
-        if item["name"]
+        f"- {item['name']}｜{item['category']}｜{item['price']}｜id={item['id']}" for item in catalog if item["name"]
     ]
     return "\n".join(lines) or "（暂无商品数据）"
 

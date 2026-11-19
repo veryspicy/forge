@@ -86,7 +86,7 @@ class RouteAttempt:
 
     provider_id: str
     label: str
-    status: str  # ok / failed / quota_skipped / quota_exhausted
+    status: str  # ok / failed / empty / quota_skipped / quota_exhausted
     detail: str = ""
     latency_ms: int = 0
 
@@ -333,6 +333,32 @@ async def route_chat(
 
         latency_ms = int(result.latency_ms or (time.perf_counter() - started) * 1000)
         tokens_in, tokens_out = _token_usage(result.usage)
+        content = str(result.content or "").strip()
+        if not content:
+            # 上游返回 200 但正文为空（推理型模型耗尽 token、被内容策略拦截等）：
+            # 不能把空回复当成功透传给用户，按失败处理并续切下一家。
+            detail = "上游返回空内容"
+            _COOLDOWN_UNTIL[endpoint.provider_id] = time.monotonic() + COOLDOWN_SECONDS
+            await SQLAlchemyAIChatRepository.bump_usage(
+                db,
+                provider_id=endpoint.provider_id,
+                requests=1,
+                tokens=tokens_in + tokens_out,
+                failures=1,
+                last_error=detail,
+            )
+            logger.warning("AI 供应商返回空内容，转下一个: %s", endpoint.label)
+            attempts.append(
+                RouteAttempt(
+                    provider_id=endpoint.provider_id,
+                    label=endpoint.label,
+                    status="empty",
+                    detail=detail,
+                    latency_ms=latency_ms,
+                )
+            )
+            continue
+
         await SQLAlchemyAIChatRepository.bump_usage(
             db,
             provider_id=endpoint.provider_id,
@@ -350,7 +376,7 @@ async def route_chat(
         )
         return RouteResult(
             ok=True,
-            content=str(result.content or ""),
+            content=content,
             model=str(result.model or endpoint.cfg.model or ""),
             provider_id=endpoint.provider_id,
             provider_name=endpoint.provider_name,
@@ -362,7 +388,17 @@ async def route_chat(
         )
 
     quota_blocked = all(attempt.status == "quota_exhausted" for attempt in attempts) if attempts else False
-    reason = "quota_exhausted" if quota_blocked else "all_failed"
+    empty_blocked = (
+        bool(attempts)
+        and any(attempt.status == "empty" for attempt in attempts)
+        and all(attempt.status in ("empty", "quota_exhausted") for attempt in attempts)
+    )
+    if quota_blocked:
+        reason = "quota_exhausted"
+    elif empty_blocked:
+        reason = "empty_reply"
+    else:
+        reason = "all_failed"
     detail = "；".join(f"{attempt.label}: {attempt.detail}" for attempt in attempts if attempt.detail)[:500]
     return RouteResult(ok=False, reason=reason, detail=detail or "全部候选端点不可用", attempts=attempts)
 
