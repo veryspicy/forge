@@ -9,13 +9,15 @@
 - ``test_endpoints``   : 多端点按序测试（聚合供应商）
 - ``chat_completion_with_failover`` : 多端点按序调用，首个成功即返回（聚合故障转移）
 
-兼容 NVIDIA integrate API（https://integrate.api.nvidia.com/v1）、DeepSeek、OpenAI 等
-任意 OpenAI 协议上游。
+兼容 NVIDIA integrate API（https://integrate.api.nvidia.com/v1）、DeepSeek、OpenAI、
+Cloudflare AI Gateway（``https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway}/compat``，
+模型名沿用 unified 命名 ``workers-ai/@cf/...``）等任意 OpenAI 协议上游。
 """
 
 from __future__ import annotations
 
 import logging
+import os
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -77,10 +79,13 @@ def normalize_base_url(base_url: str) -> str:
 
 
 def _headers(api_key: str) -> dict[str, str]:
+    # 显式声明 User-Agent：Cloudflare（AI Gateway / Workers AI）对缺失 UA 的请求
+    # 会直接返回 ``error code: 1010``，因此不依赖 httpx 默认 UA。
     return {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
         "Accept": "application/json",
+        "User-Agent": os.environ.get("LLM_HTTP_USER_AGENT", "Forge-Backend/1.0"),
     }
 
 
