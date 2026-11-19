@@ -17,6 +17,7 @@ declare module "@elegant-router/types" {
   export type RouteMap = {
     "root": "/";
     "not-found": "/:pathMatch(.*)*";
+    "content-list": "/content/list";
     "403": "/403";
     "404": "/404";
     "500": "/500";
@@ -26,7 +27,6 @@ declare module "@elegant-router/types" {
     "brands": "/brands";
     "categories": "/categories";
     "content": "/content";
-    "content-list": "/content/list";
     "content-edit": "/content-edit";
     "dashboard": "/dashboard";
     "iframe-page": "/iframe-page/:url";
@@ -35,7 +35,6 @@ declare module "@elegant-router/types" {
     "orders-detail": "/orders-detail";
     "payment-config": "/payment-config";
     "pricing": "/pricing";
-    "tax-config": "/tax-config";
     "product-types": "/product-types";
     "products": "/products";
     "products-detail": "/products-detail";
@@ -47,6 +46,7 @@ declare module "@elegant-router/types" {
     "shipments": "/shipments";
     "site-config": "/site-config";
     "suppliers": "/suppliers";
+    "tax-config": "/tax-config";
     "users": "/users";
   };
 
@@ -67,6 +67,7 @@ declare module "@elegant-router/types" {
     RouteKey,
     | "root"
     | "not-found"
+    | "content-list"
   >;
 
   /**
@@ -96,7 +97,6 @@ declare module "@elegant-router/types" {
     | "orders-detail"
     | "payment-config"
     | "pricing"
-    | "tax-config"
     | "product-types"
     | "products"
     | "products-detail"
@@ -108,6 +108,7 @@ declare module "@elegant-router/types" {
     | "shipments"
     | "site-config"
     | "suppliers"
+    | "tax-config"
     | "users"
   >;
 
@@ -118,6 +119,7 @@ declare module "@elegant-router/types" {
     CustomRouteKey,
     | "root"
     | "not-found"
+    | "content-list"
   >;
 
   /**
@@ -142,7 +144,6 @@ declare module "@elegant-router/types" {
     | "orders"
     | "payment-config"
     | "pricing"
-    | "tax-config"
     | "product-types"
     | "products-detail"
     | "products-new"
@@ -154,6 +155,7 @@ declare module "@elegant-router/types" {
     | "shipments"
     | "site-config"
     | "suppliers"
+    | "tax-config"
     | "users"
   >;
 
@@ -164,6 +166,7 @@ declare module "@elegant-router/types" {
     CustomRouteKey,
     | "root"
     | "not-found"
+    | "content-list"
   >;
 
   /**

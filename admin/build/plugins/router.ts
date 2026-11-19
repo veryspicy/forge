@@ -8,6 +8,20 @@ export function setupElegantRouter() {
       base: 'src/layouts/base-layout/index.vue',
       blank: 'src/layouts/blank-layout/index.vue'
     },
+    /**
+     * Custom routes declared in `src/router/routes/index.ts`:
+     * elegant-router must emit their declarations (typings + transform map),
+     * otherwise regenerating routes after `vite build` drops the `content-list` key
+     * and `vue-tsc` fails.
+     */
+    customRoutes: {
+      map: {
+        root: '/',
+        'not-found': '/:pathMatch(.*)*',
+        'content-list': '/content/list'
+      },
+      names: []
+    },
     routePathTransformer(routeName, routePath) {
       const key = routeName as RouteKey;
 
