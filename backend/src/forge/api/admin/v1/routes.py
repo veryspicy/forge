@@ -247,6 +247,32 @@ AUTH_ROUTE_TREE = [
                     "roles": ["super_admin", "admin", "operator"],
                 },
             },
+            {
+                "id": "payment-config",
+                "name": "payment-config",
+                "path": "/payment-config",
+                "component": "layout.base$view.payment-config",
+                "meta": {
+                    "title": "Payment Channels",
+                    "i18nKey": "route.payment-config",
+                    "icon": "mdi:credit-card-settings-outline",
+                    "order": 2,
+                    "roles": ["super_admin", "admin"],
+                },
+            },
+            {
+                "id": "tax-config",
+                "name": "tax-config",
+                "path": "/tax-config",
+                "component": "layout.base$view.tax-config",
+                "meta": {
+                    "title": "Tax Config",
+                    "i18nKey": "route.tax-config",
+                    "icon": "mdi:percent-outline",
+                    "order": 3,
+                    "roles": ["super_admin", "admin"],
+                },
+            },
         ],
     },
     {
@@ -258,7 +284,7 @@ AUTH_ROUTE_TREE = [
             "title": "System",
             "i18nKey": "route.system",
             "icon": "mdi:cog",
-            "order": 8,
+            "order": 9,
             "roles": ["super_admin", "admin"],
         },
         "children": [
@@ -314,32 +340,6 @@ AUTH_ROUTE_TREE = [
                     "roles": ["super_admin", "admin"],
                 },
             },
-            {
-                "id": "payment-config",
-                "name": "payment-config",
-                "path": "/payment-config",
-                "component": "layout.base$view.payment-config",
-                "meta": {
-                    "title": "Payment Channels",
-                    "i18nKey": "route.payment-config",
-                    "icon": "mdi:credit-card-settings-outline",
-                    "order": 5,
-                    "roles": ["super_admin", "admin"],
-                },
-            },
-            {
-                "id": "tax-config",
-                "name": "tax-config",
-                "path": "/tax-config",
-                "component": "layout.base$view.tax-config",
-                "meta": {
-                    "title": "Tax Config",
-                    "i18nKey": "route.tax-config",
-                    "icon": "mdi:percent-outline",
-                    "order": 6,
-                    "roles": ["super_admin", "admin"],
-                },
-            },
         ],
     },
     {
@@ -351,7 +351,7 @@ AUTH_ROUTE_TREE = [
             "title": "Content",
             "i18nKey": "route.content",
             "icon": "mdi:file-document-edit",
-            "order": 9,
+            "order": 8,
             "roles": ["super_admin", "admin"],
         },
         "children": [
