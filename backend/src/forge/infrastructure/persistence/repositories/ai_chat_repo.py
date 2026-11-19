@@ -106,7 +106,7 @@ class SQLAlchemyAIChatRepository:
     @staticmethod
     async def delete_conversation(db: AsyncSession, conversation_id: UUID) -> int:
         result = await db.execute(delete(ORMAIConversation).where(ORMAIConversation.id == conversation_id))
-        return int(result.rowcount or 0)
+        return int(getattr(result, "rowcount", 0) or 0)
 
     # ------------------------------------------------------------------ #
     # 消息
@@ -264,11 +264,13 @@ class SQLAlchemyAIChatRepository:
         note: str | None = None,
         new_status: str = "resolved",
     ) -> ORMAIHandoffRequest:
-        handoff.status = new_status
-        handoff.handled_by = handler
-        handoff.handled_at = _now()
+        # 模型列注解为旧式 Column[...]，直接赋值会被 mypy 判为类型不符，经 Any 视图写入
+        target: Any = handoff
+        target.status = new_status
+        target.handled_by = handler
+        target.handled_at = _now()
         if note:
-            handoff.note = note
+            target.note = note
         await db.flush()
         return handoff
 
