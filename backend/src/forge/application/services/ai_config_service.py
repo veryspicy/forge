@@ -182,6 +182,11 @@ def _apply_payload(
     temperature = _as_float(payload.get("temperature", base.get("temperature")), 0.7)
     max_tokens = _as_int(payload.get("max_tokens", base.get("max_tokens")), 1024)
     enabled = bool(payload.get("enabled", base.get("enabled", True)))
+    # 额度治理与负载均衡参数（0 表示不限额度）
+    weight = max(1, min(100, _as_int(payload.get("weight", base.get("weight")), 10)))
+    priority = max(1, min(99, _as_int(payload.get("priority", base.get("priority")), 50)))
+    daily_request_limit = max(0, _as_int(payload.get("daily_request_limit", base.get("daily_request_limit")), 0))
+    daily_token_limit = max(0, _as_int(payload.get("daily_token_limit", base.get("daily_token_limit")), 0))
     raw_models = payload["models"] if "models" in payload else base.get("models")
 
     key = payload.get("api_key")
@@ -234,6 +239,10 @@ def _apply_payload(
         "name": name,
         "type": provider_type,
         "enabled": enabled,
+        "weight": weight,
+        "priority": priority,
+        "daily_request_limit": daily_request_limit,
+        "daily_token_limit": daily_token_limit,
         "protocol": protocol,
         "base_url": base_url,
         "model": model,
@@ -912,6 +921,16 @@ def _env_fallback() -> LLMConfig:
         max_tokens=settings.ai_llm_max_tokens,
         enabled=bool(api_key),
     )
+
+
+async def load_providers_snapshot(db: AsyncSession) -> tuple[dict[str, Any], dict[str, str]]:
+    """读取供应商集合与解密后的密钥映射（供 AI 路由 / 额度治理使用）。
+
+    与 ``_load_store`` 的区别：这里把密钥一起返回，调用方只能用于发起上游请求，
+    不得回传到 API 响应中。
+    """
+    store, row = await _load_store(db)
+    return store, _read_secrets(row)
 
 
 async def load_llm_endpoints(db: AsyncSession) -> list[LLMConfig]:

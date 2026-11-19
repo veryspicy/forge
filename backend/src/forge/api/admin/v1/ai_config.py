@@ -69,6 +69,11 @@ class ProviderPayload(BaseModel):
     temperature: float | None = Field(default=None, ge=0, le=2)
     max_tokens: int | None = Field(default=None, ge=1, le=65536)
     enabled: bool | None = None
+    # 额度治理 / 负载均衡
+    weight: int | None = Field(default=None, ge=1, le=100)
+    priority: int | None = Field(default=None, ge=0, le=1000)
+    daily_request_limit: int | None = Field(default=None, ge=0)
+    daily_token_limit: int | None = Field(default=None, ge=0)
     models: list[ProviderModelPayload] | None = None
     upstreams: list[ProviderUpstreamPayload] | None = None
 

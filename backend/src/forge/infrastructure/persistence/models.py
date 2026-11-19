@@ -52,6 +52,10 @@ __all__ = [
     "ORMResource",
     "ORMResourceRef",
     "ORMAppSetting",
+    "ORMAIConversation",
+    "ORMAIMessage",
+    "ORMAIUsageDaily",
+    "ORMAIHandoffRequest",
 ]
 
 
@@ -1153,4 +1157,143 @@ class ORMContent(Base):
             "published_at": self.published_at.isoformat() if self.published_at else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class ORMAIConversation(Base):
+    """AI 客服会话（C 端）。
+
+    - user_id：登录用户的 users.id；游客会话为空，用 guest_key 归并
+    - last_message / title：会话列表展示用摘要
+    - provider_id：本会话最近一次命中的 AI 供应商（便于运营排查）
+    """
+
+    __tablename__ = "ai_conversations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
+    user_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    guest_key = Column(String(128), nullable=True, index=True)
+    title = Column(String(200), nullable=False, default="", server_default="")
+    pet_id = Column(UUID(as_uuid=True), nullable=True)
+    last_message = Column(Text, nullable=False, default="", server_default="")
+    message_count = Column(Integer, nullable=False, default=0, server_default="0")
+    provider_id = Column(String(64), nullable=True)
+    created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+    updated_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "title": self.title or "",
+            "last_message": self.last_message or "",
+            "message_count": int(self.message_count or 0),
+            "provider_id": self.provider_id,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class ORMAIMessage(Base):
+    """AI 客服消息明细（用户提问 / AI 回复 / 系统降级提示）。"""
+
+    __tablename__ = "ai_messages"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
+    conversation_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("ai_conversations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    role = Column(String(16), nullable=False)
+    content = Column(Text, nullable=False, default="", server_default="")
+    provider_id = Column(String(64), nullable=True)
+    provider_name = Column(String(100), nullable=True)
+    model = Column(String(120), nullable=True)
+    tokens_in = Column(Integer, nullable=False, default=0, server_default="0")
+    tokens_out = Column(Integer, nullable=False, default=0, server_default="0")
+    latency_ms = Column(Integer, nullable=False, default=0, server_default="0")
+    status = Column(String(16), nullable=False, default="ok", server_default="ok")
+    recommendations = Column(JSONB, nullable=False, default=list)
+    created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "role": self.role,
+            "content": self.content or "",
+            "provider_id": self.provider_id,
+            "provider_name": self.provider_name,
+            "model": self.model,
+            "status": self.status,
+            "recommendations": self.recommendations or [],
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class ORMAIUsageDaily(Base):
+    """供应商每日额度用量（额度治理 / 负载均衡依据）。
+
+    - provider_id：供应商 id（聚合供应商记到供应商层级，不细分上游）
+    - usage_date：YYYY-MM-DD（本地自然日，按 UTC+8 业务日归集）
+    - requests / tokens / failures：当日累计调用次数、token 消耗、失败次数
+    - quota_hits：因额度耗尽被跳过的次数（运营观察额度配置是否偏紧）
+    """
+
+    __tablename__ = "ai_usage_daily"
+    __table_args__ = (UniqueConstraint("provider_id", "usage_date", name="uq_ai_usage_daily_provider_date"),)
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    provider_id = Column(String(64), nullable=False, index=True)
+    usage_date = Column(String(10), nullable=False, index=True)
+    requests = Column(Integer, nullable=False, default=0, server_default="0")
+    tokens = Column(Integer, nullable=False, default=0, server_default="0")
+    failures = Column(Integer, nullable=False, default=0, server_default="0")
+    quota_hits = Column(Integer, nullable=False, default=0, server_default="0")
+    last_error = Column(Text, nullable=True)
+    updated_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "provider_id": self.provider_id,
+            "usage_date": self.usage_date,
+            "requests": int(self.requests or 0),
+            "tokens": int(self.tokens or 0),
+            "failures": int(self.failures or 0),
+            "quota_hits": int(self.quota_hits or 0),
+            "last_error": self.last_error,
+        }
+
+
+class ORMAIHandoffRequest(Base):
+    """AI 客服转人工工单：所有 AI 供应商额度耗尽 / 全部失败时落库。"""
+
+    __tablename__ = "ai_handoff_requests"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default="gen_random_uuid()")
+    conversation_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    user_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    guest_key = Column(String(128), nullable=True)
+    message = Column(Text, nullable=False, default="", server_default="")
+    reason = Column(String(32), nullable=False, default="quota_exhausted", server_default="quota_exhausted")
+    detail = Column(Text, nullable=True)
+    status = Column(String(16), nullable=False, default="pending", server_default="pending")
+    handled_by = Column(String(128), nullable=True)
+    handled_at = Column(DateTime(timezone=False), nullable=True)
+    note = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+    updated_at = Column(DateTime(timezone=False), nullable=False, server_default="now()")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "conversation_id": str(self.conversation_id) if self.conversation_id else None,
+            "message": self.message or "",
+            "reason": self.reason,
+            "detail": self.detail,
+            "status": self.status,
+            "handled_by": self.handled_by,
+            "handled_at": self.handled_at.isoformat() if self.handled_at else None,
+            "note": self.note,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }

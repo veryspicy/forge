@@ -206,6 +206,13 @@ except ImportError:
     pass
 
 try:
+    from forge.api.v1.ai import router as public_ai_router
+
+    app.include_router(public_ai_router, prefix="/api/v1")
+except ImportError:
+    pass
+
+try:
     from forge.api.admin.v1.routes import router as routes_router
 
     app.include_router(routes_router)
