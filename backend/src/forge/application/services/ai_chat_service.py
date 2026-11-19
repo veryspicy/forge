@@ -73,23 +73,26 @@ def _first_image_url(images: Any) -> str | None:
     return None
 
 
+def _field(obj: Any, key: str, default: Any = None) -> Any:
+    """仓储可能返回 ORM 实体或已序列化 dict，统一取值入口。"""
+    value = obj.get(key, default) if isinstance(obj, dict) else getattr(obj, key, default)
+    return default if value is None else value
+
+
 async def _catalog_snapshot(db: AsyncSession) -> list[dict[str, Any]]:
-    """取可售商品（最多 12 条）用于提示词上下文与关键词推荐。"""
     page = await SQLAlchemyProductRepository.list_products(db, page=1, page_size=MAX_CATALOG_ITEMS)
     items = page.get("items") or []
     snapshot: list[dict[str, Any]] = []
     for product in items:
-        snapshot.append(
-            {
-                "id": str(product.id),
-                "name": str(product.name or ""),
-                "category": str(product.category or ""),
-                "price": _price_text(product.price),
-                "slug": str(getattr(product, "slug", "") or ""),
-                "image": _first_image_url(product.images),
-                "sales": int(getattr(product, "sales", 0) or 0),
-            }
-        )
+        snapshot.append({
+            "id": str(_field(product, "id", "")),
+            "name": str(_field(product, "name", "")),
+            "category": str(_field(product, "category", "")),
+            "price": _price_text(_field(product, "price")),
+            "slug": str(_field(product, "slug", "")),
+            "image": _first_image_url(_field(product, "images")),
+            "sales": int(_field(product, "sales", 0) or 0),
+        })
     return snapshot
 
 
