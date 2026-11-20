@@ -1,21 +1,73 @@
 ﻿<template>
   <div class="max-w-6xl mx-auto px-4 py-8 grid gap-6 lg:grid-cols-[260px_1fr]">
-    <!-- Conversation History -->
-    <aside class="lg:sticky lg:top-6 lg:self-start">
-      <div class="bg-white dark:bg-stone-900 rounded-xl shadow-sm border p-3">
+    <!-- Mobile / narrow-screen toolbar：打开历史抽屉 -->
+    <div class="flex items-center justify-between gap-3 lg:hidden">
+      <button
+        class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border bg-white dark:bg-stone-900 dark:border-neutral-700 text-sm font-medium text-neutral-700 dark:text-neutral-200 hover:border-accent-400 transition"
+        :aria-label="$t('chat.history') || 'History'"
+        :aria-expanded="drawerOpen"
+        @click="openDrawer"
+      >
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </svg>
+        <span>{{ $t('chat.history') || 'History' }}</span>
+        <span
+          v-if="chatStore.conversations.length"
+          class="px-1.5 py-0.5 rounded-full bg-accent-100 text-accent-700 text-[11px] font-semibold"
+        >{{ chatStore.conversations.length }}</span>
+      </button>
+      <button
+        class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-accent-600 text-white text-sm font-medium hover:bg-accent-500 transition"
+        @click="newChat"
+      >
+        <span class="text-base leading-none">+</span>
+        <span>{{ $t('chat.newConversation') || 'New chat' }}</span>
+      </button>
+    </div>
+
+    <!-- 抽屉遮罩（仅窄屏生效） -->
+    <div
+      v-if="drawerOpen"
+      class="fixed inset-0 z-40 bg-neutral-900/40 lg:hidden"
+      @click="closeDrawer"
+    />
+
+    <!-- Conversation History：窄屏为左侧抽屉，lg+ 为常驻侧栏 -->
+    <aside
+      class="fixed inset-y-0 left-0 z-50 w-[280px] max-w-[85vw] transition-transform duration-300 ease-out lg:sticky lg:top-6 lg:self-start lg:z-auto lg:w-auto lg:max-w-none lg:translate-x-0"
+      :class="drawerOpen ? 'translate-x-0' : '-translate-x-full'"
+      :role="drawerOpen ? 'dialog' : 'complementary'"
+      :aria-modal="drawerOpen ? 'true' : undefined"
+      :aria-label="$t('chat.history') || 'History'"
+    >
+      <div class="h-full lg:h-auto flex flex-col bg-white dark:bg-stone-900 border-r lg:border lg:rounded-xl lg:shadow-sm overflow-hidden">
+        <!-- 抽屉标题栏（窄屏可见） -->
+        <div class="flex items-center justify-between px-4 h-12 border-b shrink-0 lg:hidden">
+          <p class="text-sm font-semibold text-neutral-700 dark:text-neutral-200">
+            {{ $t('chat.history') || 'History' }}
+          </p>
+          <button
+            class="text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 text-xl leading-none"
+            :aria-label="$t('chat.close') || 'Close'"
+            @click="closeDrawer"
+          >
+            ×
+          </button>
+        </div>
         <button
-          class="w-full px-3 py-2 mb-2 rounded-lg bg-accent-600 text-white text-sm font-medium hover:bg-accent-500 transition"
+          class="w-[calc(100%-1.5rem)] mx-3 mt-3 mb-2 px-3 py-2 rounded-lg bg-accent-600 text-white text-sm font-medium hover:bg-accent-500 transition shrink-0"
           @click="newChat"
         >
           {{ $t('chat.newConversation') || 'New chat' }}
         </button>
-        <p class="px-1 pb-1 text-xs font-semibold text-neutral-400 uppercase tracking-wide">
+        <p class="px-4 pb-1 text-xs font-semibold text-neutral-400 uppercase tracking-wide">
           {{ $t('chat.history') || 'History' }}
         </p>
-        <p v-if="chatStore.conversations.length === 0" class="px-1 py-2 text-xs text-neutral-400">
+        <p v-if="chatStore.conversations.length === 0" class="px-4 py-2 text-xs text-neutral-400">
           {{ $t('chat.noHistory') || 'No conversations yet' }}
         </p>
-        <ul class="space-y-1 max-h-[60vh] overflow-y-auto">
+        <ul class="space-y-1 px-3 pb-4 overflow-y-auto max-h-[calc(100vh-13rem)] lg:max-h-[60vh]">
           <li v-for="conv in chatStore.conversations" :key="conv.id">
             <div
               class="group flex items-start gap-2 px-2 py-2 rounded-lg cursor-pointer text-sm transition"
@@ -172,7 +224,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, onMounted } from 'vue'
+import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { petIcon, emptyStateIcon } from '~/utils/iconSvgs'
 import { usePetStore } from '~/stores/pet'
 import { useChatStore } from '~/stores/chat'
@@ -188,6 +240,26 @@ const chatStore = useChatStore()
 const chatContainer = ref<HTMLElement | null>(null)
 const input = ref('')
 const selectedPetId = ref<string | null>(null)
+// 窄屏历史会话抽屉开关
+const drawerOpen = ref(false)
+
+function openDrawer() {
+  drawerOpen.value = true
+}
+
+function closeDrawer() {
+  drawerOpen.value = false
+}
+
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && drawerOpen.value) closeDrawer()
+}
+
+watch(drawerOpen, (open) => {
+  if (import.meta.client) {
+    document.body.style.overflow = open ? 'hidden' : ''
+  }
+})
 
 
 
@@ -216,6 +288,7 @@ function scrollToBottom() {
 }
 
 async function switchConversation(id: string) {
+  closeDrawer()
   if (chatStore.conversationId === id) return
   await chatStore.setConversation(id)
   await nextTick()
@@ -223,6 +296,7 @@ async function switchConversation(id: string) {
 }
 
 function newChat() {
+  closeDrawer()
   chatStore.newConversation()
   input.value = ''
 }
@@ -237,6 +311,7 @@ function formatTime(value?: string) {
 }
 
 onMounted(async () => {
+  window.addEventListener('keydown', onKeydown)
   petStore.loadPets()
   await chatStore.restoreSession()
   if (petStore.pets.length > 0) {
@@ -244,5 +319,10 @@ onMounted(async () => {
   }
   await nextTick()
   scrollToBottom()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeydown)
+  if (import.meta.client) document.body.style.overflow = ''
 })
 </script>

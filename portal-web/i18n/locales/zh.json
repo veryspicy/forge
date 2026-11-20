@@ -493,7 +493,8 @@
     "recommendations": "推荐商品",
     "selectPet": "聊天对象：",
     "history": "历史会话",
-    "noHistory": "暂无历史会话"
+    "noHistory": "暂无历史会话",
+    "close": "关闭"
   },
   "auth": {
     "signIn": "登录",
