@@ -606,6 +606,8 @@ async def chat(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="message 不能为空")
     text = text[:2000]
 
+    # 登录后首次发言：先接管该访客标识下的游客会话，保证历史上下文延续
+    await claim_guest_conversations(db, user_id=user_id, guest_key=guest_key)
     pet = await _resolve_pet(db, pet_id, user_id)
     conversation = await _resolve_conversation(
         db,
@@ -731,6 +733,22 @@ def new_guest_key() -> str:
     return f"guest-{uuid4().hex}"
 
 
+async def claim_guest_conversations(
+    db: AsyncSession,
+    *,
+    user_id: UUID | None,
+    guest_key: str | None,
+) -> int:
+    """登录用户回到同一浏览器时，接管其游客期会话，避免历史记录丢失。"""
+    if user_id is None or not guest_key:
+        return 0
+    claimed = await SQLAlchemyAIChatRepository.claim_guest_conversations(db, user_id=user_id, guest_key=guest_key)
+    if claimed:
+        await db.commit()
+        logger.info("认领游客会话 %s 条 → user=%s", claimed, user_id)
+    return claimed
+
+
 async def list_conversations_for_owner(
     db: AsyncSession,
     *,
@@ -738,6 +756,7 @@ async def list_conversations_for_owner(
     guest_key: str | None,
     limit: int = 50,
 ) -> dict[str, Any]:
+    await claim_guest_conversations(db, user_id=user_id, guest_key=guest_key)
     rows = await SQLAlchemyAIChatRepository.list_conversations(
         db, user_id=user_id, guest_key=guest_key, limit=min(limit, 100)
     )
@@ -758,8 +777,10 @@ async def delete_conversation_for_owner(
     conversation = await SQLAlchemyAIChatRepository.get_conversation(db, conv_uuid)
     if conversation is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="会话不存在")
-    owner_ok = (user_id is not None and conversation.user_id == user_id) or (
-        user_id is None and guest_key and conversation.guest_key == guest_key
+    owner_ok = (
+        (user_id is not None and conversation.user_id == user_id)
+        or (user_id is None and guest_key and conversation.guest_key == guest_key)
+        or (guest_key and conversation.user_id is None and conversation.guest_key == guest_key)
     )
     if not owner_ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="会话不存在")
@@ -781,8 +802,10 @@ async def conversation_messages(
     conversation = await SQLAlchemyAIChatRepository.get_conversation(db, conv_uuid)
     if conversation is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="会话不存在")
-    owner_ok = (user_id is not None and conversation.user_id == user_id) or (
-        user_id is None and guest_key and conversation.guest_key == guest_key
+    owner_ok = (
+        (user_id is not None and conversation.user_id == user_id)
+        or (user_id is None and guest_key and conversation.guest_key == guest_key)
+        or (guest_key and conversation.user_id is None and conversation.guest_key == guest_key)
     )
     if not owner_ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="会话不存在")

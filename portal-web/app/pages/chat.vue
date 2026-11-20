@@ -1,5 +1,47 @@
 ﻿<template>
-  <div class="max-w-4xl mx-auto px-4 py-8">
+  <div class="max-w-6xl mx-auto px-4 py-8 grid gap-6 lg:grid-cols-[260px_1fr]">
+    <!-- Conversation History -->
+    <aside class="lg:sticky lg:top-6 lg:self-start">
+      <div class="bg-white dark:bg-stone-900 rounded-xl shadow-sm border p-3">
+        <button
+          class="w-full px-3 py-2 mb-2 rounded-lg bg-accent-600 text-white text-sm font-medium hover:bg-accent-500 transition"
+          @click="newChat"
+        >
+          {{ $t('chat.newConversation') || 'New chat' }}
+        </button>
+        <p class="px-1 pb-1 text-xs font-semibold text-neutral-400 uppercase tracking-wide">
+          {{ $t('chat.history') || 'History' }}
+        </p>
+        <p v-if="chatStore.conversations.length === 0" class="px-1 py-2 text-xs text-neutral-400">
+          {{ $t('chat.noHistory') || 'No conversations yet' }}
+        </p>
+        <ul class="space-y-1 max-h-[60vh] overflow-y-auto">
+          <li v-for="conv in chatStore.conversations" :key="conv.id">
+            <div
+              class="group flex items-start gap-2 px-2 py-2 rounded-lg cursor-pointer text-sm transition"
+              :class="chatStore.conversationId === conv.id
+                ? 'bg-accent-50 text-accent-700'
+                : 'hover:bg-neutral-100 dark:hover:bg-stone-800 text-neutral-700 dark:text-neutral-300'"
+              @click="switchConversation(conv.id)"
+            >
+              <div class="flex-1 min-w-0">
+                <p class="truncate font-medium">{{ conv.title || conv.last_message || 'Untitled' }}</p>
+                <p class="truncate text-xs text-neutral-400">{{ formatTime(conv.updated_at) }}</p>
+              </div>
+              <button
+                class="opacity-0 group-hover:opacity-100 shrink-0 text-neutral-400 hover:text-red-500 transition"
+                :title="$t('chat.deleteConversation') || 'Delete'"
+                @click.stop="removeConv(conv.id)"
+              >
+                ×
+              </button>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+    <div>
     <h1 class="text-3xl font-bold text-neutral-900 dark:text-neutral-100 mb-6">{{ $t('chat.title') }}</h1>
 
     <!-- Pet Selector -->
@@ -125,6 +167,7 @@
         {{ $t('chat.send') || 'Send' }}
       </button>
     </form>
+    </div>
   </div>
 </template>
 
@@ -172,11 +215,34 @@ function scrollToBottom() {
   }
 }
 
-onMounted(() => {
+async function switchConversation(id: string) {
+  if (chatStore.conversationId === id) return
+  await chatStore.setConversation(id)
+  await nextTick()
+  scrollToBottom()
+}
+
+function newChat() {
+  chatStore.newConversation()
+  input.value = ''
+}
+
+async function removeConv(id: string) {
+  await chatStore.removeConversation(id)
+}
+
+function formatTime(value?: string) {
+  if (!value) return ''
+  return String(value).replace('T', ' ').slice(0, 16)
+}
+
+onMounted(async () => {
   petStore.loadPets()
-  chatStore.loadConversations()
+  await chatStore.restoreSession()
   if (petStore.pets.length > 0) {
     selectedPetId.value = petStore.pets[0].id
   }
+  await nextTick()
+  scrollToBottom()
 })
 </script>

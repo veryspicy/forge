@@ -37,7 +37,79 @@ export const useChatStore = defineStore("chat", () => {
   const isStreaming = ref(false);
   const streamedContent = ref("");
 
-  const { aiChat, fetchConversations, deleteConversation } = useApi();
+  const { aiChat, fetchConversations, fetchConversation, deleteConversation } = useApi();
+
+  // 本地会话快照：刷新 / 重新登录后据此恢复上次对话
+  const STORAGE_KEY = "forge_chat_session";
+
+  function persist() {
+    if (!import.meta.client) return;
+    try {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          conversationId: conversationId.value,
+          messages: messages.value,
+        }),
+      );
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function clearPersisted() {
+    if (!import.meta.client) return;
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const loadMessages = async (id: string) => {
+    loading.value = true;
+    try {
+      const result: any = await fetchConversation(id);
+      const items: any[] = result?.items || [];
+      messages.value = items
+        .filter((m) => m.role === "user" || m.role === "assistant")
+        .map((m) => ({
+          id: String(m.id),
+          role: m.role as "user" | "assistant",
+          content: m.content || "",
+          recommendations: m.recommendations || [],
+          timestamp: m.created_at || new Date().toISOString(),
+        }));
+      conversationId.value = id;
+      persist();
+    } catch {
+      /* ignore */
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  /** 进入聊天页时恢复：会话列表 + 上次打开的对话内容 */
+  const restoreSession = async () => {
+    await loadConversations();
+    if (conversationId.value) {
+      await loadMessages(conversationId.value);
+      return;
+    }
+    if (!import.meta.client) return;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (saved?.conversationId) {
+        await loadMessages(saved.conversationId);
+      } else if (Array.isArray(saved?.messages) && saved.messages.length) {
+        messages.value = saved.messages;
+      }
+    } catch {
+      /* ignore */
+    }
+  };
 
   const sendMessage = async (content: string, petId?: string) => {
     const userMsg: ChatMessage = {
@@ -47,6 +119,7 @@ export const useChatStore = defineStore("chat", () => {
       timestamp: new Date().toISOString(),
     };
     messages.value.push(userMsg);
+    persist();
 
     loading.value = true;
     isStreaming.value = true;
@@ -69,6 +142,7 @@ export const useChatStore = defineStore("chat", () => {
         timestamp: new Date().toISOString(),
       };
       messages.value.push(aiMsg);
+      persist();
 
       await loadConversations();
     } catch {
@@ -100,6 +174,7 @@ export const useChatStore = defineStore("chat", () => {
     if (conversationId.value === id) {
       conversationId.value = null;
       messages.value = [];
+      clearPersisted();
     }
   };
 
@@ -107,10 +182,11 @@ export const useChatStore = defineStore("chat", () => {
     conversationId.value = null;
     messages.value = [];
     streamedContent.value = "";
+    clearPersisted();
   };
 
-  const setConversation = (id: string) => {
-    conversationId.value = id;
+  const setConversation = async (id: string) => {
+    await loadMessages(id);
   };
 
   return {
@@ -122,6 +198,8 @@ export const useChatStore = defineStore("chat", () => {
     streamedContent,
     sendMessage,
     loadConversations,
+    loadMessages,
+    restoreSession,
     removeConversation,
     deleteConversation: removeConversation,
     newConversation,

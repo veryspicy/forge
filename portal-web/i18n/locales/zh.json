@@ -491,7 +491,9 @@
     "noPets": "暂无宠物 — 请先创建一个宠物档案",
     "petContextHint": "AI 将使用此宠物的档案进行个性化推荐",
     "recommendations": "推荐商品",
-    "selectPet": "聊天对象："
+    "selectPet": "聊天对象：",
+    "history": "历史会话",
+    "noHistory": "暂无历史会话"
   },
   "auth": {
     "signIn": "登录",

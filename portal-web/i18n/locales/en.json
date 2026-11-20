@@ -491,7 +491,9 @@
     "noPets": "No pets yet — create one first",
     "petContextHint": "AI will use this pet's profile for personalized recommendations",
     "recommendations": "Recommended Products",
-    "selectPet": "Chatting for:"
+    "selectPet": "Chatting for:",
+    "history": "History",
+    "noHistory": "No conversations yet"
   },
   "auth": {
     "signIn": "Sign in",

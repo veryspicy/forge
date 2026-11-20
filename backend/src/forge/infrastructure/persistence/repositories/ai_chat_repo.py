@@ -10,7 +10,7 @@ from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -102,6 +102,22 @@ class SQLAlchemyAIChatRepository:
             return []
         stmt = stmt.order_by(ORMAIConversation.updated_at.desc()).limit(limit)
         return list((await db.execute(stmt)).scalars().all())
+
+    @staticmethod
+    async def claim_guest_conversations(db: AsyncSession, *, user_id: UUID, guest_key: str) -> int:
+        """把该访客标识名下尚未归属用户的会话认领给当前登录用户。
+
+        用户在游客态聊过的会话，登录后应延续到账号下，否则历史记录会"消失"。
+        """
+        result = await db.execute(
+            update(ORMAIConversation)
+            .where(
+                ORMAIConversation.guest_key == guest_key,
+                ORMAIConversation.user_id.is_(None),
+            )
+            .values(user_id=user_id)
+        )
+        return int(getattr(result, "rowcount", 0) or 0)
 
     @staticmethod
     async def delete_conversation(db: AsyncSession, conversation_id: UUID) -> int:
