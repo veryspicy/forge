@@ -2,11 +2,23 @@
 import { defineStore } from "pinia";
 import { useApi } from "~/composables/useApi";
 
+interface ChatRecommendation {
+  product_id?: string | number;
+  product_name?: string;
+  confidence?: number;
+  reason?: string;
+  id?: string | number;
+  name?: string;
+  price?: string;
+  image?: string | null;
+  slug?: string;
+}
+
 interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
-  recommendations?: any[];
+  recommendations?: ChatRecommendation[];
   timestamp: string;
 }
 

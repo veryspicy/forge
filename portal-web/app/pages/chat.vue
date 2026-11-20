@@ -62,15 +62,29 @@
               <p class="text-xs font-semibold text-neutral-500 dark:text-neutral-400 dark:text-neutral-400 uppercase tracking-wide">{{ $t('chat.recommendations') || 'Recommended Products' }}</p>
               <div
                 v-for="rec in msg.recommendations"
-                :key="rec.product_id"
+                :key="rec.product_id || rec.id"
                 class="flex items-center gap-3 p-3 bg-white dark:bg-stone-900 border rounded-lg cursor-pointer hover:border-accent-300 hover:shadow-sm transition"
-                @click="navigateTo(localePath(`/products/${rec.slug || rec.product_id}`))"
+                @click="navigateTo(localePath(`/products/${rec.slug || rec.product_id || rec.id}`))"
               >
-                <div class="flex-1 min-w-0">
-                  <p class="text-sm font-medium text-neutral-800 dark:text-neutral-200 truncate">{{ rec.product_name }}</p>
-                  <p class="text-xs text-neutral-500 dark:text-neutral-400 dark:text-neutral-400">{{ rec.reason }}</p>
+                <img
+                  v-if="rec.image"
+                  :src="rec.image"
+                  :alt="rec.product_name || rec.name"
+                  class="w-12 h-12 rounded-md object-cover bg-neutral-100 dark:bg-stone-800 shrink-0"
+                  loading="lazy"
+                >
+                <div
+                  v-else
+                  class="w-12 h-12 rounded-md bg-neutral-100 dark:bg-stone-800 shrink-0 flex items-center justify-center text-neutral-400 text-[10px]"
+                >
+                  {{ $t('chat.noImage') || 'No image' }}
                 </div>
-                <div class="text-end shrink-0">
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium text-neutral-800 dark:text-neutral-200 truncate">{{ rec.product_name || rec.name }}</p>
+                  <p v-if="rec.reason" class="text-xs text-neutral-500 dark:text-neutral-400">{{ rec.reason }}</p>
+                  <p v-if="rec.price" class="text-xs font-semibold text-accent-700 mt-0.5">{{ rec.price }}</p>
+                </div>
+                <div v-if="typeof rec.confidence === 'number'" class="text-end shrink-0">
                   <span class="text-xs px-2 py-0.5 bg-accent-100 text-accent-700 rounded-full font-medium">
                     {{ Math.round(rec.confidence * 100) }}% match
                   </span>
