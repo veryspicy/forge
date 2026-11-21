@@ -1,5 +1,5 @@
 ﻿<template>
-  <div class="max-w-6xl mx-auto px-3 sm:px-4 py-4 lg:py-8 lg:pb-8 flex flex-col gap-4 flex-1 min-h-0 overflow-hidden lg:h-auto lg:flex-none lg:overflow-visible lg:grid lg:gap-6 lg:grid-cols-[260px_1fr]">
+  <div class="w-full min-w-0 max-w-6xl mx-auto px-3 sm:px-4 py-4 lg:py-8 lg:pb-8 flex flex-col gap-4 flex-1 min-h-0 overflow-hidden lg:h-auto lg:flex-none lg:overflow-visible lg:grid lg:gap-6 lg:grid-cols-[260px_1fr]">
     <!-- Mobile / narrow-screen toolbar：打开历史抽屉 -->
     <div class="flex items-center justify-between gap-2 sm:gap-3 lg:hidden">
       <button
@@ -129,17 +129,17 @@
     </div>
 
     <!-- Chat Messages -->
-    <div ref="chatContainer" class="bg-white dark:bg-stone-900 rounded-xl shadow-sm border p-3 sm:p-4 lg:p-6 mb-3 lg:mb-6 flex-1 min-h-0 overflow-y-auto overscroll-contain lg:flex-none lg:min-h-[400px] lg:max-h-[500px]">
+    <div ref="chatContainer" class="min-w-0 bg-white dark:bg-stone-900 rounded-xl shadow-sm border p-3 sm:p-4 lg:p-6 mb-3 lg:mb-6 flex-1 min-h-0 overflow-y-auto overscroll-contain lg:flex-none lg:min-h-[400px] lg:max-h-[500px]">
       <div v-if="chatStore.messages.length === 0" class="text-center py-10 lg:py-16 text-neutral-400 dark:text-neutral-400">
 <!-- eslint-disable-next-line vue/no-v-html -->
         <div class="text-5xl mb-4 text-accent-500/70" v-html="emptyStateIcon('chat')" />
         <p>{{ $t('chat.emptyHint') || 'Ask anything about pet care or product recommendations!' }}</p>
       </div>
 
-      <div v-for="(msg, idx) in chatStore.messages" :key="idx" class="mb-4">
+      <div v-for="(msg, idx) in chatStore.messages" :key="idx" class="mb-4 min-w-0">
         <!-- User Message -->
         <div v-if="msg.role === 'user'" class="flex justify-end">
-          <div class="bg-accent-600 text-white rounded-lg px-4 py-2 max-w-[85%] sm:max-w-[75%] break-words">
+          <div class="bg-accent-600 text-white rounded-lg px-4 py-2 max-w-[85%] sm:max-w-[75%] [overflow-wrap:anywhere]">
             <p class="text-sm">{{ msg.content }}</p>
           </div>
         </div>
@@ -147,7 +147,7 @@
         <!-- AI Message with recommendations -->
         <div v-else class="flex gap-3">
           <div class="w-8 h-8 bg-accent-100 rounded-full flex items-center justify-center text-sm shrink-0">AI</div>
-          <div class="flex-1 min-w-0 space-y-3 max-w-[calc(100%-2.75rem)] sm:max-w-[85%] break-words">
+          <div class="flex-1 min-w-0 space-y-3 max-w-[calc(100%-2.75rem)] sm:max-w-[85%] [overflow-wrap:anywhere]">
             <div class="bg-neutral-100 dark:bg-stone-800 rounded-lg px-4 py-2">
               <p class="text-sm text-neutral-800 dark:text-neutral-200">{{ msg.content }}</p>
             </div>
