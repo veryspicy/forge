@@ -302,10 +302,6 @@ class SQLAlchemyAIChatRepository:
 
     @staticmethod
     async def recent_conversations(db: AsyncSession, limit: int = 20) -> list[ORMAIConversation]:
-        stmt = (
-            select(ORMAIConversation)
-            .order_by(ORMAIConversation.updated_at.desc())
-            .limit(min(limit, 100))
-        )
+        stmt = select(ORMAIConversation).order_by(ORMAIConversation.updated_at.desc()).limit(min(limit, 100))
         result = await db.execute(stmt)
         return list(result.scalars().all())

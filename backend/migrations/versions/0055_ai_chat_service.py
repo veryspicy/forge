@@ -44,9 +44,7 @@ def upgrade() -> None:
     )
     op.execute("CREATE INDEX IF NOT EXISTS ix_ai_conversations_user_id ON ai_conversations (user_id)")
     op.execute("CREATE INDEX IF NOT EXISTS ix_ai_conversations_guest_key ON ai_conversations (guest_key)")
-    op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_ai_conversations_updated_at ON ai_conversations (updated_at DESC)"
-    )
+    op.execute("CREATE INDEX IF NOT EXISTS ix_ai_conversations_updated_at ON ai_conversations (updated_at DESC)")
 
     op.execute(
         """
@@ -113,9 +111,7 @@ def upgrade() -> None:
         "CREATE INDEX IF NOT EXISTS ix_ai_handoff_requests_status ON ai_handoff_requests (status, created_at DESC)"
     )
     # 兼容"表已存在"的历史环境：CREATE TABLE IF NOT EXISTS 不会补列
-    op.execute(
-        "ALTER TABLE ai_handoff_requests ADD COLUMN IF NOT EXISTS handled_at timestamp without time zone NULL"
-    )
+    op.execute("ALTER TABLE ai_handoff_requests ADD COLUMN IF NOT EXISTS handled_at timestamp without time zone NULL")
     op.execute("ALTER TABLE ai_handoff_requests ADD COLUMN IF NOT EXISTS note text NULL")
 
 
