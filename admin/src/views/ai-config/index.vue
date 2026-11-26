@@ -261,9 +261,33 @@ const handoffStatusOptions = computed(() => [
 
 /** 客服用量趋势：按日聚合请求数 / 失败数 / 额度耗尽次数（对应后端 /ai-ops/usage/trend）。 */
 async function loadTrend() {
-  const data = unwrap<{ series: TrendPoint[] }>(await get(`${OPS_BASE}/usage/trend`, { days: trend.days }));
+  const data = unwrap<{ since: string; until: string; series: TrendPoint[] }>(
+    await get(`${OPS_BASE}/usage/trend`, { days: trend.days })
+  );
   if (!data) return;
-  trend.series = data.series ?? [];
+  trend.series = fillSeries(data.since, data.until, data.series ?? []);
+}
+
+function toDateKey(date: Date) {
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+/** 后端只返回有数据的天，按 [since, until] 补齐缺失日期为 0，保证趋势图坐标连续。 */
+function fillSeries(since: string, until: string, series: TrendPoint[]) {
+  if (!since || !until || !series.length) return series;
+  const byDate = new Map(series.map(item => [item.date, item]));
+  const start = new Date(`${since}T00:00:00`);
+  const end = new Date(`${until}T00:00:00`);
+  const total = Math.round((end.getTime() - start.getTime()) / 86_400_000);
+  if (!Number.isFinite(total) || total < 0 || total > 366) return series;
+  const filled: TrendPoint[] = [];
+  for (let index = 0; index <= total; index += 1) {
+    const key = toDateKey(new Date(start.getTime() + index * 86_400_000));
+    filled.push(byDate.get(key) ?? { date: key, requests: 0, tokens: 0, failures: 0, quota_hits: 0 });
+  }
+  return filled;
 }
 
 async function changeTrendRange(days: number) {
