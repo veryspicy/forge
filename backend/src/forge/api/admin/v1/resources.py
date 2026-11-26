@@ -377,33 +377,37 @@ class RegisterExternalRequest(BaseModel):
     tags: list[str] = []
 
 
-@router.post("/register-external")
-async def register_external_resource(
-    body: RegisterExternalRequest,
-    admin: dict[str, object] = Depends(require_permission("resources", "upload")),
-    db: AsyncSession = Depends(get_db),
-) -> dict[str, object]:
-    """登记外部 URL 为资源（不写入 MinIO）：支持图片/视频/文档等，前端粘贴外链时落库以便 syncRefs 追踪。"""
-    if not admin:
-        raise HTTPException(status_code=401, detail="未登录")
+async def register_external_url(
+    db: AsyncSession,
+    admin: dict[str, object],
+    url: str,
+    *,
+    name: str = "",
+    file_type: str | None = None,
+    directory: str = "",
+    tags: list[str] | None = None,
+) -> ORMResource:
+    """登记外部 URL 为资源（不写入 MinIO），按「站点 + URL」幂等复用既有记录。
 
-    url = (body.url or "").strip()
+    供 register-external 接口与商品批量导入（/import 的 images 列）共用，避免两套登记逻辑。
+    """
+    url = (url or "").strip()
     if not url:
         raise HTTPException(status_code=400, detail="URL 不能为空")
     if not (url.startswith("http://") or url.startswith("https://")):
         raise HTTPException(status_code=400, detail="仅支持 http/https 外部 URL")
 
     # 未显式指定 file_type 时按扩展名推导
-    file_type = (body.file_type or "").strip() or "document"
-    if file_type == "document":
+    resolved_type = (file_type or "").strip() or "document"
+    if resolved_type == "document":
         path = url.split("?", 1)[0].split("#", 1)[0]
         ext = ("." + path.rsplit(".", 1)[-1]).lower() if "." in path.rsplit("/", 1)[-1] else ""
         if ext in ALLOWED_EXT["image"]:
-            file_type = "image"
+            resolved_type = "image"
         elif ext in ALLOWED_EXT["video"]:
-            file_type = "video"
+            resolved_type = "video"
         elif ext in ALLOWED_EXT["audio"]:
-            file_type = "audio"
+            resolved_type = "audio"
 
     site_id = await _resolve_upload_site_id(db, admin, None)
     site_id_uuid = uuid.UUID(site_id)
@@ -419,8 +423,7 @@ async def register_external_resource(
         )
     ).scalar_one_or_none()
     if existing is not None:
-        data = await _attach_tags(db, _serialize(existing))
-        return {"data": data}
+        return existing
 
     # created_by：admin["sub"] 是 email，需查 admin_users 表取 UUID
     created_by = None
@@ -434,22 +437,44 @@ async def register_external_resource(
         bucket="",
         object_key="",
         url=url,
-        file_type=file_type,
+        file_type=resolved_type,
         mime="",
         file_size=0,
         sha256=None,
-        name=(body.name or url).strip(),
-        directory=(body.directory or "").strip(),
+        name=(name or url).strip(),
+        directory=(directory or "").strip(),
         created_by=created_by,
     )
     db.add(res)
     await db.flush()
 
-    if body.tags:
-        await _save_tags(db, res.id, body.tags)  # type: ignore[arg-type]
+    if tags:
+        await _save_tags(db, res.id, tags)  # type: ignore[arg-type]
 
     await db.commit()
     await db.refresh(res)
+    return res
+
+
+@router.post("/register-external")
+async def register_external_resource(
+    body: RegisterExternalRequest,
+    admin: dict[str, object] = Depends(require_permission("resources", "upload")),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, object]:
+    """登记外部 URL 为资源（不写入 MinIO）：支持图片/视频/文档等，前端粘贴外链时落库以便 syncRefs 追踪。"""
+    if not admin:
+        raise HTTPException(status_code=401, detail="未登录")
+
+    res = await register_external_url(
+        db,
+        admin,
+        body.url,
+        name=body.name,
+        file_type=body.file_type,
+        directory=body.directory,
+        tags=body.tags,
+    )
     data = await _attach_tags(db, _serialize(res))
     return {"data": data}
 

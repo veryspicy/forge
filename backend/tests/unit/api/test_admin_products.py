@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -467,3 +468,146 @@ class TestAdminProductsAPI:
             test_client.app.dependency_overrides.clear()
 
         assert response.status_code == 400
+
+
+CSV_HEADER = "sku,name,category,price,description,status,images\n"
+
+
+def _post_import(test_client: Any, body: str) -> Any:
+    _setup_auth_overrides(test_client)
+    try:
+        return test_client.post(
+            "/api/admin/v1/products/import",
+            files={"file": ("products.csv", body.encode("utf-8-sig"), "text/csv")},
+        )
+    finally:
+        test_client.app.dependency_overrides.clear()
+
+
+class TestImportImagesColumn:
+    """覆盖 POST /products/import 的 images 列（外链图登记为资源后回填商品）。"""
+
+    def test_parse_image_urls_split_and_dedupe(self) -> None:
+        from forge.api.admin.v1.products import _parse_image_urls
+
+        urls, errors = _parse_image_urls(
+            {"images": "https://cdn.a.com/1.jpg|https://cdn.a.com/2.jpg|https://cdn.a.com/1.jpg"}
+        )
+
+        assert urls == ["https://cdn.a.com/1.jpg", "https://cdn.a.com/2.jpg"]
+        assert errors == []
+
+    def test_parse_image_urls_reject_non_http(self) -> None:
+        from forge.api.admin.v1.products import _parse_image_urls
+
+        urls, errors = _parse_image_urls({"images": "/static/a.jpg"})
+
+        assert urls == []
+        assert errors
+        assert "http" in errors[0]
+
+    def test_import_active_with_images_fills_main_image(self, test_client: Any) -> None:
+        import forge.api.admin.v1.products as products_api
+        from forge.application.services.product_service import ProductService
+        from forge.infrastructure.persistence.repositories.product_repo import (
+            SQLAlchemyProductRepository,
+        )
+
+        registered = [
+            {
+                "key": "img-1",
+                "url": "https://cdn.a.com/1.jpg",
+                "resource_id": "img-1",
+                "sort": 0,
+                "is_main": True,
+                "alt": "",
+            }
+        ]
+        create_mock = AsyncMock(return_value=MagicMock())
+        body = CSV_HEADER + "IMG-001,Dog Bowl,feeding,19.9,Good bowl,active,https://cdn.a.com/1.jpg\n"
+        with (
+            patch.object(products_api, "_register_image_urls", new=AsyncMock(return_value=(registered, []))),
+            patch.object(SQLAlchemyProductRepository, "get_by_sku", new=AsyncMock(return_value=None)),
+            patch.object(ProductService, "create_product", new=create_mock),
+        ):
+            response = _post_import(test_client, body)
+
+        assert response.status_code == 200
+        payload = response.json()["data"]
+        assert payload["created"] == 1
+        assert payload["failed"] == 0
+        passed_data = create_mock.await_args.args[1]
+        assert passed_data["images"][0]["resource_id"] == "img-1"
+        assert passed_data["images"][0]["is_main"] is True
+        # 新建商品未提供 inventory/cost 时兜底，否则撞 NOT NULL 约束变 500
+        assert passed_data["inventory"] == 0
+        assert passed_data["cost"] == passed_data["price"]
+
+    def test_import_image_registration_failure_skips_row(self, test_client: Any) -> None:
+        import forge.api.admin.v1.products as products_api
+        from forge.application.services.product_service import ProductService
+        from forge.infrastructure.persistence.repositories.product_repo import (
+            SQLAlchemyProductRepository,
+        )
+
+        body = CSV_HEADER + "IMG-002,Dog Bowl,feeding,19.9,Good bowl,active,https://cdn.a.com/1.jpg\n"
+        with (
+            patch.object(
+                products_api,
+                "_register_image_urls",
+                new=AsyncMock(return_value=([], ["图片登记失败（https://cdn.a.com/1.jpg）：文件类型不支持"])),
+            ),
+            patch.object(SQLAlchemyProductRepository, "get_by_sku", new=AsyncMock(return_value=None)),
+            patch.object(ProductService, "create_product", new=AsyncMock()),
+        ):
+            response = _post_import(test_client, body)
+
+        assert response.status_code == 200
+        payload = response.json()["data"]
+        assert payload["created"] == 0
+        assert payload["failed"] == 1
+        assert "图片登记失败" in payload["errors"][0]["error"]
+
+    def test_import_validation_error_reports_field_detail(self, test_client: Any) -> None:
+        from forge.application.services.product_service import ProductService, ProductValidationError
+        from forge.infrastructure.persistence.repositories.product_repo import (
+            SQLAlchemyProductRepository,
+        )
+
+        error = ProductValidationError("商品参数校验失败", {"images": "上架商品至少需要一张图片"})
+        body = CSV_HEADER + "IMG-003,Dog Bowl,feeding,19.9,,active,\n"
+        with (
+            patch.object(SQLAlchemyProductRepository, "get_by_sku", new=AsyncMock(return_value=None)),
+            patch.object(ProductService, "create_product", new=AsyncMock(side_effect=error)),
+        ):
+            response = _post_import(test_client, body)
+
+        assert response.status_code == 200
+        payload = response.json()["data"]
+        assert payload["failed"] == 1
+        first = payload["errors"][0]
+        assert "images" in first["error"]
+        assert first["fields"]["images"] == "上架商品至少需要一张图片"
+
+
+class TestRegisterImageUrls:
+    """_register_image_urls 需为图片填充 alt，满足上架主图 alt 校验。"""
+
+    def test_alt_falls_back_to_product_name(self) -> None:
+        import forge.api.admin.v1.products as products_api
+
+        fake_resource = MagicMock()
+        fake_resource.id = "res-1"
+        fake_resource.url = "https://cdn.a.com/1.jpg"
+        with patch.object(
+            products_api, "register_external_url", new=AsyncMock(return_value=fake_resource)
+        ):
+            images, errors = asyncio.run(
+                products_api._register_image_urls(
+                    AsyncMock(), {"id": "admin"}, ["https://cdn.a.com/1.jpg"], "IMG-9", "Dog Bowl"
+                )
+            )
+
+        assert errors == []
+        assert images[0]["alt"] == "Dog Bowl"
+        assert images[0]["is_main"] is True

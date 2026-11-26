@@ -21,6 +21,7 @@ from fastapi import (
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from forge.api.admin.v1.resources import register_external_url
 from forge.api.errors import APIError, ErrorCode, FieldError
 from forge.application.services.product_service import (
     VALID_STATUSES,
@@ -359,8 +360,23 @@ EXPORT_COLUMNS = [
     "fulfillment_mode",
     "supplier_id",
     "supplier_sku",
+    "images",
 ]
 REQUIRED_IMPORT_COLUMNS = ("sku", "name", "category", "price")
+
+
+def _image_urls(images: Any) -> list[str]:
+    """从商品 images 结构中提取 http(s) URL（用于导出与导入回填）。"""
+    if not isinstance(images, list):
+        return []
+    urls: list[str] = []
+    for img in images:
+        if not isinstance(img, dict):
+            continue
+        url = str(img.get("url") or "").strip()
+        if url:
+            urls.append(url)
+    return urls
 
 
 def _join_list(values: Any) -> str:
@@ -477,6 +493,59 @@ def _parse_product_row(raw: dict[str, str]) -> tuple[dict[str, Any], list[str]]:
     return data, errors
 
 
+def _parse_image_urls(raw: dict[str, str]) -> tuple[list[str], list[str]]:
+    """解析 images 列（`|` 分隔的 http(s) 图片 URL），返回 (urls, errors)。"""
+    errors: list[str] = []
+    urls: list[str] = []
+    for candidate in _split_list(raw.get("images")):
+        url = candidate.strip()
+        if not url or url in urls:
+            continue
+        if not (url.startswith("http://") or url.startswith("https://")):
+            errors.append(f"图片 URL 必须以 http/https 开头：{url}")
+            continue
+        urls.append(url)
+    return urls, errors
+
+
+async def _register_image_urls(
+    db: AsyncSession,
+    admin: dict[str, Any],
+    urls: list[str],
+    sku: str,
+    name: str = "",
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """把外链图片登记为资源并构造商品 images 结构（首图为主图），返回 (images, errors)。"""
+    images: list[dict[str, Any]] = []
+    errors: list[str] = []
+    # 上架校验要求主图 alt 非空（LCP/无障碍/SEO），此处以商品名兜底
+    alt = (name or sku).strip()
+    for idx, url in enumerate(urls):
+        try:
+            res = await register_external_url(
+                db,
+                admin,
+                url,
+                name=f"{sku}-{idx + 1}",
+                file_type="image",
+                directory="products",
+            )
+        except HTTPException as exc:
+            errors.append(f"图片登记失败（{url}）：{exc.detail}")
+            continue
+        images.append(
+            {
+                "key": str(res.id),
+                "url": res.url,
+                "resource_id": str(res.id),
+                "sort": idx,
+                "is_main": idx == 0,
+                "alt": alt,
+            }
+        )
+    return images, errors
+
+
 @router.get("/export")
 async def export_products(
     admin: dict[str, Any] = Depends(require_permission("products", "view")),
@@ -486,11 +555,12 @@ async def export_products(
         raise HTTPException(status_code=401, detail="未登录")
 
     products = await SQLAlchemyProductRepository.list_all(db)
+    # images 在库中只存 resource_id 引用，导出前需 join 资源表补出 url，保证「导出→改→导入」往返无损
+    rows = await ProductService.resolve_products_images(db, [p.to_dict() for p in products])
     buffer = io.StringIO()
     writer = csv.DictWriter(buffer, fieldnames=EXPORT_COLUMNS, extrasaction="ignore")
     writer.writeheader()
-    for product in products:
-        data = product.to_dict()
+    for data in rows:
         writer.writerow(
             {
                 "sku": data.get("sku", ""),
@@ -505,7 +575,10 @@ async def export_products(
                 "tags": _join_list(data.get("tags")),
                 "breed_groups": _join_list(data.get("breed_groups")),
                 "region_availability": _join_list(data.get("region_availability")),
+                "fulfillment_mode": data.get("fulfillment_mode") or "self",
+                "supplier_id": data.get("supplier_id") or "",
                 "supplier_sku": data.get("supplier_sku") or "",
+                "images": _join_list(_image_urls(data.get("images"))),
             }
         )
     content = "\ufeff" + buffer.getvalue()
@@ -558,6 +631,8 @@ async def import_products(
             continue  # 跳过空行
         data, row_errors = _parse_product_row(raw)
         sku = str(data.get("sku") or "").strip()
+        image_urls, image_errors = _parse_image_urls(raw)
+        row_errors.extend(image_errors)
         if row_errors:
             errors.append({"row": idx, "sku": sku, "error": "; ".join(row_errors)})
             continue
@@ -566,17 +641,36 @@ async def import_products(
             continue
         seen_skus.add(sku)
 
+        # images 列为空时不触达既有图片，避免「没填图片的 CSV」误清空商品图片
+        if image_urls:
+            images, image_errors = await _register_image_urls(
+                db, admin, image_urls, sku, str(data.get("name") or "")
+            )
+            if image_errors:
+                errors.append({"row": idx, "sku": sku, "error": "; ".join(image_errors)})
+                continue
+            data["images"] = images
+
         try:
+            if "images" in data:
+                data["images"] = ProductService.normalize_images(data["images"])
             existing = await SQLAlchemyProductRepository.get_by_sku(db, sku)
             if existing is None:
+                # 新建兜底：inventory 缺省 0、cost 缺省等于 price（保本），避免 CSV 省略列时
+                # 撞上 products.cost/inventory 的 NOT NULL 约束直接 500；更新时一律不动既有值
+                data.setdefault("inventory", 0)
+                data.setdefault("cost", data.get("price"))
                 await ProductService.create_product(db, data)
                 created += 1
             else:
                 update_data = {k: v for k, v in data.items() if k != "sku"}
                 await ProductService.update_product(db, existing, update_data)
                 updated += 1
-        except (ProductSkuConflictError, ProductValidationError) as exc:
+        except ProductSkuConflictError as exc:
             errors.append({"row": idx, "sku": sku, "error": str(exc)})
+        except ProductValidationError as exc:
+            detail = "; ".join(f"{field}: {message}" for field, message in exc.errors.items()) or str(exc)
+            errors.append({"row": idx, "sku": sku, "error": detail, "fields": exc.errors})
 
     await db.commit()
     return {
