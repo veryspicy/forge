@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import {
   NAlert,
   NButton,
@@ -20,6 +20,7 @@ import {
 } from 'naive-ui';
 import { VueDraggable } from 'vue-draggable-plus';
 import { useI18n } from 'vue-i18n';
+import { useEcharts } from '@/hooks/common/echarts';
 import { del, get, post, put } from '@/service/api/helper';
 
 const { t } = useI18n();
@@ -220,6 +221,136 @@ async function loadUsage() {
   usage.usage_date = data.usage_date ?? '';
   usage.items = data.items ?? [];
 }
+
+interface TrendPoint {
+  date: string;
+  requests: number;
+  tokens: number;
+  failures: number;
+  quota_hits: number;
+}
+
+interface HandoffRow {
+  id: string;
+  conversation_id: string | null;
+  message: string;
+  reason: string;
+  detail: string | null;
+  status: string;
+  handled_by: string | null;
+  handled_at: string | null;
+  note: string | null;
+  created_at: string | null;
+}
+
+const trend = reactive<{ days: number; series: TrendPoint[] }>({ days: 14, series: [] });
+const trendRangeOptions = [7, 14, 30];
+const handoffs = reactive<{ status: string; items: HandoffRow[]; loading: boolean }>({
+  status: 'pending',
+  items: [],
+  loading: false
+});
+const resolving = ref('');
+
+const handoffStatusOptions = computed(() => [
+  { label: t('page.modelManagement.handoffPending'), value: 'pending' },
+  { label: t('page.modelManagement.handoffResolved'), value: 'resolved' },
+  { label: t('page.modelManagement.handoffIgnored'), value: 'ignored' },
+  { label: t('page.modelManagement.handoffAll'), value: 'all' }
+]);
+
+/** 客服用量趋势：按日聚合请求数 / 失败数 / 额度耗尽次数（对应后端 /ai-ops/usage/trend）。 */
+async function loadTrend() {
+  const data = unwrap<{ series: TrendPoint[] }>(await get(`${OPS_BASE}/usage/trend`, { days: trend.days }));
+  if (!data) return;
+  trend.series = data.series ?? [];
+}
+
+async function changeTrendRange(days: number) {
+  if (trend.days === days) return;
+  trend.days = days;
+  await loadTrend();
+}
+
+/** 转人工工单：status 为 all 时不传过滤条件，取全量。 */
+async function loadHandoffs() {
+  handoffs.loading = true;
+  const params: Record<string, any> = { limit: 50 };
+  if (handoffs.status && handoffs.status !== 'all') params.status = handoffs.status;
+  const data = unwrap<{ items: HandoffRow[] }>(await get(`${OPS_BASE}/handoffs`, params));
+  if (data) handoffs.items = data.items ?? [];
+  handoffs.loading = false;
+}
+
+/** 处置工单：resolved=已人工接管，ignored=忽略；成功后刷新工单与用量。 */
+async function resolveHandoff(row: HandoffRow, status: 'resolved' | 'ignored') {
+  resolving.value = row.id;
+  const data = unwrap<{ ok: boolean }>(await post(`${OPS_BASE}/handoffs/${row.id}/resolve`, { status }));
+  resolving.value = '';
+  if (!data) return;
+  window.$message?.success(t('page.modelManagement.handoffHandled'));
+  await Promise.all([loadHandoffs(), loadUsage()]);
+}
+
+function handoffTagType(status: string) {
+  if (status === 'resolved') return 'success' as const;
+  if (status === 'ignored') return 'default' as const;
+  return 'warning' as const;
+}
+
+function shortId(value: string | null) {
+  return value ? value.slice(0, 8) : '—';
+}
+
+function formatTime(value: string | null) {
+  return value ? value.replace('T', ' ').slice(0, 16) : '—';
+}
+
+const { domRef: trendDomRef, updateOptions: updateTrendOptions } = useEcharts(() => ({
+  tooltip: { trigger: 'axis' },
+  legend: { right: 0, top: 0, itemStyle: { borderWidth: 0 } },
+  grid: { left: '3%', right: '4%', bottom: '6%', top: '16%', containLabel: true },
+  xAxis: { type: 'category', boundaryGap: false, data: [] as string[] },
+  yAxis: { type: 'value', minInterval: 1 },
+  series: [
+    {
+      name: t('page.modelManagement.quotaRequests'),
+      type: 'line',
+      smooth: true,
+      showSymbol: false,
+      color: '#8e9dff',
+      data: [] as number[]
+    },
+    {
+      name: t('page.modelManagement.quotaFailures'),
+      type: 'line',
+      smooth: true,
+      showSymbol: false,
+      color: '#fcbc25',
+      data: [] as number[]
+    },
+    {
+      name: t('page.modelManagement.trendQuotaHits'),
+      type: 'line',
+      smooth: true,
+      showSymbol: false,
+      color: '#ec4786',
+      data: [] as number[]
+    }
+  ]
+}));
+
+function updateTrendChart() {
+  updateTrendOptions(opts => {
+    opts.xAxis.data = trend.series.map(item => item.date.slice(5));
+    opts.series[0].data = trend.series.map(item => item.requests);
+    opts.series[1].data = trend.series.map(item => item.failures);
+    opts.series[2].data = trend.series.map(item => item.quota_hits);
+    return opts;
+  });
+}
+
+watch(trend, () => updateTrendChart(), { deep: true });
 
 async function loadStore() {
   loading.value = true;
@@ -517,7 +648,11 @@ function statusTagType(status?: string) {
   return status === 'ok' ? 'success' : 'error';
 }
 
-onMounted(loadStore);
+onMounted(() => {
+  void loadStore();
+  void loadTrend();
+  void loadHandoffs();
+});
 </script>
 
 <template>
@@ -687,6 +822,84 @@ onMounted(loadStore);
           </tr>
         </tbody>
       </table>
+    </NCard>
+
+    <NCard class="mt-4" size="small" :title="t('page.modelManagement.trendTitle')">
+      <template #header-extra>
+        <NSpace :size="6">
+          <NButton
+            v-for="opt in trendRangeOptions"
+            :key="opt"
+            size="tiny"
+            :type="trend.days === opt ? 'primary' : 'default'"
+            @click="changeTrendRange(opt)"
+          >
+            {{ t('page.modelManagement.trendDays', { days: opt }) }}
+          </NButton>
+        </NSpace>
+      </template>
+      <div v-if="trend.series.length" ref="trendDomRef" class="h-240px overflow-hidden"></div>
+      <NEmpty v-else size="small" :description="t('page.modelManagement.trendEmpty')" />
+    </NCard>
+
+    <NCard class="mt-4" size="small" :title="t('page.modelManagement.handoffTitle')">
+      <template #header-extra>
+        <NSpace :size="6">
+          <NSelect
+            v-model:value="handoffs.status"
+            size="tiny"
+            style="width: 130px"
+            :options="handoffStatusOptions"
+            @update:value="loadHandoffs"
+          />
+          <NButton size="tiny" :loading="handoffs.loading" @click="loadHandoffs">
+            {{ t('page.modelManagement.refresh') }}
+          </NButton>
+        </NSpace>
+      </template>
+      <table v-if="handoffs.items.length" class="w-full text-left text-xs">
+        <thead class="text-[var(--n-text-color-3)]">
+          <tr>
+            <th class="py-1 pr-3">{{ t('page.modelManagement.handoffCreatedAt') }}</th>
+            <th class="py-1 pr-3">{{ t('page.modelManagement.handoffReason') }}</th>
+            <th class="py-1 pr-3">{{ t('page.modelManagement.handoffMessage') }}</th>
+            <th class="py-1 pr-3">{{ t('page.modelManagement.handoffConversation') }}</th>
+            <th class="py-1 pr-3">{{ t('page.modelManagement.quotaState') }}</th>
+            <th class="py-1">{{ t('page.modelManagement.handoffAction') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in handoffs.items" :key="row.id" class="border-t border-[var(--n-border-color)]">
+            <td class="py-1 pr-3 whitespace-nowrap">{{ formatTime(row.created_at) }}</td>
+            <td class="py-1 pr-3">{{ row.reason }}</td>
+            <td class="py-1 pr-3 max-w-280px truncate" :title="row.message">{{ row.message || '—' }}</td>
+            <td class="py-1 pr-3 font-mono">{{ shortId(row.conversation_id) }}</td>
+            <td class="py-1 pr-3">
+              <NTag size="tiny" :type="handoffTagType(row.status)">{{ row.status }}</NTag>
+              <span v-if="row.handled_at" class="ml-2 text-[var(--n-text-color-3)]">
+                {{ formatTime(row.handled_at) }}
+              </span>
+            </td>
+            <td class="py-1">
+              <NSpace v-if="row.status === 'pending'" :size="6">
+                <NButton
+                  size="tiny"
+                  type="primary"
+                  :loading="resolving === row.id"
+                  @click="resolveHandoff(row, 'resolved')"
+                >
+                  {{ t('page.modelManagement.handoffResolve') }}
+                </NButton>
+                <NButton size="tiny" quaternary :loading="resolving === row.id" @click="resolveHandoff(row, 'ignored')">
+                  {{ t('page.modelManagement.handoffIgnore') }}
+                </NButton>
+              </NSpace>
+              <span v-else class="text-[var(--n-text-color-3)]">{{ row.note || '—' }}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <NEmpty v-else size="small" :description="t('page.modelManagement.handoffEmpty')" />
     </NCard>
 
     <NDrawer v-model:show="drawer.show" placement="right" :width="620" resizable :min-width="460" :max-width="900">

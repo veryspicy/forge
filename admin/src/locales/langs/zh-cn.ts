@@ -1014,7 +1014,26 @@ const local: App.I18n.Schema = {
       importConfirm: '导入',
       importEmpty: '未解析出可用的供应商配置',
       imported: '已导入 {count} 个供应商',
-      importFailed: '导入失败'
+      importFailed: '导入失败',
+      refresh: '刷新',
+      trendTitle: '客服用量趋势',
+      trendDays: '{days} 天',
+      trendQuotaHits: '额度耗尽',
+      trendEmpty: '暂无用量记录',
+      handoffTitle: '转人工工单',
+      handoffPending: '待处理',
+      handoffResolved: '已接管',
+      handoffIgnored: '已忽略',
+      handoffAll: '全部',
+      handoffCreatedAt: '提交时间',
+      handoffReason: '原因',
+      handoffMessage: '用户消息',
+      handoffConversation: '会话',
+      handoffAction: '操作',
+      handoffResolve: '标记已接管',
+      handoffIgnore: '忽略',
+      handoffHandled: '工单状态已更新',
+      handoffEmpty: '暂无工单'
     },
     login: {
       common: {
