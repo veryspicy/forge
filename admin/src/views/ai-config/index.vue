@@ -59,6 +59,10 @@ interface ProviderView {
   model: string;
   temperature: number;
   max_tokens: number;
+  weight: number;
+  priority: number;
+  daily_request_limit: number;
+  daily_token_limit: number;
   models: ProviderModel[];
   upstreams: ProviderUpstream[];
   created_at?: string;
@@ -132,6 +136,10 @@ const form = reactive({
   model: '',
   temperature: 0.7,
   max_tokens: 1024,
+  weight: 1,
+  priority: 100,
+  daily_request_limit: 0,
+  daily_token_limit: 0,
   enabled: true,
   models: [] as ProviderModel[],
   upstreams: [] as ProviderUpstream[]
@@ -187,11 +195,38 @@ function applyStore(data: StoreView) {
   store.updated_by = data.updated_by ?? null;
 }
 
+interface UsageRow {
+  provider_id: string;
+  provider_name: string;
+  requests_today: number;
+  tokens_today: number;
+  failures_today: number;
+  quota_hits_today: number;
+  daily_request_limit: number;
+  daily_token_limit: number;
+  requests_remaining: number | null;
+  tokens_remaining: number | null;
+  quota_exhausted: boolean;
+  cooling_down: boolean;
+}
+
+const OPS_BASE = '/api/admin/v1/ai-ops';
+const usage = reactive<{ usage_date: string; items: UsageRow[] }>({ usage_date: '', items: [] });
+
+/** 客服额度总览：谁还有余量、谁当日超额、谁在冷却（对应后端 /ai-ops/usage）。 */
+async function loadUsage() {
+  const data = unwrap<{ usage_date: string; items: UsageRow[] }>(await get(`${OPS_BASE}/usage`));
+  if (!data) return;
+  usage.usage_date = data.usage_date ?? '';
+  usage.items = data.items ?? [];
+}
+
 async function loadStore() {
   loading.value = true;
   const data = unwrap<StoreView>(await get<StoreView>(`${BASE}/providers`));
   if (data) applyStore(data);
   loading.value = false;
+  void loadUsage();
 }
 
 /** 变更类请求：失败返回 null（错误提示由请求层统一弹出），成功后写回本地状态。 */
@@ -275,6 +310,10 @@ function openCreate() {
   form.model = '';
   form.temperature = 0.7;
   form.max_tokens = 1024;
+  form.weight = 1;
+  form.priority = 100;
+  form.daily_request_limit = 0;
+  form.daily_token_limit = 0;
   form.enabled = true;
   form.models = [];
   form.upstreams = [];
@@ -294,6 +333,10 @@ function openEdit(item: ProviderView) {
   form.model = item.model ?? '';
   form.temperature = item.temperature ?? 0.7;
   form.max_tokens = item.max_tokens ?? 1024;
+  form.weight = item.weight ?? 1;
+  form.priority = item.priority ?? 100;
+  form.daily_request_limit = item.daily_request_limit ?? 0;
+  form.daily_token_limit = item.daily_token_limit ?? 0;
   form.enabled = item.enabled ?? true;
   form.models = (item.models ?? []).map(model => ({
     id: model.id,
@@ -349,6 +392,10 @@ function buildPayload() {
     model: form.model,
     temperature: form.temperature,
     max_tokens: form.max_tokens,
+    weight: form.weight,
+    priority: form.priority,
+    daily_request_limit: form.daily_request_limit,
+    daily_token_limit: form.daily_token_limit,
     enabled: form.enabled,
     models: form.models
       .filter(model => model.id.trim())
@@ -597,6 +644,51 @@ onMounted(loadStore);
       </NCard>
     </VueDraggable>
 
+    <NCard v-if="usage.items.length" class="mt-4" size="small" :title="t('page.modelManagement.quotaTitle')">
+      <template #header-extra>
+        <span class="text-xs text-[var(--n-text-color-3)]">
+          {{ t('page.modelManagement.quotaDate', { date: usage.usage_date }) }}
+        </span>
+      </template>
+      <table class="w-full text-left text-xs">
+        <thead class="text-[var(--n-text-color-3)]">
+          <tr>
+            <th class="py-1 pr-3">{{ t('page.modelManagement.providerName') }}</th>
+            <th class="py-1 pr-3">{{ t('page.modelManagement.quotaRequests') }}</th>
+            <th class="py-1 pr-3">{{ t('page.modelManagement.quotaTokens') }}</th>
+            <th class="py-1 pr-3">{{ t('page.modelManagement.quotaRemaining') }}</th>
+            <th class="py-1 pr-3">{{ t('page.modelManagement.quotaFailures') }}</th>
+            <th class="py-1">{{ t('page.modelManagement.quotaState') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in usage.items" :key="row.provider_id" class="border-t border-[var(--n-border-color)]">
+            <td class="py-1 pr-3">{{ row.provider_name || row.provider_id }}</td>
+            <td class="py-1 pr-3">
+              {{ row.requests_today }}{{ row.daily_request_limit > 0 ? ` / ${row.daily_request_limit}` : '' }}
+            </td>
+            <td class="py-1 pr-3">
+              {{ row.tokens_today }}{{ row.daily_token_limit > 0 ? ` / ${row.daily_token_limit}` : '' }}
+            </td>
+            <td class="py-1 pr-3">
+              {{ row.requests_remaining === null ? '∞' : row.requests_remaining }} req ·
+              {{ row.tokens_remaining === null ? '∞' : row.tokens_remaining }} tok
+            </td>
+            <td class="py-1 pr-3">{{ row.failures_today }}</td>
+            <td class="py-1">
+              <NTag v-if="row.quota_exhausted" size="tiny" type="error">
+                {{ t('page.modelManagement.quotaExhausted') }}
+              </NTag>
+              <NTag v-else-if="row.cooling_down" size="tiny" type="warning">
+                {{ t('page.modelManagement.quotaCooling') }}
+              </NTag>
+              <NTag v-else size="tiny" type="success">{{ t('page.modelManagement.quotaHealthy') }}</NTag>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </NCard>
+
     <NDrawer v-model:show="drawer.show" placement="right" :width="620" resizable :min-width="460" :max-width="900">
       <NDrawerContent
         :title="
@@ -703,6 +795,21 @@ onMounted(loadStore);
               <NButton size="small" dashed @click="addUpstream">{{ t('page.modelManagement.addUpstream') }}</NButton>
             </div>
           </NFormItem>
+
+          <div class="grid grid-cols-1 gap-x-3 md:grid-cols-2">
+            <NFormItem :label="t('page.modelManagement.weight')">
+              <NInputNumber v-model:value="form.weight" :min="1" :max="100" style="width: 100%" />
+            </NFormItem>
+            <NFormItem :label="t('page.modelManagement.priority')">
+              <NInputNumber v-model:value="form.priority" :min="0" :max="1000" style="width: 100%" />
+            </NFormItem>
+            <NFormItem :label="t('page.modelManagement.dailyRequestLimit')">
+              <NInputNumber v-model:value="form.daily_request_limit" :min="0" style="width: 100%" />
+            </NFormItem>
+            <NFormItem :label="t('page.modelManagement.dailyTokenLimit')">
+              <NInputNumber v-model:value="form.daily_token_limit" :min="0" style="width: 100%" />
+            </NFormItem>
+          </div>
 
           <NFormItem :label="t('page.modelManagement.enabledLabel')">
             <NSwitch v-model:value="form.enabled" />

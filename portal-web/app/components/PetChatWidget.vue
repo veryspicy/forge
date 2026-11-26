@@ -1,5 +1,5 @@
 ﻿<template>
-  <div class="fixed bottom-4 end-4 z-40">
+  <div v-if="!hidden" class="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] end-4 z-40">
     <!-- Toggle Button -->
     <button
       class="w-14 h-14 rounded-full bg-accent-600 text-white shadow-lg hover:bg-accent-500 transition flex items-center justify-center"
@@ -17,7 +17,7 @@
     <Transition name="widget">
       <div
         v-if="open"
-        class="absolute bottom-16 end-0 w-80 bg-white dark:bg-stone-900 rounded-2xl shadow-2xl border overflow-hidden"
+        class="absolute bottom-16 end-0 w-[min(20rem,calc(100vw-2rem))] bg-white dark:bg-stone-900 rounded-2xl shadow-2xl border overflow-hidden"
       >
         <!-- Header -->
         <div class="bg-accent-600 text-white px-4 py-3 flex items-center justify-between">
@@ -79,8 +79,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { emptyStateIcon } from '~/utils/iconSvgs'
+
+const route = useRoute()
+// 聊天页本身已提供完整对话界面，浮窗会遮挡底部输入区，故隐藏
+const hidden = computed(() => /\/chat\/?$/.test(route.path))
 
 const open = ref(false)
 const input = ref('')

@@ -18,8 +18,18 @@ export function useApi() {
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
+  /** 游客标识：AI 会话按访客归并，登录后由后端认领到账号 */
+  function getGuestHeaders(): Record<string, string> {
+    const guestKey = useGuestKey();
+    return guestKey ? { "X-Guest-Key": guestKey } : {};
+  }
+
   async function authFetch<T = any>(url: string, opts: any = {}): Promise<T> {
-    const headers = { ...getAuthHeaders(), ...(opts.headers || {}) };
+    const headers = {
+      ...getAuthHeaders(),
+      ...(url.includes("/ai/") ? getGuestHeaders() : {}),
+      ...(opts.headers || {}),
+    };
     try {
       return (await $fetch(url, { ...opts, headers })) as T;
     } catch (err: any) {
@@ -222,6 +232,10 @@ export function useApi() {
     return authFetch(`${API_BASE}/ai/conversations`);
   };
 
+  const fetchConversation = async (id: string) => {
+    return authFetch(`${API_BASE}/ai/conversations/${id}`);
+  };
+
   const deleteConversation = async (id: string) => {
     return authFetch(`${API_BASE}/ai/conversations/${id}`, {
       method: "DELETE",
@@ -350,6 +364,7 @@ export function useApi() {
     fetchPetRecommendations,
     fetchContent,
     fetchConversations,
+    fetchConversation,
     deleteConversation,
     fetchCart,
     addToCart,

@@ -38,6 +38,7 @@ def _safe_include(module_name: str, prefix: str = "", tags: list[str] | None = N
 
 # --- Auth (independent from C-end) ---
 _safe_include("auth", prefix="/auth", tags=["Admin - Auth"])
+_safe_include("ai_ops", prefix="/ai-ops", tags=["Admin - AI Ops"])
 
 # --- Dynamic Routes (role-based menu filtering) ---
 _safe_include("routes", prefix="/route", tags=["Admin - Routes"])
