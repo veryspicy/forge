@@ -1024,7 +1024,26 @@ const local: App.I18n.Schema = {
       importConfirm: 'Import',
       importEmpty: 'No usable provider config parsed',
       imported: 'Imported {count} providers',
-      importFailed: 'Import failed'
+      importFailed: 'Import failed',
+      refresh: 'Refresh',
+      trendTitle: 'Support usage trend',
+      trendDays: '{days} days',
+      trendQuotaHits: 'Quota hits',
+      trendEmpty: 'No usage records yet',
+      handoffTitle: 'Human handoff tickets',
+      handoffPending: 'Pending',
+      handoffResolved: 'Resolved',
+      handoffIgnored: 'Ignored',
+      handoffAll: 'All',
+      handoffCreatedAt: 'Submitted at',
+      handoffReason: 'Reason',
+      handoffMessage: 'User message',
+      handoffConversation: 'Conversation',
+      handoffAction: 'Actions',
+      handoffResolve: 'Mark resolved',
+      handoffIgnore: 'Ignore',
+      handoffHandled: 'Ticket status updated',
+      handoffEmpty: 'No tickets'
     },
     login: {
       common: {
